@@ -1,0 +1,53 @@
+/* navbar.css */
+.navbar {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 10px 0;
+    background:'#26abff';
+}
+
+.navbar-nav {
+    display: flex;
+    justify-content: center; /* Center the navigation items */
+    align-items: center;
+    gap: 20px; /* Space between icons */
+}
+
+.nav-link {
+    padding: 0.5rem 1rem;
+    transition: color 0.3s ease;
+}
+
+.bi-power {
+  fill: black !important; /* Ensure the icon is black */
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Right-align the user info */
+}
+
+.text-muted {
+    font-size: 0.85rem; /* Smaller text for date and time */
+    line-height: 1.2; /* Adjust line spacing */
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.menuicon{
+    width: 35px;
+}
+
+.Logout-nav-link{
+    color: black;
+    text-align: end;
+}
+
+
