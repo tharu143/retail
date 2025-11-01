@@ -420,6 +420,10 @@ function Home() {
     }
   };
 
+  const closingEntry = () =>{
+    navigate('/closingentry')
+  }
+
   if (loadingItems) {
     return (
       <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -674,38 +678,41 @@ function Home() {
                 <span>Grand Total</span><span><strong>AED</strong> {grandTotal.toFixed(2)}</span>
               </div>
             </div>
+            <div className='container-fluid'>
+              <div className='row'>
+                <div className='col-12' >
+                  <div className='col-6' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%',gap:'5px' }}>
+                    <button className="home-bill-discount-btn" onClick={() => setShowDiscountModal(true)}>
+                      {discount.value > 0 ? `Edit Discount (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}
+                    </button>
 
-            {/* Discount Button (unchanged) */}
-            <button className="home-bill-discount-btn" onClick={() => setShowDiscountModal(true)}>
-              {discount.value > 0 ? `Edit Discount (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}
-            </button>
-
-            {/* Checkout Button - New */}
-            {grandTotal > 0 && (
-              <button className="home-bill-pay-btn" onClick={handleCheckout}>
-                <DollarSign size={18} /> Pay AED {grandTotal.toFixed(2)}
-              </button>
-            )}
-
-            {/* Clear Bill (unchanged) */}
-            {billItems.length > 0 && (
-              <button className="home-bill-clear-btn" onClick={() => { 
-                setBillItems([]); 
-                setDiscount({ type: 'amount', value: 0 }); 
-                setApplyTax(false); 
-              }}>
-                Clear Bill
-              </button>
-            )}
-
-            {/* Logout (unchanged) */}
-            <button className="home-bill-clear-btn" onClick={handleLogout} style={{ marginTop: '10px', backgroundColor: '#dc3545' }}>
-              Logout
-            </button>
+                    {grandTotal > 0 && (
+                      <button className="home-bill-pay-btn" onClick={handleCheckout}>
+                        Pay
+                      </button>
+                    )}
+                  </div>
+                  <div className='col-6' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%',gap:'5px', marginTop:'2px'}}>
+                    {billItems.length > 0 && (
+                      <button className="home-bill-clear-btn" onClick={() => {
+                        setBillItems([]);
+                        setDiscount({ type: 'amount', value: 0 });
+                        setApplyTax(false);
+                      }}>
+                        Clear Bill
+                      </button>
+                    )}
+                    <button className="home-bill-clear-btn" onClick={closingEntry} style={{ backgroundColor: '#212529' ,marginTop:'2px' }}>
+                      Closing
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* DISCOUNT MODAL (unchanged) */}
+
         {showDiscountModal && (
           <div className="home-modal-overlay" onClick={() => setShowDiscountModal(false)}>
             <div className="home-modal" onClick={e => e.stopPropagation()}>
@@ -826,7 +833,7 @@ function Home() {
                         {billItems.map(item => (
                           <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0' }}>
                             <span>{item.name} x {item.qty}</span>
-                            <span>AED { (item.price * item.qty).toFixed(2) }</span>
+                            <span>AED {(item.price * item.qty).toFixed(2)}</span>
                           </li>
                         ))}
                       </ul>
@@ -865,9 +872,9 @@ function Home() {
               </div>
               <div className="home-modal-footer">
                 <button className="home-modal-cancel" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); }}>Cancel</button>
-                <button 
-                  className="home-modal-apply" 
-                  onClick={completePayment} 
+                <button
+                  className="home-modal-apply"
+                  onClick={completePayment}
                   disabled={paymentLoading || (selectedPaymentMode === 'Cash' && tenderedAmount < grandTotal)}
                 >
                   {paymentLoading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}

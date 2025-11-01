@@ -60,6 +60,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
+  margin-top: 5px;
 }
 
 /* Category Buttons */
@@ -69,8 +70,8 @@
   padding: 0 1.25rem;
   border-radius: 12px;
   border: 2px solid #e2e8f0;
-  background: #ffffff;
-  color: #334155;
+  background: #334155;
+  color: #ffffff;
   font-size: 15px;
   font-weight: 600;
   text-transform: capitalize;
@@ -83,16 +84,16 @@
 }
 
 .home-category-btn:hover {
-  background: #212529;
-  color: #ffffff;
+  background: #ffffff;
+  color: #334155;
   border-color: #1b2127;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(6, 18, 43, 0.3);
 }
 
 .home-category-btn-active {
-  background: #ffffff;
-  color: #212529;
+  background: #334155;
+  color: #ffffff;
   border-color: #d4d4d4;
   box-shadow: 0 4px 12px rgba(30, 64, 175, 0.4);
 }
@@ -630,7 +631,7 @@
 .home-bill-discount-btn {
   width: 100%;
   padding: 1rem;
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  background: #51565c;
   color: #ffffff;
   border: none;
   border-radius: 12px;
@@ -638,12 +639,12 @@
   font-size: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+ 
 }
 
 .home-bill-discount-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 6px 16px rgba(50, 52, 56, 0.4);
 }
 
 .home-bill-discount-btn:active {
@@ -654,7 +655,7 @@
 .home-bill-clear-btn {
   width: 100%;
   padding: 1rem;
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  background: #212529;
   color: #ffffff;
   border: none;
   border-radius: 12px;
@@ -662,12 +663,12 @@
   font-size: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 4px 12px #212529;
 }
 
 .home-bill-clear-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
+  box-shadow: 0 6px 16px rgba(70, 64, 56, 0.4);
 }
 
 .home-bill-clear-btn:active {
@@ -904,7 +905,7 @@
 .home-bill-pay-btn {
   width: 100%;
   padding: 1rem;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #51565c;
   color: #ffffff;
   border: none;
   border-radius: 12px;
@@ -912,7 +913,6 @@
   font-size: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;

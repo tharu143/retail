@@ -129,7 +129,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
     };
 
     return (
-        <div className="opening-entry-container">
+        <div className="opening-entry-container container">
             <h2 className="text-center my-4">Create POS Opening Entry</h2>
             <div className="row">
                 <div className="col-lg-12">
