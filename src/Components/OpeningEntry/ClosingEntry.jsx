@@ -42,67 +42,94 @@ function ClosingEntry() {
   }, [userData]);
 
   // Fetch POS Opening Entries using session auth
-  useEffect(() => {
-    const fetchOpeningEntries = async () => {
-      try {
-        setLoading(true);
-        const session = getSession();
-        const response = await fetch('/api/resource/POS Opening Entry?filters=[["docstatus","=",1]]&fields=["name","period_start_date","pos_profile","company","user"]', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session ? { 'X-Frappe-SID': session } : {}),
-          },
-          credentials: 'include', // Include cookies for session
-        });
-        if (!response.ok) throw new Error(`Failed to fetch POS Opening Entries: ${response.status}`);
-        const data = await response.json();
-        console.log('Opening Entries Response:', data);
-        setOpeningEntries(data.data || []);
-        setLoading(false);
-      } catch (err) {
-        setError(`Failed to load POS Opening Entries: ${err.message}`);
-        setLoading(false);
-      }
-    };
-    fetchOpeningEntries();
-  }, []);
-
-  // Fetch POS Opening Entries using whitelisted method
-useEffect(() => {
+ useEffect(() => {
   const fetchOpeningEntries = async () => {
     try {
       setLoading(true);
       const session = getSession();
-      const response = await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices_for_closing', {
+      const response = await fetch('/api/resource/POS Opening Entry?filters=[["docstatus","=",1]]&fields=["name","period_start_date","pos_profile","company","user"]', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           ...(session ? { 'X-Frappe-SID': session } : {}),
         },
-        credentials: 'include', // For session cookies
+        credentials: 'include',
       });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
+      if (!response.ok) throw new Error(`Failed to fetch POS Opening Entries: ${response.status}`);
       const data = await response.json();
       console.log('Opening Entries Response:', data);
-
-      if (data.status === 'error') {
-        throw new Error(data.message || 'Failed to fetch opening entries');
-      }
-
       setOpeningEntries(data.data || []);
       setLoading(false);
     } catch (err) {
-      console.error('Fetch Opening Entries Error:', err);
       setError(`Failed to load POS Opening Entries: ${err.message}`);
       setLoading(false);
     }
   };
   fetchOpeningEntries();
-}, []); // Empty dep array, runs once// Fetch POS Opening Entries using whitelisted method
+}, []); // Runs once on mount
+
+// NEW: Fetch invoices when selectedOpeningEntry changes
+useEffect(() => {
+  const fetchInvoicesForClosing = async () => {
+    if (!selectedOpeningEntry || !company) {
+      setInvoicesData(null);
+      setPaymentReconciliation([]);
+      setNoInvoicesMessage('');
+      return; // No selection or company—bail out
+    }
+
+    try {
+      setLoading(true);
+      const session = getSession();
+      // Use POST for safety (Frappe prefers it for methods with args)
+      const response = await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices_for_closing', {
+        method: 'POST', // Switch to POST
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session ? { 'X-Frappe-SID': session } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          pos_opening_entry: selectedOpeningEntry,
+          company: company,
+          // Optional: user_email from userData.email, period_end_date from state
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Invoices for Closing Response:', data);
+
+      if (data.message?.status === 'error') {
+        throw new Error(data.message.message || 'Failed to fetch invoices');
+      }
+
+      const result = data.message?.data;
+      if (result && result.invoices.length > 0) {
+        setInvoicesData(result);
+        setPaymentReconciliation(result.payment_reconciliation || []);
+        setNoInvoicesMessage('');
+      } else {
+        setInvoicesData(null);
+        setPaymentReconciliation([]);
+        setNoInvoicesMessage('No invoices found for the selected opening entry.');
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Fetch Invoices Error:', err);
+      setError(`Failed to load invoices: ${err.message}`);
+      setLoading(false);
+    }
+  };
+
+  fetchInvoicesForClosing();
+}, [selectedOpeningEntry, company]);
+
+  
 useEffect(() => {
   const fetchOpeningEntries = async () => {
     try {
