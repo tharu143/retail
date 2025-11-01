@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, X, Search, UserPlus, Loader2, CreditCard, Smartphone, DollarSign } from 'lucide-react';
-import { logout } from '../../Redux/Slices/UserSlice';
+import { logout } from '../../Redux/Slices/userSlice';
 import NavBar from '../Nav/NavBar';
 import './Home.css';
 

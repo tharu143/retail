@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import './NavBar.css';
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../../Redux/Slices/UserSlice";
+import { logout } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 
 function NavBar() {
