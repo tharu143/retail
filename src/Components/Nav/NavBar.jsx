@@ -56,7 +56,7 @@ function NavBar() {
     <div>
       <nav className="navbar navbar-expand-lg nav-div">
         <div className="container-fluid justify-content-between">
-          <div>
+          <div onClick={() => navigate('/homepage')} className="cursor-pointer">
             <h1 style={{
               color: '21a9ff',
               textShadow: '2px 2px 4px #c0c0c0ff',

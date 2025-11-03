@@ -163,43 +163,58 @@ function Home() {
   };
 
   const createCustomer = async () => {
-    if (!createForm.name) return;
+  if (!createForm.name) return;
 
-    try {
-      const res = await authFetch(
-        'custom_retailpos.custom_retailpos.retail_api.retail.create_customer',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customer_name: createForm.name,
-            phone: createForm.phone || null,
-            address: createForm.address || null,
-            email: createForm.email || null,
-          }),
-        }
-      );
-
-      const result = await res.json();
-
-      if (result.status === 'success') {
-        const newCust = {
-          name: result.customer_id,
+  try {
+    const res = await authFetch(
+      'custom_retailpos.custom_retailpos.retail_api.retail.create_customer',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           customer_name: createForm.name,
-          mobile_no: createForm.phone,
-          primary_address: createForm.address,
-          email_id: createForm.email,
-        };
-        pickCustomer(newCust);
-        setShowCreateModal(false);
-      } else {
-        alert(result.message || 'Failed to create customer');
+          phone: createForm.phone || null,
+          address: createForm.address || null,
+          email: createForm.email || null,
+        }),
       }
-    } catch (e) {
-      console.error(e);
-      alert('Network error while creating customer');
+    );
+
+    const result = await res.json();
+
+    // Extract inner response (handles Frappe's auto-wrapping)
+    const innerResult = result.message || result;
+
+    // Debug: Log the full result to console for troubleshooting
+    console.log('API Result:', result);
+
+    if (innerResult.status === 'success') {
+      // Show success message (optional: customize or use a toast instead of alert)
+      alert(innerResult.message || 'Customer created successfully!');
+
+      const newCust = {
+        name: innerResult.customer_id,
+        customer_name: createForm.name,
+        mobile_no: createForm.phone,
+        primary_address: createForm.address,
+        email_id: createForm.email,
+      };
+      pickCustomer(newCust);
+      setShowCreateModal(false);
+    } else {
+      // Handle error message safely (in case it's an object, e.g., validation dict)
+      let errorMsg = innerResult.message || 'Failed to create customer';
+      if (typeof errorMsg === 'object') {
+        // Extract first error or stringify for multi-field validation errors
+        errorMsg = Object.values(errorMsg)[0]?.[0] || JSON.stringify(errorMsg, null, 2);
+      }
+      alert(errorMsg);
     }
-  };
+  } catch (e) {
+    console.error(e);
+    alert('Network error while creating customer');
+  }
+};
 
   // Fetch items (unchanged)
   useEffect(() => {
@@ -702,7 +717,7 @@ function Home() {
                         Clear Bill
                       </button>
                     )}
-                    <button className="home-bill-clear-btn" onClick={closingEntry} style={{ backgroundColor: '#212529' ,marginTop:'2px' }}>
+                    <button className="home-bill-clear-btn" onClick={closingEntry} style={{ backgroundColor: '#26abff' ,marginTop:'2px' }}>
                       Closing
                     </button>
                   </div>

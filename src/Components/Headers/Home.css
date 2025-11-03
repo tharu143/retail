@@ -70,8 +70,8 @@
   padding: 0 1.25rem;
   border-radius: 12px;
   border: 2px solid #e2e8f0;
-  background: #334155;
-  color: #ffffff;
+  background: #eef6ff;
+  color: #1e1f1f;
   font-size: 15px;
   font-weight: 600;
   text-transform: capitalize;
@@ -86,16 +86,16 @@
 .home-category-btn:hover {
   background: #ffffff;
   color: #334155;
-  border-color: #1b2127;
+  border-color: #eef6ff;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(6, 18, 43, 0.3);
 }
 
 .home-category-btn-active {
-  background: #334155;
+  background: #26abff;
   color: #ffffff;
-  border-color: #d4d4d4;
-  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.4);
+  border-color: #eef6ff;
+  box-shadow: 0 4px 12px rgba(124, 135, 170, 0.4);
 }
 
 .home-category-text {
@@ -218,6 +218,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
+  background-color: #eef6ff;
 }
 
 .home-item-title {
@@ -655,7 +656,7 @@
 .home-bill-clear-btn {
   width: 100%;
   padding: 1rem;
-  background: #212529;
+  background: #26abff;
   color: #ffffff;
   border: none;
   border-radius: 12px;

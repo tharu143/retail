@@ -489,3 +489,4 @@ function ClosingEntry() {
 }
 
 export default ClosingEntry;
+
