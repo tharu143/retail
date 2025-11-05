@@ -1,14 +1,8 @@
 
-import NavBar from '../Components/Nav/NavBar'
 import OpeningEntry from '../Components/OpeningEntry/OpeningEntry'
 
-function OpeningEntryPage() {
-  return (
-    <>
-      <NavBar/>
-      <OpeningEntry/>
-    </>
-  )
+function OpeningEntryPage({ onOpeningEntrySuccess }) {
+  return <OpeningEntry onOpeningEntrySuccess={onOpeningEntrySuccess} />;
 }
 
 export default OpeningEntryPage

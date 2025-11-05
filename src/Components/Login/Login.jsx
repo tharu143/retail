@@ -19,67 +19,65 @@ function Login() {
     try {
       const response = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login", {
         method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
-        credentials: 'include'  // Ensures cookies (sid) are set
+        credentials: "include"
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+        const err = await response.json();
+        throw new Error(err.message || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("Login Raw API Response:", data);
+      const resp = data.message || data;
 
-      const responseData = data.message || data;
-      const { user, session, pos_profile, company, allowed_item_groups, allowed_customer_groups, filtered_items, filtered_customers } = responseData;
+      const { user, session, pos_profile, company } = resp;
 
-      if (!user) throw new Error("User field missing in API response");
+      // === CHECK FOR OPEN SHIFT ===
+      let existingOpeningEntry = "";
+      try {
+        const openRes = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries", {
+          headers: { "X-Frappe-SID": session },
+          credentials: "include"
+        });
+        if (openRes.ok) {
+          const openData = await openRes.json();
+          const openEntry = openData.message?.data?.[0];
+          if (openEntry && openEntry.status === "Open") {
+            existingOpeningEntry = openEntry.name;
+          }
+        }
+      } catch (ex) {
+        console.warn("Failed to check open shift:", ex);
+      }
 
-      const payload = {
-        user,
-        session,
-        pos_profile,
-        company,
-        message: {
-          allowed_item_groups: allowed_item_groups || [],
-          allowed_customer_groups: allowed_customer_groups || [],
-          filtered_items: filtered_items || [],
-          filtered_customers: filtered_customers || [],
-        },
-      };
-      console.log("Dispatching loginSuccess with payload:", payload);
-
-      dispatch(loginSuccess(payload));
-
-      // Store session (SID) for header fallback
-      localStorage.setItem("session", session || "");
-      localStorage.setItem("user", user || "");
-      localStorage.setItem("pos_profile", pos_profile || "");
-      localStorage.setItem("company", company || "");
-      localStorage.setItem("allowed_item_groups", JSON.stringify(allowed_item_groups || []));
-      localStorage.setItem("allowed_customer_groups", JSON.stringify(allowed_customer_groups || []));
-      localStorage.setItem("filtered_items", JSON.stringify(filtered_items || []));
-      localStorage.setItem("filtered_customers", JSON.stringify(filtered_customers || []));
-
-      // Cookies are auto-set via credentials: 'include'
-      console.log("Session stored in localStorage:", session);  // For debugging like Postman
+      // Store in Redux + localStorage
+      dispatch(loginSuccess({ user, session, pos_profile, company }));
+      localStorage.setItem("session", session);
+      localStorage.setItem("user", user);
+      localStorage.setItem("pos_profile", pos_profile);
+      localStorage.setItem("company", company);
+      localStorage.setItem("posOpeningEntry", existingOpeningEntry); // ← Only if exists
 
       alert("Login Successful!");
-      navigate("/openingentry", { state: { user, pos_profile, company } });
+
+      // === NAVIGATE BASED ON SHIFT ===
+      if (existingOpeningEntry) {
+        localStorage.setItem("posOpeningEntry", existingOpeningEntry);
+        alert("Welcome back! Your shift is still open.");
+        navigate("/homepage");
+      } else {
+        navigate("/homepage"); // ← Home will show modal
+      }
+
     } catch (err) {
       setErrorMessage(err.message);
-      console.error("Login Error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ... (rest of component unchanged, including styles and JSX)
   return (
     <div style={styles.container}>
       <div style={styles.loginBox}>

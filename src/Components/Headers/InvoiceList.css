@@ -1,0 +1,50 @@
+/* Right-align values in paragraphs */
+.value {
+    float: right;
+    text-align: right;
+  }
+  
+  /* Right-align specific table cells */
+  .table-right-align {
+    text-align: right;
+  }
+  
+  /* Ensure paragraph layout is clean */
+  .mb-3 p {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Optional: Adjust table cell padding for better appearance */
+  .table td,
+  .table th {
+    padding: 0.75rem;
+  }
+  
+  /* Optional: Ensure table headers and cells align properly */
+  .table th.table-right-align,
+  .table td.table-right-align {
+    text-align: right;
+  }
+
+
+  .offers-details {
+    border-top: 1px solid #000;
+    padding-top: 10px;
+  }
+  .offers-details p {
+    margin: 5px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .offers-details p strong {
+    text-align: left;
+    flex: 0 0 40%;
+  }
+  .offers-details p .value {
+    text-align: right;
+    flex: 0 0 60%;
+  }

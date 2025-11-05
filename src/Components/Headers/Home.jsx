@@ -3,35 +3,41 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, X, Search, UserPlus, Loader2, CreditCard, Smartphone, DollarSign } from 'lucide-react';
 import { logout } from '../../Redux/Slices/userSlice';
-import NavBar from '../Nav/NavBar';
 import './Home.css';
+import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 
 function Home() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.user);
   const session = useSelector((state) => state.user.session);
-  const company = useSelector((state) => state.user.company); // From Redux
-  const posProfile = useSelector((state) => state.user.posProfile); // From Redux
+  const company = useSelector((state) => state.user.company);
+  const posProfile = useSelector((state) => state.user.posProfile);
   const loading = useSelector((state) => state.user.loading || false);
 
-  // POS Opening Entry from localStorage
   const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
+  const [showOpeningModal, setShowOpeningModal] = useState(false);
 
-  // Redirect if no auth or no opening entry
+  // Redirect if not authenticated
   useEffect(() => {
     if (!user || !session) {
-      navigate('/login');
+      navigate('/');
       return;
     }
+
     if (!posOpeningEntry) {
-      // Redirect to opening entry or show alert - assuming route exists
-      navigate('/opening-entry');
-      return;
+      setShowOpeningModal(true); // Show modal
     }
   }, [user, session, posOpeningEntry, navigate]);
 
-  // Enhanced authFetch: Memoized
+  const handleOpeningSuccess = (entryId) => {
+    localStorage.setItem('posOpeningEntry', entryId);
+    setPosOpeningEntry(entryId);
+    setShowOpeningModal(false);
+    alert("Shift opened successfully!");
+  };
+
+  // Authenticated fetch
   const authFetch = useCallback(async (url, options = {}) => {
     const fullUrl = url.startsWith('http') ? url : `/api/method${url.startsWith('/') ? url : `/${url}`}`;
     const headers = {
@@ -39,25 +45,16 @@ function Home() {
       "Accept": "application/json",
       ...(session ? { "X-Frappe-SID": session } : {}),
     };
-    const config = {
-      ...options,
-      headers,
-      credentials: 'include',
-    };
-    console.log("API Call:", fullUrl, "Session:", session ? 'Present' : 'Missing');
+    const config = { ...options, headers, credentials: 'include' };
     const response = await fetch(fullUrl, config);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("API Error:", errorData);
-      if (errorData._server_messages?.some(msg => msg.message.includes('not permitted') || msg.message.includes('whitelisted'))) {
-        alert("API access denied. Check backend whitelisting or re-login.");
-      }
       throw new Error(errorData.message || `HTTP ${response.status}`);
     }
     return response;
   }, [session]);
 
-  // States for items, categories, etc. (unchanged)
+  // States
   const [Items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [error, setError] = useState("");
@@ -73,18 +70,18 @@ function Home() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    name: '',
-    phone: '',
-    address: '',
-    email: '',
-  });
-  const [applyTax, setApplyTax] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', phone: '', address: '', email: '' });
+
+  // Tax States
+  const [taxTemplates, setTaxTemplates] = useState([]);
+  const [selectedTaxTemplate, setSelectedTaxTemplate] = useState('');
+
+  // Discount
   const [discount, setDiscount] = useState({ type: 'amount', value: 0 });
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
 
-  // New states for checkout
+  // Payment
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
   const [tenderedAmount, setTenderedAmount] = useState(0);
@@ -93,19 +90,69 @@ function Home() {
   const dropdownRef = useRef(null);
   const nameInputRef = useRef(null);
 
-  // Memoized calculations
-  const subtotal = useMemo(() => billItems.reduce((sum, item) => sum + item.price * item.qty, 0), [billItems]);
-  const discountAmount = useMemo(() => discount.type === 'percent' ? (subtotal * discount.value) / 100 : discount.value, [subtotal, discount]);
-  const taxableAmount = useMemo(() => subtotal - discountAmount, [subtotal, discountAmount]);
-  const taxAmount = useMemo(() => applyTax ? taxableAmount * 0.05 : 0, [taxableAmount, applyTax]);
-  const grandTotal = useMemo(() => taxableAmount + taxAmount, [taxableAmount, taxAmount]);
-
-  // Update tendered amount when grandTotal changes
+  // === TAX FETCH ===
   useEffect(() => {
-    setTenderedAmount(grandTotal);
-  }, [grandTotal]);
+    const fetchTaxTemplates = async () => {
+      try {
+        const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_details');
+        const data = await res.json();
+        const templates = data.message || data || [];
+        setTaxTemplates(templates);
+        if (templates.length > 0) {
+          setSelectedTaxTemplate(templates[0].name); // Default to first
+        }
+      } catch (err) {
+        console.error("Failed to fetch tax templates:", err);
+      }
+    };
+    fetchTaxTemplates();
+  }, [authFetch]);
 
-  // Customer search (unchanged)
+// === ROUNDING HELPER ===
+const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+// 1. Subtotal (round item lines)
+const subtotal = useMemo(() => 
+  billItems.reduce((sum, item) => sum + round2(item.price * item.qty), 0)
+, [billItems]);
+
+// 2. Discount amount (round)
+const discountAmount = useMemo(() => {
+  const amt = discount.type === 'percent' 
+    ? (subtotal * discount.value) / 100 
+    : discount.value;
+  return round2(amt);
+}, [subtotal, discount]);
+
+// 3. Taxable = subtotal - discount (DO NOT ROUND)
+const taxableAmountRaw = subtotal - discountAmount;
+
+// 4. Tax rate
+const taxRate = useMemo(() => {
+  const template = taxTemplates.find(t => t.name === selectedTaxTemplate);
+  return template?.sales_tax?.[0]?.rate || 0;
+}, [selectedTaxTemplate, taxTemplates]);
+
+// 5. Tax amount = taxable * rate (DO NOT ROUND)
+const taxAmountRaw = taxableAmountRaw * (taxRate / 100);
+
+// 6. Grand Total = taxable + tax (ROUND ONLY HERE)
+const grandTotal = useMemo(() => 
+  round2(taxableAmountRaw + taxAmountRaw)
+, [taxableAmountRaw, taxAmountRaw]);
+
+// 7. For display: round taxable and tax
+const taxableAmount = round2(taxableAmountRaw);
+const taxAmount = round2(taxAmountRaw);
+
+  // Update tendered amount for cash
+  useEffect(() => {
+    if (selectedPaymentMode === 'Cash') {
+      setTenderedAmount(grandTotal);
+    }
+  }, [grandTotal, selectedPaymentMode]);
+
+  // === CUSTOMER SEARCH ===
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (customerName.trim().length < 2) {
@@ -113,7 +160,6 @@ function Home() {
         setShowDropdown(false);
         return;
       }
-
       setSearchLoading(true);
       try {
         const res = await authFetch(
@@ -122,35 +168,29 @@ function Home() {
         const data = await res.json();
         setSearchResults(Array.isArray(data.message) ? data.message : []);
       } catch (e) {
-        console.error("Search Error:", e);
         setSearchResults([]);
       } finally {
         setSearchLoading(false);
         setShowDropdown(true);
       }
     }, 300);
-
     return () => clearTimeout(timer);
   }, [customerName, authFetch]);
 
-  // Click outside (unchanged)
+  // Click outside dropdown
   useEffect(() => {
     const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Customer handlers (unchanged)
+  // === CUSTOMER HANDLERS ===
   const openCreate = () => {
-    setCreateForm({
-      name: customerName.trim(),
-      phone: phoneNumber,
-      address: '',
-      email: '',
-    });
+    setCreateForm({ name: customerName.trim(), phone: phoneNumber, address: '', email: '' });
     setShowCreateModal(true);
     setShowDropdown(false);
   };
@@ -163,77 +203,47 @@ function Home() {
   };
 
   const createCustomer = async () => {
-  if (!createForm.name) return;
-
-  try {
-    const res = await authFetch(
-      'custom_retailpos.custom_retailpos.retail_api.retail.create_customer',
-      {
+    if (!createForm.name) return;
+    try {
+      const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(createForm),
+      });
+      const result = await res.json();
+      const innerResult = result.message || result;
+
+      if (innerResult.status === 'success') {
+        alert('Customer created!');
+        const newCust = {
+          name: innerResult.customer_id,
           customer_name: createForm.name,
-          phone: createForm.phone || null,
-          address: createForm.address || null,
-          email: createForm.email || null,
-        }),
+          mobile_no: createForm.phone,
+          primary_address: createForm.address,
+          email_id: createForm.email,
+        };
+        pickCustomer(newCust);
+        setShowCreateModal(false);
+      } else {
+        alert(innerResult.message || 'Failed to create customer');
       }
-    );
-
-    const result = await res.json();
-
-    // Extract inner response (handles Frappe's auto-wrapping)
-    const innerResult = result.message || result;
-
-    // Debug: Log the full result to console for troubleshooting
-    console.log('API Result:', result);
-
-    if (innerResult.status === 'success') {
-      // Show success message (optional: customize or use a toast instead of alert)
-      alert(innerResult.message || 'Customer created successfully!');
-
-      const newCust = {
-        name: innerResult.customer_id,
-        customer_name: createForm.name,
-        mobile_no: createForm.phone,
-        primary_address: createForm.address,
-        email_id: createForm.email,
-      };
-      pickCustomer(newCust);
-      setShowCreateModal(false);
-    } else {
-      // Handle error message safely (in case it's an object, e.g., validation dict)
-      let errorMsg = innerResult.message || 'Failed to create customer';
-      if (typeof errorMsg === 'object') {
-        // Extract first error or stringify for multi-field validation errors
-        errorMsg = Object.values(errorMsg)[0]?.[0] || JSON.stringify(errorMsg, null, 2);
-      }
-      alert(errorMsg);
+    } catch (e) {
+      alert('Network error');
     }
-  } catch (e) {
-    console.error(e);
-    alert('Network error while creating customer');
-  }
-};
+  };
 
-  // Fetch items (unchanged)
+  // === FETCH ITEMS ===
   useEffect(() => {
     const fetchItems = async () => {
       if (!session) return;
       try {
         setLoadingItems(true);
         setError("");
-        console.log("Fetching items once...");
-        const response = await authFetch(
-          'custom_retailpos.custom_retailpos.retail_api.retail.get_item_details',
-          { method: "GET" }
-        );
-
+        const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
         const data = await response.json();
         const apiItems = data.message || data;
 
         const baseUrl = 'http://75.119.130.59';
-
         const transformedItems = apiItems.map(item => ({
           id: item.name,
           name: item.item_name,
@@ -244,217 +254,154 @@ function Home() {
         }));
 
         const uniqueGroups = [...new Set(transformedItems.map(item => item.group))];
-        const dynamicCategories = ["all", ...uniqueGroups.sort()];
-        setCategories(dynamicCategories);
+        setCategories(["all", ...uniqueGroups.sort()]);
         setItems(transformedItems);
         setFilteredItems(transformedItems);
       } catch (err) {
-        console.error("Failed to fetch items:", err);
-        setError(err.message || "Failed to load items. Check backend whitelisting or session.");
+        setError(err.message || "Failed to load items.");
       } finally {
         setLoadingItems(false);
       }
     };
-
     fetchItems();
-  }, [authFetch]);
+  }, [authFetch, session]);
 
-  // Filter items (unchanged)
+  // Filter items
   useEffect(() => {
-    if (selectedCategory === "all") {
-      setFilteredItems(Items);
-    } else {
-      const filtered = Items.filter(item => item.group === selectedCategory.toLowerCase());
-      setFilteredItems(filtered);
-    }
+    setFilteredItems(selectedCategory === "all"
+      ? Items
+      : Items.filter(item => item.group === selectedCategory.toLowerCase())
+    );
   }, [selectedCategory, Items]);
 
-  const handleFilter = (category) => setSelectedCategory(category);
+  const handleFilter = (cat) => setSelectedCategory(cat);
 
   const handleAddToBill = (item) => {
     setBillItems(prev => {
       const existing = prev.find(i => i.id === item.id);
-      if (existing) {
-        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
-      }
-      return [...prev, { ...item, qty: 1 }];
+      return existing
+        ? prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i)
+        : [...prev, { ...item, qty: 1 }];
     });
   };
 
   const removeFromBill = (id) => setBillItems(prev => prev.filter(i => i.id !== id));
-
   const updateQuantity = (id, delta) => {
-    setBillItems(prev =>
-      prev.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i)
-    );
+    setBillItems(prev => prev.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
   };
 
+  // Category slider
   const groupCategories = (cats, size) => {
     const groups = [];
-    for (let i = 0; i < cats.length; i += size) {
-      groups.push(cats.slice(i, i + size));
-    }
+    for (let i = 0; i < cats.length; i += size) groups.push(cats.slice(i, i + size));
     return groups;
   };
-
   const groupedCategories = groupCategories(categories, 4);
+  const handlePrevSlide = () => setCurrentSlide(prev => (prev === 0 ? groupedCategories.length - 1 : prev - 1));
+  const handleNextSlide = () => setCurrentSlide(prev => (prev === groupedCategories.length - 1 ? 0 : prev + 1));
 
-  const handlePrevSlide = () => {
-    setCurrentSlide(prev => (prev === 0 ? groupedCategories.length - 1 : prev - 1));
-  };
-
-  const handleNextSlide = () => {
-    setCurrentSlide(prev => (prev === groupedCategories.length - 1 ? 0 : prev + 1));
-  };
-
+  // Discount
   const applyDiscountHandler = () => {
     const value = parseFloat(discountInput) || 0;
-    if (value > 0) setDiscount({ type: discount.type, value });
+    if (value > 0) setDiscount({ ...discount, value });
     setShowDiscountModal(false);
     setDiscountInput("");
   };
 
-  // Checkout handler
+  // Checkout
   const handleCheckout = () => {
-    if (grandTotal <= 0) {
-      alert('No items in bill');
-      return;
-    }
-    if (!posOpeningEntry) {
-      alert('Please open a shift first');
+    if (grandTotal <= 0 || !posOpeningEntry) {
+      alert(grandTotal <= 0 ? 'No items in bill' : 'Open a shift first');
       return;
     }
     setShowPaymentModal(true);
   };
 
-  // Select payment mode
   const selectPaymentMode = (mode) => {
     setSelectedPaymentMode(mode);
     setTenderedAmount(grandTotal);
   };
 
-  // Complete payment
+  // Complete Payment
   const completePayment = async () => {
     if (!selectedPaymentMode) return;
-
-    // Validate tendered for cash
     if (selectedPaymentMode === 'Cash' && tenderedAmount < grandTotal) {
-      alert('Tendered amount must cover the grand total');
+      alert('Tendered amount insufficient');
       return;
     }
 
     setPaymentLoading(true);
     try {
-      const customer = selectedCustomer ? selectedCustomer.customer_name : customerName;
-      if (!customer) {
-        alert('Please select or enter customer name');
+      const customer = selectedCustomer?.customer_name || customerName;
+      if (!customer.trim()) {
+        alert('Enter customer name');
         return;
       }
-
-      const taxRate = applyTax ? 5 : 0;
 
       const payload = {
         customer,
         contact_mobile: phoneNumber,
-        contact_email: '', // Add if needed
+        contact_email: '',
         items: billItems.map(item => ({
           item_code: item.id,
           item_name: item.name,
           quantity: item.qty,
           basePrice: item.price,
-          income_account: 'Sales of I/C - KSPL' // Default, adjust if needed
+          income_account: 'Sales of I/C - KSPL'
         })),
         company,
         pos_profile: posProfile,
         pos_opening_entry: posOpeningEntry,
-        payments: [{
-          mode_of_payment: selectedPaymentMode,
-          amount: grandTotal
-        }],
+        payments: [{ mode_of_payment: selectedPaymentMode, amount: grandTotal }],
         discount_amount: discountAmount,
-        tax_rate: taxRate,
+        tax_template: selectedTaxTemplate,
         posting_date: new Date().toISOString().slice(0, 10),
         currency: 'AED',
-        due_date: new Date().toISOString().slice(0, 10) // Same as posting
+        due_date: new Date().toISOString().slice(0, 10)
       };
 
-      console.log('Creating POS Invoice Payload:', payload);
+      const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-      const res = await authFetch(
-        'custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      let result = await res.json();
-      // Flatten if nested (Frappe often wraps in {message: ...})
+      const result = await res.json();
       const responseData = result.message || result;
 
-      console.log('API Response:', responseData);  // Add for debugging
-
       if (responseData.status === 'success') {
-        alert(`Invoice created successfully: ${responseData.invoice_name}\nGrand Total: AED ${responseData.grand_total?.toFixed(2) || grandTotal.toFixed(2)}`);
-        // Clear bill
+        alert(`Invoice: ${responseData.invoice_name}\nTotal: AED ${grandTotal.toFixed(2)}`);
         setBillItems([]);
         setDiscount({ type: 'amount', value: 0 });
-        setApplyTax(false);
         setCustomerName('');
         setSelectedCustomer(null);
         setPhoneNumber('');
         setSelectedPaymentMode('');
         setTenderedAmount(0);
-        // Optionally print or show invoice details
+        setShowPaymentModal(false);
       } else {
-        console.error('API Error Response:', responseData);
-        alert(`Failed to create invoice: ${responseData.message || 'Unknown error'}`);
+        alert(responseData.message || 'Failed');
       }
     } catch (e) {
-      console.error('Payment Error:', e);
-      alert(`Network error during payment: ${e.message}`);
+      alert('Payment failed: ' + e.message);
     } finally {
       setPaymentLoading(false);
-      setShowPaymentModal(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      await authFetch(
-        'custom_retailpos.custom_retailpos.retail_api.retail.user_logout',
-        { method: "POST" }
-      );
-    } catch (e) {
-      console.error("Logout error:", e);
-    } finally {
-      localStorage.clear();
-      dispatch(logout());
-      navigate('/');
-    }
+      await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.user_logout', { method: "POST" });
+    } catch (e) { }
+    localStorage.clear();
+    dispatch(logout());
+    navigate('/');
   };
 
-  const closingEntry = () =>{
-    navigate('/closingentry')
-  }
+  const closingEntry = () => navigate('/closingentry');
 
-  if (loadingItems) {
-    return (
-      <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <p>Loading items...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'red' }}>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Retry</button>
-      </div>
-    );
-  }
+  if (loadingItems) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
+  if (error) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'red' }}><p>{error}</p><button onClick={() => window.location.reload()}>Retry</button></div>;
 
   const changeDue = tenderedAmount - grandTotal;
 
@@ -462,8 +409,10 @@ function Home() {
     <div className="home-container">
       <div className="home-content">
         <div className="home-layout">
+
+          {/* LEFT: MENU */}
           <div className="home-main-section">
-            {/* CATEGORY SLIDER (unchanged) */}
+            {/* Category Slider */}
             <div className="home-category-sidebar">
               <div className="home-carousel-container">
                 {groupedCategories.length > 1 && (
@@ -473,17 +422,13 @@ function Home() {
                 )}
                 <div className="home-carousel-slides">
                   <div className="home-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
-                    {groupedCategories.map((group, groupIndex) => (
-                      <div key={groupIndex} className="home-category-slide">
+                    {groupedCategories.map((group, i) => (
+                      <div key={i} className="home-category-slide">
                         <div className="home-category-grid">
-                          {group.map((category) => (
-                            <button
-                              key={category}
-                              className={`home-category-btn ${selectedCategory === category ? "home-category-btn-active" : ""}`}
-                              onClick={() => handleFilter(category)}
-                            >
+                          {group.map(cat => (
+                            <button key={cat} className={`home-category-btn ${selectedCategory === cat ? "home-category-btn-active" : ""}`} onClick={() => handleFilter(cat)}>
                               <span className="home-category-text">
-                                {category === "all" ? "All" : category.charAt(0).toUpperCase() + category.slice(1)}
+                                {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
                               </span>
                             </button>
                           ))}
@@ -500,24 +445,17 @@ function Home() {
               </div>
             </div>
 
-            {/* ITEMS GRID (unchanged) */}
+            {/* Items Grid */}
             <div className="home-items-container">
               <div className="home-items-grid">
                 {filteredItems.length === 0 ? (
-                  <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666' }}>
-                    No items in this category
-                  </p>
+                  <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666' }}>No items in this category</p>
                 ) : (
-                  filteredItems.map((item) => (
+                  filteredItems.map(item => (
                     <div key={item.id} className="home-item-wrapper" onClick={() => handleAddToBill(item)}>
                       <div className="home-item-card">
                         <div className="home-item-image-box">
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="home-item-image"
-                            onError={e => e.target.src = "https://via.placeholder.com/300?text=No+Image"}
-                          />
+                          <img src={item.image} alt={item.name} className="home-item-image" onError={e => e.target.src = "https://via.placeholder.com/300?text=No+Image"} />
                         </div>
                         <div className="home-item-body">
                           <h4 className="home-item-title">{item.name}</h4>
@@ -531,121 +469,55 @@ function Home() {
             </div>
           </div>
 
-          {/* BILL SECTION */}
+          {/* RIGHT: BILL */}
           <div className="home-bill-section">
-            <div className="home-bill-header">
-              <h2 className="home-bill-title">Bill</h2>
-            </div>
-            {/* Customer Input (unchanged) */}
+            <div className="home-bill-header"><h2 className="home-bill-title">Bill</h2></div>
+
+            {/* Customer */}
             <div style={{ position: 'relative' }}>
               <input
                 ref={nameInputRef}
                 type="text"
                 placeholder="Customer Name (type to search)"
                 value={customerName}
-                onChange={(e) => {
-                  setCustomerName(e.target.value);
-                  setSelectedCustomer(null);
-                }}
+                onChange={e => { setCustomerName(e.target.value); setSelectedCustomer(null); }}
                 onFocus={() => customerName.trim().length >= 2 && setShowDropdown(true)}
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === 'Enter' && customerName.trim()) {
-                    const existing = searchResults.find(
-                      c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase()
-                    );
-                    if (existing) {
-                      pickCustomer(existing);
-                    } else if (customerName.trim().length >= 2) {
-                      openCreate();
-                    }
+                    const existing = searchResults.find(c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase());
+                    existing ? pickCustomer(existing) : customerName.trim().length >= 2 && openCreate();
                   }
                 }}
                 className="home-customer-input"
                 autoComplete="off"
               />
-              {searchLoading && (
-                <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
-                  <Loader2 size={18} className="animate-spin" />
-                </div>
-              )}
-
+              {searchLoading && <Loader2 size={18} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
               {showDropdown && (
-                <div
-                  ref={dropdownRef}
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    background: '#fff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    maxHeight: '220px',
-                    overflowY: 'auto',
-                    zIndex: 10,
-                    marginTop: '4px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  }}
-                >
+                <div ref={dropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '220px', overflowY: 'auto', zIndex: 10, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                   {searchResults.length === 0 ? (
                     <div style={{ padding: '0.75rem', color: '#64748b', textAlign: 'center' }}>
-                      {customerName.trim().length < 2 ? 'Type at least 2 characters' : 'No customers found'}
+                      {customerName.trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}
                     </div>
                   ) : (
-                    searchResults.map((c) => (
-                      <div
-                        key={c.name}
-                        onClick={() => pickCustomer(c)}
-                        style={{
-                          padding: '0.75rem 1rem',
-                          cursor: 'pointer',
-                          borderBottom: '1px solid #f1f5f9',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{c.customer_name}</div>
-                          {c.mobile_no && <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{c.mobile_no}</div>}
-                        </div>
+                    searchResults.map(c => (
+                      <div key={c.name} onClick={() => pickCustomer(c)} style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}>
+                        <div><div style={{ fontWeight: 600 }}>{c.customer_name}</div>{c.mobile_no && <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{c.mobile_no}</div>}</div>
                         <Search size={16} style={{ color: '#94a3b8' }} />
                       </div>
                     ))
                   )}
                   {searchResults.every(c => c.customer_name.toLowerCase() !== customerName.trim().toLowerCase()) && (
-                    <div
-                      onClick={openCreate}
-                      style={{
-                        padding: '0.75rem 1rem',
-                        cursor: 'pointer',
-                        background: '#eef2ff',
-                        color: '#4338ca',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: "center",
-                        gap: '0.5rem',
-                      }}
-                    >
-                      <UserPlus size={18} />
-                      Create "{customerName.trim()}"
+                    <div onClick={openCreate} style={{ padding: '0.75rem 1rem', cursor: 'pointer', background: '#eef2ff', color: '#4338ca', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <UserPlus size={18} /> Create "{customerName.trim()}"
                     </div>
                   )}
                 </div>
               )}
             </div>
+            <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} className="home-customer-input" />
 
-            <input
-              type="tel"
-              placeholder="Phone Number"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="home-customer-input"
-            />
-
-            {/* Bill Items (unchanged) */}
+            {/* Bill Items */}
             <div className="home-bill-items">
               {billItems.length === 0 ? (
                 <p className="home-bill-empty">No items added yet</p>
@@ -655,17 +527,13 @@ function Home() {
                     <li key={item.id} className="home-bill-item-row">
                       <div className="home-bill-item-info">
                         <span className="home-bill-item-name">{item.name}</span>
-                        <span className="home-bill-item-price">
-                          <strong>AED</strong> {item.price} × {item.qty}
-                        </span>
+                        <span className="home-bill-item-price"><strong>AED</strong> {item.price} × {item.qty}</span>
                       </div>
                       <div className="home-bill-item-actions">
                         <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, -1); }}>-</button>
                         <span className="home-bill-qty">{item.qty}</span>
                         <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, 1); }}>+</button>
-                        <button className="home-bill-remove-btn" onClick={e => { e.stopPropagation(); removeFromBill(item.id); }}>
-                          <X size={14} />
-                        </button>
+                        <button className="home-bill-remove-btn" onClick={e => { e.stopPropagation(); removeFromBill(item.id); }}><X size={14} /></button>
                       </div>
                     </li>
                   ))}
@@ -673,53 +541,50 @@ function Home() {
               )}
             </div>
 
-            {/* Bill Summary (now using memoized values) */}
+            {/* Tax Template Selector */}
+            {taxTemplates.length > 1 && (
+              <div style={{ margin: '0.5rem 0' }}>
+                <select value={selectedTaxTemplate} onChange={e => setSelectedTaxTemplate(e.target.value)} className="home-customer-input" style={{ fontSize: '0.9rem' }}>
+                  {taxTemplates.map(t => (
+                    <option key={t.name} value={t.name}>{t.name} ({t.sales_tax?.[0]?.rate || 0}%)</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Summary */}
             <div className="home-bill-summary">
               <div className="home-bill-summary-row"><span>Subtotal</span><span><strong>AED</strong> {subtotal.toFixed(2)}</span></div>
+              
               {discount.value > 0 && (
                 <div className="home-bill-summary-row home-bill-discount">
-                  <span>Discount {discount.type === 'percent' ? `(${discount.value}%)` : `AED ${discount.value}`}</span>
+                  <span>Discount {discount.type === 'percent' ? `(${discount.value}%)` : ''}</span>
                   <span>-<strong>AED</strong> {discountAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="home-bill-summary-row"><span>Taxable</span><span><strong>AED</strong> {taxableAmount.toFixed(2)}</span></div>
-              <div className="home-bill-summary-row">
-                <label className="home-bill-tax-toggle">
-                  <input type="checkbox" checked={applyTax} onChange={e => setApplyTax(e.target.checked)} /> Tax (5%)
-                </label>
-                <span><strong>AED</strong> {taxAmount.toFixed(2)}</span>
-              </div>
+              <div className="home-bill-summary-row"><span>Tax ({taxRate}%)</span><span><strong>AED</strong> {taxAmount.toFixed(2)}</span></div>
               <div className="home-bill-summary-row home-bill-grand-total">
                 <span>Grand Total</span><span><strong>AED</strong> {grandTotal.toFixed(2)}</span>
               </div>
             </div>
-            <div className='container-fluid'>
-              <div className='row'>
-                <div className='col-12' >
-                  <div className='col-6' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%',gap:'5px' }}>
-                    <button className="home-bill-discount-btn" onClick={() => setShowDiscountModal(true)}>
-                      {discount.value > 0 ? `Edit Discount (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}
-                    </button>
 
-                    {grandTotal > 0 && (
-                      <button className="home-bill-pay-btn" onClick={handleCheckout}>
-                        Pay
-                      </button>
-                    )}
+            {/* Buttons */}
+            <div className="container-fluid">
+              <div className="row">
+                <div className="col-12">
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
+                    <button className="home-bill-discount-btn" onClick={() => setShowDiscountModal(true)}>
+                      {discount.value > 0 ? `Edit (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}
+                    </button>
+                    {grandTotal > 0 && <button className="home-bill-pay-btn" onClick={handleCheckout}>Pay</button>}
                   </div>
-                  <div className='col-6' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%',gap:'5px', marginTop:'2px'}}>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
                     {billItems.length > 0 && (
                       <button className="home-bill-clear-btn" onClick={() => {
-                        setBillItems([]);
-                        setDiscount({ type: 'amount', value: 0 });
-                        setApplyTax(false);
-                      }}>
-                        Clear Bill
-                      </button>
+                        setBillItems([]); setDiscount({ type: 'amount', value: 0 });
+                      }}>Clear Bill</button>
                     )}
-                    <button className="home-bill-clear-btn" onClick={closingEntry} style={{ backgroundColor: '#26abff' ,marginTop:'2px' }}>
-                      Closing
-                    </button>
+                    <button className="home-bill-clear-btn" onClick={closingEntry} style={{ backgroundColor: '#26abff' }}>Closing</button>
                   </div>
                 </div>
               </div>
@@ -824,77 +689,50 @@ function Home() {
               </div>
               <div className="home-modal-body">
                 {!selectedPaymentMode ? (
-                  <div className="payment-modes">
-                    <h4>Select Payment Method</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <button className="payment-mode-btn" onClick={() => selectPaymentMode('Cash')}>
-                        <DollarSign size={24} /> Cash
-                      </button>
-                      <button className="payment-mode-btn" onClick={() => selectPaymentMode('Credit Card')}>
-                        <CreditCard size={24} /> Credit Card
-                      </button>
-                      <button className="payment-mode-btn" onClick={() => selectPaymentMode('UPI')}>
-                        <Smartphone size={24} /> UPI
-                      </button>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <button className="payment-mode-btn" onClick={() => selectPaymentMode('Cash')}><DollarSign size={24} /> Cash</button>
+                    <button className="payment-mode-btn" onClick={() => selectPaymentMode('Credit Card')}><CreditCard size={24} /> Credit Card</button>
+                    <button className="payment-mode-btn" onClick={() => selectPaymentMode('UPI')}><Smartphone size={24} /> UPI</button>
                   </div>
                 ) : selectedPaymentMode === 'Cash' ? (
-                  <div className="cash-payment">
-                    <h4>Cash Payment</h4>
-                    {/* Items Summary */}
-                    <div className="payment-items-summary">
-                      <h5>Items</h5>
-                      <ul style={{ listStyle: 'none', padding: 0, maxHeight: '200px', overflowY: 'auto' }}>
-                        {billItems.map(item => (
-                          <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0' }}>
-                            <span>{item.name} x {item.qty}</span>
-                            <span>AED {(item.price * item.qty).toFixed(2)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    {/* Totals */}
-                    <div className="payment-totals" style={{ margin: '1rem 0' }}>
+                  <div>
+                    <div style={{ margin: '1rem 0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal:</span><span>AED {subtotal.toFixed(2)}</span></div>
-                      {discount.value > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}><span>Discount:</span><span>- AED {discountAmount.toFixed(2)}</span></div>}
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Tax ({applyTax ? '5%' : '0%'}):</span><span>AED {taxAmount.toFixed(2)}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Tax ({taxRate}%):</span><span>AED {taxAmount.toFixed(2)}</span></div>
+                      {discount.value > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}><span>Discount:</span><span>-AED {discountAmount.toFixed(2)}</span></div>}
+                      
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px' }}><span>Grand Total:</span><span>AED {grandTotal.toFixed(2)}</span></div>
                     </div>
-                    {/* Tender Input */}
-                    <div style={{ margin: '1rem 0' }}>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Amount Tendered (AED)</label>
-                      <input
-                        type="number"
-                        value={tenderedAmount}
-                        onChange={(e) => setTenderedAmount(parseFloat(e.target.value) || 0)}
-                        min={grandTotal}
-                        step="0.01"
-                        className="home-discount-input"
-                        placeholder={`Enter amount >= ${grandTotal.toFixed(2)}`}
-                      />
-                    </div>
-                    <div style={{ textAlign: 'center', fontSize: '18px', fontWeight: 'bold', color: changeDue >= 0 ? 'green' : 'red' }}>
+                    <input type="number" value={tenderedAmount} onChange={e => setTenderedAmount(parseFloat(e.target.value) || 0)} placeholder={`>= ${grandTotal.toFixed(2)}`} className="home-discount-input" style={{ width: '100%', marginBottom: '1rem' }} />
+                    <div style={{ textAlign: 'center', fontWeight: 'bold', color: changeDue >= 0 ? 'green' : 'red' }}>
                       Change Due: AED {changeDue.toFixed(2)}
                     </div>
                   </div>
                 ) : (
-                  <div className="simple-payment">
-                    <h4>{selectedPaymentMode} Payment</h4>
-                    <p>Total Amount: AED {grandTotal.toFixed(2)}</p>
-                    <p>Process {selectedPaymentMode} payment for the above amount.</p>
-                  </div>
+                  <p>Process {selectedPaymentMode} payment for AED {grandTotal.toFixed(2)}</p>
                 )}
               </div>
               <div className="home-modal-footer">
                 <button className="home-modal-cancel" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); }}>Cancel</button>
-                <button
-                  className="home-modal-apply"
-                  onClick={completePayment}
-                  disabled={paymentLoading || (selectedPaymentMode === 'Cash' && tenderedAmount < grandTotal)}
-                >
+                <button className="home-modal-apply" onClick={completePayment} disabled={paymentLoading || (selectedPaymentMode === 'Cash' && tenderedAmount < grandTotal)}>
                   {paymentLoading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
                   {paymentLoading ? 'Processing...' : 'Complete Payment'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showOpeningModal && (
+          <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
+            <div className="home-modal" style={{ maxWidth: '1100px', maxHeight: '95vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+              <div className="home-modal-header">
+                <h3>Open POS Shift</h3>
+                <button className="home-modal-close" onClick={handleLogout}>
+                  X
+                </button>
+              </div>
+              <div className="home-modal-body" style={{ padding: 0 }}>
+                <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} />
               </div>
             </div>
           </div>

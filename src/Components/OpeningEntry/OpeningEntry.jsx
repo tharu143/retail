@@ -116,6 +116,16 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                         },
                     });
                 }
+            } if (response.ok && responseData.status === 'success') {
+                const posOpeningEntry = responseData.name;
+
+                if (onOpeningEntrySuccess) {
+                    onOpeningEntrySuccess(posOpeningEntry);
+                } else {
+                    localStorage.setItem('posOpeningEntry', posOpeningEntry);
+                    alert(`POS Opening Entry created: ${posOpeningEntry}`);
+                    navigate('/homepage');
+                }
             } else {
                 const errorMessage = responseData.message || 'Unknown error occurred';
                 alert(`Failed to create POS Opening Entry: ${errorMessage}`);
