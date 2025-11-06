@@ -249,7 +249,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                                 </label>
                                                 <div className="flex gap-2">
                                                     <div className="flex-1 relative">
-                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">₹</span>
+                                                        
                                                         <input
                                                             type="number"
                                                             value={detail.opening_amount}
@@ -257,7 +257,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                                             min="0"
                                                             step="0.01"
                                                             placeholder="0.00"
-                                                            className="w-full pl-8 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
+                                                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
                                                         />
                                                     </div>
                                                     <button
@@ -286,7 +286,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                         <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 mb-8">
                             <div className="flex items-center justify-between text-white">
                                 <span className="text-lg font-semibold">Total Opening Amount</span>
-                                <span className="text-3xl font-bold">₹{totalAmount.toFixed(2)}</span>
+                                <span className="text-3xl font-bold">AED {totalAmount.toFixed(2)}</span>
                             </div>
                         </div>
 
