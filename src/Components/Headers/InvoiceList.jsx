@@ -11,6 +11,7 @@ function InvoiceList() {
     const [filterDate, setFilterDate] = useState("");
     const [filterTime, setFilterTime] = useState("");
     const [filterMobile, setFilterMobile] = useState("");
+    const [filterMode, setFilterMode] = useState("");
     const [selectedInvoice, setSelectedInvoice] = useState(null);
 
     // Get session from Redux or localStorage
@@ -51,7 +52,6 @@ function InvoiceList() {
             const data = await response.json();
 
             if (data.message?.status === "success" && Array.isArray(data.message?.data)) {
-                // <<< MAP HERE >>>
                 const mapped = data.message.data.map((raw) => ({
                     ...raw,
                     customer_details: {
@@ -61,6 +61,8 @@ function InvoiceList() {
                         address: raw.customer_address || "N/A",
                     },
                     pos_invoice_items: raw.items || [],
+                    // Ensure payments is always an array
+                    payments: Array.isArray(raw.payments) ? raw.payments : [],
                 }));
                 setInvoices(mapped);
             } else {
@@ -74,9 +76,8 @@ function InvoiceList() {
         }
     };
 
-
     useEffect(() => {
-        Promise.all([fetchInvoices()]).finally(() => setLoading(false));
+        fetchInvoices();
     }, []);
 
     const filterInvoices = (list) => {
@@ -89,7 +90,19 @@ function InvoiceList() {
                     .toLowerCase()
                     .includes(filterMobile.toLowerCase())
                 : true;
-            return idMatch && dateMatch && timeMatch && mobileMatch;
+
+            // Build searchable string from all payment modes
+            const paymentModes = inv.payments
+                .map((p) => p.mode_of_payment || "")
+                .filter(Boolean)
+                .join(", ")
+                .toLowerCase();
+
+            const modeMatch = filterMode
+                ? paymentModes.includes(filterMode.toLowerCase())
+                : true;
+
+            return idMatch && dateMatch && timeMatch && mobileMatch && modeMatch;
         });
     };
 
@@ -105,12 +118,20 @@ function InvoiceList() {
             return "N/A";
         }
     };
+
     const formatDiscount = (inv) => {
         const pct = parseFloat(inv.additional_discount_percentage) || 0;
         const amt = parseFloat(inv.discount_amount) || 0;
         if (amt) return `AED ${amt.toFixed(2)}`;
         if (pct) return `${pct}%`;
         return "N/A";
+    };
+
+    const getPaymentDisplay = (payments) => {
+        if (!payments || !payments.length) return "N/A";
+        return payments
+            .map((p) => `${p.mode_of_payment} (AED ${p.amount || 0})`)
+            .join(" + ");
     };
 
     const generateInvoiceHTML = (invoice) => {
@@ -198,6 +219,7 @@ function InvoiceList() {
                 <p><strong>Paid Amount:</strong> <span class="value">AED ${invoice.paid_amount || 0}</span></p>
                 <p><strong>Grand Total:</strong> <span class="value">AED ${invoice.grand_total || 0}</span></p>
                 <p><strong>In Words:</strong> <span class="value">${invoice.in_words || "N/A"}</span></p>
+                <p><strong>Mode of Payment:</strong> <span class="value">${getPaymentDisplay(invoice.payments)}</span></p>
               </div>
             </div>
           </div>
@@ -216,7 +238,6 @@ function InvoiceList() {
     `);
         win.document.close();
     };
-
 
     const handleViewDetails = (inv) => setSelectedInvoice(inv);
     const closePopup = () => setSelectedInvoice(null);
@@ -239,6 +260,7 @@ function InvoiceList() {
                             <tr>
                                 <th>Invoice ID</th>
                                 <th>Customer</th>
+                                <th>Payment Mode</th>
                                 <th>Grand Total</th>
                                 <th>Action</th>
                             </tr>
@@ -248,6 +270,12 @@ function InvoiceList() {
                                 <tr key={inv.name}>
                                     <td>{inv.name}</td>
                                     <td>{inv.customer_details?.customer_name || "N/A"}</td>
+                                    <td>
+                                        {(inv.payments || [])
+                                            .map((p) => p.mode_of_payment)
+                                            .filter(Boolean)
+                                            .join(", ") || "N/A"}
+                                    </td>
                                     <td>AED {inv.grand_total || 0}</td>
                                     <td>
                                         <button className="btn btn-sm btn-info" onClick={() => handleViewDetails(inv)}>
@@ -275,7 +303,6 @@ function InvoiceList() {
                             <button type="button" className="btn-close" onClick={closePopup}></button>
                         </div>
                         <div className="modal-body">
-                            {/* Header */}
                             <div className="d-flex align-items-center mb-2">
                                 <img
                                     src="/perfume-logo.png"
@@ -291,7 +318,6 @@ function InvoiceList() {
                             )}
                             <p><strong>Phone:</strong> {selectedInvoice.customer_details?.mobile_no || "N/A"}</p>
 
-                            {/* Items */}
                             <h6 className="mt-3">Items</h6>
                             {selectedInvoice.pos_invoice_items?.length ? (
                                 <div className="table-responsive">
@@ -322,7 +348,6 @@ function InvoiceList() {
                                 <p>No items</p>
                             )}
 
-                            {/* Offers */}
                             {offers.length > 0 && (
                                 <div className="mt-3">
                                     <h6>Special Offers</h6>
@@ -334,7 +359,6 @@ function InvoiceList() {
                                 </div>
                             )}
 
-                            {/* Totals */}
                             <div className="mt-3">
                                 <p><strong>Total Taxes:</strong> AED {selectedInvoice.total_taxes_and_charges || 0}</p>
                                 <p>
@@ -345,6 +369,7 @@ function InvoiceList() {
                                 <p><strong>Paid Amount:</strong> AED {selectedInvoice.paid_amount || 0}</p>
                                 <p><strong>Grand Total:</strong> AED {selectedInvoice.grand_total || 0}</p>
                                 <p><strong>In Words:</strong> {selectedInvoice.in_words || "N/A"}</p>
+                                <p><strong>Mode of Payment:</strong> {getPaymentDisplay(selectedInvoice.payments)}</p>
                             </div>
                         </div>
 
@@ -381,7 +406,6 @@ function InvoiceList() {
 
         return (
             <>
-                {/* FILTERS */}
                 <div className="row mb-4 justify-content-center">
                     <div className="col-md-3">
                         <label className="form-label fw-bold">Invoice ID</label>
@@ -423,9 +447,18 @@ function InvoiceList() {
                             onChange={(e) => setFilterMobile(e.target.value)}
                         />
                     </div>
+                    <div className="col-md-3 mt-2">
+                        <label className="form-label fw-bold">Mode of Payment</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            placeholder="e.g. Cash, Card"
+                            value={filterMode}
+                            onChange={(e) => setFilterMode(e.target.value)}
+                        />
+                    </div>
                 </div>
 
-                {/* THREE COLUMNS */}
                 <div className="row">
                     <div className="col-md-4 px-2">{renderInvoiceTable(part1, "")}</div>
                     <div className="col-md-4 px-2">{renderInvoiceTable(part2, "")}</div>
@@ -445,4 +478,4 @@ function InvoiceList() {
     );
 }
 
-export default InvoiceList
+export default InvoiceList;

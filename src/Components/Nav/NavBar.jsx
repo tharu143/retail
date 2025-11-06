@@ -18,13 +18,12 @@ function NavBar() {
 
   const handleLogout = async () => {
     try {
-      // Use relative URL + credentials for cookie-based logout
       const response = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",  // Sends sid cookie
+        credentials: "include",
       });
 
       const result = await response.json();
@@ -33,7 +32,7 @@ function NavBar() {
       if (response.ok && logoutData.status === "success") {
         dispatch(logout());
         await persistor.purge();
-        localStorage.clear();  // Clear localStorage session too
+        localStorage.clear();
         alert("Logout successful!");
         navigate("/");
       } else {
@@ -41,7 +40,6 @@ function NavBar() {
       }
     } catch (error) {
       console.error("Logout error:", error);
-      // Force clear on error
       dispatch(logout());
       await persistor.purge();
       localStorage.clear();
@@ -58,7 +56,7 @@ function NavBar() {
         <div className="container-fluid justify-content-between">
           <div onClick={() => navigate('/homepage')} className="cursor-pointer">
             <h1 style={{
-              color: '21a9ff',
+              color: '#21a9ff',
               textShadow: '2px 2px 4px #c0c0c0ff',
               fontSize: '2.5rem',
               textAlign: 'center',
@@ -68,13 +66,29 @@ function NavBar() {
               fontFamily: 'Carla Sans'
             }}>Retail POS</h1>
           </div>
-          <div className="user-info ms-auto pe-3">
-            <div className="d-flex align-items-center">
-              <i className="bi bi-power Logout-nav-link cursor-pointer power" style={{ width: "50px", fill: "black" }} onClick={handleLogout} title="Logout"></i>
-              <span className="ms-2 text-black mb-0">{user || "Guest"}</span>
+
+          <div className="d-flex align-items-center gap-3 pe-3">
+            {/* Invoice List Icon */}
+            <i
+              className="bi bi-receipt cursor-pointer"
+              style={{ fontSize: '1.5rem', color: '#21a9ff' }}
+              onClick={() => navigate('/invoicelist')}
+              title="Invoice List"
+            ></i>
+
+            {/* Logout Icon */}
+            <i
+              className="bi bi-power cursor-pointer power"
+              style={{ fontSize: '1.5rem', color: 'black' }}
+              onClick={handleLogout}
+              title="Logout"
+            ></i>
+
+            <div className="text-end">
+              <span className="text-black mb-0 d-block">{user || "Guest"}</span>
+              <small className="d-block text-muted">{formattedDate}</small>
+              <small className="d-block text-muted">{formattedTime}</small>
             </div>
-            <small className="d-block text-muted text-end mt-1">{formattedDate}</small>
-            <small className="d-block text-muted text-end">{formattedTime}</small>
           </div>
         </div>
       </nav>

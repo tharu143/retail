@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, X, Search, UserPlus, Loader2, CreditCard, Smartphone, DollarSign } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight, X, Search, UserPlus,
+  Loader2, CreditCard, Smartphone, DollarSign
+} from 'lucide-react';
 import { logout } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
@@ -18,16 +21,13 @@ function Home() {
   const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
   const [showOpeningModal, setShowOpeningModal] = useState(false);
 
-  // Redirect if not authenticated
+  // ---------- Auth ----------
   useEffect(() => {
     if (!user || !session) {
       navigate('/');
       return;
     }
-
-    if (!posOpeningEntry) {
-      setShowOpeningModal(true); // Show modal
-    }
+    if (!posOpeningEntry) setShowOpeningModal(true);
   }, [user, session, posOpeningEntry, navigate]);
 
   const handleOpeningSuccess = (entryId) => {
@@ -37,7 +37,7 @@ function Home() {
     alert("Shift opened successfully!");
   };
 
-  // Authenticated fetch
+  // ---------- Auth Fetch ----------
   const authFetch = useCallback(async (url, options = {}) => {
     const fullUrl = url.startsWith('http') ? url : `/api/method${url.startsWith('/') ? url : `/${url}`}`;
     const headers = {
@@ -54,7 +54,7 @@ function Home() {
     return response;
   }, [session]);
 
-  // States
+  // ---------- States ----------
   const [Items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [error, setError] = useState("");
@@ -72,7 +72,7 @@ function Home() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', phone: '', address: '', email: '' });
 
-  // Tax States
+  // Tax
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [selectedTaxTemplate, setSelectedTaxTemplate] = useState('');
 
@@ -90,7 +90,49 @@ function Home() {
   const dropdownRef = useRef(null);
   const nameInputRef = useRef(null);
 
-  // === TAX FETCH ===
+  // ---------- Frappe-style rounding ----------
+  const flt = (num, prec = 6) => {
+    const factor = Math.pow(10, prec);
+    return Math.round((num + Number.EPSILON) * factor) / factor;
+  };
+  const round2 = (num) => flt(num, 2);
+
+  // ---------- CALCULATIONS (exact match with Frappe) ----------
+  const subtotal = useMemo(() => 
+    billItems.reduce((sum, item) => sum + flt(item.price * item.qty), 0)
+  , [billItems]);
+
+  const discountAmount = useMemo(() => {
+    if (discount.value <= 0) return 0;
+    const amt = discount.type === 'percent'
+      ? (subtotal * discount.value) / 100
+      : discount.value;
+    return flt(amt);
+  }, [subtotal, discount]);
+
+  const netTotal = useMemo(() => flt(subtotal - discountAmount), [subtotal, discountAmount]);
+
+  const taxRate = useMemo(() => {
+    const tmpl = taxTemplates.find(t => t.name === selectedTaxTemplate);
+    return tmpl?.sales_tax?.[0]?.rate || 0;
+  }, [selectedTaxTemplate, taxTemplates]);
+
+  const taxAmount = useMemo(() => flt(netTotal * (taxRate / 100)), [netTotal, taxRate]);
+
+  const grandTotal = useMemo(() => round2(netTotal + taxAmount), [netTotal, taxAmount]);
+
+  // display values
+  const displaySubtotal = round2(subtotal);
+  const displayDiscount = round2(discountAmount);
+  const displayTaxable = round2(netTotal);
+  const displayTax = round2(taxAmount);
+
+  // ---------- Update tendered amount for Cash ----------
+  useEffect(() => {
+    if (selectedPaymentMode === 'Cash') setTenderedAmount(grandTotal);
+  }, [grandTotal, selectedPaymentMode]);
+
+  // ---------- TAX FETCH ----------
   useEffect(() => {
     const fetchTaxTemplates = async () => {
       try {
@@ -98,67 +140,17 @@ function Home() {
         const data = await res.json();
         const templates = data.message || data || [];
         setTaxTemplates(templates);
-        if (templates.length > 0) {
-          setSelectedTaxTemplate(templates[0].name); // Default to first
-        }
-      } catch (err) {
-        console.error("Failed to fetch tax templates:", err);
-      }
+        if (templates.length) setSelectedTaxTemplate(templates[0].name);
+      } catch (err) { console.error(err); }
     };
     fetchTaxTemplates();
   }, [authFetch]);
 
-// === ROUNDING HELPER ===
-const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
-
-// 1. Subtotal (round item lines)
-const subtotal = useMemo(() => 
-  billItems.reduce((sum, item) => sum + round2(item.price * item.qty), 0)
-, [billItems]);
-
-// 2. Discount amount (round)
-const discountAmount = useMemo(() => {
-  const amt = discount.type === 'percent' 
-    ? (subtotal * discount.value) / 100 
-    : discount.value;
-  return round2(amt);
-}, [subtotal, discount]);
-
-// 3. Taxable = subtotal - discount (DO NOT ROUND)
-const taxableAmountRaw = subtotal - discountAmount;
-
-// 4. Tax rate
-const taxRate = useMemo(() => {
-  const template = taxTemplates.find(t => t.name === selectedTaxTemplate);
-  return template?.sales_tax?.[0]?.rate || 0;
-}, [selectedTaxTemplate, taxTemplates]);
-
-// 5. Tax amount = taxable * rate (DO NOT ROUND)
-const taxAmountRaw = taxableAmountRaw * (taxRate / 100);
-
-// 6. Grand Total = taxable + tax (ROUND ONLY HERE)
-const grandTotal = useMemo(() => 
-  round2(taxableAmountRaw + taxAmountRaw)
-, [taxableAmountRaw, taxAmountRaw]);
-
-// 7. For display: round taxable and tax
-const taxableAmount = round2(taxableAmountRaw);
-const taxAmount = round2(taxAmountRaw);
-
-  // Update tendered amount for cash
-  useEffect(() => {
-    if (selectedPaymentMode === 'Cash') {
-      setTenderedAmount(grandTotal);
-    }
-  }, [grandTotal, selectedPaymentMode]);
-
-  // === CUSTOMER SEARCH ===
+  // ---------- CUSTOMER SEARCH ----------
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (customerName.trim().length < 2) {
-        setSearchResults([]);
-        setShowDropdown(false);
-        return;
+        setSearchResults([]); setShowDropdown(false); return;
       }
       setSearchLoading(true);
       try {
@@ -167,12 +159,8 @@ const taxAmount = round2(taxAmountRaw);
         );
         const data = await res.json();
         setSearchResults(Array.isArray(data.message) ? data.message : []);
-      } catch (e) {
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
-        setShowDropdown(true);
-      }
+      } catch { setSearchResults([]); }
+      finally { setSearchLoading(false); setShowDropdown(true); }
     }, 300);
     return () => clearTimeout(timer);
   }, [customerName, authFetch]);
@@ -180,28 +168,23 @@ const taxAmount = round2(taxAmountRaw);
   // Click outside dropdown
   useEffect(() => {
     const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowDropdown(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // === CUSTOMER HANDLERS ===
+  // ---------- CUSTOMER HANDLERS ----------
   const openCreate = () => {
     setCreateForm({ name: customerName.trim(), phone: phoneNumber, address: '', email: '' });
-    setShowCreateModal(true);
-    setShowDropdown(false);
+    setShowCreateModal(true); setShowDropdown(false);
   };
-
   const pickCustomer = (cust) => {
     setSelectedCustomer(cust);
     setCustomerName(cust.customer_name);
     setPhoneNumber(cust.mobile_no || '');
     setShowDropdown(false);
   };
-
   const createCustomer = async () => {
     if (!createForm.name) return;
     try {
@@ -211,40 +194,32 @@ const taxAmount = round2(taxAmountRaw);
         body: JSON.stringify(createForm),
       });
       const result = await res.json();
-      const innerResult = result.message || result;
-
-      if (innerResult.status === 'success') {
+      const inner = result.message || result;
+      if (inner.status === 'success') {
         alert('Customer created!');
-        const newCust = {
-          name: innerResult.customer_id,
+        pickCustomer({
+          name: inner.customer_id,
           customer_name: createForm.name,
           mobile_no: createForm.phone,
           primary_address: createForm.address,
           email_id: createForm.email,
-        };
-        pickCustomer(newCust);
+        });
         setShowCreateModal(false);
-      } else {
-        alert(innerResult.message || 'Failed to create customer');
-      }
-    } catch (e) {
-      alert('Network error');
-    }
+      } else alert(inner.message || 'Failed');
+    } catch { alert('Network error'); }
   };
 
-  // === FETCH ITEMS ===
+  // ---------- FETCH ITEMS ----------
   useEffect(() => {
     const fetchItems = async () => {
       if (!session) return;
       try {
-        setLoadingItems(true);
-        setError("");
+        setLoadingItems(true); setError("");
         const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
         const data = await response.json();
         const apiItems = data.message || data;
-
         const baseUrl = 'http://75.119.130.59';
-        const transformedItems = apiItems.map(item => ({
+        const transformed = apiItems.map(item => ({
           id: item.name,
           name: item.item_name,
           image: item.image ? `${baseUrl}${item.image}` : 'https://via.placeholder.com/300?text=No+Image',
@@ -252,16 +227,12 @@ const taxAmount = round2(taxAmountRaw);
           price: item.price_list_rate || 0,
           barcodes: item.barcodes || []
         }));
-
-        const uniqueGroups = [...new Set(transformedItems.map(item => item.group))];
-        setCategories(["all", ...uniqueGroups.sort()]);
-        setItems(transformedItems);
-        setFilteredItems(transformedItems);
-      } catch (err) {
-        setError(err.message || "Failed to load items.");
-      } finally {
-        setLoadingItems(false);
-      }
+        const groups = [...new Set(transformed.map(i => i.group))];
+        setCategories(["all", ...groups.sort()]);
+        setItems(transformed);
+        setFilteredItems(transformed);
+      } catch (err) { setError(err.message || "Failed to load items."); }
+      finally { setLoadingItems(false); }
     };
     fetchItems();
   }, [authFetch, session]);
@@ -270,12 +241,11 @@ const taxAmount = round2(taxAmountRaw);
   useEffect(() => {
     setFilteredItems(selectedCategory === "all"
       ? Items
-      : Items.filter(item => item.group === selectedCategory.toLowerCase())
+      : Items.filter(i => i.group === selectedCategory.toLowerCase())
     );
   }, [selectedCategory, Items]);
 
   const handleFilter = (cat) => setSelectedCategory(cat);
-
   const handleAddToBill = (item) => {
     setBillItems(prev => {
       const existing = prev.find(i => i.id === item.id);
@@ -284,7 +254,6 @@ const taxAmount = round2(taxAmountRaw);
         : [...prev, { ...item, qty: 1 }];
     });
   };
-
   const removeFromBill = (id) => setBillItems(prev => prev.filter(i => i.id !== id));
   const updateQuantity = (id, delta) => {
     setBillItems(prev => prev.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
@@ -304,8 +273,7 @@ const taxAmount = round2(taxAmountRaw);
   const applyDiscountHandler = () => {
     const value = parseFloat(discountInput) || 0;
     if (value > 0) setDiscount({ ...discount, value });
-    setShowDiscountModal(false);
-    setDiscountInput("");
+    setShowDiscountModal(false); setDiscountInput("");
   };
 
   // Checkout
@@ -316,27 +284,22 @@ const taxAmount = round2(taxAmountRaw);
     }
     setShowPaymentModal(true);
   };
-
   const selectPaymentMode = (mode) => {
     setSelectedPaymentMode(mode);
     setTenderedAmount(grandTotal);
   };
 
-  // Complete Payment
+  // ---------- COMPLETE PAYMENT ----------
   const completePayment = async () => {
     if (!selectedPaymentMode) return;
     if (selectedPaymentMode === 'Cash' && tenderedAmount < grandTotal) {
-      alert('Tendered amount insufficient');
-      return;
+      alert('Tendered amount insufficient'); return;
     }
 
     setPaymentLoading(true);
     try {
       const customer = selectedCustomer?.customer_name || customerName;
-      if (!customer.trim()) {
-        alert('Enter customer name');
-        return;
-      }
+      if (!customer.trim()) { alert('Enter customer name'); return; }
 
       const payload = {
         customer,
@@ -352,8 +315,12 @@ const taxAmount = round2(taxAmountRaw);
         company,
         pos_profile: posProfile,
         pos_opening_entry: posOpeningEntry,
-        payments: [{ mode_of_payment: selectedPaymentMode, amount: grandTotal }],
+        payments: [{
+          mode_of_payment: selectedPaymentMode,
+          amount: parseFloat(grandTotal.toFixed(2))   // 2 dp
+        }],
         discount_amount: discountAmount,
+        apply_discount_on: "Net Total",                // <-- important
         tax_template: selectedTaxTemplate,
         posting_date: new Date().toISOString().slice(0, 10),
         currency: 'AED',
@@ -365,39 +332,26 @@ const taxAmount = round2(taxAmountRaw);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
       const result = await res.json();
-      const responseData = result.message || result;
+      const data = result.message || result;
 
-      if (responseData.status === 'success') {
-        alert(`Invoice: ${responseData.invoice_name}\nTotal: AED ${grandTotal.toFixed(2)}`);
+      if (data.status === 'success') {
+        alert(`Invoice: ${data.invoice_name}\nTotal: AED ${grandTotal.toFixed(2)}`);
         setBillItems([]);
         setDiscount({ type: 'amount', value: 0 });
-        setCustomerName('');
-        setSelectedCustomer(null);
-        setPhoneNumber('');
-        setSelectedPaymentMode('');
-        setTenderedAmount(0);
+        setCustomerName(''); setSelectedCustomer(null); setPhoneNumber('');
+        setSelectedPaymentMode(''); setTenderedAmount(0);
         setShowPaymentModal(false);
-      } else {
-        alert(responseData.message || 'Failed');
-      }
-    } catch (e) {
-      alert('Payment failed: ' + e.message);
-    } finally {
-      setPaymentLoading(false);
-    }
+      } else alert(data.message || 'Failed');
+    } catch (e) { alert('Payment failed: ' + e.message); }
+    finally { setPaymentLoading(false); }
   };
 
   const handleLogout = async () => {
-    try {
-      await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.user_logout', { method: "POST" });
-    } catch (e) { }
-    localStorage.clear();
-    dispatch(logout());
-    navigate('/');
+    try { await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.user_logout', { method: "POST" }); }
+    catch { }
+    localStorage.clear(); dispatch(logout()); navigate('/');
   };
-
   const closingEntry = () => navigate('/closingentry');
 
   if (loadingItems) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
@@ -405,10 +359,12 @@ const taxAmount = round2(taxAmountRaw);
 
   const changeDue = tenderedAmount - grandTotal;
 
+  // ---------- RENDER ----------
   return (
     <div className="home-container">
       <div className="home-content">
         <div className="home-layout">
+
           {/* LEFT: MENU */}
           <div className="home-main-section">
             {/* Category Slider */}
@@ -553,15 +509,14 @@ const taxAmount = round2(taxAmountRaw);
 
             {/* Summary */}
             <div className="home-bill-summary">
-              <div className="home-bill-summary-row"><span>Subtotal</span><span><strong>AED</strong> {subtotal.toFixed(2)}</span></div>
-              
+              <div className="home-bill-summary-row"><span>Subtotal</span><span><strong>AED</strong> {displaySubtotal.toFixed(2)}</span></div>
               {discount.value > 0 && (
                 <div className="home-bill-summary-row home-bill-discount">
                   <span>Discount {discount.type === 'percent' ? `(${discount.value}%)` : ''}</span>
-                  <span>-<strong>AED</strong> {discountAmount.toFixed(2)}</span>
+                  <span>-<strong>AED</strong> {displayDiscount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="home-bill-summary-row"><span>Tax ({taxRate}%)</span><span><strong>AED</strong> {taxAmount.toFixed(2)}</span></div>
+              <div className="home-bill-summary-row"><span>Tax ({taxRate}%)</span><span><strong>AED</strong> {displayTax.toFixed(2)}</span></div>
               <div className="home-bill-summary-row home-bill-grand-total">
                 <span>Grand Total</span><span><strong>AED</strong> {grandTotal.toFixed(2)}</span>
               </div>
@@ -591,7 +546,7 @@ const taxAmount = round2(taxAmountRaw);
           </div>
         </div>
 
-
+        {/* ---------- MODALS ---------- */}
         {showDiscountModal && (
           <div className="home-modal-overlay" onClick={() => setShowDiscountModal(false)}>
             <div className="home-modal" onClick={e => e.stopPropagation()}>
@@ -622,63 +577,27 @@ const taxAmount = round2(taxAmountRaw);
           </div>
         )}
 
-        {/* CREATE CUSTOMER MODAL (unchanged) */}
         {showCreateModal && (
           <div className="home-modal-overlay" onClick={() => setShowCreateModal(false)}>
-            <div className="home-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
+            <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px' }}>
               <div className="home-modal-header">
                 <h3>Create New Customer</h3>
-                <button className="home-modal-close" onClick={() => setShowCreateModal(false)}>
-                  <X size={20} />
-                </button>
+                <button className="home-modal-close" onClick={() => setShowCreateModal(false)}><X size={20} /></button>
               </div>
               <div className="home-modal-body">
-                <input
-                  type="text"
-                  placeholder="Customer Name *"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                  className="home-customer-input"
-                  style={{ marginBottom: '0.75rem' }}
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone"
-                  value={createForm.phone}
-                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                  className="home-customer-input"
-                  style={{ marginBottom: '0.75rem' }}
-                />
-                <input
-                  type="text"
-                  placeholder="Address (optional)"
-                  value={createForm.address}
-                  onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
-                  className="home-customer-input"
-                  style={{ marginBottom: '0.75rem' }}
-                />
-                <input
-                  type="email"
-                  placeholder="Email (optional)"
-                  value={createForm.email}
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                  className="home-customer-input"
-                  style={{ marginBottom: '0.75rem' }}
-                />
+                <input type="text" placeholder="Customer Name *" value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
+                <input type="tel" placeholder="Phone" value={createForm.phone} onChange={e => setCreateForm({ ...createForm, phone: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
+                <input type="text" placeholder="Address (optional)" value={createForm.address} onChange={e => setCreateForm({ ...createForm, address: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
+                <input type="email" placeholder="Email (optional)" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
               </div>
               <div className="home-modal-footer">
-                <button className="home-modal-cancel" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </button>
-                <button className="home-modal-apply" onClick={createCustomer}>
-                  Create Customer
-                </button>
+                <button className="home-modal-cancel" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                <button className="home-modal-apply" onClick={createCustomer}>Create Customer</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* PAYMENT MODAL - New */}
         {showPaymentModal && (
           <div className="home-modal-overlay" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); }}>
             <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
@@ -696,10 +615,9 @@ const taxAmount = round2(taxAmountRaw);
                 ) : selectedPaymentMode === 'Cash' ? (
                   <div>
                     <div style={{ margin: '1rem 0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal:</span><span>AED {subtotal.toFixed(2)}</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Tax ({taxRate}%):</span><span>AED {taxAmount.toFixed(2)}</span></div>
-                      {discount.value > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}><span>Discount:</span><span>-AED {discountAmount.toFixed(2)}</span></div>}
-                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal:</span><span>AED {displaySubtotal.toFixed(2)}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Tax ({taxRate}%):</span><span>AED {displayTax.toFixed(2)}</span></div>
+                      {discount.value > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}><span>Discount:</span><span>-AED {displayDiscount.toFixed(2)}</span></div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px' }}><span>Grand Total:</span><span>AED {grandTotal.toFixed(2)}</span></div>
                     </div>
                     <input type="number" value={tenderedAmount} onChange={e => setTenderedAmount(parseFloat(e.target.value) || 0)} placeholder={`>= ${grandTotal.toFixed(2)}`} className="home-discount-input" style={{ width: '100%', marginBottom: '1rem' }} />
@@ -721,14 +639,13 @@ const taxAmount = round2(taxAmountRaw);
             </div>
           </div>
         )}
+
         {showOpeningModal && (
           <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
             <div className="home-modal" style={{ maxWidth: '1100px', maxHeight: '95vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
               <div className="home-modal-header">
                 <h3>Open POS Shift</h3>
-                <button className="home-modal-close" onClick={handleLogout}>
-                  X
-                </button>
+                <button className="home-modal-close" onClick={handleLogout}>X</button>
               </div>
               <div className="home-modal-body" style={{ padding: 0 }}>
                 <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} />

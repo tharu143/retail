@@ -128,90 +128,87 @@ function ClosingEntry() {
   const flt = (val) => Math.round((val || 0) * 100) / 100;
 
   const handleSubmit = async (saveAsDraft = false) => {
-    if (!selectedOpeningEntry || !postingDate || !periodEndDate || !company) {
-      alert('Please fill all required fields');
-      return;
-    }
-    if (new Date(periodEndDate) < new Date(postingDate)) {
-      alert('Period End Date cannot be before Posting Date');
-      return;
-    }
-    if (!invoicesData) {
-      alert('No invoice data available');
-      return;
-    }
-    if (paymentReconciliation.some((p) => p.closing_amount === undefined)) {
-      alert('Please enter closing amount for all payment modes');
-      return;
-    }
+  if (!selectedOpeningEntry || !postingDate || !periodEndDate || !company) {
+    alert('Please fill all required fields');
+    return;
+  }
+  if (new Date(periodEndDate) < new Date(postingDate)) {
+    alert('Period End Date cannot be before Posting Date');
+    return;
+  }
+  if (!invoicesData) {
+    alert('No invoice data available');
+    return;
+  }
+  if (paymentReconciliation.some((p) => p.closing_amount === undefined)) {
+    alert('Please enter closing amount for all payment modes');
+    return;
+  }
 
-    const payload = {
-      pos_opening_entry: selectedOpeningEntry,
-      posting_date: postingDate,
-      period_end_date: periodEndDate,
-      pos_transactions: JSON.stringify(invoicesData.pos_transactions),
-      payment_reconciliation: JSON.stringify(paymentReconciliation),
-      taxes: JSON.stringify(invoicesData.taxes),
-      grand_total: flt(invoicesData.grand_total),
-      net_total: flt(invoicesData.net_total),
-      total_quantity: flt(invoicesData.total_quantity),
-      company,
-      save_as_draft: saveAsDraft,
-    };
-
-    try {
-      setLoading(true);
-      setError(null);
-      setSuccessMessage('');
-      const session = getSession();
-      const res = await fetch(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
-          credentials: 'include',
-          body: JSON.stringify(payload),
-        }
-      );
-      const data = await res.json();
-      let apiResponse = data;
-      if (apiResponse.message && typeof apiResponse.message === 'object') {
-        apiResponse = apiResponse.message;
-      }
-      if (!res.ok || apiResponse.status === 'error') {
-        throw new Error(apiResponse.message || 'Failed to create closing entry');
-      }
-
-      const isDraft = saveAsDraft;
-      const name = apiResponse.name || 'Unknown';
-      const total = apiResponse.grand_total || invoicesData.grand_total || 0;
-
-      setSuccessMessage(
-        `POS Closing Entry ${isDraft ? 'saved as draft' : 'submitted'} successfully! Name: ${name}, Total: AED ${total.toFixed(2)}`
-      );
-
-      if (isDraft) {
-        localStorage.removeItem('posOpeningEntry');
-        alert('Draft saved! Logging out...');
-        await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout', {
-          method: 'POST',
-          credentials: 'include',
-        });
-        localStorage.clear();
-        window.location.href = '/';
-        return;
-      }
-
-      setInvoicesData(null);
-      setSelectedOpeningEntry('');
-      setPaymentReconciliation([]);
-      localStorage.removeItem('posOpeningEntry');
-    } catch (err) {
-      setError(`Failed to submit: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+  const payload = {
+    pos_opening_entry: selectedOpeningEntry,
+    posting_date: postingDate,
+    period_end_date: periodEndDate,
+    pos_transactions: JSON.stringify(invoicesData.pos_transactions),
+    payment_reconciliation: JSON.stringify(paymentReconciliation),
+    taxes: JSON.stringify(invoicesData.taxes),
+    grand_total: flt(invoicesData.grand_total),
+    net_total: flt(invoicesData.net_total),
+    total_quantity: flt(invoicesData.total_quantity),
+    company,
+    save_as_draft: saveAsDraft,
   };
+
+  try {
+    setLoading(true);
+    setError(null);
+    setSuccessMessage('');
+
+    const session = getSession();
+    const res = await fetch(
+      '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await res.json();
+    let apiResponse = data;
+    if (apiResponse.message && typeof apiResponse.message === 'object') {
+      apiResponse = apiResponse.message;
+    }
+
+    if (!res.ok || apiResponse.status === 'error') {
+      throw new Error(apiResponse.message || 'Failed to create closing entry');
+    }
+
+    const isDraft = saveAsDraft;
+    const name = apiResponse.name || 'Unknown';
+    const total = apiResponse.grand_total || invoicesData.grand_total || 0;
+
+    setSuccessMessage(
+      `POS Closing Entry ${isDraft ? 'saved as draft' : 'submitted'} successfully! Name: ${name}, Total: AED ${total.toFixed(2)}`
+    );
+
+    alert(`${isDraft ? 'Draft' : 'Closing Entry'} saved! Logging out...`);
+
+    await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    localStorage.clear();
+    window.location.href = '/';
+
+  } catch (err) {
+    setError(`Failed to submit: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading && openingEntries.length === 0) {
     return (
