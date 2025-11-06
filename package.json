@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.9.2",
+    "@tailwindcss/vite": "^4.1.16",
     "dispatch": "^1.0.2",
     "lucide-react": "^0.548.0",
     "react": "^19.1.1",
@@ -19,6 +20,7 @@
     "react-responsive-carousel": "^3.2.23",
     "react-router-dom": "^7.9.4",
     "redux-persist": "^6.0.0",
+    "tailwindcss": "^4.1.16",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

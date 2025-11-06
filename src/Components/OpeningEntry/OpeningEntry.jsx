@@ -1,22 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Calendar, DollarSign, User, Building2, CreditCard, Plus, Trash2, Check, X } from 'lucide-react';
 
 function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: propUser, onOpeningEntrySuccess }) {
     const navigate = useNavigate();
     const location = useLocation();
     const userData = useSelector((state) => state.user);
 
-    // Initialize periodStartDate with current IST date and time for UI
     const getCurrentISTDateTime = () => {
         const now = new Date();
-        // Adjust for IST (UTC+5:30)
-        const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+        const istOffset = 5.5 * 60 * 60 * 1000;
         const istTime = new Date(now.getTime() + istOffset);
-        return istTime.toISOString().slice(0, 16); // Format as YYYY-MM-DDTHH:mm
+        return istTime.toISOString().slice(0, 16);
     };
+
     const [periodStartDate, setPeriodStartDate] = useState(getCurrentISTDateTime());
-    // Initialize postingDate with current IST date and time
     const [postingDate, setPostingDate] = useState(getCurrentISTDateTime());
     const [company, setCompany] = useState(propCompany || '');
     const [user, setUser] = useState(propUser || '');
@@ -25,7 +24,6 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        // Fallback to location.state or Redux/localStorage if props are not provided
         const { user: navUser, pos_profile: navPosProfile, company: navCompany } = location.state || {};
         const reduxUser = userData?.user || localStorage.getItem('user') || '';
         const reduxPosProfile = userData?.posProfile || localStorage.getItem('pos_profile') || '';
@@ -68,10 +66,9 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         }
 
         setLoading(true);
-        // Set period_start_date to live IST date and time at submission
         const livePeriodStartDate = getCurrentISTDateTime();
         const payload = {
-            period_start_date: livePeriodStartDate, // Live IST date and time
+            period_start_date: livePeriodStartDate,
             posting_date: postingDate,
             company,
             user,
@@ -83,14 +80,14 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         console.log('OpeningEntry - Payload:', payload);
 
         try {
-            const session = localStorage.getItem('session') || userData.session; // Get session from localStorage or Redux
+            const session = localStorage.getItem('session') || userData.session;
             const response = await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(session ? { 'X-Frappe-SID': session } : {}), // Use session token as header
+                    ...(session ? { 'X-Frappe-SID': session } : {}),
                 },
-                credentials: 'include', // Include cookies for session
+                credentials: 'include',
                 body: JSON.stringify(payload),
             });
 
@@ -116,7 +113,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                         },
                     });
                 }
-            } if (response.ok && responseData.status === 'success') {
+            } else if (response.ok && responseData.status === 'success') {
                 const posOpeningEntry = responseData.name;
 
                 if (onOpeningEntrySuccess) {
@@ -138,141 +135,185 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         }
     };
 
+    const totalAmount = balanceDetails.reduce((sum, detail) => sum + (parseFloat(detail.opening_amount) || 0), 0);
+
     return (
-        <div className="opening-entry-container container">
-            <h2 className="text-center my-4">Create POS Opening Entry</h2>
-            <div className="row">
-                <div className="col-lg-12">
-                    <div className="row mb-3">
-                        <div className="col-md-4">
-                            <label htmlFor="periodStartDate" className="form-label">Period Start Date and Time</label>
-                            <input
-                                type="datetime-local"
-                                id="periodStartDate"
-                                className="form-control"
-                                value={periodStartDate}
-                                onChange={(e) => setPeriodStartDate(e.target.value)}
-                            />
-                        </div>
-                        <div className="col-md-4">
-                            <label htmlFor="postingDate" className="form-label">Posting Date and Time</label>
-                            <input
-                                type="datetime-local"
-                                id="postingDate"
-                                className="form-control"
-                                value={postingDate}
-                                onChange={(e) => setPostingDate(e.target.value)}
-                            />
-                        </div>
-                        <div className="col-md-4">
-                            <label htmlFor="company" className="form-label">Company</label>
-                            <input
-                                type="text"
-                                id="company"
-                                className="form-control"
-                                value={company}
-                                disabled
-                            />
-                        </div>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4">
+            <div className="max-w-5xl mx-auto">
+                <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-8 py-6">
+                        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                            <DollarSign className="w-8 h-8" />
+                            Create POS Opening Entry
+                        </h1>
+                        <p className="text-slate-200 mt-2">Initialize your point of sale system for the day</p>
                     </div>
 
-                    <div className="row mb-3">
-                        <div className="col-md-6">
-                            <label htmlFor="user" className="form-label">User</label>
-                            <input
-                                type="text"
-                                id="user"
-                                className="form-control"
-                                value={user}
-                                disabled
-                            />
-                        </div>
-                        <div className="col-md-6">
-                            <label htmlFor="posProfile" className="form-label">POS Profile</label>
-                            <input
-                                type="text"
-                                id="posProfile"
-                                className="form-control"
-                                value={posProfile}
-                                disabled
-                            />
-                        </div>
-                    </div>
+                    <div className="p-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <Calendar className="w-4 h-4 text-slate-500" />
+                                    Period Start Date & Time
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={periodStartDate}
+                                    onChange={(e) => setPeriodStartDate(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
+                                />
+                            </div>
 
-                    <div className="table-responsive mb-3">
-                        <table className="table border text-start">
-                            <thead>
-                                <tr>
-                                    <th>Mode of Payment</th>
-                                    <th>Opening Amount</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {balanceDetails.map((detail, index) => (
-                                    <tr key={index}>
-                                        <td>
-                                            <select
-                                                className="form-control"
-                                                value={detail.mode_of_payment}
-                                                onChange={(e) => handleBalanceDetailChange(index, 'mode_of_payment', e.target.value)}
-                                            >
-                                                <option value="">-- Select --</option>
-                                                <option value="Cash">Cash</option>
-                                                <option value="Credit Card">Credit Card</option>
-                                                <option value="UPI">UPI</option>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <input
-                                                type="number"
-                                                className="form-control"
-                                                value={detail.opening_amount}
-                                                onChange={(e) => handleBalanceDetailChange(index, 'opening_amount', e.target.value)}
-                                                min="0"
-                                                step="0.01"
-                                            />
-                                        </td>
-                                        <td>
-                                            <button
-                                                className="btn btn-sm btn-danger"
-                                                onClick={() => handleRemoveBalanceDetail(index)}
-                                                disabled={balanceDetails.length === 1}
-                                            >
-                                                <i className="bi bi-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <button className="btn btn-primary" onClick={handleAddBalanceDetail}>
-                            Add Payment Mode
-                        </button>
-                    </div>
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <Calendar className="w-4 h-4 text-slate-500" />
+                                    Posting Date & Time
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={postingDate}
+                                    onChange={(e) => setPostingDate(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
+                                />
+                            </div>
 
-                    <div className="row">
-                        <div className="col-md-6">
-                            <div className="grand-tot-div">
-                                <span>Total Opening Amount:</span>
-                                <span>
-                                    ₹{balanceDetails.reduce((sum, detail) => sum + (parseFloat(detail.opening_amount) || 0), 0).toFixed(2)}
-                                </span>
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <Building2 className="w-4 h-4 text-slate-500" />
+                                    Company
+                                </label>
+                                <input
+                                    type="text"
+                                    value={company}
+                                    disabled
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-600 cursor-not-allowed"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <User className="w-4 h-4 text-slate-500" />
+                                    User
+                                </label>
+                                <input
+                                    type="text"
+                                    value={user}
+                                    disabled
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-600 cursor-not-allowed"
+                                />
+                            </div>
+
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                    <CreditCard className="w-4 h-4 text-slate-500" />
+                                    POS Profile
+                                </label>
+                                <input
+                                    type="text"
+                                    value={posProfile}
+                                    disabled
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-600 cursor-not-allowed"
+                                />
                             </div>
                         </div>
-                        <div className="col-md-6 text-end">
+
+                        <div className="mb-8">
+                            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <DollarSign className="w-5 h-5" />
+                                Payment Mode Balances
+                            </h2>
+
+                            <div className="bg-slate-50 rounded-xl p-6 space-y-4">
+                                {balanceDetails.map((detail, index) => (
+                                    <div key={index} className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-slate-700">
+                                                    Mode of Payment
+                                                </label>
+                                                <select
+                                                    value={detail.mode_of_payment}
+                                                    onChange={(e) => handleBalanceDetailChange(index, 'mode_of_payment', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
+                                                >
+                                                    <option value="">Select payment mode</option>
+                                                    <option value="Cash">Cash</option>
+                                                    <option value="Credit Card">Credit Card</option>
+                                                    <option value="UPI">UPI</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-slate-700">
+                                                    Opening Amount
+                                                </label>
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1 relative">
+                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">₹</span>
+                                                        <input
+                                                            type="number"
+                                                            value={detail.opening_amount}
+                                                            onChange={(e) => handleBalanceDetailChange(index, 'opening_amount', e.target.value)}
+                                                            min="0"
+                                                            step="0.01"
+                                                            placeholder="0.00"
+                                                            className="w-full pl-8 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleRemoveBalanceDetail(index)}
+                                                        disabled={balanceDetails.length === 1}
+                                                        className="px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <button
+                                    onClick={handleAddBalanceDetail}
+                                    className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-600 hover:border-slate-400 hover:bg-white hover:text-slate-700 transition-all flex items-center justify-center gap-2 font-medium"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                    Add Payment Mode
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 mb-8">
+                            <div className="flex items-center justify-between text-white">
+                                <span className="text-lg font-semibold">Total Opening Amount</span>
+                                <span className="text-3xl font-bold">₹{totalAmount.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-4 justify-end">
                             <button
-                                className="btn btn-success"
-                                onClick={handleSubmit}
-                                disabled={loading}
+                                onClick={() => navigate('/')}
+                                className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
                             >
-                                {loading ? 'Submitting...' : 'Submit POS Opening Entry'}
+                                <X className="w-5 h-5" />
+                                Cancel
                             </button>
                             <button
-                                className="btn btn-secondary ms-2"
-                                onClick={() => navigate('/')}
+                                onClick={handleSubmit}
+                                disabled={loading}
+                                className="px-8 py-3 bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-lg font-semibold hover:from-slate-700 hover:to-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg"
                             >
-                                Cancel
+                                {loading ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check className="w-5 h-5" />
+                                        Submit Opening Entry
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

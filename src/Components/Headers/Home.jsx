@@ -409,7 +409,6 @@ const taxAmount = round2(taxAmountRaw);
     <div className="home-container">
       <div className="home-content">
         <div className="home-layout">
-
           {/* LEFT: MENU */}
           <div className="home-main-section">
             {/* Category Slider */}
@@ -449,7 +448,7 @@ const taxAmount = round2(taxAmountRaw);
             <div className="home-items-container">
               <div className="home-items-grid">
                 {filteredItems.length === 0 ? (
-                  <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666' }}>No items in this category</p>
+                  <p className="home-no-items">No items in this category</p>
                 ) : (
                   filteredItems.map(item => (
                     <div key={item.id} className="home-item-wrapper" onClick={() => handleAddToBill(item)}>
