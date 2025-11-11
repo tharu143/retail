@@ -23,7 +23,7 @@ function ClosingEntry() {
   const [periodEndDate, setPeriodEndDate] = useState(getCurrentISTDateTime());
 
   const getSession = () => localStorage.getItem('session') || '';
-
+ 
   useEffect(() => {
     const storedCompany = localStorage.getItem('company') || '';
     setCompany(storedCompany);
@@ -88,7 +88,27 @@ function ClosingEntry() {
         const payload = apiResponse.data || {};
         if (payload.invoices && payload.invoices.length > 0) {
           setInvoicesData(payload);
-          setPaymentReconciliation(payload.payment_reconciliation || []);
+          
+          // Compute paid_amount per mode from invoices payments
+          const paidAmounts = {};
+          payload.invoices.forEach(inv => {
+            if (inv.payments && Array.isArray(inv.payments)) {
+              inv.payments.forEach(pay => {
+                const mode = pay.mode_of_payment;
+                if (mode) {
+                  paidAmounts[mode] = (paidAmounts[mode] || 0) + flt(pay.amount || 0);
+                }
+              });
+            }
+          });
+          
+          // Fix reconciliation: expected_amount = opening + paid from invoices
+          const fixedReconciliation = (payload.payment_reconciliation || []).map(pr => ({
+            ...pr,
+            paid_amount: paidAmounts[pr.mode_of_payment] || 0,
+            expected_amount: flt(pr.opening_amount + (paidAmounts[pr.mode_of_payment] || 0))
+          }));
+          setPaymentReconciliation(fixedReconciliation);
           setNoInvoicesMessage('');
         } else {
           setInvoicesData(null);
@@ -397,7 +417,7 @@ function ClosingEntry() {
                         <td className={`py-3 px-4 text-sm text-right font-semibold font-mono ${
                           pr.difference > 0 ? 'text-red-600' : pr.difference < 0 ? 'text-green-600' : 'text-slate-700'
                         }`}>
-                          AED {flt(pr.difference).toFixed(2)}
+                          AED {Math.abs(flt(pr.difference)).toFixed(2)}
                         </td>
                       </tr>
                     ))}
