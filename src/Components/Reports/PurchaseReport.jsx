@@ -3,35 +3,34 @@ import { Loader2, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import DataTable from './DataTable';
 import ReportFilters from './ReportFilters';
 
-function SalesReport() {
+function PurchaseReport() {
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [filters, setFilters] = useState({ from_date: '', to_date: '', customer: '' });
-  const [customers, setCustomers] = useState([]);
+  const [filters, setFilters] = useState({ from_date: '', to_date: '', supplier: '', item_code: '' });
+  const [suppliers, setSuppliers] = useState([]);
 
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
   useEffect(() => {
-    fetchCustomers();
+    fetchSuppliers();
     fetchReport();
   }, []);
 
-  const fetchCustomers = async () => {
+  const fetchSuppliers = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_customers`, {
+      const res = await fetch(`${API_PATH}.get_suppliers`, {
         headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include',
+        credentials: 'include'
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // Frappe usually wraps in "message"
-      setCustomers((json.message || json.data || json) || []);
+      setSuppliers((json.message || json.data || json) || []);
     } catch (err) {
-      console.error('Customers fetch error:', err);
+      console.error('Suppliers fetch error:', err);
     }
   };
 
@@ -42,28 +41,24 @@ function SalesReport() {
 
     try {
       const params = new URLSearchParams(filters);
-      const res = await fetch(`${API_PATH}.get_sales_report?${params.toString()}`, {
+      const res = await fetch(`${API_PATH}.get_purchase_report?${params.toString()}`, {
         headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include',
+        credentials: 'include'
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
       const result = await res.json();
-
-      // CRITICAL FIX: Handle both {message: {...}} and direct object
       const payload = result.message || result;
 
       if (payload.status === 'success') {
         setData(payload.data || []);
         setColumns(payload.columns || []);
-        setSuccess('Report loaded successfully');
+        setSuccess('Purchase report loaded successfully');
       } else {
-        setError(payload.message || payload.error || 'Unknown error from server');
+        setError(payload.message || 'Failed to load report');
       }
     } catch (err) {
-      setError('Network or server error: ' + err.message);
-      console.error(err);
+      setError('Network error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -79,12 +74,11 @@ function SalesReport() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <FileText className="w-8 h-8 text-slate-700" /> Sales Report
+            <FileText className="w-8 h-8 text-slate-700" /> Purchase Report
           </h1>
-          <p className="text-slate-600 mt-2">POS Invoice Summary</p>
+          <p className="text-slate-600 mt-2">Item-wise Purchase Invoice Summary</p>
         </div>
 
-        {/* NEVER render raw objects! */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -102,14 +96,14 @@ function SalesReport() {
         <ReportFilters
           onFilterChange={handleFilterChange}
           initialFilters={filters}
-          customers={customers}
-          reportType="sales"
+          suppliers={suppliers}   // ← Now passed correctly
+          reportType="purchase"
         />
 
         <DataTable
           columns={columns}
           data={data}
-          title="Sales Report"
+          title="Purchase Report"
           loading={loading}
         />
       </div>
@@ -117,4 +111,4 @@ function SalesReport() {
   );
 }
 
-export default SalesReport;
+export default PurchaseReport;

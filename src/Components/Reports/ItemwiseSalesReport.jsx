@@ -3,36 +3,54 @@ import { Loader2, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import DataTable from './DataTable';
 import ReportFilters from './ReportFilters';
 
-function SalesReport() {
+function ItemWiseSalesReport() {
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [filters, setFilters] = useState({ from_date: '', to_date: '', customer: '' });
+  
+  // All filters
+  const [filters, setFilters] = useState({ 
+    from_date: '', 
+    to_date: '', 
+    customer: '', 
+    item_code: '',
+    pos_invoice: ''
+  });
+
   const [customers, setCustomers] = useState([]);
+  const [items, setItems] = useState([]);
 
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
   useEffect(() => {
     fetchCustomers();
+    fetchItems();
     fetchReport();
   }, []);
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_customers`, {
-        headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include',
+      const res = await fetch(`${API_PATH}.get_customers`, { 
+        headers: { 'X-Frappe-SID': getSession() }, 
+        credentials: 'include' 
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // Frappe usually wraps in "message"
       setCustomers((json.message || json.data || json) || []);
-    } catch (err) {
-      console.error('Customers fetch error:', err);
-    }
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchItems = async () => {
+    try {
+      const res = await fetch(`${API_PATH}.get_items`, { 
+        headers: { 'X-Frappe-SID': getSession() }, 
+        credentials: 'include' 
+      });
+      const json = await res.json();
+      setItems((json.message || json.data || json) || []);
+    } catch (err) { console.error(err); }
   };
 
   const fetchReport = async (filters = {}) => {
@@ -42,27 +60,24 @@ function SalesReport() {
 
     try {
       const params = new URLSearchParams(filters);
-      const res = await fetch(`${API_PATH}.get_sales_report?${params.toString()}`, {
+      const res = await fetch(`${API_PATH}.get_item_wise_sales_report?${params.toString()}`, {
         headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include',
+        credentials: 'include'
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
       const result = await res.json();
-
-      // CRITICAL FIX: Handle both {message: {...}} and direct object
       const payload = result.message || result;
 
       if (payload.status === 'success') {
         setData(payload.data || []);
         setColumns(payload.columns || []);
-        setSuccess('Report loaded successfully');
+        setSuccess(`Loaded ${payload.total_records} records`);
       } else {
-        setError(payload.message || payload.error || 'Unknown error from server');
+        setError(payload.message || 'Failed to load');
       }
     } catch (err) {
-      setError('Network or server error: ' + err.message);
+      setError('Network error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -79,12 +94,11 @@ function SalesReport() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <FileText className="w-8 h-8 text-slate-700" /> Sales Report
+            <FileText className="w-8 h-8 text-slate-700" /> Item Wise Sales Report
           </h1>
-          <p className="text-slate-600 mt-2">POS Invoice Summary</p>
+          <p className="text-slate-600 mt-2">Complete item-level sales with tax, discount & profit-ready data</p>
         </div>
 
-        {/* NEVER render raw objects! */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -103,18 +117,19 @@ function SalesReport() {
           onFilterChange={handleFilterChange}
           initialFilters={filters}
           customers={customers}
-          reportType="sales"
+          items={items}
+          reportType="item_sales"
         />
 
-        <DataTable
-          columns={columns}
-          data={data}
-          title="Sales Report"
-          loading={loading}
+        <DataTable 
+          columns={columns} 
+          data={data} 
+          title="Item Wise Sales Report" 
+          loading={loading} 
         />
       </div>
     </div>
   );
 }
 
-export default SalesReport;
+export default ItemWiseSalesReport;

@@ -20,9 +20,7 @@ function NavBar() {
     try {
       const response = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
 
@@ -68,22 +66,38 @@ function NavBar() {
           </div>
 
           <div className="d-flex align-items-center gap-3 pe-3">
-            {/* Invoice List Icon */}
-            <i
-              className="bi bi-receipt cursor-pointer"
-              style={{ fontSize: '1.5rem', color: '#21a9ff' }}
-              onClick={() => navigate('/invoicelist')}
-              title="Invoice List"
-            ></i>
 
-            {/* Logout Icon */}
-            <i
-              className="bi bi-power cursor-pointer power"
-              style={{ fontSize: '1.5rem', color: 'black' }}
-              onClick={handleLogout}
-              title="Logout"
-            ></i>
+            {/* Invoice List */}
+            <i className="bi bi-receipt cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
+               onClick={() => navigate('/invoicelist')} title="Invoice List"></i>
 
+            {/* Purchase Order */}
+            <i className="bi bi-file-earmark-text cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
+               onClick={() => navigate('/purchaseorder')} title="Purchase Order"></i>
+
+            {/* Purchase Order List */}
+            <i className="bi bi-list-ul cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
+               onClick={() => navigate('/purchaseorderlist')} title="Purchase Order List"></i>
+
+            {/* === REPORT ICONS === */}
+
+            {/* Sales Report */}
+            <i className="bi bi-graph-up cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
+               onClick={() => navigate('/salesreport')} title="Sales Report"></i>
+
+            {/* Purchase Report */}
+            <i className="bi bi-cart4 cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
+               onClick={() => navigate('/purchasereport')} title="Purchase Report"></i>
+
+            {/* Item-wise Sales Report */}
+            <i className="bi bi-bar-chart-line cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
+               onClick={() => navigate('/itemwisereport')} title="Item-wise Sales Report"></i>
+
+            {/* Logout */}
+            <i className="bi bi-power cursor-pointer power" style={{ fontSize: '1.5rem', color: 'black' }}
+               onClick={handleLogout} title="Logout"></i>
+
+            {/* User Info */}
             <div className="text-end">
               <span className="text-black mb-0 d-block">{user || "Guest"}</span>
               <small className="d-block text-muted">{formattedDate}</small>
