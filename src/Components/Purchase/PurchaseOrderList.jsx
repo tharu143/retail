@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, FileText, Plus, Receipt, FileText as InvoiceIcon } from 'lucide-react';
-import CustomSearchDropdown from './CustomSearchDropdown';
+import { useNavigate } from 'react-router-dom';
 
 // Reusable Model for PO Item (reuse across screens)
 const POItemModel = {
@@ -63,6 +63,8 @@ function PurchaseOrderList() {
   });
   const [itemData, setItemData] = useState([]);  // Editable items (qty, rejected_qty)
   const [createLoading, setCreateLoading] = useState(false);
+
+  const navigate = useNavigate()
 
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -271,7 +273,7 @@ function PurchaseOrderList() {
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <FileText className="w-8 h-8 text-slate-700" /> Purchase Orders
           </h1>
-          <button className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg flex items-center gap-2">
+          <button className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg flex items-center gap-2" onClick={() => navigate('/purchaseorder')}>
             <Plus className="w-5 h-5" /> New PO
           </button>
         </div>

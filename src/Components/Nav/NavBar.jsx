@@ -66,32 +66,9 @@ function NavBar() {
           </div>
 
           <div className="d-flex align-items-center gap-3 pe-3">
-
-            {/* Invoice List */}
-            <i className="bi bi-receipt cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
-               onClick={() => navigate('/invoicelist')} title="Invoice List"></i>
-
-            {/* Purchase Order */}
-            <i className="bi bi-file-earmark-text cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
-               onClick={() => navigate('/purchaseorder')} title="Purchase Order"></i>
-
-            {/* Purchase Order List */}
-            <i className="bi bi-list-ul cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
-               onClick={() => navigate('/purchaseorderlist')} title="Purchase Order List"></i>
-
-            {/* === REPORT ICONS === */}
-
-            {/* Sales Report */}
-            <i className="bi bi-graph-up cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
-               onClick={() => navigate('/salesreport')} title="Sales Report"></i>
-
-            {/* Purchase Report */}
-            <i className="bi bi-cart4 cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
-               onClick={() => navigate('/purchasereport')} title="Purchase Report"></i>
-
             {/* Item-wise Sales Report */}
-            <i className="bi bi-bar-chart-line cursor-pointer" style={{ fontSize: '1.5rem', color: '#21a9ff' }}
-               onClick={() => navigate('/itemwisereport')} title="Item-wise Sales Report"></i>
+            <i className="bi bi-gear" style={{ fontSize: '1.5rem' }}
+               onClick={() => navigate('/dashboard')} title="dashboard"></i>
 
             {/* Logout */}
             <i className="bi bi-power cursor-pointer power" style={{ fontSize: '1.5rem', color: 'black' }}
