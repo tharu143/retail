@@ -1,6 +1,6 @@
 // src/pages/ItemList.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, ChevronDown, Search, X, Save, Upload, Menu, MoreVertical, Copy, Trash2 } from 'lucide-react';
+import { Plus, ChevronDown, Search, X, Save, Upload, Menu, MoreVertical, Copy, Trash2, Package, Building, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 
@@ -16,7 +16,6 @@ function ItemList() {
   const [filterGroup, setFilterGroup] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterHasVariants, setFilterHasVariants] = useState('');
-  const [filterLastUpdated, setFilterLastUpdated] = useState('');
 
   // Form
   const [showForm, setShowForm] = useState(false);
@@ -46,53 +45,49 @@ function ItemList() {
   // Item Groups
   const [itemGroups, setItemGroups] = useState([]);
   const [groupSearch, setGroupSearch] = useState('');
-  const [groupLoading, setGroupLoading] = useState(false);
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
 
   // Fetch Items
   useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        setLoading(true);
-        const res = await axios.get(
-          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_details',
-          { withCredentials: true }
-        );
-        setItems(res.data.message || []);
-      } catch (err) {
-        alert('Failed to load items');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchItems();
   }, []);
 
-  // Fetch Item Groups (debounced)
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(
+        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_details',
+        { withCredentials: true }
+      );
+      setItems(res.data.message || []);
+    } catch (err) {
+      alert('Failed to load items');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch Item Groups
   useEffect(() => {
-    const delay = setTimeout(() => {
-      fetchItemGroups(groupSearch);
-    }, 300);
-    return () => clearTimeout(delay);
-  }, [groupSearch]);
+    if (showForm) {
+      const delay = setTimeout(() => {
+        fetchItemGroups(groupSearch);
+      }, 300);
+      return () => clearTimeout(delay);
+    }
+  }, [groupSearch, showForm]);
 
   const fetchItemGroups = async (search = '') => {
-    setGroupLoading(true);
     try {
       const res = await axios.get(
         '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups',
-        {
-          params: { search },
-          withCredentials: true
-        }
+        { params: { search }, withCredentials: true }
       );
       if (res.data.message.success) {
         setItemGroups(res.data.message.data);
       }
     } catch (err) {
       console.error(err);
-    } finally {
-      setGroupLoading(false);
     }
   };
 
@@ -104,10 +99,9 @@ function ItemList() {
       const group = !filterGroup || item.item_group.toLowerCase().includes(filterGroup.toLowerCase());
       const status = !filterStatus || (filterStatus === 'Enabled' ? !item.disabled : item.disabled);
       const variants = !filterHasVariants || (filterHasVariants === 'Yes' ? item.has_variants : !item.has_variants);
-      const date = !filterLastUpdated || new Date(item.modified).toLocaleDateString().includes(filterLastUpdated);
-      return id && name && group && status && variants && date;
+      return id && name && group && status && variants;
     });
-  }, [items, filterId, filterName, filterGroup, filterStatus, filterHasVariants, filterLastUpdated]);
+  }, [items, filterId, filterName, filterGroup, filterStatus, filterHasVariants]);
 
   const total = filteredItems.length;
   const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -170,11 +164,7 @@ function ItemList() {
           is_fixed_asset: false, is_zero_rated: false, is_exempt: false,
           default_uom: 'Nos', tax_code: '', description: '', image: null, imagePreview: null
         });
-        const refresh = await axios.get(
-          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_details',
-          { withCredentials: true }
-        );
-        setItems(refresh.data.message || []);
+        fetchItems();
       }
     } catch (err) {
       alert(err.response?.data?.message?.message || 'Failed to create item');
@@ -189,6 +179,7 @@ function ItemList() {
     <>
       <NavBar />
       <div className="min-h-screen bg-gray-50">
+
         {/* Top Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -226,7 +217,6 @@ function ItemList() {
                         { label: 'Item Group', state: filterGroup, setState: setFilterGroup },
                         { label: 'Status', state: filterStatus, setState: setFilterStatus, options: ['Enabled', 'Disabled'] },
                         { label: 'Has Variants', state: filterHasVariants, setState: setFilterHasVariants, options: ['Yes', 'No'] },
-                        { label: 'Last Updated On', state: filterLastUpdated, setState: setFilterLastUpdated },
                       ].map((col, i) => (
                         <th key={i} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="space-y-1">
@@ -259,7 +249,7 @@ function ItemList() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {paginatedItems.length === 0 ? (
-                      <tr><td colSpan="7" className="px-6 py-8 text-center text-gray-500">No items found</td></tr>
+                      <tr><td colSpan="6" className="px-6 py-8 text-center text-gray-500">No items found</td></tr>
                     ) : (
                       paginatedItems.map(item => (
                         <tr key={item.name} className="hover:bg-gray-50">
@@ -273,9 +263,6 @@ function ItemList() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.has_variants ? 'Yes' : 'No'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
-                            {item.modified ? new Date(item.modified).toLocaleDateString() : '—'}
-                          </td>
                         </tr>
                       ))
                     )}
@@ -289,7 +276,7 @@ function ItemList() {
                   Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} results
                 </div>
                 <div className="flex items-center space-x-2">
-                  {[20, 100, 500, 2500].map(size => (
+                  {[20, 100, 500].map(size => (
                     <button
                       key={size}
                       onClick={() => { setPageSize(size); setCurrentPage(1); }}
@@ -304,7 +291,7 @@ function ItemList() {
           )}
         </main>
 
-        {/* ERPNext Full Form */}
+        {/* ERPNext Full Form (POS Profile Style) */}
         {showForm && (
           <div className="fixed inset-0 bg-white z-50 flex flex-col">
             {/* Header */}
@@ -364,7 +351,7 @@ function ItemList() {
 
                     {/* Item Name */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Item Name <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={form.item_name}
@@ -373,7 +360,7 @@ function ItemList() {
                       />
                     </div>
 
-                    {/* Item Group Dropdown */}
+                    {/* Item Group */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Item Group <span className="text-red-500">*</span>
@@ -386,7 +373,6 @@ function ItemList() {
                           <span className="truncate">{selectedGroupLabel}</span>
                           <ChevronDown className="w-4 h-4 text-gray-400" />
                         </button>
-
                         {showGroupDropdown && (
                           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
                             <div className="p-2 border-b">
@@ -400,10 +386,8 @@ function ItemList() {
                               />
                             </div>
                             <div className="max-h-60 overflow-y-auto">
-                              {groupLoading ? (
-                                <div className="p-3 text-center text-sm text-gray-500">Loading...</div>
-                              ) : itemGroups.length === 0 ? (
-                                <div className="p-3 text-center text-sm text-gray-500">No groups found</div>
+                              {itemGroups.length === 0 ? (
+                                <div className="p-3 text-center text-sm text-gray-500">No groups</div>
                               ) : (
                                 itemGroups.map(g => (
                                   <button
@@ -426,6 +410,20 @@ function ItemList() {
                       </div>
                     </div>
 
+                    {/* UOM */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Default UOM <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={form.default_uom}
+                        onChange={e => setForm({ ...form, default_uom: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                        placeholder="Nos"
+                      />
+                    </div>
+
                     {/* Tax Code */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Tax Code</label>
@@ -437,7 +435,6 @@ function ItemList() {
                       />
                     </div>
 
-                    {/* Zero Rated / Exempt */}
                     <div className="flex items-center space-x-6">
                       <label className="flex items-center">
                         <input type="checkbox" checked={form.is_zero_rated} onChange={e => setForm({ ...form, is_zero_rated: e.target.checked })} className="mr-2" />
@@ -447,20 +444,6 @@ function ItemList() {
                         <input type="checkbox" checked={form.is_exempt} onChange={e => setForm({ ...form, is_exempt: e.target.checked })} className="mr-2" />
                         <span className="text-sm">Is Exempt</span>
                       </label>
-                    </div>
-
-                    {/* UOM */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Default Unit of Measure <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={form.default_uom}
-                        onChange={e => setForm({ ...form, default_uom: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                        placeholder="Nos"
-                      />
                     </div>
                   </div>
 
@@ -489,8 +472,9 @@ function ItemList() {
                     </div>
 
                     {form.has_variants && (
-                      <p className="text-xs text-gray-500">
-                        If this item has variants, then it cannot be selected in sales orders etc.
+                      <p className="text-xs text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        Template items cannot be used in transactions
                       </p>
                     )}
 
@@ -544,7 +528,7 @@ function ItemList() {
                   />
                 </div>
 
-                {/* Image Upload */}
+                {/* Image */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
                   <div className="mt-1 flex items-center space-x-4">
@@ -564,13 +548,7 @@ function ItemList() {
                       </div>
                     )}
                     <div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                      />
+                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -591,3 +569,4 @@ function ItemList() {
 }
 
 export default ItemList;
+
