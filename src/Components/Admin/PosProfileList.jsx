@@ -22,7 +22,7 @@ function PosProfileList() {
     name: '',
     company: '',
     warehouse: '',
-    currency: 'AED',
+    currency: '',
     write_off_account: '',
     write_off_cost_center: '',
     // Optional: users and payment_methods as arrays
@@ -40,6 +40,7 @@ function PosProfileList() {
   const [modesList, setModesList] = useState([]);
   const [accountsList, setAccountsList] = useState([]);
   const [costCentersList, setCostCentersList] = useState([]);
+  const [currenciesList, setCurrenciesList] = useState([]);
 
   const navigate = useNavigate();
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -99,18 +100,28 @@ function PosProfileList() {
       });
       const data5 = await res5.json();
       setModesList(Array.isArray(data5) ? data5 : data5.message || []);
+
+      // Currencies
+      const res6 = await fetch(`${API_PATH}.get_currencies`, {
+        headers: { 'X-Frappe-SID': getSession() },
+        credentials: 'include'
+      });
+      const data6 = await res6.json();
+      setCurrenciesList(Array.isArray(data6) ? data6 : data6.message || []);
     } catch (err) {
       console.error('Error fetching defaults:', err);
     }
   };
 
-  // Fetch accounts and cost centers based on company
+  // Fetch accounts, cost centers, and company default currency based on company
   useEffect(() => {
     if (formData.company) {
       fetchAccountsAndCostCenters(formData.company);
+      fetchCompanyCurrency(formData.company);
     } else {
       setAccountsList([]);
       setCostCentersList([]);
+      updateFormField('currency', '');
     }
   }, [formData.company]);
 
@@ -135,6 +146,22 @@ function PosProfileList() {
       setCostCentersList(Array.isArray(dataC) ? dataC : dataC.message || []);
     } catch (err) {
       console.error('Error fetching accounts/cost centers:', err);
+    }
+  };
+
+  const fetchCompanyCurrency = async (company) => {
+    try {
+      const params = new URLSearchParams({ company });
+      const res = await fetch(`${API_PATH}.get_company_default_currency?${params}`, {
+        headers: { 'X-Frappe-SID': getSession() },
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.message?.currency) {
+        updateFormField('currency', data.message.currency);
+      }
+    } catch (err) {
+      console.error('Error fetching company currency:', err);
     }
   };
 
@@ -172,9 +199,9 @@ function PosProfileList() {
     setFormData(prev => ({
       ...prev,
       company: initialCompany,
-      warehouse: initialWarehouse,
+      warehouse: '',
       name: '',
-      currency: 'AED',
+      currency: '',
       write_off_account: '',
       write_off_cost_center: '',
       users: [{ user: '', default: false }],
@@ -187,7 +214,7 @@ function PosProfileList() {
     name: '',
     company: '',
     warehouse: '',
-    currency: 'AED',
+    currency: '',
     write_off_account: '',
     write_off_cost_center: '',
     users: [{ user: '', default: false }],
@@ -209,7 +236,7 @@ function PosProfileList() {
     return Object.keys(errors).length === 0;
   };
 
- const handleSave = async () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
     setSaving(true);
 
@@ -218,35 +245,51 @@ function PosProfileList() {
       name: formData.name.trim(),
       company: formData.company || null,
       warehouse: formData.warehouse || null,
-      currency: formData.currency,
+      currency: formData.currency || null,
       write_off_account: formData.write_off_account || null,
       write_off_cost_center: formData.write_off_cost_center || null,
+      write_off_limit: 1,
       disabled: 0,
-      applicable_for_users: (formData.users || []).filter(u => u.user).map(u => ({ user: u.user, default: u.default ? 1 : 0 })),
-      payment_methods: formData.payment_methods.filter(pm => pm.mode_of_payment).map(pm => ({
-        mode_of_payment: pm.mode_of_payment,
-        default: pm.default ? 1 : 0,
-        allow_in_returns: pm.allow_in_returns ? 1 : 0
-      }))
+
+      applicable_for_users: formData.users
+        .filter(row => row.user)
+        .map(row => ({
+          user: row.user,
+          default: row.default ? 1 : 0
+        })),
+
+      payments: formData.payment_methods
+        .filter(row => row.mode_of_payment)
+        .map(row => ({
+          mode_of_payment: row.mode_of_payment,
+          default: row.default ? 1 : 0,
+          allow_in_returns: row.allow_in_returns ? 1 : 0
+        }))
     };
 
     try {
       const res = await fetch(`${API_PATH}.create_pos_profile`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-SID': getSession()
+        },
         credentials: 'include',
         body: JSON.stringify({ doc: cleanedDoc })
       });
+
       const data = await res.json();
       if (data.message?.success) {
         alert("POS Profile created successfully!");
         setIsModalOpen(false);
+        setFormData(initFormData);
         fetchProfiles();
       } else {
-        alert(data.message?.message || "Failed to create");
+        alert(data.message?.message || "Failed to create POS Profile");
       }
     } catch (err) {
-      alert("Network error");
+      console.error(err);
+      alert("Network error while saving");
     } finally {
       setSaving(false);
     }
@@ -372,9 +415,8 @@ function PosProfileList() {
                             {p.users.slice(0, 3).map(u => (
                               <span
                                 key={u.user}
-                                className={`px-2 py-1 text-xs rounded-full ${
-                                  u.default ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
-                                }`}
+                                className={`px-2 py-1 text-xs rounded-full ${u.default ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                                  }`}
                               >
                                 {u.user.split('@')[0]}
                               </span>
@@ -389,9 +431,8 @@ function PosProfileList() {
                             {p.payment_methods.map(pm => (
                               <span
                                 key={pm.mode_of_payment}
-                                className={`px-2 py-1 text-xs rounded-full ${
-                                  pm.default ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'
-                                }`}
+                                className={`px-2 py-1 text-xs rounded-full ${pm.default ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'
+                                  }`}
                               >
                                 <CreditCard className="w-3 h-3 inline mr-1" />
                                 {pm.mode_of_payment}
@@ -400,9 +441,8 @@ function PosProfileList() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            p.disabled ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                          }`}>
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${p.disabled ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                            }`}>
                             {p.disabled ? 'Disabled' : 'Enabled'}
                           </span>
                         </td>
@@ -549,9 +589,10 @@ function PosProfileList() {
                         onChange={e => updateFormField('currency', e.target.value)}
                         className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${formErrors.currency ? 'border-red-500' : ''}`}
                       >
-                        <option value="AED">AED</option>
-                        <option value="USD">USD</option>
-                        {/* Add more currencies as needed */}
+                        <option value="">Select Currency</option>
+                        {currenciesList.map(c => (
+                          <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
                       </select>
                       {formErrors.currency && <p className="text-red-500 text-xs mt-1">{formErrors.currency}</p>}
                     </div>
