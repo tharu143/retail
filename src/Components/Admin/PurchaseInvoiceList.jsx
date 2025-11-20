@@ -1,9 +1,13 @@
-// src/pages/PurchaseInvoiceList.jsx
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, ChevronDown, Search, Filter, Calendar, Building2, FileText, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Plus, ChevronDown, X, Trash2, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon
+} from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
+import './PurchaseInvoiceList.css';
+
+const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
 function PurchaseInvoiceList() {
   const [invoices, setInvoices] = useState([]);
@@ -11,195 +15,494 @@ function PurchaseInvoiceList() {
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Filters
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+
+  const [formData, setFormData] = useState({
+    supplier: '',
+    supplier_name: '',
+    posting_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    bill_no: '',
+    update_stock: true,
+    buying_price_list: 'Standard Buying',
+    taxes_template: 'UAE VAT 5%',
+    is_paid: false,
+    items: [{
+      item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, warehouse: 'Stores'
+    }]
+  });
+
+  const [searchSupplier, setSearchSupplier] = useState('');
+  const [suppliers, setSuppliers] = useState([]);
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+
+  const [itemsList, setItemsList] = useState([]);
+  const [itemSearches, setItemSearches] = useState({});
+  const [showItemDropdowns, setShowItemDropdowns] = useState({});
+
+  const [warehouses, setWarehouses] = useState([]);
+  const [searchWarehouse, setSearchWarehouse] = useState({});
+  const [showWarehouseDropdowns, setShowWarehouseDropdowns] = useState({});
+
   const [filterName, setFilterName] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch Invoices
+  const supplierRef = useRef(null);
+  const itemRefs = useRef({});
+  const warehouseRefs = useRef({});
+
   useEffect(() => {
     fetchInvoices();
+    fetchWarehouses();
   }, []);
 
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_purchase_invoices',
-        { withCredentials: true }
-      );
+      const res = await axios.get(`${API_PATH}.get_purchase_invoices`, { withCredentials: true });
       if (res.data.message?.success) {
         setInvoices(res.data.message.data || []);
       }
     } catch (err) {
-      alert('Failed to load purchase invoices');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter Logic
+  const fetchSuppliers = async (query = '') => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_suppliers_pi`, {
+        params: { query: query || undefined },
+        withCredentials: true
+      });
+      const data = Array.isArray(res.data.message) ? res.data.message : [];
+      setSuppliers(data);
+    } catch (err) {
+      console.error('Supplier fetch error:', err);
+      setSuppliers([]);
+    }
+  };
+
+  const fetchItems = async (query = '') => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_items_for_pi`, {
+        params: { query: query || undefined },
+        withCredentials: true
+      });
+      const data = Array.isArray(res.data.message) ? res.data.message : [];
+      setItemsList(data);
+    } catch (err) {
+      console.error('Items fetch error:', err);
+      setItemsList([]);
+    }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_company_warehouses`, { withCredentials: true });
+      const data = Array.isArray(res.data.message) ? res.data.message : [];
+      setWarehouses(data);
+    } catch (err) {
+      console.error('Warehouses fetch error:', err);
+      setWarehouses([]);
+    }
+  };
+
+  const fetchItemRate = async (itemCode, rowIndex) => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
+        params: { item_code: itemCode },
+        withCredentials: true
+      });
+      if (res.data.message) {
+        updateItem(rowIndex, 'rate', res.data.message.rate);
+      }
+    } catch (err) {
+      console.error('Error fetching item rate:', err);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchSupplier.trim()) {
+        fetchSuppliers(searchSupplier);
+        setShowSupplierDropdown(true);
+      } else {
+        setShowSupplierDropdown(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchSupplier]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (supplierRef.current && !supplierRef.current.contains(e.target)) {
+        setShowSupplierDropdown(false);
+      }
+      Object.keys(itemRefs.current).forEach(idx => {
+        if (itemRefs.current[idx] && !itemRefs.current[idx].contains(e.target)) {
+          setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
+        }
+      });
+      Object.keys(warehouseRefs.current).forEach(idx => {
+        if (warehouseRefs.current[idx] && !warehouseRefs.current[idx].contains(e.target)) {
+          setShowWarehouseDropdowns(prev => ({ ...prev, [idx]: false }));
+        }
+      });
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const openCreateModal = () => {
+    setFormData({
+      supplier: '', supplier_name: '',
+      posting_date: new Date().toISOString().split('T')[0],
+      due_date: '', bill_no: '',
+      update_stock: true,
+      buying_price_list: 'Standard Buying',
+      taxes_template: 'UAE VAT 5%',
+      is_paid: false,
+      items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, warehouse: 'Stores' }]
+    });
+    setFormErrors({});
+    setSearchSupplier('');
+    setItemSearches({});
+    setSearchWarehouse({});
+    setSuppliers([]);
+    setItemsList([]);
+    setShowSupplierDropdown(false);
+    setShowItemDropdowns({});
+    setShowWarehouseDropdowns({});
+    setIsModalOpen(true);
+  };
+
+  const updateItem = (index, field, value) => {
+    setFormData(prev => {
+      const items = [...prev.items];
+      items[index][field] = value;
+      if (field === 'qty' || field === 'rate') {
+        const qty = parseFloat(items[index].qty) || 0;
+        const rate = parseFloat(items[index].rate) || 0;
+        items[index].amount = (qty * rate).toFixed(2);
+      }
+      return { ...prev, items };
+    });
+  };
+
+  const addItemRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, warehouse: 'Stores' }]
+    }));
+  };
+
+  const removeItemRow = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
+  };
+
+  const selectSupplier = (supplier) => {
+    setFormData(prev => ({ ...prev, supplier: supplier.name, supplier_name: supplier.supplier_name }));
+    setSearchSupplier(supplier.supplier_name || supplier.name);
+    setShowSupplierDropdown(false);
+  };
+
+  const selectItem = async (rowIndex, item) => {
+    setFormData(prev => {
+      const items = [...prev.items];
+      items[rowIndex] = {
+        ...items[rowIndex],
+        item_code: item.item_code,
+        item_name: item.item_name,
+        uom: item.stock_uom || 'Nos',
+        rate: 0,
+        amount: 0
+      };
+      return { ...prev, items };
+    });
+    setItemSearches(prev => ({ ...prev, [rowIndex]: '' }));
+    setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
+    await fetchItemRate(item.item_code, rowIndex);
+  };
+
+  const handleItemSearch = (index, value) => {
+    setItemSearches(prev => ({ ...prev, [index]: value }));
+    if (value.trim().length > 1) {
+      fetchItems(value);
+      setShowItemDropdowns(prev => ({ ...prev, [index]: true }));
+    } else {
+      setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+  const selectWarehouse = (rowIndex, warehouse) => {
+    setFormData(prev => {
+      const items = [...prev.items];
+      items[rowIndex].warehouse = warehouse.warehouse_name;
+      return { ...prev, items };
+    });
+    setSearchWarehouse(prev => ({ ...prev, [rowIndex]: warehouse.warehouse_name }));
+    setShowWarehouseDropdowns(prev => ({ ...prev, [rowIndex]: false }));
+  };
+
+  const handleWarehouseSearch = (index, value) => {
+    setSearchWarehouse(prev => ({ ...prev, [index]: value }));
+    if (value.trim().length > 0) {
+      setShowWarehouseDropdowns(prev => ({ ...prev, [index]: true }));
+    } else {
+      setShowWarehouseDropdowns(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.supplier) errors.supplier = 'Supplier is required';
+    if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) {
+      errors.items = 'At least one valid item required';
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) return;
+    setSaving(true);
+
+    const payload = {
+      supplier: formData.supplier,
+      posting_date: formData.posting_date,
+      due_date: formData.due_date || null,
+      bill_no: formData.bill_no || null,
+      items: formData.items
+        .filter(i => i.item_code && i.qty > 0)
+        .map(i => ({
+          item_code: i.item_code,
+          qty: parseFloat(i.qty),
+          rate: parseFloat(i.rate || 0),
+          amount: parseFloat(i.amount || 0)
+        }))
+    };
+
+    try {
+      const res = await axios.post(`${API_PATH}.create_purchase_invoice_direct`, payload, {
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (res.data.message?.success) {
+        alert('Purchase Invoice Created: ' + res.data.message.name);
+        setIsModalOpen(false);
+        fetchInvoices();
+      } else {
+        alert(res.data.message?.message || 'Failed to create');
+      }
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const grandTotal = formData.items.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0).toFixed(2);
+
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
-      const name = !filterName || inv.name.toLowerCase().includes(filterName.toLowerCase());
-      const supplier = !filterSupplier || inv.supplier_name.toLowerCase().includes(filterSupplier.toLowerCase());
-      const status = !filterStatus || inv.status === filterStatus;
-      const dateFrom = !filterDateFrom || new Date(inv.posting_date) >= new Date(filterDateFrom);
-      const dateTo = !filterDateTo || new Date(inv.posting_date) <= new Date(filterDateTo);
-      return name && supplier && status && dateFrom && dateTo;
+      const matchesName = !filterName || inv.name.toLowerCase().includes(filterName.toLowerCase());
+      const matchesSupplier = !filterSupplier || inv.supplier_name.toLowerCase().includes(filterSupplier.toLowerCase());
+      const matchesStatus = !filterStatus || inv.status === filterStatus;
+      const matchesFrom = !filterDateFrom || new Date(inv.posting_date) >= new Date(filterDateFrom);
+      const matchesTo = !filterDateTo || new Date(inv.posting_date) <= new Date(filterDateTo);
+      return matchesName && matchesSupplier && matchesStatus && matchesFrom && matchesTo;
     });
   }, [invoices, filterName, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
 
   const total = filteredInvoices.length;
   const paginated = filteredInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(total / pageSize);
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Paid': return 'bg-green-100 text-green-800';
-      case 'Unpaid': return 'bg-yellow-100 text-yellow-800';
-      case 'Overdue': return 'bg-red-100 text-red-800';
-      case 'Draft': return 'bg-gray-100 text-gray-800';
-      case 'Return': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-blue-100 text-blue-800';
-    }
+    const map = {
+      Paid: 'status-paid',
+      Unpaid: 'status-unpaid',
+      Overdue: 'status-overdue',
+      Draft: 'status-draft',
+      Return: 'status-return',
+    };
+    return map[status] || 'status-default';
+  };
+
+  const clearFilters = () => {
+    setFilterName('');
+    setFilterSupplier('');
+    setFilterStatus('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
   };
 
   return (
     <>
       <NavBar />
-      <div className="min-h-screen bg-gray-50">
-
-        {/* Top Bar - ERPNext Style */}
-        <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <h1 className="text-xl font-semibold text-gray-900">Purchase Invoice</h1>
-            <div className="flex items-center space-x-1 text-sm text-gray-600">
-              <span>List</span>
-              <ChevronDown className="w-4 h-4" />
-            </div>
+      <div className="pi-container">
+        <div className="pi-header">
+          <div className="pi-header-left">
+            <h1 className="pi-title">Purchase Invoices</h1>
+            <span className="pi-count">{total} total</span>
           </div>
-          <button
-            onClick={() => window.location.href = '/purchase-invoice/new'}
-            className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create</span>
-          </button>
+          <div className="pi-header-actions">
+            <button onClick={() => setShowFilters(!showFilters)} className="pi-btn-secondary">
+              <Filter className="pi-icon" />
+              Filters
+            </button>
+            <button onClick={openCreateModal} className="pi-btn-primary">
+              <Plus className="pi-icon" />
+              Create Invoice
+            </button>
+          </div>
         </div>
 
-        {/* List View */}
-        <main className="p-6">
+        {showFilters && (
+          <div className="pi-filters">
+            <div className="pi-filters-grid">
+              <div className="pi-filter-item">
+                <label>Invoice Number</label>
+                <div className="pi-input-wrapper">
+                  <Search className="pi-input-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search invoice..."
+                    value={filterName}
+                    onChange={e => setFilterName(e.target.value)}
+                    className="pi-input"
+                  />
+                </div>
+              </div>
+              <div className="pi-filter-item">
+                <label>Supplier</label>
+                <div className="pi-input-wrapper">
+                  <Building2 className="pi-input-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search supplier..."
+                    value={filterSupplier}
+                    onChange={e => setFilterSupplier(e.target.value)}
+                    className="pi-input"
+                  />
+                </div>
+              </div>
+              <div className="pi-filter-item">
+                <label>Status</label>
+                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="pi-select">
+                  <option value="">All Statuses</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Unpaid">Unpaid</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Overdue">Overdue</option>
+                  <option value="Return">Return</option>
+                </select>
+              </div>
+              <div className="pi-filter-item">
+                <label>From Date</label>
+                <div className="pi-input-wrapper">
+                  <Calendar className="pi-input-icon" />
+                  <input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={e => setFilterDateFrom(e.target.value)}
+                    className="pi-input"
+                  />
+                </div>
+              </div>
+              <div className="pi-filter-item">
+                <label>To Date</label>
+                <div className="pi-input-wrapper">
+                  <Calendar className="pi-input-icon" />
+                  <input
+                    type="date"
+                    value={filterDateTo}
+                    onChange={e => setFilterDateTo(e.target.value)}
+                    className="pi-input"
+                  />
+                </div>
+              </div>
+              <div className="pi-filter-actions">
+                <button onClick={clearFilters} className="pi-btn-ghost">Clear</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <main className="pi-main">
           {loading ? (
-            <div className="text-center py-10 text-gray-500">Loading purchase invoices...</div>
+            <div className="pi-loading">
+              <div className="pi-spinner"></div>
+              <p>Loading invoices...</p>
+            </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+            <div className="pi-table-container">
+              <div className="pi-table-wrapper">
+                <table className="pi-table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input type="checkbox" className="rounded border-gray-300" />
+                      <th className="pi-th-checkbox">
+                        <input type="checkbox" className="pi-checkbox" />
                       </th>
-                      {[
-                        { label: 'Invoice', state: filterName, setState: setFilterName },
-                        { label: 'Supplier', state: filterSupplier, setState: setFilterSupplier },
-                        { label: 'Date', state: null, dateFrom: filterDateFrom, dateTo: filterDateTo, setDateFrom: setFilterDateFrom, setDateTo: setFilterDateTo },
-                        { label: 'Status', state: filterStatus, setState: setFilterStatus, options: ['Draft', 'Submitted', 'Paid', 'Unpaid', 'Overdue', 'Return', 'Cancelled'] },
-                        { label: 'Amount (AED)', align: 'right' },
-                      ].map((col, i) => (
-                        <th key={i} className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${col.align || ''}`}>
-                          <div className="space-y-1">
-                            <span>{col.label}</span>
-                            {col.options ? (
-                              <select
-                                value={col.state}
-                                onChange={(e) => col.setState(e.target.value)}
-                                className="block w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500"
-                              >
-                                <option value="">All</option>
-                                {col.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                              </select>
-                            ) : col.dateFrom !== undefined ? (
-                              <div className="flex space-x-2">
-                                <input
-                                  type="date"
-                                  value={col.dateFrom}
-                                  onChange={e => col.setDateFrom(e.target.value)}
-                                  className="text-xs border rounded px-2 py-1"
-                                />
-                                <input
-                                  type="date"
-                                  value={col.dateTo}
-                                  onChange={e => col.setDateTo(e.target.value)}
-                                  className="text-xs border rounded px-2 py-1"
-                                />
-                              </div>
-                            ) : (
-                              <div className="relative">
-                                <Search className="absolute left-2 top-2 w-3 h-3 text-gray-400" />
-                                <input
-                                  type="text"
-                                  value={col.state || ''}
-                                  onChange={(e) => col.setState(e.target.value)}
-                                  placeholder="Filter..."
-                                  className="w-full pl-7 pr-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </th>
-                      ))}
+                      <th className="pi-th">Invoice Number</th>
+                      <th className="pi-th">Supplier</th>
+                      <th className="pi-th">Date</th>
+                      <th className="pi-th">Status</th>
+                      <th className="pi-th-right">Amount</th>
+                      <th className="pi-th-actions"></th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody>
                     {paginated.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
-                          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p>No purchase invoices found</p>
+                        <td colSpan="7" className="pi-empty">
+                          <Package className="pi-empty-icon" />
+                          <p>No invoices found</p>
+                          <button onClick={openCreateModal} className="pi-btn-link">Create your first invoice</button>
                         </td>
                       </tr>
                     ) : (
                       paginated.map(inv => (
-                        <tr key={inv.name} className="hover:bg-gray-50 cursor-pointer" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <input type="checkbox" className="rounded border-gray-300" />
+                        <tr key={inv.name} className="pi-tr">
+                          <td className="pi-td-checkbox">
+                            <input type="checkbox" className="pi-checkbox" onClick={e => e.stopPropagation()} />
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-blue-600 hover:underline">{inv.name}</div>
-                              {inv.bill_no && <div className="text-xs text-gray-500">Bill: {inv.bill_no}</div>}
+                          <td className="pi-td" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                            <span className="pi-invoice-number">{inv.name}</span>
+                          </td>
+                          <td className="pi-td" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                            <div className="pi-supplier">
+                              <span className="pi-supplier-name">{inv.supplier_name}</span>
+                              <span className="pi-supplier-code">{inv.supplier}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <Building2 className="w-4 h-4 text-gray-400" />
-                              <div>
-                                <div className="text-sm font-medium">{inv.supplier_name}</div>
-                                <div className="text-xs text-gray-500">{inv.supplier}</div>
-                              </div>
-                            </div>
+                          <td className="pi-td" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                            <span className="pi-date">{format(new Date(inv.posting_date), 'dd MMM yyyy')}</span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              {format(new Date(inv.posting_date), 'dd MMM yyyy')}
-                            </div>
-                            <div className="text-xs text-gray-500">{format(new Date(inv.posting_date), 'hh:mm a')}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(inv.status)}`}>
-                              {inv.status === 'Overdue' && <AlertCircle className="w-3 h-3 mr-1" />}
+                          <td className="pi-td" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                            <span className={`pi-status ${getStatusColor(inv.status)}`}>
                               {inv.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap">
-                            <div className="text-sm font-semibold">AED {inv.grand_total?.toFixed(2)}</div>
-                            {inv.outstanding_amount > 0 && (
-                              <div className="text-xs text-red-600">Due: AED {inv.outstanding_amount.toFixed(2)}</div>
-                            )}
+                          <td className="pi-td-right" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                            <span className="pi-amount">AED {inv.grand_total?.toFixed(2)}</span>
+                          </td>
+                          <td className="pi-td-actions">
+                            <button className="pi-btn-icon" onClick={e => e.stopPropagation()}>
+                              <MoreVertical className="pi-icon" />
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -208,26 +511,282 @@ function PurchaseInvoiceList() {
                 </table>
               </div>
 
-              {/* Pagination */}
-              <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200 bg-gray-50">
-                <div className="text-sm text-gray-700">
-                  Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} invoices
+              {total > 0 && (
+                <div className="pi-pagination">
+                  <div className="pi-pagination-info">
+                    Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} invoices
+                  </div>
+                  <div className="pi-pagination-controls">
+                    <div className="pi-page-size">
+                      <span>Rows:</span>
+                      {[20, 50, 100].map(s => (
+                        <button
+                          key={s}
+                          onClick={() => { setPageSize(s); setCurrentPage(1); }}
+                          className={`pi-page-size-btn ${pageSize === s ? 'active' : ''}`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="pi-page-nav">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="pi-page-btn"
+                      >
+                        Previous
+                      </button>
+                      <span className="pi-page-current">Page {currentPage} of {totalPages}</span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="pi-page-btn"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {[20, 50, 100].map(size => (
-                    <button
-                      key={size}
-                      onClick={() => { setPageSize(size); setCurrentPage(1); }}
-                      className={`px-3 py-1 text-sm rounded-md ${pageSize === size ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border hover:bg-gray-50'}`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           )}
         </main>
+
+        {isModalOpen && (
+          <div className="pi-modal-overlay">
+            <div className="pi-modal">
+              <div className="pi-modal-header">
+                <div>
+                  <h2 className="pi-modal-title">Create Purchase Invoice</h2>
+                  <p className="pi-modal-subtitle">Add supplier details and items to create a new invoice</p>
+                </div>
+                <button onClick={() => setIsModalOpen(false)} className="pi-modal-close">
+                  <X className="pi-icon" />
+                </button>
+              </div>
+
+              <div className="pi-modal-body">
+                <div className="pi-form-section">
+                  <h3 className="pi-section-title">Supplier Information</h3>
+                  <div className="pi-form-grid">
+                    <div className="pi-form-group" ref={supplierRef}>
+                      <label className="pi-label">
+                        Supplier <span className="pi-required">*</span>
+                      </label>
+                      <div className="pi-input-wrapper">
+                        <Building2 className="pi-input-icon" />
+                        <input
+                          type="text"
+                          value={searchSupplier}
+                          onChange={e => setSearchSupplier(e.target.value)}
+                          onFocus={() => searchSupplier && setShowSupplierDropdown(true)}
+                          placeholder="Search and select supplier..."
+                          className={`pi-input ${formErrors.supplier ? 'pi-input-error' : ''}`}
+                        />
+                      </div>
+                      {showSupplierDropdown && suppliers.length > 0 && (
+                        <div className="pi-dropdown">
+                          {suppliers.map(s => (
+                            <div key={s.name} onClick={() => selectSupplier(s)} className="pi-dropdown-item">
+                              <div className="pi-dropdown-main">{s.supplier_name}</div>
+                              <div className="pi-dropdown-sub">{s.name}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {formErrors.supplier && <span className="pi-error">{formErrors.supplier}</span>}
+                    </div>
+
+                    <div className="pi-form-group">
+                      <label className="pi-label">
+                        Posting Date <span className="pi-required">*</span>
+                      </label>
+                      <div className="pi-input-wrapper">
+                        <Calendar className="pi-input-icon" />
+                        <input
+                          type="date"
+                          value={formData.posting_date}
+                          onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
+                          className="pi-input"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pi-form-group">
+                      <label className="pi-label">Due Date</label>
+                      <div className="pi-input-wrapper">
+                        <Calendar className="pi-input-icon" />
+                        <input
+                          type="date"
+                          value={formData.due_date}
+                          onChange={e => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                          className="pi-input"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pi-form-group">
+                      <label className="pi-label">Bill Number</label>
+                      <input
+                        type="text"
+                        value={formData.bill_no}
+                        onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
+                        placeholder="Enter bill number..."
+                        className="pi-input"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pi-form-section">
+                  <div className="pi-section-header">
+                    <h3 className="pi-section-title">Items</h3>
+                    <button onClick={addItemRow} className="pi-btn-link">
+                      <Plus className="pi-icon-sm" />
+                      Add Item
+                    </button>
+                  </div>
+
+                  <div className="pi-items-table-wrapper">
+                    <table className="pi-items-table">
+                      <thead>
+                        <tr>
+                          <th className="pi-items-th">Item</th>
+                          <th className="pi-items-th" style={{width: '100px'}}>Quantity</th>
+                          <th className="pi-items-th" style={{width: '80px'}}>UOM</th>
+                          <th className="pi-items-th" style={{width: '120px'}}>Rate (AED)</th>
+                          <th className="pi-items-th" style={{width: '120px'}}>Amount (AED)</th>
+                          <th className="pi-items-th" style={{width: '180px'}}>Warehouse</th>
+                          <th className="pi-items-th" style={{width: '50px'}}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.items.map((item, i) => (
+                          <tr key={i} className="pi-items-tr">
+                            <td className="pi-items-td" ref={el => itemRefs.current[i] = el}>
+                              {item.item_code ? (
+                                <div className="pi-item-selected">
+                                  {item.item_name}
+                                </div>
+                              ) : (
+                                <div className="pi-item-cell">
+                                  <input
+                                    type="text"
+                                    value={itemSearches[i] || ''}
+                                    onChange={e => handleItemSearch(i, e.target.value)}
+                                    onFocus={() => itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
+                                    placeholder="Search item..."
+                                    className="pi-items-input"
+                                  />
+                                  {showItemDropdowns[i] && itemsList.length > 0 && (
+                                    <div className="pi-dropdown pi-dropdown-absolute">
+                                      {itemsList.map(itm => (
+                                        <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="pi-dropdown-item">
+                                          <div className="pi-dropdown-main">{itm.item_name}</div>
+                                          <div className="pi-dropdown-sub">{itm.item_code}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="pi-items-td">
+                              <input
+                                type="number"
+                                value={item.qty}
+                                onChange={e => updateItem(i, 'qty', e.target.value)}
+                                className="pi-items-input pi-items-input-number"
+                                min="1"
+                              />
+                            </td>
+
+                            <td className="pi-items-td">
+                              <span className="pi-items-text">{item.uom || '-'}</span>
+                            </td>
+
+                            <td className="pi-items-td">
+                              <input
+                                type="number"
+                                value={item.rate}
+                                onChange={e => updateItem(i, 'rate', e.target.value)}
+                                className="pi-items-input pi-items-input-number"
+                                step="0.01"
+                              />
+                            </td>
+
+                            <td className="pi-items-td">
+                              <span className="pi-items-amount">{item.amount || '0.00'}</span>
+                            </td>
+
+                            <td className="pi-items-td" ref={el => warehouseRefs.current[i] = el}>
+                              <div className="pi-warehouse-cell">
+                                <WarehouseIcon className="pi-warehouse-icon" />
+                                <input
+                                  type="text"
+                                  value={searchWarehouse[i] || item.warehouse}
+                                  onChange={e => handleWarehouseSearch(i, e.target.value)}
+                                  onFocus={() => setShowWarehouseDropdowns(prev => ({ ...prev, [i]: true }))}
+                                  placeholder="Warehouse..."
+                                  className="pi-items-input"
+                                />
+                                {showWarehouseDropdowns[i] && warehouses.length > 0 && (
+                                  <div className="pi-dropdown pi-dropdown-absolute">
+                                    {warehouses
+                                      .filter(wh => !searchWarehouse[i] || wh.warehouse_name.toLowerCase().includes(searchWarehouse[i].toLowerCase()))
+                                      .map(wh => (
+                                        <div key={wh.name} onClick={() => selectWarehouse(i, wh)} className="pi-dropdown-item">
+                                          <div className="pi-dropdown-main">{wh.warehouse_name}</div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="pi-items-td">
+                              {formData.items.length > 1 && (
+                                <button onClick={() => removeItemRow(i)} className="pi-btn-delete">
+                                  <Trash2 className="pi-icon-sm" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {formErrors.items && <span className="pi-error">{formErrors.items}</span>}
+                </div>
+
+                <div className="pi-total-section">
+                  <div className="pi-total-row">
+                    <span className="pi-total-label">Grand Total:</span>
+                    <span className="pi-total-amount">AED {grandTotal}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pi-modal-footer">
+                <button onClick={() => setIsModalOpen(false)} className="pi-btn-secondary">
+                  Cancel
+                </button>
+                <button onClick={handleSave} disabled={saving} className="pi-btn-primary">
+                  {saving ? (
+                    <>
+                      <div className="pi-btn-spinner"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Invoice'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
