@@ -28,7 +28,7 @@ function CustomerList() {
     const fetchCustomers = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_PATH}.get_customers`, {
+        const res = await fetch(`${API_PATH}.get_customers_list`, {
           headers: { 'X-Frappe-SID': getSession() },
           credentials: 'include'
         });

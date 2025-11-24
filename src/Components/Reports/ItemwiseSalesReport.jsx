@@ -33,7 +33,7 @@ function ItemWiseSalesReport() {
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_customers`, { 
+      const res = await fetch(`${API_PATH}.get_customers_list_rpt`, { 
         headers: { 'X-Frappe-SID': getSession() }, 
         credentials: 'include' 
       });

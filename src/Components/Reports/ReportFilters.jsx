@@ -88,7 +88,7 @@ function ReportFilters({
             </option>
             {reportType === 'purchase'
               ? safeMap(suppliers, 'name', 'supplier_name')
-              : safeMap(customers, 'value', 'label') // Frappe customer format
+              : safeMap(customers, 'name', 'customer_name') 
             }
           </select>
         </div>
