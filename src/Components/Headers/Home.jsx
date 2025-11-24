@@ -21,6 +21,12 @@ function Home() {
   const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
   const [showOpeningModal, setShowOpeningModal] = useState(false);
 
+
+
+  // NEW: Barcode scanner state
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const barcodeInputRef = useRef(null);
+
   // ---------- Auth ----------
   useEffect(() => {
     if (!user || !session) {
@@ -65,6 +71,7 @@ function Home() {
   const [billItems, setBillItems] = useState([]);
   const [customerName, setCustomerName] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -97,10 +104,10 @@ function Home() {
   };
   const round2 = (num) => flt(num, 2);
 
-  // ---------- CALCULATIONS (exact match with Frappe) ----------
-  const subtotal = useMemo(() => 
+  // ---------- CALCULATIONS ----------
+  const subtotal = useMemo(() =>
     billItems.reduce((sum, item) => sum + flt(item.price * item.qty), 0)
-  , [billItems]);
+    , [billItems]);
 
   const discountAmount = useMemo(() => {
     if (discount.value <= 0) return 0;
@@ -121,7 +128,6 @@ function Home() {
 
   const grandTotal = useMemo(() => round2(netTotal + taxAmount), [netTotal, taxAmount]);
 
-  // display values
   const displaySubtotal = round2(subtotal);
   const displayDiscount = round2(discountAmount);
   const displayTaxable = round2(netTotal);
@@ -179,36 +185,58 @@ function Home() {
     setCreateForm({ name: customerName.trim(), phone: phoneNumber, address: '', email: '' });
     setShowCreateModal(true); setShowDropdown(false);
   };
+
   const pickCustomer = (cust) => {
     setSelectedCustomer(cust);
     setCustomerName(cust.customer_name);
     setPhoneNumber(cust.mobile_no || '');
     setShowDropdown(false);
   };
+
   const createCustomer = async () => {
-    if (!createForm.name) return;
+    if (!createForm.name.trim()) {
+      alert("Customer name is required!");
+      return;
+    }
+
+    setCreatingCustomer(true);  // ← Loading starts
+
     try {
+      const formData = new FormData();
+      formData.append("customer_name", createForm.name.trim());
+      if (createForm.phone) formData.append("phone", createForm.phone);
+      if (createForm.address) formData.append("address", createForm.address);
+      if (createForm.email) formData.append("email", createForm.email);
+
       const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(createForm),
+        body: formData,
       });
+
       const result = await res.json();
       const inner = result.message || result;
-      if (inner.status === 'success') {
-        alert('Customer created!');
+
+      if (inner.status === "success") {
+        alert("Customer created successfully!");
         pickCustomer({
           name: inner.customer_id,
-          customer_name: createForm.name,
-          mobile_no: createForm.phone,
-          primary_address: createForm.address,
-          email_id: createForm.email,
+          customer_name: createForm.name.trim(),
+          mobile_no: createForm.phone || "",
+          primary_address: createForm.address || "",
+          email_id: createForm.email || "",
         });
         setShowCreateModal(false);
-      } else alert(inner.message || 'Failed');
-    } catch { alert('Network error'); }
+        setCreateForm({ name: '', phone: '', address: '', email: '' });
+      } else {
+        alert(inner.message || "Failed to create customer");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error or server issue");
+    } finally {
+      setCreatingCustomer(false);  // ← Loading ends (always!)
+    }
   };
-
   // ---------- FETCH ITEMS ----------
   useEffect(() => {
     const fetchItems = async () => {
@@ -225,7 +253,7 @@ function Home() {
           image: item.image ? `${baseUrl}${item.image}` : 'https://via.placeholder.com/300?text=No+Image',
           group: (item.item_group || "others").toLowerCase(),
           price: item.price_list_rate || 0,
-          barcodes: item.barcodes || []
+          barcodes: item.barcodes || []  // This contains [{barcode: "12345"}, ...]
         }));
         const groups = [...new Set(transformed.map(i => i.group))];
         setCategories(["all", ...groups.sort()]);
@@ -245,6 +273,50 @@ function Home() {
     );
   }, [selectedCategory, Items]);
 
+  // ---------- BARCODE SCANNER HANDLER ----------
+  const handleBarcodeScan = useCallback((barcode) => {
+    if (!barcode.trim()) return;
+
+    const foundItem = Items.find(item =>
+      item.barcodes?.some(b => b.barcode === barcode.trim())
+    );
+
+    if (foundItem) {
+      setBillItems(prev => {
+        const existing = prev.find(i => i.id === foundItem.id);
+        return existing
+          ? prev.map(i => i.id === foundItem.id ? { ...i, qty: i.qty + 1 } : i)
+          : [...prev, { ...foundItem, qty: 1 }];
+      });
+
+      setBarcodeInput('');
+      barcodeInputRef.current?.focus();
+
+      // Green flash
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.style.backgroundColor = '#d1fae5';
+        setTimeout(() => {
+          if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
+        }, 200);
+      }
+    } else {
+      // Red flash if not found
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.style.backgroundColor = '#fee2e2';
+        setTimeout(() => {
+          if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
+        }, 400);
+      }
+    }
+  }, [Items]);
+
+  const onBarcodeKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleBarcodeScan(barcodeInput);
+    }
+  };
+
+  // ---------- ITEM HANDLERS ----------
   const handleFilter = (cat) => setSelectedCategory(cat);
   const handleAddToBill = (item) => {
     setBillItems(prev => {
@@ -317,10 +389,10 @@ function Home() {
         pos_opening_entry: posOpeningEntry,
         payments: [{
           mode_of_payment: selectedPaymentMode,
-          amount: parseFloat(grandTotal.toFixed(2))   // 2 dp
+          amount: parseFloat(grandTotal.toFixed(2))
         }],
         discount_amount: discountAmount,
-        apply_discount_on: "Net Total",                // <-- important
+        apply_discount_on: "Net Total",
         tax_template: selectedTaxTemplate,
         posting_date: new Date().toISOString().slice(0, 10),
         currency: 'AED',
@@ -427,6 +499,26 @@ function Home() {
           {/* RIGHT: BILL */}
           <div className="home-bill-section">
             <div className="home-bill-header"><h2 className="home-bill-title">Bill</h2></div>
+
+            {/* BARCODE SCANNER INPUT */}
+            <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+              <input
+                ref={barcodeInputRef}
+                type="text"
+                placeholder="Scan / Type Barcode + Enter"
+                value={barcodeInput}
+                onChange={(e) => setBarcodeInput(e.target.value)}
+                onKeyDown={onBarcodeKeyDown}
+                className="home-customer-input"
+                style={{
+                  fontWeight: '600',
+                  backgroundColor: '#f0fafdff',
+                  border: '2px solid #86daefff',
+                  transition: 'background-color 0.3s ease'
+                }}
+              />
+              <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#000000ff' }} />
+            </div>
 
             {/* Customer */}
             <div style={{ position: 'relative' }}>
@@ -592,7 +684,20 @@ function Home() {
               </div>
               <div className="home-modal-footer">
                 <button className="home-modal-cancel" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button className="home-modal-apply" onClick={createCustomer}>Create Customer</button>
+                <button
+                  className="home-modal-apply"
+                  onClick={createCustomer}
+                  disabled={creatingCustomer}  // ← disables double click
+                >
+                  {creatingCustomer ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin mr-2" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Customer"
+                  )}
+                </button>
               </div>
             </div>
           </div>

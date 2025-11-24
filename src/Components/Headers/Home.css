@@ -745,3 +745,8 @@
     height: 26px;
   }
 }
+.home-customer-input[placeholder*="Barcode"] {
+  background: linear-gradient(to right, #e1f4ff,#76cbff);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
