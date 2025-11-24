@@ -22,7 +22,7 @@ function PurchaseReport() {
 
   const fetchSuppliers = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_suppliers`, {
+      const res = await fetch(`${API_PATH}.get_suppliers_pi`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
