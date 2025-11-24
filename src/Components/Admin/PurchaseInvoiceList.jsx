@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Plus, ChevronDown, X, Trash2, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon
 } from 'lucide-react';
@@ -16,10 +16,14 @@ function PurchaseInvoiceList() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
   const [formData, setFormData] = useState({
+    name: '',
     supplier: '',
     supplier_name: '',
     posting_date: new Date().toISOString().split('T')[0],
@@ -53,6 +57,10 @@ function PurchaseInvoiceList() {
   const [filterDateTo, setFilterDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  // Actions dropdown
+  const [showActions, setShowActions] = useState(null);
+  const actionsRefs = useRef({});
+
   const supplierRef = useRef(null);
   const itemRefs = useRef({});
   const warehouseRefs = useRef({});
@@ -61,6 +69,30 @@ function PurchaseInvoiceList() {
     fetchInvoices();
     fetchWarehouses();
   }, []);
+
+  const handleClickOutside = useCallback((e) => {
+    if (supplierRef.current && !supplierRef.current.contains(e.target)) {
+      setShowSupplierDropdown(false);
+    }
+    Object.keys(itemRefs.current).forEach(idx => {
+      if (itemRefs.current[idx] && !itemRefs.current[idx].contains(e.target)) {
+        setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
+      }
+    });
+    Object.keys(warehouseRefs.current).forEach(idx => {
+      if (warehouseRefs.current[idx] && !warehouseRefs.current[idx].contains(e.target)) {
+        setShowWarehouseDropdowns(prev => ({ ...prev, [idx]: false }));
+      }
+    });
+    if (showActions && actionsRefs.current[showActions] && !actionsRefs.current[showActions].contains(e.target)) {
+      setShowActions(null);
+    }
+  }, [showActions]);
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [handleClickOutside]);
 
   const fetchInvoices = async () => {
     try {
@@ -129,6 +161,41 @@ function PurchaseInvoiceList() {
     }
   };
 
+  const fetchPurchaseInvoice = async (name) => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_purchase_invoice`, {
+        params: { name },
+        withCredentials: true
+      });
+      if (res.data.message?.success) {
+        const data = res.data.message.data;
+        setFormData({
+          name: data.name,
+          supplier: data.supplier,
+          supplier_name: data.supplier_name || data.supplier,
+          posting_date: data.posting_date.split('T')[0],
+          due_date: data.due_date ? data.due_date.split('T')[0] : '',
+          bill_no: data.bill_no || '',
+          items: (data.items || []).map(item => ({
+            item_code: item.item_code,
+            item_name: item.item_name,
+            qty: item.qty || 1,
+            uom: item.uom || '',
+            rate: item.rate || 0,
+            amount: item.amount || 0,
+            warehouse: item.warehouse || 'Stores'
+          }))
+        });
+        setSearchSupplier(data.supplier_name || data.supplier);
+        setItemSearches({});
+        setSearchWarehouse({});
+      }
+    } catch (err) {
+      console.error('Error fetching invoice:', err);
+      alert('Failed to load invoice');
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchSupplier.trim()) {
@@ -141,28 +208,9 @@ function PurchaseInvoiceList() {
     return () => clearTimeout(timer);
   }, [searchSupplier]);
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (supplierRef.current && !supplierRef.current.contains(e.target)) {
-        setShowSupplierDropdown(false);
-      }
-      Object.keys(itemRefs.current).forEach(idx => {
-        if (itemRefs.current[idx] && !itemRefs.current[idx].contains(e.target)) {
-          setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
-        }
-      });
-      Object.keys(warehouseRefs.current).forEach(idx => {
-        if (warehouseRefs.current[idx] && !warehouseRefs.current[idx].contains(e.target)) {
-          setShowWarehouseDropdowns(prev => ({ ...prev, [idx]: false }));
-        }
-      });
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const openCreateModal = () => {
     setFormData({
+      name: '',
       supplier: '', supplier_name: '',
       posting_date: new Date().toISOString().split('T')[0],
       due_date: '', bill_no: '',
@@ -181,7 +229,38 @@ function PurchaseInvoiceList() {
     setShowSupplierDropdown(false);
     setShowItemDropdowns({});
     setShowWarehouseDropdowns({});
+    setIsEditMode(false);
+    setIsViewMode(false);
+    setSelectedInvoice(null);
     setIsModalOpen(true);
+  };
+
+  const openEditModal = async (invoice) => {
+    if (invoice.docstatus !== 0) {
+      alert('Can only edit draft invoices');
+      return;
+    }
+    await fetchPurchaseInvoice(invoice.name);
+    setIsEditMode(true);
+    setIsViewMode(false);
+    setSelectedInvoice(invoice);
+    setIsModalOpen(true);
+  };
+
+  const openViewModal = async (invoice) => {
+    await fetchPurchaseInvoice(invoice.name);
+    setIsEditMode(false);
+    setIsViewMode(true);
+    setSelectedInvoice(invoice);
+    setIsModalOpen(true);
+  };
+
+  const handleRowClick = (invoice) => {
+    if (invoice.docstatus === 0) {
+      openEditModal(invoice);
+    } else {
+      openViewModal(invoice);
+    }
   };
 
   const updateItem = (index, field, value) => {
@@ -294,17 +373,31 @@ function PurchaseInvoiceList() {
     };
 
     try {
-      const res = await axios.post(`${API_PATH}.create_purchase_invoice_direct`, payload, {
-        withCredentials: true,
-        headers: { 'Content-Type': 'application/json' }
-      });
-
+      let res;
+      if (isEditMode) {
+        res = await axios.post(`${API_PATH}.update_purchase_invoice`, {
+          name: formData.name,
+          ...payload
+        }, { withCredentials: true, headers: { 'Content-Type': 'application/json' } });
+        if (res.data.message?.success) {
+          alert('Purchase Invoice Updated: ' + res.data.message.name);
+        } else {
+          alert(res.data.message?.message || 'Failed to update');
+        }
+      } else {
+        res = await axios.post(`${API_PATH}.create_purchase_invoice_direct`, payload, {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.data.message?.success) {
+          alert('Purchase Invoice Created: ' + res.data.message.name);
+        } else {
+          alert(res.data.message?.message || 'Failed to create');
+        }
+      }
       if (res.data.message?.success) {
-        alert('Purchase Invoice Created: ' + res.data.message.name);
         setIsModalOpen(false);
         fetchInvoices();
-      } else {
-        alert(res.data.message?.message || 'Failed to create');
       }
     } catch (err) {
       alert('Error: ' + (err.response?.data?.message || err.message));
@@ -313,7 +406,54 @@ function PurchaseInvoiceList() {
     }
   };
 
+  const handleCancel = async (name) => {
+    if (!confirm('Are you sure you want to cancel this invoice?')) return;
+    try {
+      const res = await axios.post(`${API_PATH}.cancel_purchase_invoice`, { name }, {
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.data.message?.success) {
+        alert('Invoice cancelled successfully');
+        fetchInvoices();
+      } else {
+        alert(res.data.message?.message || 'Failed to cancel');
+      }
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setShowActions(null);
+    }
+  };
+
+  const handleDelete = async (name) => {
+    if (!confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) return;
+    try {
+      const res = await axios.post(`${API_PATH}.delete_purchase_invoice`, { name }, {
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.data.message?.success) {
+        alert('Invoice deleted successfully');
+        fetchInvoices();
+      } else {
+        alert(res.data.message?.message || 'Failed to delete');
+      }
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setShowActions(null);
+    }
+  };
+
+  const openActions = (invoice) => {
+    setShowActions(invoice.name);
+  };
+
   const grandTotal = formData.items.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0).toFixed(2);
+
+  const modalTitle = isEditMode ? 'Edit Purchase Invoice' : isViewMode ? 'View Purchase Invoice' : 'New Purchase Invoice';
+  const modalSubtitle = isEditMode ? `Editing ${selectedInvoice?.name}` : isViewMode ? `Viewing ${selectedInvoice?.name}` : '';
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
@@ -337,6 +477,7 @@ function PurchaseInvoiceList() {
       Overdue: 'status-overdue',
       Draft: 'status-draft',
       Return: 'status-return',
+      Cancelled: 'status-cancelled',
     };
     return map[status] || 'status-default';
   };
@@ -408,6 +549,7 @@ function PurchaseInvoiceList() {
                   <option value="Paid">Paid</option>
                   <option value="Overdue">Overdue</option>
                   <option value="Return">Return</option>
+                  <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
               <div className="pi-filter-item">
@@ -479,30 +621,76 @@ function PurchaseInvoiceList() {
                           <td className="pi-td-checkbox">
                             <input type="checkbox" className="pi-checkbox" onClick={e => e.stopPropagation()} />
                           </td>
-                          <td className="pi-td" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                          <td className="pi-td" onClick={() => handleRowClick(inv)}>
                             <span className="pi-invoice-number">{inv.name}</span>
                           </td>
-                          <td className="pi-td" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                          <td className="pi-td" onClick={() => handleRowClick(inv)}>
                             <div className="pi-supplier">
                               <span className="pi-supplier-name">{inv.supplier_name}</span>
                               <span className="pi-supplier-code">{inv.supplier}</span>
                             </div>
                           </td>
-                          <td className="pi-td" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                          <td className="pi-td" onClick={() => handleRowClick(inv)}>
                             <span className="pi-date">{format(new Date(inv.posting_date), 'dd MMM yyyy')}</span>
                           </td>
-                          <td className="pi-td" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                          <td className="pi-td" onClick={() => handleRowClick(inv)}>
                             <span className={`pi-status ${getStatusColor(inv.status)}`}>
                               {inv.status}
                             </span>
                           </td>
-                          <td className="pi-td-right" onClick={() => window.location.href = `/purchase-invoice/${inv.name}`}>
+                          <td className="pi-td-right" onClick={() => handleRowClick(inv)}>
                             <span className="pi-amount">AED {inv.grand_total?.toFixed(2)}</span>
                           </td>
                           <td className="pi-td-actions">
-                            <button className="pi-btn-icon" onClick={e => e.stopPropagation()}>
-                              <MoreVertical className="pi-icon" />
-                            </button>
+                            <div ref={el => actionsRefs.current[inv.name] = el} style={{ position: 'relative' }}>
+                              <button className="pi-btn-icon" onClick={e => { e.stopPropagation(); openActions(inv); }}>
+                                <MoreVertical className="pi-icon" />
+                              </button>
+                              {showActions === inv.name && (
+                                <div className="pi-actions-dropdown" style={{
+                                  position: 'absolute',
+                                  top: '100%',
+                                  right: 0,
+                                  backgroundColor: 'white',
+                                  border: '1px solid #e0e0e0',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                  zIndex: 2000,
+                                  minWidth: '120px'
+                                }}>
+                                  {(inv.docstatus === 0 || inv.docstatus === 2) && (
+                                    <div 
+                                      className="pi-dropdown-item" 
+                                      onClick={() => handleDelete(inv.name)} 
+                                      style={{
+                                        padding: '8px 12px',
+                                        cursor: 'pointer',
+                                        display: 'block'
+                                      }} 
+                                      onMouseEnter={e => e.target.style.backgroundColor = '#f5f5f5'}
+                                      onMouseLeave={e => e.target.style.backgroundColor = 'white'}
+                                    >
+                                      Delete
+                                    </div>
+                                  )}
+                                  {inv.docstatus === 1 && (
+                                    <div 
+                                      className="pi-dropdown-item" 
+                                      onClick={() => handleCancel(inv.name)} 
+                                      style={{
+                                        padding: '8px 12px',
+                                        cursor: 'pointer',
+                                        display: 'block'
+                                      }} 
+                                      onMouseEnter={e => e.target.style.backgroundColor = '#f5f5f5'}
+                                      onMouseLeave={e => e.target.style.backgroundColor = 'white'}
+                                    >
+                                      Cancel
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -558,8 +746,8 @@ function PurchaseInvoiceList() {
             <div className="pi-modal">
               <div className="pi-modal-header">
                 <div>
-                  <h2 className="pi-modal-title">Create Purchase Invoice</h2>
-                  <p className="pi-modal-subtitle">Add supplier details and items to create a new invoice</p>
+                  <h2 className="pi-modal-title">{modalTitle}</h2>
+                  <p className="pi-modal-subtitle">{modalSubtitle}</p>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="pi-modal-close">
                   <X className="pi-icon" />
@@ -572,7 +760,7 @@ function PurchaseInvoiceList() {
                   <div className="pi-form-grid">
                     <div className="pi-form-group" ref={supplierRef}>
                       <label className="pi-label">
-                        Supplier <span className="pi-required">*</span>
+                        Supplier <span className="pi-required">{!isViewMode && '*'}</span>
                       </label>
                       <div className="pi-input-wrapper">
                         <Building2 className="pi-input-icon" />
@@ -580,12 +768,13 @@ function PurchaseInvoiceList() {
                           type="text"
                           value={searchSupplier}
                           onChange={e => setSearchSupplier(e.target.value)}
-                          onFocus={() => searchSupplier && setShowSupplierDropdown(true)}
+                          onFocus={() => !isViewMode && searchSupplier && setShowSupplierDropdown(true)}
                           placeholder="Search and select supplier..."
                           className={`pi-input ${formErrors.supplier ? 'pi-input-error' : ''}`}
+                          disabled={isViewMode}
                         />
                       </div>
-                      {showSupplierDropdown && suppliers.length > 0 && (
+                      {showSupplierDropdown && suppliers.length > 0 && !isViewMode && (
                         <div className="pi-dropdown">
                           {suppliers.map(s => (
                             <div key={s.name} onClick={() => selectSupplier(s)} className="pi-dropdown-item">
@@ -600,7 +789,7 @@ function PurchaseInvoiceList() {
 
                     <div className="pi-form-group">
                       <label className="pi-label">
-                        Posting Date <span className="pi-required">*</span>
+                        Posting Date <span className="pi-required">{!isViewMode && '*'}</span>
                       </label>
                       <div className="pi-input-wrapper">
                         <Calendar className="pi-input-icon" />
@@ -609,6 +798,7 @@ function PurchaseInvoiceList() {
                           value={formData.posting_date}
                           onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
                           className="pi-input"
+                          disabled={isViewMode}
                         />
                       </div>
                     </div>
@@ -622,6 +812,7 @@ function PurchaseInvoiceList() {
                           value={formData.due_date}
                           onChange={e => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
                           className="pi-input"
+                          disabled={isViewMode}
                         />
                       </div>
                     </div>
@@ -634,6 +825,7 @@ function PurchaseInvoiceList() {
                         onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
                         placeholder="Enter bill number..."
                         className="pi-input"
+                        disabled={isViewMode}
                       />
                     </div>
                   </div>
@@ -642,10 +834,12 @@ function PurchaseInvoiceList() {
                 <div className="pi-form-section">
                   <div className="pi-section-header">
                     <h3 className="pi-section-title">Items</h3>
-                    <button onClick={addItemRow} className="pi-btn-link">
-                      <Plus className="pi-icon-sm" />
-                      Add Item
-                    </button>
+                    {!isViewMode && (
+                      <button onClick={addItemRow} className="pi-btn-link">
+                        <Plus className="pi-icon-sm" />
+                        Add Item
+                      </button>
+                    )}
                   </div>
 
                   <div className="pi-items-table-wrapper">
@@ -675,11 +869,12 @@ function PurchaseInvoiceList() {
                                     type="text"
                                     value={itemSearches[i] || ''}
                                     onChange={e => handleItemSearch(i, e.target.value)}
-                                    onFocus={() => itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
+                                    onFocus={() => !isViewMode && itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
                                     placeholder="Search item..."
                                     className="pi-items-input"
+                                    disabled={isViewMode}
                                   />
-                                  {showItemDropdowns[i] && itemsList.length > 0 && (
+                                  {showItemDropdowns[i] && itemsList.length > 0 && !isViewMode && (
                                     <div className="pi-dropdown pi-dropdown-absolute">
                                       {itemsList.map(itm => (
                                         <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="pi-dropdown-item">
@@ -700,6 +895,7 @@ function PurchaseInvoiceList() {
                                 onChange={e => updateItem(i, 'qty', e.target.value)}
                                 className="pi-items-input pi-items-input-number"
                                 min="1"
+                                disabled={isViewMode}
                               />
                             </td>
 
@@ -714,6 +910,7 @@ function PurchaseInvoiceList() {
                                 onChange={e => updateItem(i, 'rate', e.target.value)}
                                 className="pi-items-input pi-items-input-number"
                                 step="0.01"
+                                disabled={isViewMode}
                               />
                             </td>
 
@@ -728,11 +925,12 @@ function PurchaseInvoiceList() {
                                   type="text"
                                   value={searchWarehouse[i] || item.warehouse}
                                   onChange={e => handleWarehouseSearch(i, e.target.value)}
-                                  onFocus={() => setShowWarehouseDropdowns(prev => ({ ...prev, [i]: true }))}
+                                  onFocus={() => !isViewMode && setShowWarehouseDropdowns(prev => ({ ...prev, [i]: true }))}
                                   placeholder="Warehouse..."
                                   className="pi-items-input"
+                                  disabled={isViewMode}
                                 />
-                                {showWarehouseDropdowns[i] && warehouses.length > 0 && (
+                                {showWarehouseDropdowns[i] && warehouses.length > 0 && !isViewMode && (
                                   <div className="pi-dropdown pi-dropdown-absolute">
                                     {warehouses
                                       .filter(wh => !searchWarehouse[i] || wh.warehouse_name.toLowerCase().includes(searchWarehouse[i].toLowerCase()))
@@ -747,7 +945,7 @@ function PurchaseInvoiceList() {
                             </td>
 
                             <td className="pi-items-td">
-                              {formData.items.length > 1 && (
+                              {!isViewMode && formData.items.length > 1 && (
                                 <button onClick={() => removeItemRow(i)} className="pi-btn-delete">
                                   <Trash2 className="pi-icon-sm" />
                                 </button>
@@ -771,18 +969,20 @@ function PurchaseInvoiceList() {
 
               <div className="pi-modal-footer">
                 <button onClick={() => setIsModalOpen(false)} className="pi-btn-secondary">
-                  Cancel
+                  {isViewMode ? 'Close' : 'Cancel'}
                 </button>
-                <button onClick={handleSave} disabled={saving} className="pi-btn-primary">
-                  {saving ? (
-                    <>
-                      <div className="pi-btn-spinner"></div>
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Invoice'
-                  )}
-                </button>
+                {!isViewMode && (
+                  <button onClick={handleSave} disabled={saving} className="pi-btn-primary">
+                    {saving ? (
+                      <>
+                        <div className="pi-btn-spinner"></div>
+                        {isEditMode ? 'Updating...' : 'Creating...'}
+                      </>
+                    ) : (
+                      isEditMode ? 'Update Invoice' : 'Create Invoice'
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
