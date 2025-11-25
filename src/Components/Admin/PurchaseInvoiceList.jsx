@@ -1,41 +1,44 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Plus, ChevronDown, X, Trash2, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon
+  Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2
 } from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
 import './PurchaseInvoiceList.css';
 
+// Custom APIs (kept for suppliers, items, warehouses, tax templates)
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+
+// Standard Resource API — ONLY for Purchase Invoice (Create/Update/Cancel/Delete)
+const RESOURCE_API = '/api/resource/Purchase Invoice';
 
 function PurchaseInvoiceList() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
+  const [taxTemplates, setTaxTemplates] = useState([]);
+  const [loadingTaxTemplates, setLoadingTaxTemplates] = useState(false);
+  const [taxPreview, setTaxPreview] = useState([]);
+
   const [formData, setFormData] = useState({
-    name: '',
-    supplier: '',
-    supplier_name: '',
+    name: '', supplier: '', supplier_name: '',
     posting_date: new Date().toISOString().split('T')[0],
-    due_date: '',
-    bill_no: '',
+    due_date: '', bill_no: '',
     update_stock: true,
-    buying_price_list: 'Standard Buying',
-    taxes_template: 'UAE VAT 5%',
-    is_paid: false,
-    items: [{
-      item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, warehouse: 'Stores'
-    }]
+    apply_discount_on: 'Grand Total',
+    additional_discount_percentage: 0,
+    discount_amount: 0,
+    taxes_and_charges: '',
+    items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0 }]
   });
 
   const [searchSupplier, setSearchSupplier] = useState('');
@@ -46,159 +49,76 @@ function PurchaseInvoiceList() {
   const [itemSearches, setItemSearches] = useState({});
   const [showItemDropdowns, setShowItemDropdowns] = useState({});
 
-  const [warehouses, setWarehouses] = useState([]);
-  const [searchWarehouse, setSearchWarehouse] = useState({});
-  const [showWarehouseDropdowns, setShowWarehouseDropdowns] = useState({});
-
   const [filterName, setFilterName] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-
-  // Actions dropdown
   const [showActions, setShowActions] = useState(null);
-  const actionsRefs = useRef({});
 
   const supplierRef = useRef(null);
   const itemRefs = useRef({});
-  const warehouseRefs = useRef({});
+  const actionsRefs = useRef({});
+
+  // Calculations
+  const subtotal = useMemo(() => formData.items.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0), [formData.items]);
+  const discountAmount = useMemo(() => {
+    if (formData.additional_discount_percentage > 0) return (subtotal * formData.additional_discount_percentage) / 100;
+    return parseFloat(formData.discount_amount) || 0;
+  }, [subtotal, formData.additional_discount_percentage, formData.discount_amount]);
+  const netTotal = subtotal - discountAmount;
+  const taxTotal = useMemo(() => {
+  return taxPreview.reduce((sum, t) => {
+    return sum + (netTotal * (parseFloat(t.rate || 0) / 100));
+  }, 0);
+}, [taxPreview, netTotal]);
+  const grandTotal = (netTotal + taxTotal).toFixed(2);
 
   useEffect(() => {
     fetchInvoices();
-    fetchWarehouses();
+    fetchTaxTemplates();
   }, []);
 
-  const handleClickOutside = useCallback((e) => {
-    if (supplierRef.current && !supplierRef.current.contains(e.target)) {
-      setShowSupplierDropdown(false);
-    }
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showActions]);
+
+  const handleClickOutside = (e) => {
+    if (supplierRef.current && !supplierRef.current.contains(e.target)) setShowSupplierDropdown(false);
     Object.keys(itemRefs.current).forEach(idx => {
       if (itemRefs.current[idx] && !itemRefs.current[idx].contains(e.target)) {
         setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
       }
     });
-    Object.keys(warehouseRefs.current).forEach(idx => {
-      if (warehouseRefs.current[idx] && !warehouseRefs.current[idx].contains(e.target)) {
-        setShowWarehouseDropdowns(prev => ({ ...prev, [idx]: false }));
-      }
-    });
     if (showActions && actionsRefs.current[showActions] && !actionsRefs.current[showActions].contains(e.target)) {
       setShowActions(null);
     }
-  }, [showActions]);
-
-  useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [handleClickOutside]);
+  };
 
   const fetchInvoices = async () => {
     try {
       setLoading(true);
       const res = await axios.get(`${API_PATH}.get_purchase_invoices`, { withCredentials: true });
-      if (res.data.message?.success) {
-        setInvoices(res.data.message.data || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      if (res.data.message?.success) setInvoices(res.data.message.data || []);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
-  const fetchSuppliers = async (query = '') => {
+  const fetchTaxTemplates = async () => {
+    setLoadingTaxTemplates(true);
     try {
-      const res = await axios.get(`${API_PATH}.get_suppliers_pi`, {
-        params: { query: query || undefined },
-        withCredentials: true
-      });
-      const data = Array.isArray(res.data.message) ? res.data.message : [];
-      setSuppliers(data);
-    } catch (err) {
-      console.error('Supplier fetch error:', err);
-      setSuppliers([]);
-    }
+      const res = await axios.get(`${API_PATH}.get_purchase_taxes_templates_pi`, { withCredentials: true });
+      setTaxTemplates(Array.isArray(res.data.message) ? res.data.message : []);
+    } catch (err) { console.error(err); }
+    finally { setLoadingTaxTemplates(false); }
   };
 
-  const fetchItems = async (query = '') => {
-    try {
-      const res = await axios.get(`${API_PATH}.get_items_for_pi`, {
-        params: { query: query || undefined },
-        withCredentials: true
-      });
-      const data = Array.isArray(res.data.message) ? res.data.message : [];
-      setItemsList(data);
-    } catch (err) {
-      console.error('Items fetch error:', err);
-      setItemsList([]);
-    }
-  };
-
-  const fetchWarehouses = async () => {
-    try {
-      const res = await axios.get(`${API_PATH}.get_company_warehouses`, { withCredentials: true });
-      const data = Array.isArray(res.data.message) ? res.data.message : [];
-      setWarehouses(data);
-    } catch (err) {
-      console.error('Warehouses fetch error:', err);
-      setWarehouses([]);
-    }
-  };
-
-  const fetchItemRate = async (itemCode, rowIndex) => {
-    try {
-      const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
-        params: { item_code: itemCode },
-        withCredentials: true
-      });
-      if (res.data.message) {
-        updateItem(rowIndex, 'rate', res.data.message.rate);
-      }
-    } catch (err) {
-      console.error('Error fetching item rate:', err);
-    }
-  };
-
-  const fetchPurchaseInvoice = async (name) => {
-    try {
-      const res = await axios.get(`${API_PATH}.get_purchase_invoice`, {
-        params: { name },
-        withCredentials: true
-      });
-      if (res.data.message?.success) {
-        const data = res.data.message.data;
-        setFormData({
-          name: data.name,
-          supplier: data.supplier,
-          supplier_name: data.supplier_name || data.supplier,
-          posting_date: data.posting_date.split('T')[0],
-          due_date: data.due_date ? data.due_date.split('T')[0] : '',
-          bill_no: data.bill_no || '',
-          items: (data.items || []).map(item => ({
-            item_code: item.item_code,
-            item_name: item.item_name,
-            qty: item.qty || 1,
-            uom: item.uom || '',
-            rate: item.rate || 0,
-            amount: item.amount || 0,
-            warehouse: item.warehouse || 'Stores'
-          }))
-        });
-        setSearchSupplier(data.supplier_name || data.supplier);
-        setItemSearches({});
-        setSearchWarehouse({});
-      }
-    } catch (err) {
-      console.error('Error fetching invoice:', err);
-      alert('Failed to load invoice');
-    }
-  };
-
+  // Supplier search
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchSupplier.trim()) {
+      if (searchSupplier.trim().length >= 2) {
         fetchSuppliers(searchSupplier);
         setShowSupplierDropdown(true);
       } else {
@@ -208,87 +128,164 @@ function PurchaseInvoiceList() {
     return () => clearTimeout(timer);
   }, [searchSupplier]);
 
+  const fetchSuppliers = async (query = '') => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_suppliers_pi`, {
+        params: { query: query || undefined },
+        withCredentials: true
+      });
+      setSuppliers(Array.isArray(res.data.message) ? res.data.message : []);
+    } catch (err) { setSuppliers([]); }
+  };
+
+  const fetchItems = async (query = '') => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_items_for_pi`, {
+        params: { query: query || undefined },
+        withCredentials: true
+      });
+      setItemsList(Array.isArray(res.data.message) ? res.data.message : []);
+    } catch (err) { setItemsList([]); }
+  };
+
+  const fetchItemRate = async (itemCode, rowIndex) => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
+        params: { item_code: itemCode },
+        withCredentials: true
+      });
+      if (res.data.message?.rate) {
+        updateItem(rowIndex, 'rate', res.data.message.rate);
+      }
+    } catch (err) { }
+  };
+
+  // Tax preview
+  // FIXED: Properly encode tax template name with spaces/special chars
+  useEffect(() => {
+    if (!formData.taxes_and_charges) {
+      setTaxPreview([]);
+      return;
+    }
+
+    const loadTaxTemplate = async () => {
+      try {
+        const encodedName = encodeURIComponent(formData.taxes_and_charges);
+        const res = await axios.get(
+          `/api/resource/Purchase Taxes and Charges Template/${encodedName}`,
+          { withCredentials: true }
+        );
+        setTaxPreview(res.data.data.taxes || []);
+      } catch (err) {
+        console.warn("Tax template not found or invalid:", formData.taxes_and_charges);
+        setTaxPreview([]);
+      }
+    };
+
+    loadTaxTemplate();
+  }, [formData.taxes_and_charges]);
+
   const openCreateModal = () => {
     setFormData({
-      name: '',
-      supplier: '', supplier_name: '',
+      name: '', supplier: '', supplier_name: '',
       posting_date: new Date().toISOString().split('T')[0],
       due_date: '', bill_no: '',
       update_stock: true,
-      buying_price_list: 'Standard Buying',
-      taxes_template: 'UAE VAT 5%',
-      is_paid: false,
-      items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, warehouse: 'Stores' }]
+      apply_discount_on: 'Grand Total',
+      additional_discount_percentage: 0,
+      discount_amount: 0,
+      taxes_and_charges: '',
+      items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0 }]
     });
     setFormErrors({});
     setSearchSupplier('');
-    setItemSearches({});
-    setSearchWarehouse({});
-    setSuppliers([]);
-    setItemsList([]);
-    setShowSupplierDropdown(false);
-    setShowItemDropdowns({});
-    setShowWarehouseDropdowns({});
+    setTaxPreview([]);
     setIsEditMode(false);
     setIsViewMode(false);
-    setSelectedInvoice(null);
     setIsModalOpen(true);
   };
 
-  const openEditModal = async (invoice) => {
-    if (invoice.docstatus !== 0) {
-      alert('Can only edit draft invoices');
-      return;
+  const fetchPurchaseInvoice = async (name) => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_purchase_invoice`, { params: { name }, withCredentials: true });
+      if (res.data.message?.success) {
+        const d = res.data.message.data;
+        setFormData({
+          name: d.name,
+          supplier: d.supplier,
+          supplier_name: d.supplier_name || d.supplier,
+          posting_date: d.posting_date.split('T')[0],
+          due_date: d.due_date ? d.due_date.split('T')[0] : '',
+          bill_no: d.bill_no || '',
+          update_stock: !!d.update_stock,
+          apply_discount_on: d.apply_discount_on || 'Grand Total',
+          additional_discount_percentage: d.additional_discount_percentage || 0,
+          discount_amount: d.discount_amount || 0,
+          taxes_and_charges: d.taxes_and_charges || '',
+          items: (d.items || []).map(i => ({
+            item_code: i.item_code,
+            item_name: i.item_name,
+            qty: i.qty || 1,
+            uom: i.uom || '',
+            rate: i.rate || 0,
+            amount: i.amount || 0
+          }))
+        });
+        setSearchSupplier(d.supplier_name || d.supplier);
+      }
+    } catch (err) {
+      alert('Failed to load invoice');
     }
+  };
+
+  const openEditModal = async (invoice) => {
+    if (invoice.docstatus !== 0) return alert('Can only edit draft invoices');
     await fetchPurchaseInvoice(invoice.name);
     setIsEditMode(true);
     setIsViewMode(false);
-    setSelectedInvoice(invoice);
     setIsModalOpen(true);
   };
 
   const openViewModal = async (invoice) => {
     await fetchPurchaseInvoice(invoice.name);
-    setIsEditMode(false);
     setIsViewMode(true);
-    setSelectedInvoice(invoice);
+    setIsEditMode(false);
     setIsModalOpen(true);
   };
 
   const handleRowClick = (invoice) => {
-    if (invoice.docstatus === 0) {
-      openEditModal(invoice);
-    } else {
-      openViewModal(invoice);
-    }
+    if (invoice.docstatus === 0) openEditModal(invoice);
+    else openViewModal(invoice);
   };
 
   const updateItem = (index, field, value) => {
     setFormData(prev => {
       const items = [...prev.items];
-      items[index][field] = value;
+      items[index] = { ...items[index] }; // important: clone
+
       if (field === 'qty' || field === 'rate') {
-        const qty = parseFloat(items[index].qty) || 0;
-        const rate = parseFloat(items[index].rate) || 0;
-        items[index].amount = (qty * rate).toFixed(2);
+        const qty = parseFloat(value) || 0;
+        const rate = field === 'rate' ? qty : (parseFloat(items[index].rate) || 0);
+        const qtyFinal = field === 'qty' ? qty : (parseFloat(items[index].qty) || 0);
+        items[index].amount = qtyFinal * rate; // number, not string!
+        items[index][field] = value === '' ? '' : qty; // keep empty string for input
+      } else {
+        items[index][field] = value;
       }
+
       return { ...prev, items };
     });
   };
 
-  const addItemRow = () => {
-    setFormData(prev => ({
-      ...prev,
-      items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, warehouse: 'Stores' }]
-    }));
-  };
+  const addItemRow = () => setFormData(prev => ({
+    ...prev,
+    items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0 }]
+  }));
 
-  const removeItemRow = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index)
-    }));
-  };
+  const removeItemRow = (index) => setFormData(prev => ({
+    ...prev,
+    items: prev.items.filter((_, i) => i !== index)
+  }));
 
   const selectSupplier = (supplier) => {
     setFormData(prev => ({ ...prev, supplier: supplier.name, supplier_name: supplier.supplier_name }));
@@ -300,18 +297,32 @@ function PurchaseInvoiceList() {
     setFormData(prev => {
       const items = [...prev.items];
       items[rowIndex] = {
-        ...items[rowIndex],
         item_code: item.item_code,
         item_name: item.item_name,
         uom: item.stock_uom || 'Nos',
+        qty: 1,
         rate: 0,
         amount: 0
       };
       return { ...prev, items };
     });
+
     setItemSearches(prev => ({ ...prev, [rowIndex]: '' }));
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
-    await fetchItemRate(item.item_code, rowIndex);
+
+
+    try {
+      const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
+        params: { item_code: item.item_code },
+        withCredentials: true
+      });
+      if (res.data.message?.rate) {
+        updateItem(rowIndex, 'rate', res.data.message.rate);
+
+      }
+    } catch (err) {
+      console.log("No buying rate found");
+    }
   };
 
   const handleItemSearch = (index, value) => {
@@ -324,176 +335,104 @@ function PurchaseInvoiceList() {
     }
   };
 
-  const selectWarehouse = (rowIndex, warehouse) => {
-    setFormData(prev => {
-      const items = [...prev.items];
-      items[rowIndex].warehouse = warehouse.warehouse_name;
-      return { ...prev, items };
-    });
-    setSearchWarehouse(prev => ({ ...prev, [rowIndex]: warehouse.warehouse_name }));
-    setShowWarehouseDropdowns(prev => ({ ...prev, [rowIndex]: false }));
-  };
-
-  const handleWarehouseSearch = (index, value) => {
-    setSearchWarehouse(prev => ({ ...prev, [index]: value }));
-    if (value.trim().length > 0) {
-      setShowWarehouseDropdowns(prev => ({ ...prev, [index]: true }));
-    } else {
-      setShowWarehouseDropdowns(prev => ({ ...prev, [index]: false }));
-    }
-  };
-
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.supplier) errors.supplier = 'Supplier is required';
-    if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) {
-      errors.items = 'At least one valid item required';
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleSave = async () => {
-    if (!validateForm()) return;
-    setSaving(true);
+  const errors = {};
+  if (!formData.supplier) errors.supplier = 'Supplier is required';
+  if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
+  if (Object.keys(errors).length > 0) {
+    setFormErrors(errors);
+    return;
+  }
 
-    const payload = {
-      supplier: formData.supplier,
-      posting_date: formData.posting_date,
-      due_date: formData.due_date || null,
-      bill_no: formData.bill_no || null,
-      items: formData.items
-        .filter(i => i.item_code && i.qty > 0)
-        .map(i => ({
-          item_code: i.item_code,
-          qty: parseFloat(i.qty),
-          rate: parseFloat(i.rate || 0),
-          amount: parseFloat(i.amount || 0)
-        }))
-    };
+  setSaving(true);
 
-    try {
-      let res;
-      if (isEditMode) {
-        res = await axios.post(`${API_PATH}.update_purchase_invoice`, {
-          name: formData.name,
-          ...payload
-        }, { withCredentials: true, headers: { 'Content-Type': 'application/json' } });
-        if (res.data.message?.success) {
-          alert('Purchase Invoice Updated: ' + res.data.message.name);
-        } else {
-          alert(res.data.message?.message || 'Failed to update');
-        }
-      } else {
-        res = await axios.post(`${API_PATH}.create_purchase_invoice_direct`, payload, {
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (res.data.message?.success) {
-          alert('Purchase Invoice Created: ' + res.data.message.name);
-        } else {
-          alert(res.data.message?.message || 'Failed to create');
-        }
-      }
-      if (res.data.message?.success) {
-        setIsModalOpen(false);
-        fetchInvoices();
-      }
-    } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setSaving(false);
+  // Calculate net total before discount
+  const itemsTotal = formData.items
+    .filter(i => i.item_code && i.qty > 0)
+    .reduce((sum, i) => sum + (parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0), 0);
+
+  const discountAmountCalc = formData.additional_discount_percentage > 0
+    ? (itemsTotal * formData.additional_discount_percentage) / 100
+    : parseFloat(formData.discount_amount) || 0;
+
+  const netTotal = itemsTotal - discountAmountCalc;
+
+  // Build taxes array from taxPreview
+  const taxes = taxPreview.map(tax => ({
+    charge_type: "On Net Total",        // or "Actual" if needed
+    account_head: tax.account_head,
+    rate: parseFloat(tax.rate || 0),
+    tax_amount: netTotal * (parseFloat(tax.rate || 0) / 100),
+    description: tax.description || tax.account_head
+  }));
+
+  const payload = {
+    supplier: formData.supplier,
+    posting_date: formData.posting_date,
+    due_date: formData.due_date || null,
+    bill_no: formData.bill_no || null,
+    update_stock: formData.update_stock ? 1 : 0,
+    apply_discount_on: formData.apply_discount_on,
+    additional_discount_percentage: formData.additional_discount_percentage > 0 ? parseFloat(formData.additional_discount_percentage) : null,
+    discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
+    taxes_and_charges: formData.taxes_and_charges || null,
+    taxes: taxes.length > 0 ? taxes : null,  // ← THIS IS THE KEY!
+    items: formData.items
+      .filter(i => i.item_code && i.qty > 0)
+      .map(i => ({
+        item_code: i.item_code,
+        qty: parseFloat(i.qty) || 1,
+        rate: parseFloat(i.rate || 0)
+      }))
+  };
+
+  try {
+    let res;
+    if (isEditMode) {
+      res = await axios.put(`${RESOURCE_API}/${formData.name}`, payload, { withCredentials: true });
+    } else {
+      res = await axios.post(RESOURCE_API, payload, { withCredentials: true });
     }
-  };
+    alert(`${isEditMode ? 'Updated' : 'Created'} successfully: ${res.data.data.name}`);
+    setIsModalOpen(false);
+    fetchInvoices();
+  } catch (err) {
+    const msg = err.response?.data?.message || err.response?.data?.exception || 'Save failed';
+    alert("Error: " + msg);
+    console.error(err.response?.data);
+  } finally {
+    setSaving(false);
+  }
+};
 
-  const handleCancel = async (name) => {
-    if (!confirm('Are you sure you want to cancel this invoice?')) return;
-    try {
-      const res = await axios.post(`${API_PATH}.cancel_purchase_invoice`, { name }, {
-        withCredentials: true,
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (res.data.message?.success) {
-        alert('Invoice cancelled successfully');
-        fetchInvoices();
-      } else {
-        alert(res.data.message?.message || 'Failed to cancel');
-      }
-    } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setShowActions(null);
-    }
-  };
-
-  const handleDelete = async (name) => {
-    if (!confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) return;
-    try {
-      const res = await axios.post(`${API_PATH}.delete_purchase_invoice`, { name }, {
-        withCredentials: true,
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (res.data.message?.success) {
-        alert('Invoice deleted successfully');
-        fetchInvoices();
-      } else {
-        alert(res.data.message?.message || 'Failed to delete');
-      }
-    } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setShowActions(null);
-    }
-  };
-
-  const openActions = (invoice) => {
-    setShowActions(invoice.name);
-  };
-
-  const grandTotal = formData.items.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0).toFixed(2);
-
-  const modalTitle = isEditMode ? 'Edit Purchase Invoice' : isViewMode ? 'View Purchase Invoice' : 'New Purchase Invoice';
-  const modalSubtitle = isEditMode ? `Editing ${selectedInvoice?.name}` : isViewMode ? `Viewing ${selectedInvoice?.name}` : '';
-
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter(inv => {
-      const matchesName = !filterName || inv.name.toLowerCase().includes(filterName.toLowerCase());
-      const matchesSupplier = !filterSupplier || inv.supplier_name.toLowerCase().includes(filterSupplier.toLowerCase());
-      const matchesStatus = !filterStatus || inv.status === filterStatus;
-      const matchesFrom = !filterDateFrom || new Date(inv.posting_date) >= new Date(filterDateFrom);
-      const matchesTo = !filterDateTo || new Date(inv.posting_date) <= new Date(filterDateTo);
-      return matchesName && matchesSupplier && matchesStatus && matchesFrom && matchesTo;
-    });
-  }, [invoices, filterName, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
+  const filteredInvoices = useMemo(() => invoices.filter(inv => {
+    const matchesName = !filterName || inv.name.toLowerCase().includes(filterName.toLowerCase());
+    const matchesSupplier = !filterSupplier || inv.supplier_name.toLowerCase().includes(filterSupplier.toLowerCase());
+    const matchesStatus = !filterStatus || inv.status === filterStatus;
+    const matchesFrom = !filterDateFrom || new Date(inv.posting_date) >= new Date(filterDateFrom);
+    const matchesTo = !filterDateTo || new Date(inv.posting_date) <= new Date(filterDateTo);
+    return matchesName && matchesSupplier && matchesStatus && matchesFrom && matchesTo;
+  }), [invoices, filterName, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
 
   const total = filteredInvoices.length;
   const paginated = filteredInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(total / pageSize);
 
   const getStatusColor = (status) => {
-    const map = {
-      Paid: 'status-paid',
-      Unpaid: 'status-unpaid',
-      Overdue: 'status-overdue',
-      Draft: 'status-draft',
-      Return: 'status-return',
-      Cancelled: 'status-cancelled',
-    };
+    const map = { Paid: 'status-paid', Unpaid: 'status-unpaid', Overdue: 'status-overdue', Draft: 'status-draft', Return: 'status-return', Cancelled: 'status-cancelled' };
     return map[status] || 'status-default';
   };
 
   const clearFilters = () => {
-    setFilterName('');
-    setFilterSupplier('');
-    setFilterStatus('');
-    setFilterDateFrom('');
-    setFilterDateTo('');
+    setFilterName(''); setFilterSupplier(''); setFilterStatus('');
+    setFilterDateFrom(''); setFilterDateTo('');
   };
 
   return (
     <>
       <NavBar />
       <div className="pi-container">
+        {/* Header */}
         <div className="pi-header">
           <div className="pi-header-left">
             <h1 className="pi-title">Purchase Invoices</h1>
@@ -501,16 +440,15 @@ function PurchaseInvoiceList() {
           </div>
           <div className="pi-header-actions">
             <button onClick={() => setShowFilters(!showFilters)} className="pi-btn-secondary">
-              <Filter className="pi-icon" />
-              Filters
+              <Filter className="pi-icon" /> Filters
             </button>
             <button onClick={openCreateModal} className="pi-btn-primary">
-              <Plus className="pi-icon" />
-              Create Invoice
+              <Plus className="pi-icon" /> Create Invoice
             </button>
           </div>
         </div>
 
+        {/* Filters */}
         {showFilters && (
           <div className="pi-filters">
             <div className="pi-filters-grid">
@@ -518,26 +456,14 @@ function PurchaseInvoiceList() {
                 <label>Invoice Number</label>
                 <div className="pi-input-wrapper">
                   <Search className="pi-input-icon" />
-                  <input
-                    type="text"
-                    placeholder="Search invoice..."
-                    value={filterName}
-                    onChange={e => setFilterName(e.target.value)}
-                    className="pi-input"
-                  />
+                  <input type="text" placeholder="Search invoice..." value={filterName} onChange={e => setFilterName(e.target.value)} className="pi-input" />
                 </div>
               </div>
               <div className="pi-filter-item">
                 <label>Supplier</label>
                 <div className="pi-input-wrapper">
                   <Building2 className="pi-input-icon" />
-                  <input
-                    type="text"
-                    placeholder="Search supplier..."
-                    value={filterSupplier}
-                    onChange={e => setFilterSupplier(e.target.value)}
-                    className="pi-input"
-                  />
+                  <input type="text" placeholder="Search supplier..." value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)} className="pi-input" />
                 </div>
               </div>
               <div className="pi-filter-item">
@@ -556,24 +482,14 @@ function PurchaseInvoiceList() {
                 <label>From Date</label>
                 <div className="pi-input-wrapper">
                   <Calendar className="pi-input-icon" />
-                  <input
-                    type="date"
-                    value={filterDateFrom}
-                    onChange={e => setFilterDateFrom(e.target.value)}
-                    className="pi-input"
-                  />
+                  <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="pi-input" />
                 </div>
               </div>
               <div className="pi-filter-item">
                 <label>To Date</label>
                 <div className="pi-input-wrapper">
                   <Calendar className="pi-input-icon" />
-                  <input
-                    type="date"
-                    value={filterDateTo}
-                    onChange={e => setFilterDateTo(e.target.value)}
-                    className="pi-input"
-                  />
+                  <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="pi-input" />
                 </div>
               </div>
               <div className="pi-filter-actions">
@@ -583,6 +499,7 @@ function PurchaseInvoiceList() {
           </div>
         )}
 
+        {/* Table */}
         <main className="pi-main">
           {loading ? (
             <div className="pi-loading">
@@ -595,9 +512,7 @@ function PurchaseInvoiceList() {
                 <table className="pi-table">
                   <thead>
                     <tr>
-                      <th className="pi-th-checkbox">
-                        <input type="checkbox" className="pi-checkbox" />
-                      </th>
+                      <th className="pi-th-checkbox"><input type="checkbox" className="pi-checkbox" /></th>
                       <th className="pi-th">Invoice Number</th>
                       <th className="pi-th">Supplier</th>
                       <th className="pi-th">Date</th>
@@ -617,76 +532,40 @@ function PurchaseInvoiceList() {
                       </tr>
                     ) : (
                       paginated.map(inv => (
-                        <tr key={inv.name} className="pi-tr">
-                          <td className="pi-td-checkbox">
-                            <input type="checkbox" className="pi-checkbox" onClick={e => e.stopPropagation()} />
+                        <tr key={inv.name} className="pi-tr" onClick={() => handleRowClick(inv)}>
+                          <td className="pi-td-checkbox" onClick={e => e.stopPropagation()}>
+                            <input type="checkbox" className="pi-checkbox" />
                           </td>
-                          <td className="pi-td" onClick={() => handleRowClick(inv)}>
+                          <td className="pi-td">
                             <span className="pi-invoice-number">{inv.name}</span>
                           </td>
-                          <td className="pi-td" onClick={() => handleRowClick(inv)}>
+                          <td className="pi-td">
                             <div className="pi-supplier">
                               <span className="pi-supplier-name">{inv.supplier_name}</span>
                               <span className="pi-supplier-code">{inv.supplier}</span>
                             </div>
                           </td>
-                          <td className="pi-td" onClick={() => handleRowClick(inv)}>
+                          <td className="pi-td">
                             <span className="pi-date">{format(new Date(inv.posting_date), 'dd MMM yyyy')}</span>
                           </td>
-                          <td className="pi-td" onClick={() => handleRowClick(inv)}>
-                            <span className={`pi-status ${getStatusColor(inv.status)}`}>
-                              {inv.status}
-                            </span>
+                          <td className="pi-td">
+                            <span className={`pi-status ${getStatusColor(inv.status)}`}>{inv.status}</span>
                           </td>
-                          <td className="pi-td-right" onClick={() => handleRowClick(inv)}>
+                          <td className="pi-td-right">
                             <span className="pi-amount">AED {inv.grand_total?.toFixed(2)}</span>
                           </td>
-                          <td className="pi-td-actions">
+                          <td className="pi-td-actions" onClick={e => e.stopPropagation()}>
                             <div ref={el => actionsRefs.current[inv.name] = el} style={{ position: 'relative' }}>
-                              <button className="pi-btn-icon" onClick={e => { e.stopPropagation(); openActions(inv); }}>
+                              <button className="pi-btn-icon" onClick={() => setShowActions(showActions === inv.name ? null : inv.name)}>
                                 <MoreVertical className="pi-icon" />
                               </button>
                               {showActions === inv.name && (
-                                <div className="pi-actions-dropdown" style={{
-                                  position: 'absolute',
-                                  top: '100%',
-                                  right: 0,
-                                  backgroundColor: 'white',
-                                  border: '1px solid #e0e0e0',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                  zIndex: 2000,
-                                  minWidth: '120px'
-                                }}>
+                                <div className="pi-actions-dropdown">
                                   {(inv.docstatus === 0 || inv.docstatus === 2) && (
-                                    <div 
-                                      className="pi-dropdown-item" 
-                                      onClick={() => handleDelete(inv.name)} 
-                                      style={{
-                                        padding: '8px 12px',
-                                        cursor: 'pointer',
-                                        display: 'block'
-                                      }} 
-                                      onMouseEnter={e => e.target.style.backgroundColor = '#f5f5f5'}
-                                      onMouseLeave={e => e.target.style.backgroundColor = 'white'}
-                                    >
-                                      Delete
-                                    </div>
+                                    <div className="pi-dropdown-item" onClick={() => handleDelete(inv.name)}>Delete</div>
                                   )}
                                   {inv.docstatus === 1 && (
-                                    <div 
-                                      className="pi-dropdown-item" 
-                                      onClick={() => handleCancel(inv.name)} 
-                                      style={{
-                                        padding: '8px 12px',
-                                        cursor: 'pointer',
-                                        display: 'block'
-                                      }} 
-                                      onMouseEnter={e => e.target.style.backgroundColor = '#f5f5f5'}
-                                      onMouseLeave={e => e.target.style.backgroundColor = 'white'}
-                                    >
-                                      Cancel
-                                    </div>
+                                    <div className="pi-dropdown-item" onClick={() => handleCancel(inv.name)}>Cancel</div>
                                   )}
                                 </div>
                               )}
@@ -708,31 +587,14 @@ function PurchaseInvoiceList() {
                     <div className="pi-page-size">
                       <span>Rows:</span>
                       {[20, 50, 100].map(s => (
-                        <button
-                          key={s}
-                          onClick={() => { setPageSize(s); setCurrentPage(1); }}
-                          className={`pi-page-size-btn ${pageSize === s ? 'active' : ''}`}
-                        >
-                          {s}
-                        </button>
+                        <button key={s} onClick={() => { setPageSize(s); setCurrentPage(1); }}
+                          className={`pi-page-size-btn ${pageSize === s ? 'active' : ''}`}>{s}</button>
                       ))}
                     </div>
                     <div className="pi-page-nav">
-                      <button
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="pi-page-btn"
-                      >
-                        Previous
-                      </button>
+                      <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="pi-page-btn">Previous</button>
                       <span className="pi-page-current">Page {currentPage} of {totalPages}</span>
-                      <button
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="pi-page-btn"
-                      >
-                        Next
-                      </button>
+                      <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="pi-page-btn">Next</button>
                     </div>
                   </div>
                 </div>
@@ -742,26 +604,24 @@ function PurchaseInvoiceList() {
         </main>
 
         {isModalOpen && (
-          <div className="pi-modal-overlay">
-            <div className="pi-modal">
+          <div className="pi-modal-overlay" onClick={() => setIsModalOpen(false)}>
+            <div className="pi-modal" onClick={e => e.stopPropagation()}>
               <div className="pi-modal-header">
-                <div>
-                  <h2 className="pi-modal-title">{modalTitle}</h2>
-                  <p className="pi-modal-subtitle">{modalSubtitle}</p>
-                </div>
+                <h2 className="pi-modal-title">
+                  {isEditMode ? 'Edit' : isViewMode ? 'View' : 'New'} Purchase Invoice
+                </h2>
                 <button onClick={() => setIsModalOpen(false)} className="pi-modal-close">
                   <X className="pi-icon" />
                 </button>
               </div>
 
               <div className="pi-modal-body">
+                {/* Supplier Info */}
                 <div className="pi-form-section">
                   <h3 className="pi-section-title">Supplier Information</h3>
                   <div className="pi-form-grid">
                     <div className="pi-form-group" ref={supplierRef}>
-                      <label className="pi-label">
-                        Supplier <span className="pi-required">{!isViewMode && '*'}</span>
-                      </label>
+                      <label className="pi-label">Supplier {!isViewMode && <span className="pi-required">*</span>}</label>
                       <div className="pi-input-wrapper">
                         <Building2 className="pi-input-icon" />
                         <input
@@ -788,18 +648,12 @@ function PurchaseInvoiceList() {
                     </div>
 
                     <div className="pi-form-group">
-                      <label className="pi-label">
-                        Posting Date <span className="pi-required">{!isViewMode && '*'}</span>
-                      </label>
+                      <label className="pi-label">Posting Date {!isViewMode && <span className="pi-required">*</span>}</label>
                       <div className="pi-input-wrapper">
                         <Calendar className="pi-input-icon" />
-                        <input
-                          type="date"
-                          value={formData.posting_date}
+                        <input type="date" value={formData.posting_date}
                           onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
-                          className="pi-input"
-                          disabled={isViewMode}
-                        />
+                          className="pi-input" disabled={isViewMode} />
                       </div>
                     </div>
 
@@ -807,69 +661,66 @@ function PurchaseInvoiceList() {
                       <label className="pi-label">Due Date</label>
                       <div className="pi-input-wrapper">
                         <Calendar className="pi-input-icon" />
-                        <input
-                          type="date"
-                          value={formData.due_date}
+                        <input type="date" value={formData.due_date}
                           onChange={e => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-                          className="pi-input"
-                          disabled={isViewMode}
-                        />
+                          className="pi-input" disabled={isViewMode} />
                       </div>
                     </div>
 
                     <div className="pi-form-group">
                       <label className="pi-label">Bill Number</label>
-                      <input
-                        type="text"
-                        value={formData.bill_no}
+                      <input type="text" value={formData.bill_no}
                         onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
-                        placeholder="Enter bill number..."
-                        className="pi-input"
-                        disabled={isViewMode}
-                      />
+                        placeholder="Enter bill number..." className="pi-input" disabled={isViewMode} />
                     </div>
                   </div>
                 </div>
 
+                {/* Tax Template */}
+                <div className="pi-form-section">
+                  <div className="pi-form-group">
+                    <label className="pi-label">Taxes and Charges Template</label>
+                    <select value={formData.taxes_and_charges}
+                      onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
+                      disabled={isViewMode || loadingTaxTemplates} className="pi-select">
+                      <option value="">No Tax</option>
+                      {taxTemplates.map(t => (
+                        <option key={t.name} value={t.name}>{t.title || t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Items Table - WAREHOUSE COLUMN REMOVED */}
                 <div className="pi-form-section">
                   <div className="pi-section-header">
                     <h3 className="pi-section-title">Items</h3>
-                    {!isViewMode && (
-                      <button onClick={addItemRow} className="pi-btn-link">
-                        <Plus className="pi-icon-sm" />
-                        Add Item
-                      </button>
-                    )}
+                    {!isViewMode && <button onClick={addItemRow} className="pi-btn-link"><Plus className="pi-icon-sm" /> Add Item</button>}
                   </div>
-
                   <div className="pi-items-table-wrapper">
                     <table className="pi-items-table">
                       <thead>
                         <tr>
                           <th className="pi-items-th">Item</th>
-                          <th className="pi-items-th" style={{width: '100px'}}>Quantity</th>
-                          <th className="pi-items-th" style={{width: '80px'}}>UOM</th>
-                          <th className="pi-items-th" style={{width: '120px'}}>Rate (AED)</th>
-                          <th className="pi-items-th" style={{width: '120px'}}>Amount (AED)</th>
-                          <th className="pi-items-th" style={{width: '180px'}}>Warehouse</th>
-                          <th className="pi-items-th" style={{width: '50px'}}></th>
+                          <th className="pi-items-th" style={{ width: '120px' }}>Qty</th>
+                          <th className="pi-items-th" style={{ width: '100px' }}>UOM</th>
+                          <th className="pi-items-th" style={{ width: '140px' }}>Rate (AED)</th>
+                          <th className="pi-items-th" style={{ width: '140px' }}>Amount (AED)</th>
+                          <th className="pi-items-th" style={{ width: '60px' }}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {formData.items.map((item, i) => (
-                          <tr key={i} className="pi-items-tr">
+                          <tr key={i}>
                             <td className="pi-items-td" ref={el => itemRefs.current[i] = el}>
                               {item.item_code ? (
-                                <div className="pi-item-selected">
-                                  {item.item_name}
-                                </div>
+                                <div className="pi-item-selected">{item.item_name}</div>
                               ) : (
                                 <div className="pi-item-cell">
                                   <input
                                     type="text"
                                     value={itemSearches[i] || ''}
                                     onChange={e => handleItemSearch(i, e.target.value)}
-                                    onFocus={() => !isViewMode && itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
                                     placeholder="Search item..."
                                     className="pi-items-input"
                                     disabled={isViewMode}
@@ -877,6 +728,7 @@ function PurchaseInvoiceList() {
                                   {showItemDropdowns[i] && itemsList.length > 0 && !isViewMode && (
                                     <div className="pi-dropdown pi-dropdown-absolute">
                                       {itemsList.map(itm => (
+                                        // THIS LINE WAS BROKEN → FIXED ORDER
                                         <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="pi-dropdown-item">
                                           <div className="pi-dropdown-main">{itm.item_name}</div>
                                           <div className="pi-dropdown-sub">{itm.item_code}</div>
@@ -887,63 +739,32 @@ function PurchaseInvoiceList() {
                                 </div>
                               )}
                             </td>
-
                             <td className="pi-items-td">
                               <input
                                 type="number"
-                                value={item.qty}
+                                value={item.qty || ''}
                                 onChange={e => updateItem(i, 'qty', e.target.value)}
                                 className="pi-items-input pi-items-input-number"
                                 min="1"
                                 disabled={isViewMode}
                               />
                             </td>
-
-                            <td className="pi-items-td">
-                              <span className="pi-items-text">{item.uom || '-'}</span>
-                            </td>
-
+                            <td className="pi-items-td"><span className="pi-items-text">{item.uom || '-'}</span></td>
                             <td className="pi-items-td">
                               <input
                                 type="number"
-                                value={item.rate}
+                                value={item.rate || ''}
                                 onChange={e => updateItem(i, 'rate', e.target.value)}
                                 className="pi-items-input pi-items-input-number"
                                 step="0.01"
                                 disabled={isViewMode}
                               />
                             </td>
-
                             <td className="pi-items-td">
-                              <span className="pi-items-amount">{item.amount || '0.00'}</span>
+                              <span className="pi-items-amount">
+                                {item.amount ? parseFloat(item.amount).toFixed(2) : '0.00'}
+                              </span>
                             </td>
-
-                            <td className="pi-items-td" ref={el => warehouseRefs.current[i] = el}>
-                              <div className="pi-warehouse-cell">
-                                <WarehouseIcon className="pi-warehouse-icon" />
-                                <input
-                                  type="text"
-                                  value={searchWarehouse[i] || item.warehouse}
-                                  onChange={e => handleWarehouseSearch(i, e.target.value)}
-                                  onFocus={() => !isViewMode && setShowWarehouseDropdowns(prev => ({ ...prev, [i]: true }))}
-                                  placeholder="Warehouse..."
-                                  className="pi-items-input"
-                                  disabled={isViewMode}
-                                />
-                                {showWarehouseDropdowns[i] && warehouses.length > 0 && !isViewMode && (
-                                  <div className="pi-dropdown pi-dropdown-absolute">
-                                    {warehouses
-                                      .filter(wh => !searchWarehouse[i] || wh.warehouse_name.toLowerCase().includes(searchWarehouse[i].toLowerCase()))
-                                      .map(wh => (
-                                        <div key={wh.name} onClick={() => selectWarehouse(i, wh)} className="pi-dropdown-item">
-                                          <div className="pi-dropdown-main">{wh.warehouse_name}</div>
-                                        </div>
-                                      ))}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-
                             <td className="pi-items-td">
                               {!isViewMode && formData.items.length > 1 && (
                                 <button onClick={() => removeItemRow(i)} className="pi-btn-delete">
@@ -956,33 +777,161 @@ function PurchaseInvoiceList() {
                       </tbody>
                     </table>
                   </div>
-                  {formErrors.items && <span className="pi-error">{formErrors.items}</span>}
                 </div>
 
-                <div className="pi-total-section">
-                  <div className="pi-total-row">
-                    <span className="pi-total-label">Grand Total:</span>
-                    <span className="pi-total-amount">AED {grandTotal}</span>
+                {/* Discount & Taxes Section */}
+                <div className="pi-form-section">
+                  <h3 className="pi-section-title">Discount & Taxes</h3>
+
+                  <div className="pi-form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+                    <div className="pi-form-group">
+                      <label className="pi-label">Apply Discount On</label>
+                      <select value={formData.apply_discount_on}
+                        onChange={e => setFormData(prev => ({ ...prev, apply_discount_on: e.target.value }))}
+                        disabled={isViewMode} className="pi-select">
+                        <option>Grand Total</option>
+                        <option>Net Total</option>
+                      </select>
+                    </div>
+                    <div className="pi-form-group">
+                      <label className="pi-label">Discount (%)</label>
+                      <div className="pi-input-wrapper">
+                        <Percent className="pi-input-icon" />
+                        <input type="number" value={formData.additional_discount_percentage}
+                          onChange={e => setFormData(prev => ({ ...prev, additional_discount_percentage: e.target.value, discount_amount: 0 }))}
+                          className="pi-input" min="0" max="100" step="0.01" disabled={isViewMode} />
+                      </div>
+                    </div>
+                    <div className="pi-form-group">
+                      <label className="pi-label">Discount Amount</label>
+                      <div className="pi-input-wrapper">
+                        <DollarSign className="pi-input-icon" />
+                        <input type="number" value={formData.discount_amount}
+                          onChange={e => setFormData(prev => ({ ...prev, discount_amount: e.target.value, additional_discount_percentage: 0 }))}
+                          className="pi-input" min="0" step="0.01" disabled={isViewMode} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Beautiful Tax Table */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h4 className="pi-section-title" style={{ marginBottom: '1rem' }}>Purchase Taxes and Charges</h4>
+                    {taxPreview.length === 0 ? (
+                      <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: '#f8f9fa', borderRadius: '8px', color: '#6c757d' }}>
+                        <p style={{ margin: 0, fontStyle: 'italic' }}>No tax template selected</p>
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto', border: '1px solid #dee2e6', borderRadius: '8px' }}>
+                        <table style={{ width: '100%', backgroundColor: 'white' }}>
+                          <thead style={{ backgroundColor: '#f8f9fa' }}>
+                            <tr>
+                              <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '600' }}>Type</th>
+                              <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '600' }}>Account Head</th>
+                              <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600' }}>Rate (%)</th>
+                              <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '600' }}>Amount (AED)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {taxPreview.map((tax, i) => (
+                              <tr key={i} style={{ borderTop: '1px solid #dee2e6' }}>
+                                <td style={{ padding: '16px' }}>
+                                  <span style={{
+                                    backgroundColor: '#e3f2fd',
+                                    color: '#1976d2',
+                                    padding: '6px 12px',
+                                    borderRadius: '20px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600'
+                                  }}>Actual</span>
+                                </td>
+                                <td style={{ padding: '16px', fontWeight: '500' }}>{tax.account_head || 'N/A'}</td>
+                                <td style={{ padding: '16px', textAlign: 'center' }}>{parseFloat(tax.rate || 0).toFixed(2)}%</td>
+                                <td style={{ padding: '16px', textAlign: 'right', fontWeight: '700', color: '#2e7d32' }}>
+                                  AED {(netTotal * (parseFloat(tax.rate || 0) / 100)).toFixed(2)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Update Stock */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                      cursor: isViewMode ? 'not-allowed' : 'pointer'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.update_stock}
+                        onChange={e => setFormData(prev => ({ ...prev, update_stock: e.target.checked }))}
+                        disabled={isViewMode}
+                        style={{ width: '20px', height: '20px' }}
+                      />
+                      <span>Update Stock</span>
+                      <span style={{ fontWeight: '400', color: '#666' }}>(Receive items into warehouse)</span>
+                    </label>
+                  </div>
+
+                  {/* Grand Total Box */}
+                  <div style={{
+                    backgroundColor: '#f0f8ff',
+                    padding: '1.5rem',
+                    borderRadius: '12px',
+                    border: '2px solid #b3e5fc'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ fontWeight: '500' }}>Net Total:</span>
+                      <strong>AED {netTotal.toFixed(2)}</strong>
+                    </div>
+                    {discountAmount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', color: '#c62828' }}>
+                        <span style={{ fontWeight: '500' }}>Discount:</span>
+                        <strong>-AED {discountAmount.toFixed(2)}</strong>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ fontWeight: '500' }}>Total Tax:</span>
+                      <strong>AED {taxTotal.toFixed(2)}</strong>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      paddingTop: '1rem',
+                      borderTop: '3px double #1976d2',
+                      fontSize: '1.4rem',
+                      fontWeight: 'bold'
+                    }}>
+                      <span>Grand Total:</span>
+                      <span style={{ color: '#1976d2' }}>AED {grandTotal}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="pi-modal-footer">
-                <button onClick={() => setIsModalOpen(false)} className="pi-btn-secondary">
-                  {isViewMode ? 'Close' : 'Cancel'}
-                </button>
-                {!isViewMode && (
-                  <button onClick={handleSave} disabled={saving} className="pi-btn-primary">
-                    {saving ? (
-                      <>
-                        <div className="pi-btn-spinner"></div>
-                        {isEditMode ? 'Updating...' : 'Creating...'}
-                      </>
-                    ) : (
-                      isEditMode ? 'Update Invoice' : 'Create Invoice'
-                    )}
+                {/* Footer */}
+                <div className="pi-modal-footer" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                  <button onClick={() => setIsModalOpen(false)} className="pi-btn-secondary">
+                    {isViewMode ? 'Close' : 'Cancel'}
                   </button>
-                )}
+                  {!isViewMode && (
+                    <button onClick={handleSave} disabled={saving} className="pi-btn-primary" style={{ minWidth: '160px' }}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="animate-spin" size={20} style={{ marginRight: '8px' }} />
+                          {isEditMode ? 'Updating...' : 'Creating...'}
+                        </>
+                      ) : (
+                        isEditMode ? 'Update Invoice' : 'Create Invoice'
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

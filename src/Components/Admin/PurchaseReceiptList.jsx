@@ -399,55 +399,73 @@ function PurchaseReceiptList() {
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return;
-    setSaving(true);
+  if (!validateForm()) return;
+  setSaving(true);
 
-    const payload = {
-      supplier: formData.supplier,
-      posting_date: formData.posting_date,
-      posting_time: formData.posting_time,
-      apply_putaway_rule: formData.apply_putaway_rule,
-      is_return: formData.is_return,
-      supplier_delivery_note: formData.supplier_delivery_note,
-      items: formData.items
-        .filter(i => i.item_code && (i.accepted_qty > 0 || i.rejected_qty > 0))
-        .map(i => ({
-          item_code: i.item_code,
-          accepted_qty: parseFloat(i.accepted_qty),
-          rejected_qty: parseFloat(i.rejected_qty),
-          rate: parseFloat(i.rate || 0),
-          amount: parseFloat(i.amount || 0),
-          warehouse: i.accepted_warehouse,
-          rejected_warehouse: i.rejected_warehouse,
-          uom: i.uom
-        })),
-      taxes: formData.taxes.map(t => ({
-        charge_type: t.type,
-        account_head: t.account_head,
-        rate: parseFloat(t.tax_rate),
-        tax_amount: parseFloat(t.amount)
-      }))
-    };
+  // Build proper items with stock entries
+  const items = formData.items
+    .filter(i => i.item_code && (parseFloat(i.accepted_qty || 0) > 0 || parseFloat(i.rejected_qty || 0) > 0))
+    .map(i => ({
+      item_code: i.item_code,
+      qty: parseFloat(i.accepted_qty || 0) + parseFloat(i.rejected_qty || 0),
+      received_qty: parseFloat(i.accepted_qty || 0) + parseFloat(i.rejected_qty || 0),
+      rate: parseFloat(i.rate || 0),
+      amount: parseFloat(i.amount || 0),
+      uom: i.uom,
+      stock_uom: i.uom,
+      warehouse: i.accepted_warehouse || null,
+      rejected_warehouse: i.rejected_warehouse || null,
+      // For rejected qty → ERPNext automatically creates negative stock entry
+      rejected_qty: parseFloat(i.rejected_qty || 0)
+    }));
 
-    try {
-      const res = await axios.post(`${API_PATH}.create_purchase_receipt_direct`, payload, {
-        withCredentials: true,
-        headers: { 'Content-Type': 'application/json' }
-      });
+  // Build taxes from formData.taxes (if any)
+  const taxes = formData.taxes
+    .filter(t => t.type && t.account_head)
+    .map(t => ({
+      charge_type: t.type,
+      account_head: t.account_head,
+      rate: parseFloat(t.tax_rate || 0),
+      tax_amount: parseFloat(t.amount || 0),
+      description: t.account_head
+    }));
 
-      if (res.data.message?.success) {
-        alert('Purchase Receipt Created: ' + res.data.message.name);
-        setIsModalOpen(false);
-        fetchReceipts();
-      } else {
-        alert(res.data.message?.message || 'Failed to create');
-      }
-    } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setSaving(false);
-    }
+  const payload = {
+    supplier: formData.supplier,
+    posting_date: formData.posting_date,
+    posting_time: formData.posting_time || undefined,
+    set_posting_time: !!formData.posting_time,
+    is_return: formData.is_return ? 1 : 0,
+    apply_putaway_rule: formData.apply_putaway_rule ? 1 : 0,
+    supplier_delivery_note: formData.supplier_delivery_note || null,
+    items: items,
+    taxes_and_charges: formData.taxes_template || null,
+    taxes: taxes.length > 0 ? taxes : undefined,
+    currency: formData.currency,
+    buying_price_list: formData.buying_price_list, 
+    naming_series: formData.series || undefined
   };
+
+  try {
+    const res = await axios.post('/api/resource/Purchase Receipt', payload, {
+      withCredentials: true,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    alert(`Purchase Receipt Created Successfully: ${res.data.data.name}`);
+    setIsModalOpen(false);
+    fetchReceipts(); 
+  } catch (err) {
+    const errorMsg = err.response?.data?.exception || 
+                     err.response?.data?.message || 
+                     err.response?.data?._server_messages || 
+                     'Failed to create Purchase Receipt';
+    alert('Error: ' + errorMsg);
+    console.error('PR Create Error:', err.response?.data);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const filteredReceipts = useMemo(() => {
     return receipts.filter(rec => {
