@@ -70,13 +70,13 @@ function PosOpeningentryList() {
               <span>Open Shifts</span>
             </div>
           </div>
-          <button
+          {/* <button
             onClick={() => navigate('/pos-opening-create')}
             className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
           >
             <Plus className="w-4 h-4" />
             <span>Open New Shift</span>
-          </button>
+          </button> */}
         </div>
 
         {/* Filters */}
