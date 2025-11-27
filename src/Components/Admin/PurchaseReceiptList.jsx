@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import './PurchaseReceiptList.css';
 
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+const RESOURCE_BASE = '/api/resource';
 
 function PurchaseReceiptList() {
   const [receipts, setReceipts] = useState([]);
@@ -34,13 +35,31 @@ function PurchaseReceiptList() {
     supplier_delivery_note: '',
     currency: 'AED',
     buying_price_list: 'Standard Buying',
+    set_warehouse: '',
+    taxes_and_charges: '',
+    apply_discount_on: 'Net Total',
+    additional_discount_percentage: 0,
+    discount_amount: 0,
+    rounded_total: 0,
     items: [{
-      item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, uom: '', rate: 0, amount: 0, accepted_warehouse: '', rejected_warehouse: ''
+      item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00'
     }],
-    taxes_template: '',
-    taxes: [],
+    taxes: [{
+      add_row: true,
+      charge_type: '',
+      account_head: '',
+      rate: 0,
+      tax_amount: 0,
+      total: '0.00',
+      row_id: ''
+    }],
+    total_qty: 0,
     net_total: 0,
-    grand_total: 0
+    taxes_added: '0.00',
+    taxes_deducted: '0.00',
+    total_taxes_and_charges: '0.00',
+    discounted_amount: '0.00',
+    grand_total: '0.00'
   });
 
   const [searchSupplier, setSearchSupplier] = useState('');
@@ -52,11 +71,9 @@ function PurchaseReceiptList() {
   const [showItemDropdowns, setShowItemDropdowns] = useState({});
 
   const [warehouses, setWarehouses] = useState([]);
-  const [searchWarehouse, setSearchWarehouse] = useState({});
-  const [showWarehouseDropdowns, setShowWarehouseDropdowns] = useState({});
 
   const [taxesTemplates, setTaxesTemplates] = useState([]);
-  const [taxTypes, setTaxTypes] = useState([]); // For tax table types: Actual, On Net Total, etc.
+  const [taxTypes, setTaxTypes] = useState(['Actual', 'On Net Total', 'On Previous Row Amount', 'On Previous Row Total', 'Compound']); // charge_types
 
   const [filterName, setFilterName] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('');
@@ -67,7 +84,68 @@ function PurchaseReceiptList() {
 
   const supplierRef = useRef(null);
   const itemRefs = useRef({});
-  const warehouseRefs = useRef({});
+
+  const recalcTaxesAndTotals = useCallback((items, net_total, taxes, additional_discount_percentage, discount_amount, rounded_total, apply_discount_on = 'Net Total') => {
+    // Calculate taxes sequentially
+    let prev_tax_amount = 0;
+    let prev_total = net_total;
+    const updatedTaxes = [];
+    for (const tax of taxes) {
+      const charge_type = tax.charge_type;
+      const rate = parseFloat(tax.rate) || 0;
+      const tax_amount_fixed = parseFloat(tax.tax_amount) || 0;
+      let gross_tax = 0;
+      if (charge_type === 'Actual') {
+        gross_tax = tax_amount_fixed;
+      } else {
+        let base = 0;
+        if (charge_type === 'On Net Total') {
+          base = net_total;
+        } else if (charge_type === 'On Previous Row Amount') {
+          base = prev_tax_amount;
+        } else if (charge_type === 'On Previous Row Total' || charge_type === 'Compound') {
+          base = prev_total;
+        } else {
+          base = net_total;
+        }
+        gross_tax = base * (rate / 100);
+      }
+      const signed_total = tax.add_row ? gross_tax : -gross_tax;
+      updatedTaxes.push({ ...tax, total: signed_total.toFixed(2) });
+      prev_tax_amount = gross_tax;
+      prev_total += signed_total;
+    }
+
+    // Calc taxes totals
+    const added = updatedTaxes.filter(t => t.add_row).reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
+    const deducted = updatedTaxes.filter(t => !t.add_row).reduce((sum, t) => sum + Math.abs(parseFloat(t.total || 0)), 0);
+    const total_taxes = added - deducted;
+
+    // Calc discount
+    const grand_before_discount = net_total + total_taxes;
+    const discount_perc = parseFloat(additional_discount_percentage) || 0;
+    const discount_amt = parseFloat(discount_amount) || 0;
+    let discounted_amount = 0;
+    if (apply_discount_on === 'Net Total') {
+      discounted_amount = (net_total * (discount_perc / 100)) + discount_amt;
+    } else {
+      discounted_amount = (grand_before_discount * (discount_perc / 100)) + discount_amt;
+    }
+
+    // Calc grand
+    const grand_total = grand_before_discount - discounted_amount;
+    const final_rounded_total = parseFloat(rounded_total) || Math.round(grand_total * 100) / 100;
+
+    return {
+      taxes: updatedTaxes,
+      taxes_added: added.toFixed(2),
+      taxes_deducted: deducted.toFixed(2),
+      total_taxes_and_charges: total_taxes.toFixed(2),
+      discounted_amount: discounted_amount.toFixed(2),
+      grand_total: grand_total.toFixed(2),
+      rounded_total: final_rounded_total.toFixed(2)
+    };
+  }, []);
 
   useEffect(() => {
     fetchReceipts();
@@ -92,7 +170,7 @@ function PurchaseReceiptList() {
 
   const fetchSuppliers = async (query = '') => {
     try {
-      const res = await axios.get(`${API_PATH}.get_suppliers`, {
+      const res = await axios.get(`${API_PATH}.get_suppliers_pr`, {
         params: { query: query || undefined },
         withCredentials: true
       });
@@ -131,9 +209,9 @@ function PurchaseReceiptList() {
 
   const fetchTaxesTemplates = async () => {
     try {
-      const company = await getDefaultCompany();
+      const companyData = await getDefaultCompany();
       const res = await axios.get(`${API_PATH}.get_purchase_taxes_templates`, {
-        params: { company: company.company },
+        params: { company: companyData.company },
         withCredentials: true
       });
       setTaxesTemplates(res.data.message || []);
@@ -144,7 +222,7 @@ function PurchaseReceiptList() {
 
   const fetchTaxTypes = async () => {
     // Hardcode common tax types for now: Actual, On Net Total, On Previous Row Amount, etc.
-    setTaxTypes(['Actual', 'On Net Total', 'On Previous Row Amount', 'Compound']);
+    setTaxTypes(['Actual', 'On Net Total', 'On Previous Row Amount', 'On Previous Row Total', 'Compound']);
   };
 
   const getDefaultCompany = async () => {
@@ -152,7 +230,7 @@ function PurchaseReceiptList() {
       const res = await axios.get(`${API_PATH}.get_default_company`, { withCredentials: true });
       return res.data.message;
     } catch (err) {
-      return { company: '' };
+      return { company: '', currency: 'AED' };
     }
   };
 
@@ -213,18 +291,14 @@ function PurchaseReceiptList() {
           setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
         }
       });
-      Object.keys(warehouseRefs.current).forEach(idx => {
-        if (warehouseRefs.current[idx] && !warehouseRefs.current[idx].contains(e.target)) {
-          setShowWarehouseDropdowns(prev => ({ ...prev, [idx]: false }));
-        }
-      });
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const openCreateModal = useCallback(() => {
-    const defaultWarehouse = warehouses.length > 0 ? warehouses[0].warehouse_name : '';
+  const openCreateModal = useCallback(async () => {
+    const companyData = await getDefaultCompany();
+    const defaultWarehouse = warehouses.length > 0 ? warehouses[0].name : '';
     setFormData({
       series: 'MAT-PRE-.YYYY.-',
       posting_date: new Date().toISOString().split('T')[0],
@@ -233,30 +307,46 @@ function PurchaseReceiptList() {
       is_return: false,
       supplier: '', supplier_name: '',
       supplier_delivery_note: '',
-      currency: 'AED',
+      currency: companyData.currency,
       buying_price_list: 'Standard Buying',
+      set_warehouse: defaultWarehouse,
+      taxes_and_charges: '',
+      apply_discount_on: 'Net Total',
+      additional_discount_percentage: 0,
+      discount_amount: 0,
+      rounded_total: 0,
       items: [{
-        item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, uom: '', rate: 0, amount: 0, accepted_warehouse: defaultWarehouse, rejected_warehouse: ''
+        item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00'
       }],
-      taxes_template: '',
-      taxes: [],
+      taxes: [{
+        add_row: true,
+        charge_type: '',
+        account_head: '',
+        rate: 0,
+        tax_amount: 0,
+        total: '0.00',
+        row_id: ''
+      }],
+      total_qty: 0,
       net_total: 0,
-      grand_total: 0
+      taxes_added: '0.00',
+      taxes_deducted: '0.00',
+      total_taxes_and_charges: '0.00',
+      discounted_amount: '0.00',
+      grand_total: '0.00'
     });
     setFormErrors({});
     setSearchSupplier('');
     setItemSearches({});
-    setSearchWarehouse({});
     setSuppliers([]);
     setItemsList([]);
     setShowSupplierDropdown(false);
     setShowItemDropdowns({});
-    setShowWarehouseDropdowns({});
     setRateLoading({}); // Reset loading
     setIsModalOpen(true);
   }, [warehouses]);
 
-  // UPDATED: Fix net_total to use new 'items' (not stale formData.items)
+  // UPDATED: Combined recalc for items update
   const updateItem = (index, field, value) => {
     setFormData(prev => {
       const items = [...prev.items];
@@ -265,51 +355,96 @@ function PurchaseReceiptList() {
         const accepted_qty = parseFloat(items[index].accepted_qty) || 0;
         const rejected_qty = parseFloat(items[index].rejected_qty) || 0;
         const rate = parseFloat(items[index].rate) || 0;
-        items[index].amount = ((accepted_qty + rejected_qty) * rate).toFixed(2);
+        items[index].received_qty = accepted_qty + rejected_qty;
+        items[index].qty = accepted_qty;
+        items[index].amount = (accepted_qty * rate).toFixed(2);
       }
-      // FIXED: Use 'items' for recalc (not formData.items)
+      const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
       const net_total = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
-      return { ...prev, items, net_total };
+      const totals = recalcTaxesAndTotals(items, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+      return {
+        ...prev,
+        items,
+        total_qty,
+        net_total,
+        ...totals
+      };
     });
   };
 
   const addItemRow = useCallback(() => {
-    const defaultWarehouse = warehouses.length > 0 ? warehouses[0].warehouse_name : '';
-    setFormData(prev => ({
-      ...prev,
-      items: [...prev.items, { item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, uom: '', rate: 0, amount: 0, accepted_warehouse: defaultWarehouse, rejected_warehouse: '' }]
-    }));
-  }, [warehouses]);
+    setFormData(prev => {
+      const newItems = [...prev.items, { item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00' }];
+      const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
+      const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+      const totals = recalcTaxesAndTotals(newItems, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+      return {
+        ...prev,
+        items: newItems,
+        total_qty,
+        net_total,
+        ...totals
+      };
+    });
+  }, [recalcTaxesAndTotals]);
 
   const removeItemRow = (index) => {
     setFormData(prev => {
-      const items = prev.items.filter((_, i) => i !== index);
-      const net_total = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
-      return { ...prev, items, net_total };
+      const newItems = prev.items.filter((_, i) => i !== index);
+      const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
+      const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+      const totals = recalcTaxesAndTotals(newItems, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+      return {
+        ...prev,
+        items: newItems,
+        total_qty,
+        net_total,
+        ...totals
+      };
     });
   };
 
   const selectSupplier = (supplier) => {
-    setFormData(prev => ({ ...prev, supplier: supplier.name, supplier_name: supplier.supplier_name }));
+    setFormData(prev => {
+      const updated = { ...prev, supplier: supplier.name, supplier_name: supplier.supplier_name };
+      // Re-fetch rates for existing items if supplier changes
+      updated.items.forEach((item, idx) => {
+        if (item.item_code) fetchItemRate(idx, item.item_code);
+      });
+      return updated;
+    });
     setSearchSupplier(supplier.supplier_name || supplier.name);
     setShowSupplierDropdown(false);
-    // OPTIONAL: Re-fetch rates for existing items if supplier changes
-    formData.items.forEach((item, idx) => {
-      if (item.item_code) fetchItemRate(idx, item.item_code);
-    });
   };
 
   // UPDATED: Non-blocking async (fire-and-forget)
   const selectItem = (rowIndex, item) => {
     setFormData(prev => {
       const items = [...prev.items];
+      const currentAccepted = parseFloat(items[rowIndex].accepted_qty) || 0;
+      const newAccepted = currentAccepted > 0 ? currentAccepted : 1;
+      const currentRejected = parseFloat(items[rowIndex].rejected_qty) || 0;
+      const currentRate = parseFloat(items[rowIndex].rate) || 0;
       items[rowIndex] = {
         ...items[rowIndex],
         item_code: item.item_code,
         item_name: item.item_name,
-        uom: item.stock_uom || 'Nos'
+        uom: item.stock_uom || 'Nos',
+        accepted_qty: newAccepted,
+        received_qty: newAccepted + currentRejected,
+        qty: newAccepted,
+        amount: (newAccepted * currentRate).toFixed(2)
       };
-      return { ...prev, items };
+      const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
+      const net_total = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+      const totals = recalcTaxesAndTotals(items, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+      return {
+        ...prev,
+        items,
+        total_qty,
+        net_total,
+        ...totals
+      };
     });
     setItemSearches(prev => ({ ...prev, [rowIndex]: item.item_name }));
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
@@ -328,70 +463,103 @@ function PurchaseReceiptList() {
     }
   };
 
-  const selectWarehouse = (rowIndex, field, warehouse) => {
-    setFormData(prev => {
-      const items = [...prev.items];
-      items[rowIndex][field] = warehouse.warehouse_name;
-      return { ...prev, items };
-    });
-    setSearchWarehouse(prev => ({ ...prev, [rowIndex]: warehouse.warehouse_name }));
-    setShowWarehouseDropdowns(prev => ({ ...prev, [rowIndex]: false }));
-  };
-
-  const handleWarehouseSearch = (index, field, value) => {
-    setSearchWarehouse(prev => ({ ...prev, [index]: value }));
-    if (value.trim().length > 0) {
-      setShowWarehouseDropdowns(prev => ({ ...prev, [index]: true }));
-    } else {
-      setShowWarehouseDropdowns(prev => ({ ...prev, [index]: false }));
-    }
-  };
-
   const addTaxRow = () => {
-    setFormData(prev => ({
-      ...prev,
-      taxes: [...prev.taxes, { type: '', account_head: '', tax_rate: 0, amount: 0, total: 0 }]
-    }));
+    setFormData(prev => {
+      const newTaxes = [...prev.taxes, { add_row: true, charge_type: '', account_head: '', rate: 0, tax_amount: 0, total: '0.00', row_id: '' }];
+      const totals = recalcTaxesAndTotals(prev.items, prev.net_total, newTaxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+      return {
+        ...prev,
+        taxes: newTaxes,
+        ...totals
+      };
+    });
   };
 
   const updateTax = (index, field, value) => {
     setFormData(prev => {
       const taxes = [...prev.taxes];
       taxes[index][field] = value;
-      // Recalculate total for this tax if needed
-      if (field === 'tax_rate' || field === 'amount') {
-        const tax_rate = parseFloat(taxes[index].tax_rate) || 0;
-        const amount = parseFloat(taxes[index].amount) || 0;
-        taxes[index].total = (tax_rate / 100 * prev.net_total + amount).toFixed(2);
-      }
-      // Recalculate grand total
-      const taxes_total = taxes.reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
-      return { ...prev, taxes, grand_total: (prev.net_total + taxes_total).toFixed(2) };
+      const totals = recalcTaxesAndTotals(prev.items, prev.net_total, taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+      return {
+        ...prev,
+        taxes,
+        ...totals
+      };
     });
   };
 
   const removeTaxRow = (index) => {
     setFormData(prev => {
-      const taxes = prev.taxes.filter((_, i) => i !== index);
-      const taxes_total = taxes.reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
-      return { ...prev, taxes, grand_total: (prev.net_total + taxes_total).toFixed(2) };
+      const newTaxes = prev.taxes.filter((_, i) => i !== index);
+      const totals = recalcTaxesAndTotals(prev.items, prev.net_total, newTaxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+      return {
+        ...prev,
+        taxes: newTaxes,
+        ...totals
+      };
     });
   };
 
-  const handleTaxesTemplateChange = (template) => {
+  const handleTaxesTemplateChange = async (template) => {
+    if (!template) {
+      setFormData(prev => {
+        const totals = recalcTaxesAndTotals(prev.items, prev.net_total, [], prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+        return { ...prev, taxes_and_charges: '', taxes: [], ...totals };
+      });
+      return;
+    }
+    try {
+      const companyData = await getDefaultCompany();
+      const res = await axios.get(`${API_PATH}.get_purchase_taxes_from_template`, {
+        params: { template, company: companyData.company },
+        withCredentials: true
+      });
+      const newTaxes = res.data.message || [];
+      setFormData(prev => {
+        const updatedTaxes = newTaxes.map(t => ({ ...t, total: '0.00' }));
+        const totals = recalcTaxesAndTotals(prev.items, prev.net_total, updatedTaxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+        return {
+          ...prev,
+          taxes_and_charges: template,
+          taxes: updatedTaxes,
+          ...totals
+        };
+      });
+    } catch (err) {
+      console.error('Error loading taxes template:', err);
+    }
+  };
+
+  const updateDiscount = (field, value) => {
     setFormData(prev => {
-      // Fetch and populate taxes from template
-      // For now, simulate
-      const newTaxes = template ? [{ type: 'On Net Total', account_head: 'VAT - KSPL', tax_rate: 5, amount: 0, total: 0 }] : [];
-      const taxes_total = newTaxes.reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
-      return { ...prev, taxes_template: template, taxes: newTaxes, grand_total: (prev.net_total + taxes_total).toFixed(2) };
+      let newApply = prev.apply_discount_on;
+      let newPerc = prev.additional_discount_percentage;
+      let newAmt = prev.discount_amount;
+      if (field === 'apply_discount_on') {
+        newApply = value;
+      } else if (field === 'additional_discount_percentage') {
+        newPerc = parseFloat(value) || 0;
+      } else if (field === 'discount_amount') {
+        newAmt = parseFloat(value) || 0;
+      } else if (field === 'rounded_total') {
+        return { ...prev, rounded_total: value };
+      }
+      const totals = recalcTaxesAndTotals(prev.items, prev.net_total, prev.taxes, newPerc, newAmt, prev.rounded_total, newApply);
+      return {
+        ...prev,
+        apply_discount_on: newApply,
+        additional_discount_percentage: newPerc,
+        discount_amount: newAmt,
+        ...totals
+      };
     });
   };
 
   const validateForm = () => {
     const errors = {};
     if (!formData.supplier) errors.supplier = 'Supplier is required';
-    if (formData.items.filter(i => i.item_code && (i.accepted_qty > 0 || i.rejected_qty > 0)).length === 0) {
+    if (!formData.set_warehouse) errors.set_warehouse = 'Set Warehouse is required';
+    if (formData.items.filter(i => i.item_code && parseFloat(i.accepted_qty) > 0).length === 0) {
       errors.items = 'At least one valid item required';
     }
     setFormErrors(errors);
@@ -399,73 +567,101 @@ function PurchaseReceiptList() {
   };
 
   const handleSave = async () => {
-  if (!validateForm()) return;
-  setSaving(true);
+    if (!validateForm()) return;
+    setSaving(true);
 
-  // Build proper items with stock entries
-  const items = formData.items
-    .filter(i => i.item_code && (parseFloat(i.accepted_qty || 0) > 0 || parseFloat(i.rejected_qty || 0) > 0))
-    .map(i => ({
-      item_code: i.item_code,
-      qty: parseFloat(i.accepted_qty || 0) + parseFloat(i.rejected_qty || 0),
-      received_qty: parseFloat(i.accepted_qty || 0) + parseFloat(i.rejected_qty || 0),
-      rate: parseFloat(i.rate || 0),
-      amount: parseFloat(i.amount || 0),
-      uom: i.uom,
-      stock_uom: i.uom,
-      warehouse: i.accepted_warehouse || null,
-      rejected_warehouse: i.rejected_warehouse || null,
-      // For rejected qty → ERPNext automatically creates negative stock entry
-      rejected_qty: parseFloat(i.rejected_qty || 0)
-    }));
+    const companyData = await getDefaultCompany();
+    if (!companyData.company) {
+      alert('No default company set');
+      setSaving(false);
+      return;
+    }
 
-  // Build taxes from formData.taxes (if any)
-  const taxes = formData.taxes
-    .filter(t => t.type && t.account_head)
-    .map(t => ({
-      charge_type: t.type,
-      account_head: t.account_head,
-      rate: parseFloat(t.tax_rate || 0),
-      tax_amount: parseFloat(t.amount || 0),
-      description: t.account_head
-    }));
+    const payload = {
+      doctype: "Purchase Receipt",
+      company: companyData.company,
+      supplier: formData.supplier,
+      posting_date: formData.posting_date,
+      posting_time: formData.posting_time,
+      currency: formData.currency,
+      set_warehouse: formData.set_warehouse,
+      buying_price_list: formData.buying_price_list,
+      apply_putaway_rule: formData.apply_putaway_rule,
+      is_return: formData.is_return,
+      supplier_delivery_note: formData.supplier_delivery_note,
+      items: formData.items
+        .filter(i => i.item_code && parseFloat(i.accepted_qty) > 0)
+        .map(i => {
+          const accepted_qty = parseFloat(i.accepted_qty);
+          const rejected_qty = parseFloat(i.rejected_qty);
+          return {
+            doctype: "Purchase Receipt Item",
+            item_code: i.item_code,
+            received_qty: accepted_qty + rejected_qty,
+            qty: accepted_qty,
+            rejected_qty: rejected_qty,
+            rate: parseFloat(i.rate || 0),
+            amount: parseFloat(i.amount || 0),
+            uom: i.uom,
+            warehouse: formData.set_warehouse,
+            accepted_warehouse: formData.set_warehouse,
+            rejected_warehouse: rejected_qty > 0 ? formData.set_warehouse : ''
+          };
+        }),
+      taxes_and_charges: formData.taxes_and_charges,
+      taxes: formData.taxes
+  .filter(t => t.charge_type && t.account_head) // Only valid rows
+  .map(t => ({
+    doctype: "Purchase Taxes and Charges",
+    charge_type: t.charge_type || "On Net Total",
+    account_head: t.account_head,
+    description: t.account_head, // ← This fixes the mandatory error
+    rate: parseFloat(t.rate || 0),
+    tax_amount: t.charge_type === 'Actual' ? parseFloat(t.tax_amount || 0) : 0,
+    add_deduct_tax: t.add_row ? "Add" : "Deduct",
+    category: "Total"
+  })),
+      apply_discount_on: formData.apply_discount_on,
+      additional_discount_percentage: parseFloat(formData.additional_discount_percentage || 0),
+      discount_amount: parseFloat(formData.discount_amount || 0),
+      rounded_total: parseFloat(formData.rounded_total || 0)
+    };
 
-  const payload = {
-    supplier: formData.supplier,
-    posting_date: formData.posting_date,
-    posting_time: formData.posting_time || undefined,
-    set_posting_time: !!formData.posting_time,
-    is_return: formData.is_return ? 1 : 0,
-    apply_putaway_rule: formData.apply_putaway_rule ? 1 : 0,
-    supplier_delivery_note: formData.supplier_delivery_note || null,
-    items: items,
-    taxes_and_charges: formData.taxes_template || null,
-    taxes: taxes.length > 0 ? taxes : undefined,
-    currency: formData.currency,
-    buying_price_list: formData.buying_price_list, 
-    naming_series: formData.series || undefined
-  };
+    try {
+  // Create draft
+  const createRes = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
+    withCredentials: true,
+    headers: { 'Content-Type': 'application/json' }
+  });
 
-  try {
-    const res = await axios.post('/api/resource/Purchase Receipt', payload, {
-      withCredentials: true,
-      headers: { 'Content-Type': 'application/json' }
-    });
+  // ERPNext returns response in createRes.data.data
+  if (createRes.data?.data?.name) {
+    const docName = createRes.data.data.name;
 
-    alert(`Purchase Receipt Created Successfully: ${res.data.data.name}`);
+    // Submit using PUT (most reliable)
+    await axios.put(
+      `${RESOURCE_BASE}/Purchase Receipt/${docName}`,
+      { docstatus: 1 },
+      { withCredentials: true }
+    );
+
+    alert('Purchase Receipt Created & Submitted: ' + docName);
     setIsModalOpen(false);
-    fetchReceipts(); 
-  } catch (err) {
-    const errorMsg = err.response?.data?.exception || 
-                     err.response?.data?.message || 
-                     err.response?.data?._server_messages || 
-                     'Failed to create Purchase Receipt';
-    alert('Error: ' + errorMsg);
-    console.error('PR Create Error:', err.response?.data);
-  } finally {
-    setSaving(false);
+    fetchReceipts();
+  } else {
+    console.error('Create failed - no name in response:', createRes.data);
+    alert('Failed to create receipt. Check console.');
   }
-};
+} catch (err) {
+  const errorMsg = err.response?.data?.exception || 
+                   err.response?.data?.message || 
+                   err.message || 'Unknown error';
+  console.error('Create error:', err.response?.data || err);
+  alert('Error: ' + errorMsg);
+} finally {
+  setSaving(false);
+}
+  };
 
   const filteredReceipts = useMemo(() => {
     return receipts.filter(rec => {
@@ -714,7 +910,7 @@ function PurchaseReceiptList() {
             <div className="pr-modal">
               <div className="pr-modal-header">
                 <div>
-                  <h2 className="pr-modal-title">Create Purchase Receipt</h2>
+                  <h2 className="pr-modal-title">New Purchase Receipt <span className="pr-not-saved">(Not Saved)</span></h2>
                   <p className="pr-modal-subtitle">Add supplier details and items to create a new receipt</p>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="pr-modal-close">
@@ -724,10 +920,10 @@ function PurchaseReceiptList() {
 
               <div className="pr-modal-body">
                 <div className="pr-form-section">
-                  <h3 className="pr-section-title">Receipt Information</h3>
+                  <h3 className="pr-section-title">Details</h3>
                   <div className="pr-form-grid">
                     <div className="pr-form-group">
-                      <label>Series</label>
+                      <label>Series <span className="pr-required">*</span></label>
                       <input
                         type="text"
                         value={formData.series}
@@ -736,25 +932,13 @@ function PurchaseReceiptList() {
                       />
                     </div>
                     <div className="pr-form-group">
-                      <label>Date *</label>
+                      <label>Date <span className="pr-required">*</span></label>
                       <div className="pr-input-wrapper">
                         <Calendar className="pr-input-icon" />
                         <input
                           type="date"
                           value={formData.posting_date}
                           onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
-                          className="pr-input"
-                        />
-                      </div>
-                    </div>
-                    <div className="pr-form-group">
-                      <label>Posting Time *</label>
-                      <div className="pr-input-wrapper">
-                        <Calendar className="pr-input-icon" />
-                        <input
-                          type="time"
-                          value={formData.posting_time}
-                          onChange={e => setFormData(prev => ({ ...prev, posting_time: e.target.value }))}
                           className="pr-input"
                         />
                       </div>
@@ -767,16 +951,6 @@ function PurchaseReceiptList() {
                           onChange={e => setFormData(prev => ({ ...prev, apply_putaway_rule: e.target.checked }))}
                         />
                         Apply Putaway Rule
-                      </label>
-                    </div>
-                    <div className="pr-form-group">
-                      <label className="pr-checkbox-group">
-                        <input
-                          type="checkbox"
-                          checked={formData.is_return}
-                          onChange={e => setFormData(prev => ({ ...prev, is_return: e.target.checked }))}
-                        />
-                        Is Return
                       </label>
                     </div>
                     <div className="pr-form-group" ref={supplierRef}>
@@ -807,6 +981,28 @@ function PurchaseReceiptList() {
                       {formErrors.supplier && <span className="pr-error">{formErrors.supplier}</span>}
                     </div>
                     <div className="pr-form-group">
+                      <label>Posting Time <span className="pr-required">*</span></label>
+                      <div className="pr-input-wrapper">
+                        <Calendar className="pr-input-icon" />
+                        <input
+                          type="time"
+                          value={formData.posting_time}
+                          onChange={e => setFormData(prev => ({ ...prev, posting_time: e.target.value }))}
+                          className="pr-input"
+                        />
+                      </div>
+                    </div>
+                    <div className="pr-form-group">
+                      <label className="pr-checkbox-group">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_return}
+                          onChange={e => setFormData(prev => ({ ...prev, is_return: e.target.checked }))}
+                        />
+                        Is Return
+                      </label>
+                    </div>
+                    <div className="pr-form-group">
                       <label>Supplier Delivery Note</label>
                       <input
                         type="text"
@@ -816,13 +1012,19 @@ function PurchaseReceiptList() {
                         className="pr-input"
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="pr-form-section">
+                  <h3 className="pr-section-title">Currency and Price List</h3>
+                  <div className="pr-form-grid">
                     <div className="pr-form-group">
                       <label>Currency</label>
                       <input
                         type="text"
                         value={formData.currency}
-                        onChange={e => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                         className="pr-input"
+                        readOnly
                       />
                     </div>
                     <div className="pr-form-group">
@@ -833,6 +1035,20 @@ function PurchaseReceiptList() {
                         onChange={e => setFormData(prev => ({ ...prev, buying_price_list: e.target.value }))}
                         className="pr-input"
                       />
+                    </div>
+                    <div className="pr-form-group">
+                      <label>Set Warehouse <span className="pr-required">*</span></label>
+                      <select
+                        value={formData.set_warehouse}
+                        onChange={e => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
+                        className={`pr-select ${formErrors.set_warehouse ? 'pr-input-error' : ''}`}
+                      >
+                        <option value="">Select Warehouse</option>
+                        {warehouses.map(w => (
+                          <option key={w.name} value={w.name}>{w.warehouse_name}</option>
+                        ))}
+                      </select>
+                      {formErrors.set_warehouse && <span className="pr-error">{formErrors.set_warehouse}</span>}
                     </div>
                   </div>
                 </div>
@@ -853,20 +1069,25 @@ function PurchaseReceiptList() {
                     <table className="pr-items-table">
                       <thead>
                         <tr>
-                          <th className="pr-items-th">Item</th>
-                          <th className="pr-items-th" style={{width: '100px'}}>Accepted Qty</th>
-                          <th className="pr-items-th" style={{width: '80px'}}>Rejected Qty</th>
-                          <th className="pr-items-th" style={{width: '80px'}}>UOM</th>
+                          <th className="pr-items-th" style={{width: '40px'}}></th>
+                          <th className="pr-items-th" style={{width: '40px'}}>No.</th>
+                          <th className="pr-items-th">Item Code <span className="pr-required">*</span></th>
+                          <th className="pr-items-th" style={{width: '120px'}}>Accepted Quantity</th>
+                          <th className="pr-items-th" style={{width: '100px'}}>Rejected Qty</th>
                           <th className="pr-items-th" style={{width: '120px'}}>Rate (AED)</th>
                           <th className="pr-items-th" style={{width: '120px'}}>Amount (AED)</th>
-                          <th className="pr-items-th" style={{width: '150px'}}>Accepted Warehouse</th>
-                          <th className="pr-items-th" style={{width: '150px'}}>Rejected Warehouse</th>
                           <th className="pr-items-th" style={{width: '50px'}}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {formData.items.map((item, i) => (
                           <tr key={i} className="pr-items-tr">
+                            <td className="pr-items-td">
+                              <input type="checkbox" className="pr-checkbox" />
+                            </td>
+                            <td className="pr-items-td">
+                              <span className="pr-items-text">{i + 1}</span>
+                            </td>
                             <td className="pr-items-td" ref={el => itemRefs.current[i] = el}>
                               <div className="pr-item-cell">
                                 <input
@@ -913,9 +1134,6 @@ function PurchaseReceiptList() {
                               />
                             </td>
                             <td className="pr-items-td">
-                              <span className="pr-items-text">{item.uom || '-'}</span>
-                            </td>
-                            <td className="pr-items-td">
                               <input
                                 type="number"
                                 value={item.rate}
@@ -928,51 +1146,7 @@ function PurchaseReceiptList() {
                               {rateLoading[i] && <small className="pr-rate-loading">Fetching rate...</small>}
                             </td>
                             <td className="pr-items-td">
-                              <span className="pr-items-amount">{item.amount || '0.00'}</span>
-                            </td>
-                            <td className="pr-items-td" ref={el => warehouseRefs.current[`${i}_accepted`] = el}>
-                              <div className="pr-warehouse-cell">
-                                <WarehouseIcon className="pr-warehouse-icon" />
-                                <input
-                                  type="text"
-                                  value={searchWarehouse[i] || item.accepted_warehouse}
-                                  onChange={e => handleWarehouseSearch(i, 'accepted_warehouse', e.target.value)}
-                                  onFocus={() => setShowWarehouseDropdowns(prev => ({ ...prev, [i]: true }))}
-                                  placeholder="Accepted Warehouse..."
-                                  className="pr-items-input"
-                                />
-                                {showWarehouseDropdowns[i] && warehouses.length > 0 && (
-                                  <div className="pr-dropdown pr-dropdown-absolute">
-                                    {warehouses.map(wh => (
-                                      <div key={wh.name} onClick={() => selectWarehouse(i, 'accepted_warehouse', wh)} className="pr-dropdown-item">
-                                        <div className="pr-dropdown-main">{wh.warehouse_name}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="pr-items-td" ref={el => warehouseRefs.current[`${i}_rejected`] = el}>
-                              <div className="pr-warehouse-cell">
-                                <WarehouseIcon className="pr-warehouse-icon" />
-                                <input
-                                  type="text"
-                                  value={searchWarehouse[`${i}_rejected`] || item.rejected_warehouse}
-                                  onChange={e => handleWarehouseSearch(i, 'rejected_warehouse', e.target.value)}
-                                  onFocus={() => setShowWarehouseDropdowns(prev => ({ ...prev, [`${i}_rejected`]: true }))}
-                                  placeholder="Rejected Warehouse..."
-                                  className="pr-items-input"
-                                />
-                                {showWarehouseDropdowns[`${i}_rejected`] && warehouses.length > 0 && (
-                                  <div className="pr-dropdown pr-dropdown-absolute">
-                                    {warehouses.map(wh => (
-                                      <div key={wh.name} onClick={() => selectWarehouse(i, 'rejected_warehouse', wh)} className="pr-dropdown-item">
-                                        <div className="pr-dropdown-main">{wh.warehouse_name}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                              <span className="pr-items-amount">{parseFloat(item.amount) || '0.00'}</span>
                             </td>
                             <td className="pr-items-td">
                               <button onClick={() => removeItemRow(i)} className="pr-btn-delete">
@@ -986,49 +1160,60 @@ function PurchaseReceiptList() {
                   </div>
                   {formErrors.items && <span className="pr-error">{formErrors.items}</span>}
                   <div className="pr-totals-row">
-                    <span>Total Quantity: {formData.items.reduce((sum, i) => sum + (parseFloat(i.accepted_qty || 0) + parseFloat(i.rejected_qty || 0)), 0)}</span>
-                    <span>Net Total: AED {formData.net_total}</span>
+                    <span>Total Quantity: {formData.total_qty}</span>
+                    <span>Total (AED): {parseFloat(formData.net_total) || '0.00'}</span>
                   </div>
                 </div>
 
                 <div className="pr-form-section">
-                  <h3 className="pr-section-title">Taxes and Charges</h3>
-                  <div className="pr-form-grid">
-                    <div className="pr-form-group">
-                      <label>Purchase Taxes and Charges Template</label>
-                      <select
-                        value={formData.taxes_template}
-                        onChange={e => handleTaxesTemplateChange(e.target.value)}
-                        className="pr-select"
-                      >
-                        <option value="">Select Template</option>
-                        {taxesTemplates.map(t => (
-                          <option key={t.name} value={t.name}>{t.name}</option>
-                        ))}
-                      </select>
+                  <div className="pr-section-header">
+                    <h3 className="pr-section-title">Taxes and Charges</h3>
+                    <div className="pr-form-grid">
+                      <div className="pr-form-group">
+                        <label>Purchase Taxes and Charges Template</label>
+                        <select
+                          value={formData.taxes_and_charges}
+                          onChange={e => handleTaxesTemplateChange(e.target.value)}
+                          className="pr-select"
+                        >
+                          <option value="">Select Template</option>
+                          {taxesTemplates.map(t => (
+                            <option key={t.name} value={t.name}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                   <div className="pr-taxes-table-wrapper">
                     <table className="pr-taxes-table">
                       <thead>
                         <tr>
-                          <th className="pr-taxes-th">No</th>
-                          <th className="pr-taxes-th">Type *</th>
-                          <th className="pr-taxes-th">Account Head *</th>
-                          <th className="pr-taxes-th">Tax Rate</th>
-                          <th className="pr-taxes-th">Amount</th>
-                          <th className="pr-taxes-th">Total</th>
-                          <th className="pr-taxes-th"></th>
+                          <th className="pr-taxes-th" style={{width: '40px'}}></th>
+                          <th className="pr-taxes-th" style={{width: '40px'}}>No.</th>
+                          <th className="pr-taxes-th">Type <span className="pr-required">*</span></th>
+                          <th className="pr-taxes-th">Account Head <span className="pr-required">*</span></th>
+                          <th className="pr-taxes-th" style={{width: '100px'}}>Tax Rate</th>
+                          <th className="pr-taxes-th" style={{width: '100px'}}>Amount</th>
+                          <th className="pr-taxes-th" style={{width: '100px'}}>Total</th>
+                          <th className="pr-taxes-th" style={{width: '50px'}}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {formData.taxes.map((tax, i) => (
                           <tr key={i}>
+                            <td className="pr-taxes-td">
+                              <input
+                                type="checkbox"
+                                checked={tax.add_row}
+                                onChange={e => updateTax(i, 'add_row', e.target.checked)}
+                                className="pr-checkbox"
+                              />
+                            </td>
                             <td className="pr-taxes-td">{i + 1}</td>
                             <td className="pr-taxes-td">
                               <select
-                                value={tax.type}
-                                onChange={e => updateTax(i, 'type', e.target.value)}
+                                value={tax.charge_type}
+                                onChange={e => updateTax(i, 'charge_type', e.target.value)}
                                 className="pr-items-input"
                               >
                                 <option value="">Select Type</option>
@@ -1047,8 +1232,8 @@ function PurchaseReceiptList() {
                             <td className="pr-taxes-td">
                               <input
                                 type="number"
-                                value={tax.tax_rate}
-                                onChange={e => updateTax(i, 'tax_rate', e.target.value)}
+                                value={tax.rate}
+                                onChange={e => updateTax(i, 'rate', e.target.value)}
                                 className="pr-items-input pr-items-input-number"
                                 step="0.01"
                               />
@@ -1056,14 +1241,14 @@ function PurchaseReceiptList() {
                             <td className="pr-taxes-td">
                               <input
                                 type="number"
-                                value={tax.amount}
-                                onChange={e => updateTax(i, 'amount', e.target.value)}
+                                value={tax.tax_amount}
+                                onChange={e => updateTax(i, 'tax_amount', e.target.value)}
                                 className="pr-items-input pr-items-input-number"
                                 step="0.01"
                               />
                             </td>
                             <td className="pr-taxes-td">
-                              <span className="pr-items-amount">{tax.total || '0.00'}</span>
+                              <span className="pr-items-amount">{parseFloat(tax.total) || '0.00'}</span>
                             </td>
                             <td className="pr-taxes-td">
                               <button onClick={() => removeTaxRow(i)} className="pr-btn-delete">
@@ -1079,31 +1264,90 @@ function PurchaseReceiptList() {
                       Add Row
                     </button>
                   </div>
+                  <div className="pr-taxes-totals">
+                    <div className="pr-total-row">
+                      <span className="pr-total-label">Taxes and Charges Added (AED):</span>
+                      <span className="pr-total-amount">AED {formData.taxes_added}</span>
+                    </div>
+                    <div className="pr-total-row">
+                      <span className="pr-total-label">Taxes and Charges Deducted (AED):</span>
+                      <span className="pr-total-amount">AED {formData.taxes_deducted}</span>
+                    </div>
+                    <div className="pr-total-row">
+                      <span className="pr-total-label">Total Taxes and Charges (AED):</span>
+                      <span className="pr-total-amount">AED {formData.total_taxes_and_charges}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pr-form-section">
+                  <h3 className="pr-section-title">Discounts and Rounding</h3>
+                  <div className="pr-form-grid">
+                    <div className="pr-form-group">
+                      <label>Apply Discount On</label>
+                      <select
+                        value={formData.apply_discount_on}
+                        onChange={e => updateDiscount('apply_discount_on', e.target.value)}
+                        className="pr-select"
+                      >
+                        <option value="Net Total">Net Total</option>
+                        <option value="Grand Total">Grand Total</option>
+                      </select>
+                    </div>
+                    <div className="pr-form-group">
+                      <label>Additional Discount Percentage</label>
+                      <input
+                        type="number"
+                        value={formData.additional_discount_percentage}
+                        onChange={e => updateDiscount('additional_discount_percentage', e.target.value)}
+                        className="pr-input"
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
+                    <div className="pr-form-group">
+                      <label>Discount Amount</label>
+                      <input
+                        type="number"
+                        value={formData.discount_amount}
+                        onChange={e => updateDiscount('discount_amount', e.target.value)}
+                        className="pr-input"
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
+                    <div className="pr-form-group">
+                      <label>Rounded Total</label>
+                      <input
+                        type="number"
+                        value={formData.rounded_total}
+                        onChange={e => updateDiscount('rounded_total', e.target.value)}
+                        className="pr-input"
+                        step="0.01"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pr-form-section">
                   <div className="pr-totals-section">
                     <div className="pr-total-row">
                       <span className="pr-total-label">Net Total:</span>
-                      <span className="pr-total-amount">AED {formData.net_total}</span>
+                      <span className="pr-total-amount">AED {parseFloat(formData.net_total) || '0.00'}</span>
                     </div>
                     <div className="pr-total-row">
-                      <span className="pr-total-label">Taxes and Charges Added:</span>
-                      <span className="pr-total-amount">AED 0.00</span> {/* Calculate based on added */}
+                      <span className="pr-total-label">Less Discount:</span>
+                      <span className="pr-total-amount">AED {formData.discounted_amount}</span>
                     </div>
                     <div className="pr-total-row">
-                      <span className="pr-total-label">Taxes and Charges Deducted:</span>
-                      <span className="pr-total-amount">AED 0.00</span> {/* Calculate based on deducted */}
-                    </div>
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Total Taxes and Charges:</span>
-                      <span className="pr-total-amount">AED {formData.taxes.reduce((sum, t) => sum + parseFloat(t.total || 0), 0)}</span>
-                    </div>
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Grand Total:</span>
+                      <span className="pr-total-label">Grand Total (AED):</span>
                       <span className="pr-total-amount">AED {formData.grand_total}</span>
                     </div>
                     <div className="pr-total-row">
-                      <span className="pr-total-label">Rounding Adjustment:</span>
-                      <span className="pr-total-amount">AED 0.00</span>
+                      <span className="pr-total-label">Rounding Adjustment (AED):</span>
+                      <span className="pr-total-amount">AED {((parseFloat(formData.rounded_total) || 0) - (parseFloat(formData.grand_total) || 0)).toFixed(2)}</span>
                     </div>
+                    <small className="pr-note">Note: Totals are approximate; exact values calculated on save.</small>
                   </div>
                 </div>
               </div>
