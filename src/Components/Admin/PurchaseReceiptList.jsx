@@ -711,10 +711,7 @@ function PurchaseReceiptList() {
               <Filter className="pr-icon" />
               Filters
             </button>
-            <button className="pr-btn-secondary">
-              <Download className="pr-icon" />
-              Export
-            </button>
+            
             <button onClick={openCreateModal} className="pr-btn-primary">
               <Plus className="pr-icon" />
               Create Receipt

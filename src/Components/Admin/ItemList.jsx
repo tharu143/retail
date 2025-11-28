@@ -47,6 +47,82 @@ function ItemList() {
   const [groupSearch, setGroupSearch] = useState('');
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
 
+  const [barcodes, setBarcodes] = useState([]); // Array of { barcode: string, uom: string }
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const barcodeInputRef = useRef(null);
+
+
+  useEffect(() => {
+    if (!showForm) return;
+
+    let input = '';
+    let timeout;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && isScanning && input.trim().length > 3) {
+        e.preventDefault();
+        addBarcodeFromScanner(input.trim());
+        input = '';
+        setIsScanning(false);
+      } else if (e.key.length === 1 && isScanning) {
+        input += e.key;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          input = '';
+        }, 100); // reset if too slow (not scanner)
+      }
+    };
+
+    const startScanning = () => {
+      setIsScanning(true);
+      input = '';
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showForm, isScanning]);
+
+  const addBarcodeFromScanner = async (scannedCode) => {
+  if (!scannedCode) return;
+
+  scannedCode = scannedCode.trim();
+  if (!scannedCode) return;
+
+  // Check duplicate in current list
+  if (barcodes.some(b => b.barcode === scannedCode)) {
+    alert('This barcode already added!');
+    return;
+  }
+
+  // Check in ERPNext using our safe API
+ takie:
+  try {
+    const res = await axios.get(
+      '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists',
+      {
+        params: { barcode: scannedCode },
+        withCredentials: true
+      }
+    );
+
+    if (res.data.message.exists) {
+      alert(`Barcode ${scannedCode} already used by item: ${res.data.message.item}`);
+      return;
+    }
+  } catch (err) {
+    console.error("Barcode check failed:", err);
+    // Optional: continue anyway or show warning
+    // alert("Could not verify barcode uniqueness. Continuing...");
+  }
+
+  // Add to list
+  setBarcodes([...barcodes, { barcode: scannedCode, uom: form.default_uom || 'Nos' }]);
+  setBarcodeInput('');
+  setIsScanning(false);
+  alert(`Barcode added: ${scannedCode}`);
+};
+
   // Fetch Items
   useEffect(() => {
     fetchItems();
@@ -145,7 +221,8 @@ function ItemList() {
         is_fixed_asset: form.is_fixed_asset ? 1 : 0,
         is_zero_rated: form.is_zero_rated ? 1 : 0,
         is_exempt: form.is_exempt ? 1 : 0,
-        image: form.image || ''
+        image: form.image || '',
+        barcodes: barcodes.length > 0 ? barcodes : undefined
       };
 
       const res = await axios.post(
@@ -526,6 +603,62 @@ function ItemList() {
                     rows={5}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
                   />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">Barcodes</label>
+                    <button
+                      onClick={() => {
+                        setIsScanning(true);
+                        alert('Scanner activated! Scan a barcode now...');
+                        barcodeInputRef.current?.focus();
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center space-x-2"
+                    >
+                      <Package className="w-4 h-4" />
+                      <span>Scan Barcode</span>
+                    </button>
+                  </div>
+
+                  {/* Manual Barcode Input */}
+                  <div className="flex space-x-3">
+                    <input
+                      ref={barcodeInputRef}
+                      type="text"
+                      value={barcodeInput}
+                      onChange={(e) => setBarcodeInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && barcodeInput && addBarcodeFromScanner(barcodeInput)}
+                      placeholder="Enter or scan barcode..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => barcodeInput && addBarcodeFromScanner(barcodeInput)}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {/* List of added barcodes */}
+                  {barcodes.length > 0 && (
+                    <div className="border rounded-md divide-y">
+                      {barcodes.map((b, i) => (
+                        <div key={i} className="px-4 py-3 flex justify-between items-center">
+                          <div>
+                            <span className="font-mono font-semibold">{b.barcode}</span>
+                            <span className="text-xs text-gray-500 ml-3">UOM: {b.uom}</span>
+                          </div>
+                          <button
+                            onClick={() => setBarcodes(barcodes.filter((_, idx) => idx !== i))}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Image */}
