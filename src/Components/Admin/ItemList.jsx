@@ -96,7 +96,6 @@ function ItemList() {
   }
 
   // Check in ERPNext using our safe API
- takie:
   try {
     const res = await axios.get(
       '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists',
@@ -112,8 +111,6 @@ function ItemList() {
     }
   } catch (err) {
     console.error("Barcode check failed:", err);
-    // Optional: continue anyway or show warning
-    // alert("Could not verify barcode uniqueness. Continuing...");
   }
 
   // Add to list
@@ -122,6 +119,7 @@ function ItemList() {
   setIsScanning(false);
   alert(`Barcode added: ${scannedCode}`);
 };
+
 
   // Fetch Items
   useEffect(() => {
