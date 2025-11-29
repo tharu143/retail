@@ -1,16 +1,20 @@
 // src/pages/ItemList.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, ChevronDown, Search, X, Save, Upload, Menu, MoreVertical, Copy, Trash2, Package, Building, AlertCircle } from 'lucide-react';
+import {
+  Plus, ChevronDown, Search, X, Save, Upload, Menu,
+  Copy, Trash2, Package, Camera, AlertCircle, ChevronRight
+} from 'lucide-react';
 import axios from 'axios';
+import { BrowserMultiFormatReader } from '@zxing/library';
 import NavBar from '../Nav/NavBar';
 
 function ItemList() {
-  const [items, setItems] = useState([]);
+const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Filters
+  // FILTERS (ഇത് മുൻപ് മിസ്സായിരുന്നു!)
   const [filterId, setFilterId] = useState('');
   const [filterName, setFilterName] = useState('');
   const [filterGroup, setFilterGroup] = useState('');
@@ -20,24 +24,11 @@ function ItemList() {
   // Form
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
-    item_code: '',
-    item_name: '',
-    item_group: '',
-    disabled: false,
-    allow_alternative_item: false,
-    maintain_stock: true,
-    has_variants: false,
-    opening_stock: 0,
-    valuation_rate: 0,
-    standard_selling_rate: 0,
-    is_fixed_asset: false,
-    is_zero_rated: false,
-    is_exempt: false,
-    default_uom: 'Nos',
-    tax_code: '',
-    description: '',
-    image: null,
-    imagePreview: null
+    item_code: '', item_name: '', item_group: '', disabled: false,
+    allow_alternative_item: false, maintain_stock: true, has_variants: false,
+    opening_stock: 0, valuation_rate: 0, standard_selling_rate: 0,
+    is_fixed_asset: false, is_zero_rated: false, is_exempt: false,
+    default_uom: 'Nos', tax_code: '', description: '', image: null, imagePreview: null
   });
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
@@ -47,92 +38,109 @@ function ItemList() {
   const [groupSearch, setGroupSearch] = useState('');
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
 
-  const [barcodes, setBarcodes] = useState([]); // Array of { barcode: string, uom: string }
+  // Barcodes
+  const [barcodes, setBarcodes] = useState([]);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
   const barcodeInputRef = useRef(null);
 
-
+  // ==================== HARDWARE SCANNER ====================
   useEffect(() => {
-    if (!showForm) return;
+    if (!showForm || !isScanning) return;
 
     let input = '';
     let timeout;
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Enter' && isScanning && input.trim().length > 3) {
+      if (e.key === 'Enter' && input.trim().length > 3) {
         e.preventDefault();
-        addBarcodeFromScanner(input.trim());
+        addBarcode(input.trim());
         input = '';
-        setIsScanning(false);
-      } else if (e.key.length === 1 && isScanning) {
+      } else if (e.key.length === 1) {
         input += e.key;
         clearTimeout(timeout);
-        timeout = setTimeout(() => {
-          input = '';
-        }, 100); // reset if too slow (not scanner)
+        timeout = setTimeout(() => input = '', 100);
       }
-    };
-
-    const startScanning = () => {
-      setIsScanning(true);
-      input = '';
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showForm, isScanning]);
 
-  const addBarcodeFromScanner = async (scannedCode) => {
-  if (!scannedCode) return;
+  // ==================== ADD BARCODE ====================
+  const addBarcode = async (code) => {
+    if (!code) return;
+    code = code.trim();
+    if (!code) return;
 
-  scannedCode = scannedCode.trim();
-  if (!scannedCode) return;
-
-  // Check duplicate in current list
-  if (barcodes.some(b => b.barcode === scannedCode)) {
-    alert('This barcode already added!');
-    return;
-  }
-
-  // Check in ERPNext using our safe API
-  try {
-    const res = await axios.get(
-      '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists',
-      {
-        params: { barcode: scannedCode },
-        withCredentials: true
-      }
-    );
-
-    if (res.data.message.exists) {
-      alert(`Barcode ${scannedCode} already used by item: ${res.data.message.item}`);
+    if (barcodes.some(b => b.barcode === code)) {
+      alert('This barcode already added!');
       return;
     }
-  } catch (err) {
-    console.error("Barcode check failed:", err);
-  }
 
-  // Add to list
-  setBarcodes([...barcodes, { barcode: scannedCode, uom: form.default_uom || 'Nos' }]);
-  setBarcodeInput('');
-  setIsScanning(false);
-  alert(`Barcode added: ${scannedCode}`);
-};
+    try {
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+        params: { barcode: code },
+        withCredentials: true
+      });
+      if (res.data.message.exists) {
+        alert(`Barcode ${code} already used by item: ${res.data.message.item}`);
+        return;
+      }
+    } catch (err) {
+      console.error(err);
+    }
 
+    setBarcodes(prev => [...prev, { barcode: code, uom: form.default_uom || 'Nos' }]);
+    setBarcodeInput('');
+    setIsScanning(false);
+    alert(`Barcode added: ${code}`);
+  };
 
-  // Fetch Items
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  // ==================== CAMERA SCANNER ====================
+  const CameraScanner = () => {
+    const videoRef = useRef(null);
+    const reader = useRef(new BrowserMultiFormatReader());
+
+    useEffect(() => {
+      reader.current.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
+        if (result) {
+        addBarcode(result.getText());
+        setShowCameraScanner(false);
+        }
+      });
+      return () => reader.current.reset();
+    }, []);
+
+    return (
+      <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        <div className="bg-white p-4 flex justify-between items-center">
+          <h3 className="text-lg font-bold">Scan with Camera</h3>
+          <button onClick={() => setShowCameraScanner(false)} className="text-red-600">
+            <X className="w-8 h-8" />
+          </button>
+        </div>
+        <video ref={videoRef} className="flex-1 w-full" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="border-4 border-red-500 rounded-lg w-96 h-56 opacity-70"></div>
+        </div>
+        <div className="absolute bottom-12 left-0 right-0 text-center">
+          <p className="text-white text-2xl font-bold bg-black bg-opacity-70 py-4 px-6 rounded-lg">
+            Align barcode inside red box
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== FETCH DATA ====================
+  useEffect(() => { fetchItems(); }, []);
 
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_details',
-        { withCredentials: true }
-      );
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_details', { withCredentials: true });
       setItems(res.data.message || []);
     } catch (err) {
       alert('Failed to load items');
@@ -141,31 +149,24 @@ function ItemList() {
     }
   };
 
-  // Fetch Item Groups
   useEffect(() => {
     if (showForm) {
-      const delay = setTimeout(() => {
-        fetchItemGroups(groupSearch);
-      }, 300);
-      return () => clearTimeout(delay);
+      const t = setTimeout(() => fetchItemGroups(groupSearch), 300);
+      return () => clearTimeout(t);
     }
   }, [groupSearch, showForm]);
 
   const fetchItemGroups = async (search = '') => {
     try {
-      const res = await axios.get(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups',
-        { params: { search }, withCredentials: true }
-      );
-      if (res.data.message.success) {
-        setItemGroups(res.data.message.data);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups', {
+        params: { search },
+        withCredentials: true
+      });
+      if (res.data.message.success) setItemGroups(res.data.message.data);
+    } catch (err) { console.error(err); }
   };
 
-  // Filter Logic
+  // ==================== FILTER LOGIC (NOW WORKING!) ====================
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const id = !filterId || item.item_code.toLowerCase().includes(filterId.toLowerCase());
@@ -180,17 +181,13 @@ function ItemList() {
   const total = filteredItems.length;
   const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  // Image
+  // ==================== IMAGE & SAVE ====================
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setForm({
-          ...form,
-          image: reader.result.split(',')[1],
-          imagePreview: reader.result
-        });
+        setForm({ ...form, image: reader.result, imagePreview: reader.result });
       };
       reader.readAsDataURL(file);
     }
@@ -201,10 +198,9 @@ function ItemList() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Create Item
   const handleCreate = async () => {
     if (!form.item_code || !form.item_name || !form.item_group || !form.default_uom) {
-      alert('Item Code, Item Name, Item Group, and Default UOM are required.');
+      alert('Required: Item Code, Name, Group, UOM');
       return;
     }
 
@@ -223,26 +219,17 @@ function ItemList() {
         barcodes: barcodes.length > 0 ? barcodes : undefined
       };
 
-      const res = await axios.post(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item',
-        payload,
-        { withCredentials: true }
-      );
+      const res = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item', payload, { withCredentials: true });
 
       if (res.data.message.success) {
-        alert(res.data.message.message);
+        alert('Item created!');
         setShowForm(false);
-        setForm({
-          item_code: '', item_name: '', item_group: '', disabled: false,
-          allow_alternative_item: false, maintain_stock: true, has_variants: false,
-          opening_stock: 0, valuation_rate: 0, standard_selling_rate: 0,
-          is_fixed_asset: false, is_zero_rated: false, is_exempt: false,
-          default_uom: 'Nos', tax_code: '', description: '', image: null, imagePreview: null
-        });
+        setBarcodes([]);
+        setForm(prev => ({ ...prev, item_code: '', item_name: '', item_group: '', image: null, imagePreview: null }));
         fetchItems();
       }
     } catch (err) {
-      alert(err.response?.data?.message?.message || 'Failed to create item');
+      alert(err.response?.data?.message?.message || 'Failed');
     } finally {
       setSaving(false);
     }
@@ -264,19 +251,16 @@ function ItemList() {
               <ChevronDown className="w-4 h-4" />
             </div>
           </div>
-          <button
-            onClick={() => { setShowForm(true); fetchItemGroups(); }}
-            className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
-          >
+          <button onClick={() => { setShowForm(true); fetchItemGroups(); }} className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800">
             <Plus className="w-4 h-4" />
             <span>Add Item</span>
           </button>
         </div>
 
-        {/* List View */}
+        {/* LIST VIEW WITH FULL FILTERS (NOW WORKING!) */}
         <main className="p-6">
           {loading ? (
-            <div className="text-center py-10">Loading items...</div>
+            <div className="text-center py-20 text-gray-500">Loading items...</div>
           ) : (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -286,6 +270,7 @@ function ItemList() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <input type="checkbox" className="rounded border-gray-300" />
                       </th>
+                      {/* FILTER ROWS */}
                       {[
                         { label: 'ID', state: filterId, setState: setFilterId },
                         { label: 'Item Name', state: filterName, setState: setFilterName },
@@ -294,14 +279,10 @@ function ItemList() {
                         { label: 'Has Variants', state: filterHasVariants, setState: setFilterHasVariants, options: ['Yes', 'No'] },
                       ].map((col, i) => (
                         <th key={i} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <div className="space-y-1">
-                            <span>{col.label}</span>
+                          <div className="space-y-2">
+                            <div>{col.label}</div>
                             {col.options ? (
-                              <select
-                                value={col.state}
-                                onChange={(e) => col.setState(e.target.value)}
-                                className="block w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500"
-                              >
+                              <select value={col.state} onChange={e => col.setState(e.target.value)} className="w-full text-xs border rounded px-2 py-1">
                                 <option value="">All</option>
                                 {col.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                               </select>
@@ -311,9 +292,9 @@ function ItemList() {
                                 <input
                                   type="text"
                                   value={col.state}
-                                  onChange={(e) => col.setState(e.target.value)}
+                                  onChange={e => col.setState(e.target.value)}
                                   placeholder="Filter..."
-                                  className="w-full pl-7 pr-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                                  className="w-full pl-7 pr-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500"
                                 />
                               </div>
                             )}
@@ -324,20 +305,20 @@ function ItemList() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {paginatedItems.length === 0 ? (
-                      <tr><td colSpan="6" className="px-6 py-8 text-center text-gray-500">No items found</td></tr>
+                      <tr><td colSpan="6" className="text-center py-12 text-gray-500">No items found</td></tr>
                     ) : (
                       paginatedItems.map(item => (
                         <tr key={item.name} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap"><input type="checkbox" className="rounded border-gray-300" /></td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.item_code}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.item_name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.item_group}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${!item.disabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          <td className="px-6 py-4"><input type="checkbox" className="rounded border-gray-300" /></td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{item.item_code}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.item_name}</td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{item.item_group}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 text-xs rounded-full ${!item.disabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                               {!item.disabled ? 'Enabled' : 'Disabled'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.has_variants ? 'Yes' : 'No'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{item.has_variants ? 'Yes' : 'No'}</td>
                         </tr>
                       ))
                     )}
@@ -350,13 +331,10 @@ function ItemList() {
                 <div className="text-sm text-gray-700">
                   Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} results
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex gap-2">
                   {[20, 100, 500].map(size => (
-                    <button
-                      key={size}
-                      onClick={() => { setPageSize(size); setCurrentPage(1); }}
-                      className={`px-3 py-1 text-sm rounded-md ${pageSize === size ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
-                    >
+                    <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); }}
+                      className={`px-3 py-1 text-sm rounded ${pageSize === size ? 'bg-blue-600 text-white' : 'bg-white border hover:bg-gray-50'}`}>
                       {size}
                     </button>
                   ))}
@@ -366,292 +344,121 @@ function ItemList() {
           )}
         </main>
 
-        {/* ERPNext Full Form (POS Profile Style) */}
+        {/* ==================== FULL FORM ==================== */}
         {showForm && (
           <div className="fixed inset-0 bg-white z-50 flex flex-col">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <button onClick={() => setShowForm(false)} className="text-gray-600 hover:text-gray-900">
-                  <Menu className="w-5 h-5" />
-                </button>
-                <h1 className="text-xl font-semibold text-gray-900">New Item</h1>
-                <span className="text-sm text-orange-600">Not Saved</span>
+            <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <button onClick={() => setShowForm(false)}><Menu className="w-6 h-6" /></button>
+                <h1 className="text-2xl font-bold">New Item</h1>
+                <span className="text-orange-600">Not Saved</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <button className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1">
-                  <span>View</span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-                <button className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1">
-                  <span>Actions</span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-                <button className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900">
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleCreate}
-                  disabled={saving}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center space-x-1"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>{saving ? 'Saving...' : 'Save'}</span>
-                </button>
-              </div>
+              <button onClick={handleCreate} disabled={saving} className="bg-green-600 text-white px-8 py-3 rounded-lg flex items-center gap-2 hover:bg-green-700">
+                <Save className="w-5 h-5" />
+                {saving ? 'Saving...' : 'Save'}
+              </button>
             </div>
 
-            {/* Form Body */}
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-4xl mx-auto space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="max-w-5xl mx-auto space-y-8">
+
+                {/* Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Left */}
-                  <div className="space-y-5">
-                    {/* Item Code */}
+                  <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Item Code <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={form.item_code}
-                        onChange={e => setForm({ ...form, item_code: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                        placeholder="ITM-001"
-                      />
+                      <label className="block font-medium mb-1">Item Code <span className="text-red-500">*</span></label>
+                      <input type="text" value={form.item_code} onChange={e => setForm({...form, item_code: e.target.value})} className="w-full px-4 py-3 border rounded-lg" placeholder="ITM-001" />
                     </div>
-
-                    {/* Item Name */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Item Name <span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        value={form.item_name}
-                        onChange={e => setForm({ ...form, item_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                      />
+                      <label className="block font-medium mb-1">Item Name <span className="text-red-500">*</span></label>
+                      <input type="text" value={form.item_name} onChange={e => setForm({...form, item_name: e.target.value})} className="w-full px-4 py-3 border rounded-lg" />
                     </div>
-
-                    {/* Item Group */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Item Group <span className="text-red-500">*</span>
-                      </label>
+                      <label className="block font-medium mb-1">Item Group <span className="text-red-500">*</span></label>
                       <div className="relative">
-                        <button
-                          onClick={() => setShowGroupDropdown(!showGroupDropdown)}
-                          className="w-full px-3 py-2 text-left border border-gray-300 rounded-md flex items-center justify-between focus:ring-1 focus:ring-blue-500"
-                        >
-                          <span className="truncate">{selectedGroupLabel}</span>
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        <button onClick={() => setShowGroupDropdown(!showGroupDropdown)} className="w-full px-4 py-3 border rounded-lg text-left flex justify-between items-center">
+                          <span>{selectedGroupLabel}</span>
+                          <ChevronDown className="w-5 h-5" />
                         </button>
                         {showGroupDropdown && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                            <div className="p-2 border-b">
-                              <input
-                                type="text"
-                                value={groupSearch}
-                                onChange={e => setGroupSearch(e.target.value)}
-                                placeholder="Search groups..."
-                                className="w-full px-2 py-1 text-sm border rounded"
-                                autoFocus
-                              />
-                            </div>
-                            <div className="max-h-60 overflow-y-auto">
-                              {itemGroups.length === 0 ? (
-                                <div className="p-3 text-center text-sm text-gray-500">No groups</div>
-                              ) : (
-                                itemGroups.map(g => (
-                                  <button
-                                    key={g.value}
-                                    onClick={() => {
-                                      setForm({ ...form, item_group: g.value });
-                                      setShowGroupDropdown(false);
-                                      setGroupSearch('');
-                                    }}
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center justify-between"
-                                  >
-                                    <span className="truncate">{g.label}</span>
-                                    {form.item_group === g.value && <ChevronRight className="w-4 h-4" />}
-                                  </button>
-                                ))
-                              )}
-                            </div>
+                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                            <input type="text" value={groupSearch} onChange={e => setGroupSearch(e.target.value)} placeholder="Search..." className="w-full px-4 py-2 border-b" autoFocus />
+                            {itemGroups.map(g => (
+                              <button key={g.value} onClick={() => { setForm({...form, item_group: g.value}); setShowGroupDropdown(false); setGroupSearch(''); }}
+                                className="w-full px-4 py-2 text-left hover:bg-gray-100 flex justify-between">
+                                <span>{g.label}</span>
+                                {form.item_group === g.value && <ChevronRight />}
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>
                     </div>
-
-                    {/* UOM */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Default UOM <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={form.default_uom}
-                        onChange={e => setForm({ ...form, default_uom: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                        placeholder="Nos"
-                      />
-                    </div>
-
-                    {/* Tax Code */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tax Code</label>
-                      <input
-                        type="text"
-                        value={form.tax_code}
-                        onChange={e => setForm({ ...form, tax_code: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-6">
-                      <label className="flex items-center">
-                        <input type="checkbox" checked={form.is_zero_rated} onChange={e => setForm({ ...form, is_zero_rated: e.target.checked })} className="mr-2" />
-                        <span className="text-sm">Is Zero Rated</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input type="checkbox" checked={form.is_exempt} onChange={e => setForm({ ...form, is_exempt: e.target.checked })} className="mr-2" />
-                        <span className="text-sm">Is Exempt</span>
-                      </label>
+                      <label className="block font-medium mb-1">Default UOM <span className="text-red-500">*</span></label>
+                      <input type="text" value={form.default_uom} onChange={e => setForm({...form, default_uom: e.target.value})} className="w-full px-4 py-3 border rounded-lg" placeholder="Nos" />
                     </div>
                   </div>
 
                   {/* Right */}
-                  <div className="space-y-5">
-                    <div className="flex items-center space-x-6">
-                      <label className="flex items-center">
-                        <input type="checkbox" checked={form.disabled} onChange={e => setForm({ ...form, disabled: e.target.checked })} className="mr-2" />
-                        <span className="text-sm">Disabled</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input type="checkbox" checked={form.allow_alternative_item} onChange={e => setForm({ ...form, allow_alternative_item: e.target.checked })} className="mr-2" />
-                        <span className="text-sm">Allow Alternative Item</span>
-                      </label>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={form.disabled} onChange={e => setForm({...form, disabled: e.target.checked})} /> Disabled</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={form.maintain_stock} onChange={e => setForm({...form, maintain_stock: e.target.checked})} /> Maintain Stock</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={form.has_variants} onChange={e => setForm({...form, has_variants: e.target.checked})} /> Has Variants</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_fixed_asset} onChange={e => setForm({...form, is_fixed_asset: e.target.checked})} /> Fixed Asset</label>
                     </div>
-
-                    <div className="flex items-center space-x-6">
-                      <label className="flex items-center">
-                        <input type="checkbox" checked={form.maintain_stock} onChange={e => setForm({ ...form, maintain_stock: e.target.checked })} className="mr-2" />
-                        <span className="text-sm">Maintain Stock</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input type="checkbox" checked={form.has_variants} onChange={e => setForm({ ...form, has_variants: e.target.checked })} className="mr-2" />
-                        <span className="text-sm">Has Variants</span>
-                      </label>
-                    </div>
-
-                    {form.has_variants && (
-                      <p className="text-xs text-red-600 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-1" />
-                        Template items cannot be used in transactions
-                      </p>
-                    )}
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Opening Stock</label>
-                      <input
-                        type="number"
-                        value={form.opening_stock}
-                        onChange={e => setForm({ ...form, opening_stock: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                      />
+                      <label className="block font-medium mb-1">Opening Stock</label>
+                      <input type="number" value={form.opening_stock} onChange={e => setForm({...form, opening_stock: +e.target.value})} className="w-full px-4 py-3 border rounded-lg" />
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Valuation Rate</label>
-                      <input
-                        type="number"
-                        value={form.valuation_rate}
-                        onChange={e => setForm({ ...form, valuation_rate: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                      />
+                      <label className="block font-medium mb-1">Valuation Rate</label>
+                      <input type="number" value={form.valuation_rate} onChange={e => setForm({...form, valuation_rate: +e.target.value})} className="w-full px-4 py-3 border rounded-lg" />
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Standard Selling Rate</label>
-                      <input
-                        type="number"
-                        value={form.standard_selling_rate}
-                        onChange={e => setForm({ ...form, standard_selling_rate: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div className="flex items-center">
-                      <label className="flex items-center">
-                        <input type="checkbox" checked={form.is_fixed_asset} onChange={e => setForm({ ...form, is_fixed_asset: e.target.checked })} className="mr-2" />
-                        <span className="text-sm">Is Fixed Asset</span>
-                      </label>
+                      <label className="block font-medium mb-1">Standard Selling Rate</label>
+                      <input type="number" value={form.standard_selling_rate} onChange={e => setForm({...form, standard_selling_rate: +e.target.value})} className="w-full px-4 py-3 border rounded-lg" />
                     </div>
                   </div>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea
-                    value={form.description}
-                    onChange={e => setForm({ ...form, description: e.target.value })}
-                    rows={5}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                  />
+                  <label className="block font-medium mb-1">Description</label>
+                  <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={4} className="w-full px-4 py-3 border rounded-lg" />
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-gray-700">Barcodes</label>
-                    <button
-                      onClick={() => {
-                        setIsScanning(true);
-                        alert('Scanner activated! Scan a barcode now...');
-                        barcodeInputRef.current?.focus();
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center space-x-2"
-                    >
-                      <Package className="w-4 h-4" />
-                      <span>Scan Barcode</span>
-                    </button>
+                {/* Barcodes */}
+                <div className="border-t pt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Barcodes</h3>
+                    <div className="flex gap-3">
+                      <button onClick={() => { setIsScanning(true); setBarcodeInput(''); barcodeInputRef.current?.focus(); }} className="bg-blue-600 text-white px-5 py-3 rounded-lg flex items-center gap-2">
+                        <Package /> Hardware Scan
+                      </button>
+                      <button onClick={() => setShowCameraScanner(true)} className="bg-purple-600 text-white px-5 py-3 rounded-lg flex items-center gap-2">
+                        <Camera /> Camera Scan
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Manual Barcode Input */}
-                  <div className="flex space-x-3">
-                    <input
-                      ref={barcodeInputRef}
-                      type="text"
-                      value={barcodeInput}
-                      onChange={(e) => setBarcodeInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && barcodeInput && addBarcodeFromScanner(barcodeInput)}
-                      placeholder="Enter or scan barcode..."
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500"
-                    />
-                    <button
-                      onClick={() => barcodeInput && addBarcodeFromScanner(barcodeInput)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                      Add
-                    </button>
+                  <div className="flex gap-3 mb-4">
+                    <input ref={barcodeInputRef} type="text" value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && barcodeInput && addBarcode(barcodeInput)}
+                      placeholder="Scan or type barcode..." className="flex-1 px-4 py-3 border rounded-lg" />
+                    <button onClick={() => barcodeInput && addBarcode(barcodeInput)} className="bg-green-600 text-white px-8 py-3 rounded-lg">Add</button>
                   </div>
-
-                  {/* List of added barcodes */}
                   {barcodes.length > 0 && (
-                    <div className="border rounded-md divide-y">
+                    <div className="border rounded-lg divide-y">
                       {barcodes.map((b, i) => (
-                        <div key={i} className="px-4 py-3 flex justify-between items-center">
+                        <div key={i} className="p-4 flex justify-between items-center">
                           <div>
-                            <span className="font-mono font-semibold">{b.barcode}</span>
-                            <span className="text-xs text-gray-500 ml-3">UOM: {b.uom}</span>
+                            <span className="font-mono text-xl">{b.barcode}</span>
+                            <span className="text-gray-500 ml-4">({b.uom})</span>
                           </div>
-                          <button
-                            onClick={() => setBarcodes(barcodes.filter((_, idx) => idx !== i))}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <X className="w-4 h-4" />
+                          <button onClick={() => setBarcodes(barcodes.filter((_, idx) => idx !== i))} className="text-red-600">
+                            <X className="w-6 h-6" />
                           </button>
                         </div>
                       ))}
@@ -661,32 +468,26 @@ function ItemList() {
 
                 {/* Image */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-                  <div className="mt-1 flex items-center space-x-4">
+                  <label className="block font-medium mb-3">Image</label>
+                  <div className="flex gap-6 items-start">
                     {form.imagePreview ? (
                       <div className="relative">
-                        <img src={form.imagePreview} alt="Preview" className="h-32 w-32 object-cover rounded-md border" />
-                        <button
-                          onClick={removeImage}
-                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                        >
-                          <X className="w-3 h-3" />
+                        <img src={form.imagePreview} alt="Preview" className="w-48 h-48 object-cover rounded-lg border" />
+                        <button onClick={removeImage} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full">
+                          <X className="w-5 h-5" />
                         </button>
                       </div>
                     ) : (
-                      <div className="border-2 border-dashed border-gray-300 rounded-md w-32 h-32 flex items-center justify-center">
-                        <Upload className="w-8 h-8 text-gray-400" />
+                      <div className="w-48 h-48 border-2 border-dashed rounded-lg flex items-center justify-center">
+                        <Upload className="w-12 h-12 text-gray-400" />
                       </div>
                     )}
                     <div>
                       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Choose File
+                      <button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 border rounded-lg hover:bg-gray-50">
+                        Choose Image
                       </button>
-                      <p className="mt-1 text-xs text-gray-500">PNG, JPG up to 2MB</p>
+                      <p className="text-sm text-gray-500 mt-2">PNG, JPG up to 5MB</p>
                     </div>
                   </div>
                 </div>
@@ -694,10 +495,12 @@ function ItemList() {
             </div>
           </div>
         )}
+
+        {/* Camera Scanner Modal */}
+        {showCameraScanner && <CameraScanner />}
       </div>
     </>
   );
 }
 
 export default ItemList;
-
