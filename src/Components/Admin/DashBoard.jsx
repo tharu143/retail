@@ -4,11 +4,13 @@ import { ArrowRight } from 'lucide-react';
 
 
 const routeMap = {
-  // Purchase & Sales
+  // Purchase Sales
   'Purchase Order': '/purchaseorderlist',
   'Purchase Invoice': '/purchaseinvoicelist',
   'Supplier': '/supplierlist',
   'Purchase Receipt': '/purchasereceiptlist',
+
+// Sales
   'Customer': '/customerlist',
   
 
@@ -19,7 +21,7 @@ const routeMap = {
 
   // Items Management
   'Item': '/itemlist',
-  'Item Price': '/itempricelist',
+  'Price List': '/itempricelist',
   'Item Group': '/itemgrouplist',
 
   // POS Management
@@ -32,13 +34,22 @@ const routeMap = {
 function Dashboard() {
   const sections = [
     {
-      title: 'Purchase & Sales',
+      title: 'Purchase',
       items: [
-        'Purchase Order',
-        'Purchase Invoice',
         'Supplier',
+        'Purchase Order',
         'Purchase Receipt',
+        'Purchase Invoice', 
+
+      ],
+    },
+    {
+      title: 'Sales',
+      items: [
         'Customer',
+        'Sales Order',
+        'Sales Invoice',
+        'Delivery Note' ,
       ],
     },
     {
@@ -53,7 +64,7 @@ function Dashboard() {
       title: 'Items Management',
       items: [
         'Item',
-        'Item Price',
+        'Price List',
         'Item Group',
       ],
     },

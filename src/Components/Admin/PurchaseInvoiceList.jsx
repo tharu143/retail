@@ -676,20 +676,7 @@ function PurchaseInvoiceList() {
                   </div>
                 </div>
 
-                {/* Tax Template */}
-                <div className="pi-form-section">
-                  <div className="pi-form-group">
-                    <label className="pi-label">Taxes and Charges Template</label>
-                    <select value={formData.taxes_and_charges}
-                      onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
-                      disabled={isViewMode || loadingTaxTemplates} className="pi-select">
-                      <option value="">No Tax</option>
-                      {taxTemplates.map(t => (
-                        <option key={t.name} value={t.name}>{t.title || t.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                
 
                 {/* Items Table - WAREHOUSE COLUMN REMOVED */}
                 <div className="pi-form-section">
@@ -812,8 +799,22 @@ function PurchaseInvoiceList() {
                       </div>
                     </div>
                   </div>
+                  {/* Tax Template */}
+                <div className="pi-form-section">
+                  <div className="pi-form-group">
+                    <label className="pi-label">Taxes and Charges Template</label>
+                    <select value={formData.taxes_and_charges}
+                      onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
+                      disabled={isViewMode || loadingTaxTemplates} className="pi-select">
+                      <option value="">No Tax</option>
+                      {taxTemplates.map(t => (
+                        <option key={t.name} value={t.name}>{t.title || t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-                  {/* Beautiful Tax Table */}
+                  {/*  Tax Table */}
                   <div style={{ marginBottom: '2rem' }}>
                     <h4 className="pi-section-title" style={{ marginBottom: '1rem' }}>Purchase Taxes and Charges</h4>
                     {taxPreview.length === 0 ? (

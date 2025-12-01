@@ -339,7 +339,7 @@ const [items, setItems] = useState([]);
                     </button>
                   ))}
                 </div>
-              </div>
+                </div>
             </div>
           )}
         </main>
