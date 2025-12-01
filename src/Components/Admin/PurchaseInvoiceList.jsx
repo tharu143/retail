@@ -69,10 +69,10 @@ function PurchaseInvoiceList() {
   }, [subtotal, formData.additional_discount_percentage, formData.discount_amount]);
   const netTotal = subtotal - discountAmount;
   const taxTotal = useMemo(() => {
-  return taxPreview.reduce((sum, t) => {
-    return sum + (netTotal * (parseFloat(t.rate || 0) / 100));
-  }, 0);
-}, [taxPreview, netTotal]);
+    return taxPreview.reduce((sum, t) => {
+      return sum + (netTotal * (parseFloat(t.rate || 0) / 100));
+    }, 0);
+  }, [taxPreview, netTotal]);
   const grandTotal = (netTotal + taxTotal).toFixed(2);
 
   useEffect(() => {
@@ -336,74 +336,74 @@ function PurchaseInvoiceList() {
   };
 
   const handleSave = async () => {
-  const errors = {};
-  if (!formData.supplier) errors.supplier = 'Supplier is required';
-  if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
-  if (Object.keys(errors).length > 0) {
-    setFormErrors(errors);
-    return;
-  }
-
-  setSaving(true);
-
-  // Calculate net total before discount
-  const itemsTotal = formData.items
-    .filter(i => i.item_code && i.qty > 0)
-    .reduce((sum, i) => sum + (parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0), 0);
-
-  const discountAmountCalc = formData.additional_discount_percentage > 0
-    ? (itemsTotal * formData.additional_discount_percentage) / 100
-    : parseFloat(formData.discount_amount) || 0;
-
-  const netTotal = itemsTotal - discountAmountCalc;
-
-  // Build taxes array from taxPreview
-  const taxes = taxPreview.map(tax => ({
-    charge_type: "On Net Total",        // or "Actual" if needed
-    account_head: tax.account_head,
-    rate: parseFloat(tax.rate || 0),
-    tax_amount: netTotal * (parseFloat(tax.rate || 0) / 100),
-    description: tax.description || tax.account_head
-  }));
-
-  const payload = {
-    supplier: formData.supplier,
-    posting_date: formData.posting_date,
-    due_date: formData.due_date || null,
-    bill_no: formData.bill_no || null,
-    update_stock: formData.update_stock ? 1 : 0,
-    apply_discount_on: formData.apply_discount_on,
-    additional_discount_percentage: formData.additional_discount_percentage > 0 ? parseFloat(formData.additional_discount_percentage) : null,
-    discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
-    taxes_and_charges: formData.taxes_and_charges || null,
-    taxes: taxes.length > 0 ? taxes : null,  // ← THIS IS THE KEY!
-    items: formData.items
-      .filter(i => i.item_code && i.qty > 0)
-      .map(i => ({
-        item_code: i.item_code,
-        qty: parseFloat(i.qty) || 1,
-        rate: parseFloat(i.rate || 0)
-      }))
-  };
-
-  try {
-    let res;
-    if (isEditMode) {
-      res = await axios.put(`${RESOURCE_API}/${formData.name}`, payload, { withCredentials: true });
-    } else {
-      res = await axios.post(RESOURCE_API, payload, { withCredentials: true });
+    const errors = {};
+    if (!formData.supplier) errors.supplier = 'Supplier is required';
+    if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
     }
-    alert(`${isEditMode ? 'Updated' : 'Created'} successfully: ${res.data.data.name}`);
-    setIsModalOpen(false);
-    fetchInvoices();
-  } catch (err) {
-    const msg = err.response?.data?.message || err.response?.data?.exception || 'Save failed';
-    alert("Error: " + msg);
-    console.error(err.response?.data);
-  } finally {
-    setSaving(false);
-  }
-};
+
+    setSaving(true);
+
+    // Calculate net total before discount
+    const itemsTotal = formData.items
+      .filter(i => i.item_code && i.qty > 0)
+      .reduce((sum, i) => sum + (parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0), 0);
+
+    const discountAmountCalc = formData.additional_discount_percentage > 0
+      ? (itemsTotal * formData.additional_discount_percentage) / 100
+      : parseFloat(formData.discount_amount) || 0;
+
+    const netTotal = itemsTotal - discountAmountCalc;
+
+    // Build taxes array from taxPreview
+    const taxes = taxPreview.map(tax => ({
+      charge_type: "On Net Total",        // or "Actual" if needed
+      account_head: tax.account_head,
+      rate: parseFloat(tax.rate || 0),
+      tax_amount: netTotal * (parseFloat(tax.rate || 0) / 100),
+      description: tax.description || tax.account_head
+    }));
+
+    const payload = {
+      supplier: formData.supplier,
+      posting_date: formData.posting_date,
+      due_date: formData.due_date || null,
+      bill_no: formData.bill_no || null,
+      update_stock: formData.update_stock ? 1 : 0,
+      apply_discount_on: formData.apply_discount_on,
+      additional_discount_percentage: formData.additional_discount_percentage > 0 ? parseFloat(formData.additional_discount_percentage) : null,
+      discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
+      taxes_and_charges: formData.taxes_and_charges || null,
+      taxes: taxes.length > 0 ? taxes : null,  // ← THIS IS THE KEY!
+      items: formData.items
+        .filter(i => i.item_code && i.qty > 0)
+        .map(i => ({
+          item_code: i.item_code,
+          qty: parseFloat(i.qty) || 1,
+          rate: parseFloat(i.rate || 0)
+        }))
+    };
+
+    try {
+      let res;
+      if (isEditMode) {
+        res = await axios.put(`${RESOURCE_API}/${formData.name}`, payload, { withCredentials: true });
+      } else {
+        res = await axios.post(RESOURCE_API, payload, { withCredentials: true });
+      }
+      alert(`${isEditMode ? 'Updated' : 'Created'} successfully: ${res.data.data.name}`);
+      setIsModalOpen(false);
+      fetchInvoices();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.response?.data?.exception || 'Save failed';
+      alert("Error: " + msg);
+      console.error(err.response?.data);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const filteredInvoices = useMemo(() => invoices.filter(inv => {
     const matchesName = !filterName || inv.name.toLowerCase().includes(filterName.toLowerCase());
@@ -619,7 +619,10 @@ function PurchaseInvoiceList() {
                 {/* Supplier Info */}
                 <div className="pi-form-section">
                   <h3 className="pi-section-title">Supplier Information</h3>
-                  <div className="pi-form-grid">
+
+                  {/* ഇവിപ്പോൾ 2×2 grid ആക്കി മാറ്റി */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* First Row */}
                     <div className="pi-form-group" ref={supplierRef}>
                       <label className="pi-label">Supplier {!isViewMode && <span className="pi-required">*</span>}</label>
                       <div className="pi-input-wrapper">
@@ -651,32 +654,45 @@ function PurchaseInvoiceList() {
                       <label className="pi-label">Posting Date {!isViewMode && <span className="pi-required">*</span>}</label>
                       <div className="pi-input-wrapper">
                         <Calendar className="pi-input-icon" />
-                        <input type="date" value={formData.posting_date}
+                        <input
+                          type="date"
+                          value={formData.posting_date}
                           onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
-                          className="pi-input" disabled={isViewMode} />
+                          className="pi-input"
+                          disabled={isViewMode}
+                        />
                       </div>
                     </div>
 
+                    {/* Second Row */}
                     <div className="pi-form-group">
                       <label className="pi-label">Due Date</label>
                       <div className="pi-input-wrapper">
                         <Calendar className="pi-input-icon" />
-                        <input type="date" value={formData.due_date}
+                        <input
+                          type="date"
+                          value={formData.due_date}
                           onChange={e => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-                          className="pi-input" disabled={isViewMode} />
+                          className="pi-input"
+                          disabled={isViewMode}
+                        />
                       </div>
                     </div>
 
                     <div className="pi-form-group">
                       <label className="pi-label">Bill Number</label>
-                      <input type="text" value={formData.bill_no}
+                      <input
+                        type="text"
+                        value={formData.bill_no}
                         onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
-                        placeholder="Enter bill number..." className="pi-input" disabled={isViewMode} />
+                        placeholder="Enter bill number..."
+                        className="pi-input"
+                        disabled={isViewMode}
+                      />
                     </div>
                   </div>
                 </div>
 
-                
 
                 {/* Items Table - WAREHOUSE COLUMN REMOVED */}
                 <div className="pi-form-section">
@@ -800,19 +816,19 @@ function PurchaseInvoiceList() {
                     </div>
                   </div>
                   {/* Tax Template */}
-                <div className="pi-form-section">
-                  <div className="pi-form-group">
-                    <label className="pi-label">Taxes and Charges Template</label>
-                    <select value={formData.taxes_and_charges}
-                      onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
-                      disabled={isViewMode || loadingTaxTemplates} className="pi-select">
-                      <option value="">No Tax</option>
-                      {taxTemplates.map(t => (
-                        <option key={t.name} value={t.name}>{t.title || t.name}</option>
-                      ))}
-                    </select>
+                  <div className="pi-form-section">
+                    <div className="pi-form-group">
+                      <label className="pi-label">Taxes and Charges Template</label>
+                      <select value={formData.taxes_and_charges}
+                        onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
+                        disabled={isViewMode || loadingTaxTemplates} className="pi-select">
+                        <option value="">No Tax</option>
+                        {taxTemplates.map(t => (
+                          <option key={t.name} value={t.name}>{t.title || t.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
 
                   {/*  Tax Table */}
                   <div style={{ marginBottom: '2rem' }}>
