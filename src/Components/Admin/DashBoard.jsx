@@ -10,9 +10,9 @@ const routeMap = {
   'Supplier': '/supplierlist',
   'Purchase Receipt': '/purchasereceiptlist',
 
-// Sales
+  // Sales
   'Customer': '/customerlist',
-  
+  'Sales Order':'/salesorderlist',
 
   // Reports (you can add real report pages later)
   'Sales Report': '/salesreport',
