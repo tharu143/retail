@@ -33,7 +33,7 @@ function recalcForm(form) {
         } else if (tax.charge_type === 'On Previous Row Amount') {
             taxAmount = previous_total * (rate / 100);
         } else {
-           
+
             taxAmount = base_total * (rate / 100);
         }
 
@@ -48,8 +48,8 @@ function recalcForm(form) {
             ...tax,
             tax_amount: tax.charge_type === 'Actual'
                 ? parseFloat(tax.tax_amount || 0)
-                : parseFloat(taxAmount.toFixed(3)), 
-            total: signedAmount.toFixed(3),        
+                : parseFloat(taxAmount.toFixed(3)),
+            total: signedAmount.toFixed(3),
         };
     });
 
@@ -175,42 +175,42 @@ function SalesOrder() {
     };
 
     const recalculate = useCallback(() => {
-    setForm(prev => recalcForm(prev));
-}, []);
+        setForm(prev => recalcForm(prev));
+    }, []);
 
 
     const loadTaxTemplate = async (templateName) => {
-    if (!templateName) {
-        setForm(prev => recalcForm({
-            ...prev,
-            taxes_and_charges: '',
-            taxes: []
-        }));
-        return;
-    }
+        if (!templateName) {
+            setForm(prev => recalcForm({
+                ...prev,
+                taxes_and_charges: '',
+                taxes: []
+            }));
+            return;
+        }
 
-    try {
-        const res = await axios.get(`${API_PATH}.get_sales_taxes_templates_so`, {
-            params: { template: templateName },
-            withCredentials: true
-        });
+        try {
+            const res = await axios.get(`${API_PATH}.get_sales_taxes_templates_so`, {
+                params: { template: templateName },
+                withCredentials: true
+            });
 
-        const newTaxes = (res.data.message || []).map(t => ({
-            ...t,
-            add_deduct_tax: t.add_deduct_tax || "Add",
-            total: "0.000",
-        }));
+            const newTaxes = (res.data.message || []).map(t => ({
+                ...t,
+                add_deduct_tax: t.add_deduct_tax || "Add",
+                total: "0.000",
+            }));
 
-        setForm(prev => recalcForm({
-            ...prev,
-            taxes_and_charges: templateName,
-            taxes: newTaxes
-        }));
-    } catch (err) {
-        console.error("Failed to load tax template:", err);
-        alert("Could not load tax template: " + (err.response?.data?.message || err.message));
-    }
-};
+            setForm(prev => recalcForm({
+                ...prev,
+                taxes_and_charges: templateName,
+                taxes: newTaxes
+            }));
+        } catch (err) {
+            console.error("Failed to load tax template:", err);
+            alert("Could not load tax template: " + (err.response?.data?.message || err.message));
+        }
+    };
 
 
     const updateItem = (idx, field, value) => {
@@ -449,10 +449,11 @@ function SalesOrder() {
                             </div>
 
                             <div className="p-6 space-y-8">
-                                {/* Customer & Dates */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div>
-                                        <label className="block font-medium mb-1">Customer <span className="text-red-500">*</span></label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                    {/* Row 1 */}
+                                    {/* Customer Field */}
+                                    <div className="space-y-1">
+                                        <label className="block font-medium">Customer <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <input
                                                 type="text"
@@ -460,18 +461,22 @@ function SalesOrder() {
                                                 onChange={e => setSearchCustomer(e.target.value)}
                                                 onFocus={() => setShowCustomerDropdown(true)}
                                                 placeholder="Search customer..."
-                                                className="w-full px-4 py-2 border rounded-lg"
+                                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             />
                                             {showCustomerDropdown && customers.length > 0 && (
                                                 <div className="absolute z-20 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                                     {customers
                                                         .filter(c => c.customer_name?.toLowerCase().includes(searchCustomer.toLowerCase()))
                                                         .map(c => (
-                                                            <div key={c.name} onClick={() => {
-                                                                setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
-                                                                setSearchCustomer(c.customer_name);
-                                                                setShowCustomerDropdown(false);
-                                                            }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                                                            <div
+                                                                key={c.name}
+                                                                onClick={() => {
+                                                                    setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
+                                                                    setSearchCustomer(c.customer_name);
+                                                                    setShowCustomerDropdown(false);
+                                                                }}
+                                                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer transition"
+                                                            >
                                                                 <div className="font-medium">{c.customer_name}</div>
                                                                 <div className="text-sm text-gray-500">{c.name}</div>
                                                             </div>
@@ -480,18 +485,39 @@ function SalesOrder() {
                                             )}
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="block font-medium mb-1">Date</label>
-                                        <input type="date" value={form.transaction_date} onChange={e => setForm(prev => ({ ...prev, transaction_date: e.target.value }))} className="w-full px-4 py-2 border rounded-lg" />
+
+                                    {/* Date Field */}
+                                    <div className="space-y-1">
+                                        <label className="block font-medium">Date</label>
+                                        <input
+                                            type="date"
+                                            value={form.transaction_date}
+                                            onChange={e => setForm(prev => ({ ...prev, transaction_date: e.target.value }))}
+                                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
                                     </div>
-                                    <div>
-                                        <label className="block font-medium mb-1">Delivery Date</label>
-                                        <input type="date" value={form.delivery_date} onChange={e => setForm(prev => ({ ...prev, delivery_date: e.target.value }))} className="w-full px-4 py-2 border rounded-lg" />
+
+                                    {/* Row 2 */}
+                                    {/* Delivery Date */}
+                                    <div className="space-y-1">
+                                        <label className="block font-medium">Delivery Date</label>
+                                        <input
+                                            type="date"
+                                            value={form.delivery_date}
+                                            onChange={e => setForm(prev => ({ ...prev, delivery_date: e.target.value }))}
+                                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
                                     </div>
-                                    <div>
-                                        <label className="block font-medium mb-1">Price List</label>
-                                        <select value={form.selling_price_list} onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))} className="w-full px-4 py-2 border rounded-lg">
-                                            <option>Standard Selling</option>
+
+                                    {/* Price List */}
+                                    <div className="space-y-1">
+                                        <label className="block font-medium">Price List</label>
+                                        <select
+                                            value={form.selling_price_list}
+                                            onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))}
+                                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="Standard Selling">Standard Selling</option>
                                         </select>
                                     </div>
                                 </div>
