@@ -21,6 +21,7 @@ import PurchaseReceiptList from '../Components/Admin/PurchaseReceiptList'
 import SupplierList from '../Components/Admin/SupplierList'
 import SalesOrder from '../Components/Admin/SalesOrder'
 import SalesInvoiceList from '../Components/Admin/SalesInvoiceList'
+import DeliveryNoteList from '../Components/Admin/DeliveryNoteList'
 
 
 function UserRouter() {
@@ -49,6 +50,7 @@ function UserRouter() {
       <Route path='supplierlist' element={<SupplierList/>}/>
       <Route path='salesorderlist' element={<SalesOrder/>}/>
       <Route path='salesinvoice' element={<SalesInvoiceList/>}/>
+      <Route path='deliverynote' element={<DeliveryNoteList/>}/>
     </Routes>
     </>
   )

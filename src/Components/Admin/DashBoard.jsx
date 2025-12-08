@@ -14,6 +14,7 @@ const routeMap = {
   'Customer': '/customerlist',
   'Sales Order':'/salesorderlist',
   'Sales Invoice':'/salesinvoice',
+  'Delivery Note':'/deliverynote',
 
 
   // Reports (you can add real report pages later)
