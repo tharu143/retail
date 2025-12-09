@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import axios from 'axios';
 import { AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, DollarSign, ShoppingCart } from 'lucide-react';
 import CustomSearchDropdown from './CustomSearchDropdown';
 
@@ -34,6 +36,9 @@ function PurchaseOrder() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [allItems, setAllItems] = useState([]);
+  const [dropdownPosition, setDropdownPosition] = useState(null);
+  const [activeDropdownRow, setActiveDropdownRow] = useState(null);
 
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -195,64 +200,64 @@ function PurchaseOrder() {
     setFormData(prev => ({ ...prev, supplier }));
   };
 
- const handleSupplierCreate = async (name) => {
-  const typeSelect = document.getElementById('new-supplier-type');
-  const supplier_type = typeSelect ? typeSelect.value : "Company";
+  const handleSupplierCreate = async (name) => {
+    const typeSelect = document.getElementById('new-supplier-type');
+    const supplier_type = typeSelect ? typeSelect.value : "Company";
 
-  try {
-    const res = await fetch(`${API_PATH}.create_supplier`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'X-Frappe-SID': getSession() 
-      },
-      credentials: 'include',
-      body: JSON.stringify({ 
-        supplier_name: name.trim(), 
-        supplier_type 
-      })
-    });
+    try {
+      const res = await fetch(`${API_PATH}.create_supplier`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-SID': getSession()
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          supplier_name: name.trim(),
+          supplier_type
+        })
+      });
 
-    const result = await res.json();
+      const result = await res.json();
 
-    // FORMAT 1: { message: { status: "success", message: { ... } } }
-    if (result.message?.status === 'success' && result.message?.message) {
-      const s = result.message.message;
-      return {
-        name: s.name,
-        supplier_name: s.supplier_name || s.name,
-        supplier_type: s.supplier_type || supplier_type
-      };
+      // FORMAT 1: { message: { status: "success", message: { ... } } }
+      if (result.message?.status === 'success' && result.message?.message) {
+        const s = result.message.message;
+        return {
+          name: s.name,
+          supplier_name: s.supplier_name || s.name,
+          supplier_type: s.supplier_type || supplier_type
+        };
+      }
+
+      // FORMAT 2: { status: "success", message: { ... } }
+      if (result.status === 'success' && result.message) {
+        const s = result.message;
+        return {
+          name: s.name,
+          supplier_name: s.supplier_name || s.name,
+          supplier_type: s.supplier_type || supplier_type
+        };
+      }
+
+      // FORMAT 3: { message: [ { name: "...", supplier_name: "..." } ] }
+      if (Array.isArray(result.message) && result.message[0]) {
+        const s = result.message[0];
+        return {
+          name: s.name,
+          supplier_name: s.supplier_name || s.name,
+          supplier_type: s.supplier_type || supplier_type
+        };
+      }
+
+      // FAILURE
+      throw new Error('Invalid response from server');
+
+    } catch (err) {
+      setError(`Cannot create supplier: ${err.message}`);
+      throw err;
     }
-
-    // FORMAT 2: { status: "success", message: { ... } }
-    if (result.status === 'success' && result.message) {
-      const s = result.message;
-      return {
-        name: s.name,
-        supplier_name: s.supplier_name || s.name,
-        supplier_type: s.supplier_type || supplier_type
-      };
-    }
-
-    // FORMAT 3: { message: [ { name: "...", supplier_name: "..." } ] }
-    if (Array.isArray(result.message) && result.message[0]) {
-      const s = result.message[0];
-      return {
-        name: s.name,
-        supplier_name: s.supplier_name || s.name,
-        supplier_type: s.supplier_type || supplier_type
-      };
-    }
-
-    // FAILURE
-    throw new Error('Invalid response from server');
-
-  } catch (err) {
-    setError(`Cannot create supplier: ${err.message}`);
-    throw err;
-  }
-};
+  };
 
 
   const fetchSuppliers = async (query) => {
@@ -282,6 +287,8 @@ function PurchaseOrder() {
       item_name: item.item_name,
       stock_uom: item.stock_uom || '',
       uom: item.stock_uom || '',
+      rate: item.rate || 0,
+      amount: (item.rate || 0) * (items[rowIndex].qty || 1),
       schedule_date: items[rowIndex].schedule_date || formData.transaction_date
     };
     setFormData({ ...formData, items });
@@ -289,13 +296,38 @@ function PurchaseOrder() {
   };
 
   const fetchItems = async (query) => {
-    const res = await fetch(`${API_PATH}.get_items_for_po?query=${query}`, {
-      headers: { 'X-Frappe-SID': getSession() },
-      credentials: 'include'
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.message || [];
+    try {
+      const res = await fetch(`${API_PATH}.get_items_for_po?query=${query}`, {
+        headers: { 'X-Frappe-SID': getSession() },
+        credentials: 'include'
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+
+      const itemsWithRate = await Promise.all(
+        (data.message || []).map(async (item) => {
+          if (!item.rate) {
+            try {
+              const rateRes = await fetch(`${API_PATH}.get_item_selling_rate_po?item_code=${item.item_code}`, {
+                headers: { 'X-Frappe-SID': getSession() },
+                credentials: 'include'
+              });
+              const rateData = await rateRes.json();
+              item.rate = rateData.message?.rate || 0;
+            } catch (err) {
+              item.rate = 0;
+            }
+          }
+          return item;
+        })
+      );
+
+      setAllItems(itemsWithRate);
+      return itemsWithRate;
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
   };
 
   if (!formData.company) {
@@ -401,13 +433,87 @@ function PurchaseOrder() {
                   {formData.items.map((item, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                       <td className="py-3 px-4">
-                        <CustomSearchDropdown
-                          placeholder="Search item..."
-                          value={item.item_code ? { item_code: item.item_code, item_name: item.item_name } : null}
-                          onSelect={(sel) => handleItemSelect(sel, idx)}
-                          fetchData={fetchItems}
-                          optionsLabel="item_name"
-                        />
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={item.item_name || ''}
+                            onChange={async (e) => {
+                              const q = e.target.value;
+                              const items = [...formData.items];
+                              items[idx].item_name = q; // Show typed text
+                              setFormData({ ...formData, items });
+
+                              if (q.length < 2) {
+                                setAllItems([]);
+                                setActiveDropdownRow(null);
+                                return;
+                              }
+
+                              try {
+                                const res = await axios.get(`${API_PATH}.get_items_for_po`, {
+                                  params: { query: q },
+                                  withCredentials: true,
+                                  headers: { 'X-Frappe-SID': getSession() }
+                                });
+                                const fetched = res.data.message || [];
+                                setAllItems(fetched);
+                                setActiveDropdownRow(idx);
+
+                                const rect = e.target.getBoundingClientRect();
+                                setDropdownPosition({
+                                  top: rect.bottom + window.scrollY + 8,
+                                  left: rect.left + window.scrollX,
+                                  width: rect.width
+                                });
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }}
+                            onFocus={(e) => {
+                              if (item.item_name && allItems.length === 0) {
+                                const rect = e.target.getBoundingClientRect();
+                                setDropdownPosition({
+                                  top: rect.bottom + window.scrollY + 8,
+                                  left: rect.left + window.scrollX,
+                                  width: rect.width
+                                });
+                                setActiveDropdownRow(idx);
+                              }
+                            }}
+                            placeholder="Search item..."
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          />
+
+                          {/* PORTAL DROPDOWN — ONLY FOR ITEMS TABLE */}
+                          {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
+                            <div
+                              className="fixed bg-white border border-gray-300 rounded-lg shadow-2xl z-[9999] max-h-64 overflow-y-auto"
+                              style={{
+                                top: `${dropdownPosition.top}px`,
+                                left: `${dropdownPosition.left}px`,
+                                width: `${dropdownPosition.width}px`
+                              }}
+                            >
+                              {allItems.map((it) => (
+                                <div
+                                  key={it.item_code}
+                                  onClick={() => {
+                                    handleItemSelect(it, idx);
+                                    setActiveDropdownRow(null);
+                                    setDropdownPosition(null);
+                                  }}
+                                  className="px-5 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition-colors"
+                                >
+                                  <div className="font-medium text-gray-900">{it.item_name}</div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {it.item_code} • Rate: AED {(it.rate || 0).toFixed(2)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>,
+                            document.body
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <input type="datetime-local" value={item.schedule_date} min={formData.transaction_date} onChange={(e) => handleInputChange(e, idx)} name="schedule_date" className="w-full px-2 py-1 border rounded text-sm" />
