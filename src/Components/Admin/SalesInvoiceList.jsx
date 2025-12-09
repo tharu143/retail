@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -9,6 +10,7 @@ const SalesInvoiceList = () => {
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [dropdownPosition, setDropdownPosition] = useState(null);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -217,29 +219,35 @@ const SalesInvoiceList = () => {
     };
 
     const selectItem = async (idx, item) => {
-        const items = [...form.items];
-        items[idx] = {
-            item_code: item.item_code,
-            item_name: item.item_name,
-            uom: item.stock_uom || 'Nos',
-            qty: items[idx]?.qty || 1,
-            rate: 0,
-            amount: 0
-        };
-
-        try {
-            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
-                params: { item_code: item.item_code }
-            });
-            items[idx].rate = res.data.message?.rate || 0;
-        } catch (e) { }
-
-        items[idx].amount = items[idx].qty * items[idx].rate;
-        setForm(prev => ({ ...prev, items }));
-        setItemQueries(prev => ({ ...prev, [idx]: '' }));
-        setActiveItemRow(null);
-        calculateTotals();
+    const items = [...form.items];
+    items[idx] = {
+        item_code: item.item_code,
+        item_name: item.item_name,
+        uom: item.stock_uom || 'Nos',
+        qty: items[idx]?.qty || 1,
+        rate: 0,
+        amount: 0
     };
+
+    try {
+        const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_dn', {
+            params: { 
+                item_code: item.item_code,
+                price_list: form.selling_price_list 
+            }
+        });
+        items[idx].rate = res.data.message?.rate || 0;
+    } catch (e) {
+        console.error("Rate fetch failed:", e);
+    }
+
+    items[idx].amount = items[idx].qty * items[idx].rate;
+    setForm(prev => ({ ...prev, items }));
+    setItemQueries(prev => ({ ...prev, [idx]: '' }));
+    setActiveItemRow(null);
+    setDropdownPosition(null);
+    calculateTotals();
+};
 
     const updateItem = (i, field, value) => {
         const items = [...form.items];
@@ -252,12 +260,17 @@ const SalesInvoiceList = () => {
     };
 
     const createSalesInvoice = async () => {
-        if (!form.customer || form.items.length === 0 || form.items.some(i => !i.item_code)) {
-            alert("Please fill Customer and add valid items.");
+        if (!form.customer) {
+            alert("Customer is required!");
+            return;
+        }
+        if (form.items.length === 0 || form.items.some(i => !i.item_code)) {
+            alert("Please add at least one valid item!");
             return;
         }
 
         setSaving(true);
+
         const payload = {
             doctype: "Sales Invoice",
             posting_date: form.posting_date,
@@ -283,19 +296,39 @@ const SalesInvoiceList = () => {
 
         try {
             const res = await axios.post('/api/resource/Sales Invoice', payload);
-            alert(`Sales Invoice Created: ${res.data.data.name}`);
-            setShowModal(false);
-            loadData();
-            setForm({
-                posting_date: new Date().toISOString().split('T')[0],
-                customer: '', customer_name: '',
-                due_date: '', is_pos: false,
-                set_warehouse: '', update_stock: false,
-                items: [], taxes_and_charges: '', taxes: [],
-                total_qty: 0, base_total: 0, total_taxes_and_charges: 0, grand_total: 0, rounded_total: 0, in_words: ''
-            });
+
+            // SUCCESS: Frappe always returns 200 with data on success
+            if (res.status === 200 && res.data?.data) {
+                const invoiceName = res.data.data.name || "Unknown";
+                alert(`Sales Invoice Created Successfully!\nID: ${invoiceName}`);
+
+                // Refresh list + reset form
+                setShowModal(false);
+                loadData();
+                setForm({
+                    posting_date: new Date().toISOString().split('T')[0],
+                    customer: '', customer_name: '',
+                    due_date: '', is_pos: false,
+                    set_warehouse: '', update_stock: false,
+                    items: [], taxes_and_charges: '', taxes: [],
+                    total_qty: 0, base_total: 0, total_taxes_and_charges: 0, grand_total: 0, rounded_total: 0, in_words: ''
+                });
+            }
         } catch (err) {
-            alert("Error: " + (err.response?.data?.message || "Failed"));
+            // REAL ERROR HANDLING
+            let errorMsg = "Failed to create invoice";
+
+            if (err.response?.data?._server_messages) {
+                // Frappe validation errors
+                const messages = JSON.parse(err.response.data._server_messages);
+                errorMsg = messages.map(m => JSON.parse(m).message).join('\n');
+            } else if (err.response?.data?.exception) {
+                errorMsg = err.response.data.exception;
+            } else if (err.response?.data?.message) {
+                errorMsg = err.response.data.message;
+            } else if (err.message) {
+                errorMsg = err.message;
+            }
         } finally {
             setSaving(false);
         }
@@ -571,8 +604,8 @@ const SalesInvoiceList = () => {
                                             <tbody>
                                                 {form.items.map((item, i) => (
                                                     <tr key={i} className="border-t">
-                                                        {/* FIXED ITEM SEARCH - DROPDOWN ALWAYS VISIBLE */}
-                                                        <td className="px-4 py-2 relative">
+                                                        <td className="px-4 py-3">
+                                                            {/* PERFECT ITEM SEARCH WITH PORTAL DROPDOWN */}
                                                             <div className="relative">
                                                                 <input
                                                                     type="text"
@@ -581,50 +614,77 @@ const SalesInvoiceList = () => {
                                                                         const q = e.target.value;
                                                                         setItemQueries(prev => ({ ...prev, [i]: q }));
                                                                         if (q.length >= 2) searchItems(q);
+                                                                    }}
+                                                                    onFocus={(e) => {
+                                                                        const input = e.target;
+                                                                        const rect = input.getBoundingClientRect();
+                                                                        setDropdownPosition({
+                                                                            top: rect.bottom + window.scrollY + 8,
+                                                                            left: rect.left + window.scrollX,
+                                                                            width: rect.width
+                                                                        });
                                                                         setActiveItemRow(i);
                                                                     }}
-                                                                    onFocus={() => setActiveItemRow(i)}
                                                                     placeholder="Search item..."
-                                                                    className="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                                                                 />
 
-                                                                {/* DROPDOWN - NOW ALWAYS ON TOP */}
-                                                                {activeItemRow === i && allItems.length > 0 && itemQueries[i] && (
-                                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-2xl z-[9999] max-h-64 overflow-y-auto">
+                                                                {/* Selected Item Name */}
+                                                                {item.item_name && (
+                                                                    <div className="mt-2 text-sm font-semibold text-gray-800 pl-1">{item.item_name}</div>
+                                                                )}
+
+                                                                {/* PORTAL DROPDOWN - ALWAYS VISIBLE OUTSIDE MODAL */}
+                                                                {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
+                                                                    <div
+                                                                        className="fixed bg-white border border-gray-300 rounded-lg shadow-2xl z-[9999] max-h-64 overflow-y-auto"
+                                                                        style={{
+                                                                            top: dropdownPosition.top + 'px',
+                                                                            left: dropdownPosition.left + 'px',
+                                                                            width: dropdownPosition.width + 'px'
+                                                                        }}
+                                                                    >
                                                                         {allItems
                                                                             .filter(it =>
                                                                                 it.item_name?.toLowerCase().includes((itemQueries[i] || '').toLowerCase()) ||
                                                                                 it.item_code?.toLowerCase().includes((itemQueries[i] || '').toLowerCase())
                                                                             )
-                                                                            .slice(0, 15)
+                                                                            .slice(0, 20)
                                                                             .map(it => (
                                                                                 <div
                                                                                     key={it.item_code}
-                                                                                    onClick={() => selectItem(i, it)}
-                                                                                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition"
+                                                                                    onClick={() => {
+                                                                                        selectItem(i, it);
+                                                                                        setDropdownPosition(null);
+                                                                                    }}
+                                                                                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition-colors"
                                                                                 >
                                                                                     <div className="font-medium text-gray-900">{it.item_name}</div>
-                                                                                    <div className="text-xs text-gray-500">{it.item_code} • Stock: {it.actual_qty || 0}</div>
+                                                                                    <div className="text-xs text-gray-500">{it.item_code}</div>
                                                                                 </div>
                                                                             ))}
                                                                         {allItems.length === 0 && (
-                                                                            <div className="px-4 py-8 text-center text-gray-500">No items found</div>
+                                                                            <div className="px-4 py-12 text-center text-gray-500 text-sm">No items found</div>
                                                                         )}
-                                                                    </div>
+                                                                    </div>,
+                                                                    document.body
                                                                 )}
                                                             </div>
-
-                                                            {/* Selected Item Name */}
-                                                            {item.item_name && (
-                                                                <div className="mt-2 text-sm font-semibold text-gray-800">{item.item_name}</div>
-                                                            )}
                                                         </td>
-                                                        <td className="px-4 py-2"><input type="number" value={item.qty || ''} onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)} className="w-full border rounded px-2 py-1" /></td>
-                                                        <td className="px-4 py-2 text-center">{item.uom || '-'}</td>
-                                                        <td className="px-4 py-2"><input type="number" value={item.rate || ''} onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)} className="w-full border rounded px-2 py-1" /></td>
-                                                        <td className="px-4 py-2 text-right font-medium">{(item.amount || 0).toFixed(2)}</td>
-                                                        <td className="px-4 py-2 text-center">
-                                                            <button onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }))} className="text-red-600 hover:text-red-800">×</button>
+
+                                                        {/* Rest of columns */}
+                                                        <td className="px-4 py-3">
+                                                            <input type="number" value={item.qty || ''} onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)} className="w-20 border rounded px-2 py-2 text-center" />
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center text-sm">{item.uom || '-'}</td>
+                                                        <td className="px-4 py-3">
+                                                            <input type="number" value={item.rate || ''} onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)} className="w-28 border rounded px-2 py-2 text-right" step="0.01" />
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-medium text-sm">
+                                                            {getCurrencySymbol()}{(item.amount || 0).toFixed(2)}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <button onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }))} className="text-red-600 hover:text-red-800 text-xl">×</button>
                                                         </td>
                                                     </tr>
                                                 ))}

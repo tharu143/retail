@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -9,6 +10,7 @@ const DeliveryNoteList = () => {
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [dropdownPosition, setDropdownPosition] = useState(null);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -242,15 +244,22 @@ const DeliveryNoteList = () => {
 
         try {
             const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_dn', {
-                params: { item_code: item.item_code, price_list: form.selling_price_list }
+                params: {
+                    item_code: item.item_code,
+                    price_list: form.selling_price_list  
+                }
             });
             items[idx].rate = res.data.message?.rate || 0;
-        } catch (e) { }
+        } catch (e) {
+            console.error("Rate fetch failed:", e);
+        }
 
         items[idx].amount = items[idx].qty * items[idx].rate;
         setForm(prev => ({ ...prev, items }));
         setItemQueries(prev => ({ ...prev, [idx]: '' }));
         setActiveItemRow(null);
+        setDropdownPosition(null);
+        calculateTotals();
     };
 
     const updateItem = (i, field, value) => {
@@ -309,7 +318,7 @@ const DeliveryNoteList = () => {
                 total_qty: 0, base_total: 0, total_taxes_and_charges: 0, grand_total: 0, rounded_total: 0, in_words: ''
             });
         } catch (err) {
-            alert("Error: " + (err.response?.data?.message || "Failed"));
+            // alert("Error: " + (err.response?.data?.message || "Failed"));
         } finally {
             setSaving(false);
         }
@@ -528,135 +537,138 @@ const DeliveryNoteList = () => {
                     </div>
                 </div>
 
-                    {/* Modal */}
-                    {showModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-y-auto">
+                {/* Modal */}
+                {showModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-y-auto">
 
-                                <div className="sticky top-0 bg-gradient-to-r text-black px-8 py-5 flex justify-between items-center">
-                                    <h2 className="text-2xl font-bold flex items-center gap-3">
-                                        <FileText className="w-8 h-8" /> New Delivery Note
-                                    </h2>
-                                    <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/20 rounded-lg">
-                                        <X className="w-6 h-6" />
-                                    </button>
+                            <div className="sticky top-0 bg-gradient-to-r text-black px-8 py-5 flex justify-between items-center">
+                                <h2 className="text-2xl font-bold flex items-center gap-3">
+                                    <FileText className="w-8 h-8" /> New Delivery Note
+                                </h2>
+                                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/20 rounded-lg">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="p-8 space-y-8">
+
+                                {/* Customer, Date, Time */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                                            <input
+                                                type="text"
+                                                value={searchCustomer}
+                                                onChange={e => setSearchCustomer(e.target.value)}
+                                                onFocus={() => setShowCustomerDropdown(true)}
+                                                placeholder="Search customer..."
+                                                className="pl-10 w-full border border-gray-300 rounded-lg py-3 px-4 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                            />
+                                            {showCustomerDropdown && filteredCustomers.length > 0 && (
+                                                <div className="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow-xl max-h-60 overflow-auto">
+                                                    {filteredCustomers.map(c => (
+                                                        <div
+                                                            key={c.name}
+                                                            onClick={() => {
+                                                                setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
+                                                                setSearchCustomer(c.customer_name);
+                                                                setShowCustomerDropdown(false);
+                                                            }}
+                                                            className="px-4 py-3 hover:bg-green-50 cursor-pointer border-b last:border-0"
+                                                        >
+                                                            <div className="font-medium">{c.customer_name}</div>
+                                                            <div className="text-xs text-gray-500">{c.name}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {form.customer_name && <p className="mt-2 text-green-700 font-medium">{form.customer_name}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+                                        <input type="date" value={form.posting_date} onChange={e => setForm(prev => ({ ...prev, posting_date: e.target.value }))} className="w-full border border-gray-300 rounded-lg py-3 px-4" />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Time *</label>
+                                        <input type="time" value={form.posting_time} onChange={e => setForm(prev => ({ ...prev, posting_time: e.target.value }))} className="w-full border border-gray-300 rounded-lg py-3 px-4" />
+                                    </div>
                                 </div>
 
-                                <div className="p-8 space-y-8">
+                                <div className="flex items-center gap-6">
+                                    <label className="flex items-center gap-2">
+                                        <input type="checkbox" checked={form.is_return} onChange={e => setForm(prev => ({ ...prev, is_return: e.target.checked ? 1 : 0 }))} className="rounded text-green-600" />
+                                        <span className="text-sm font-medium">Is Return</span>
+                                    </label>
+                                </div>
 
-                                    {/* Customer, Date, Time */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                                                <input
-                                                    type="text"
-                                                    value={searchCustomer}
-                                                    onChange={e => setSearchCustomer(e.target.value)}
-                                                    onFocus={() => setShowCustomerDropdown(true)}
-                                                    placeholder="Search customer..."
-                                                    className="pl-10 w-full border border-gray-300 rounded-lg py-3 px-4 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                />
-                                                {showCustomerDropdown && filteredCustomers.length > 0 && (
-                                                    <div className="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow-xl max-h-60 overflow-auto">
-                                                        {filteredCustomers.map(c => (
-                                                            <div
-                                                                key={c.name}
-                                                                onClick={() => {
-                                                                    setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
-                                                                    setSearchCustomer(c.customer_name);
-                                                                    setShowCustomerDropdown(false);
-                                                                }}
-                                                                className="px-4 py-3 hover:bg-green-50 cursor-pointer border-b last:border-0"
-                                                            >
-                                                                <div className="font-medium">{c.customer_name}</div>
-                                                                <div className="text-xs text-gray-500">{c.name}</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {form.customer_name && <p className="mt-2 text-green-700 font-medium">{form.customer_name}</p>}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
-                                            <input type="date" value={form.posting_date} onChange={e => setForm(prev => ({ ...prev, posting_date: e.target.value }))} className="w-full border border-gray-300 rounded-lg py-3 px-4" />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Time *</label>
-                                            <input type="time" value={form.posting_time} onChange={e => setForm(prev => ({ ...prev, posting_time: e.target.value }))} className="w-full border border-gray-300 rounded-lg py-3 px-4" />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-6">
-                                        <label className="flex items-center gap-2">
-                                            <input type="checkbox" checked={form.is_return} onChange={e => setForm(prev => ({ ...prev, is_return: e.target.checked ? 1 : 0 }))} className="rounded text-green-600" />
-                                            <span className="text-sm font-medium">Is Return</span>
-                                        </label>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Currency *</label>
-                                            <select value={form.currency} onChange={e => setForm(prev => ({ ...prev, currency: e.target.value }))} className="w-full border border-gray-300 rounded-lg py-3 px-4">
-                                                <option value="INR">INR - Indian Rupee</option>
-                                                <option value="AED">AED - UAE Dirham</option>
-                                                <option value="USD">USD - US Dollar</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Price List *</label>
-                                            <select value={form.selling_price_list} onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))} className="w-full border border-gray-300 rounded-lg py-3 px-4">
-                                                {priceLists.map(pl => <option key={pl}>{pl}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="flex items-end">
-                                            <label className="flex items-center gap-2">
-                                                <input type="checkbox" checked={form.ignore_pricing_rule} onChange={e => setForm(prev => ({ ...prev, ignore_pricing_rule: e.target.checked ? 1 : 0 }))} className="rounded text-green-600" />
-                                                <span className="text-sm">Ignore Pricing Rule</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Warehouse *</label>
-                                        <select value={form.set_warehouse} onChange={e => setForm(prev => ({ ...prev, set_warehouse: e.target.value }))} className="w-full max-w-md border border-gray-300 rounded-lg py-3 px-4">
-                                            <option value="">Select Warehouse</option>
-                                            {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Currency *</label>
+                                        <select value={form.currency} onChange={e => setForm(prev => ({ ...prev, currency: e.target.value }))} className="w-full border border-gray-300 rounded-lg py-3 px-4">
+                                            <option value="INR">INR - Indian Rupee</option>
+                                            <option value="AED">AED - UAE Dirham</option>
+                                            <option value="USD">USD - US Dollar</option>
                                         </select>
                                     </div>
-
-                                    {/* Items Table */ }
                                     <div>
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h3 className="text-lg font-semibold text-gray-900">Items</h3>
-                                            <button onClick={addItemRow} className="text-green-600 hover:text-green-700 font-medium flex items-center gap-2">
-                                                <Plus className="w-5 h-5" /> Add Item
-                                            </button>
-                                        </div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Price List *</label>
+                                        <select value={form.selling_price_list} onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))} className="w-full border border-gray-300 rounded-lg py-3 px-4">
+                                            {priceLists.map(pl => <option key={pl}>{pl}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex items-end">
+                                        <label className="flex items-center gap-2">
+                                            <input type="checkbox" checked={form.ignore_pricing_rule} onChange={e => setForm(prev => ({ ...prev, ignore_pricing_rule: e.target.checked ? 1 : 0 }))} className="rounded text-green-600" />
+                                            <span className="text-sm">Ignore Pricing Rule</span>
+                                        </label>
+                                    </div>
+                                </div>
 
-                                        <div className="border rounded-xl overflow-hidden shadow-sm">
-                                            <table className="w-full">
-                                                <thead className="bg-gray-50 border-b">
-                                                    <tr>
-                                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">#</th>
-                                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Item Code *</th>
-                                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Item Name</th>
-                                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase">Qty</th>
-                                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase">UOM</th>
-                                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Rate ({form.currency})</th>
-                                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Amount ({form.currency})</th>
-                                                        <th className="w-12"></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {form.items.map((item, i) => (
-                                                        <tr key={i} className="border-b hover:bg-gray-50">
-                                                            <td className="px-4 py-3 text-sm text-gray-600">{i + 1}</td>
-                                                            <td className="px-4 py-3 relative">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Warehouse *</label>
+                                    <select value={form.set_warehouse} onChange={e => setForm(prev => ({ ...prev, set_warehouse: e.target.value }))} className="w-full max-w-md border border-gray-300 rounded-lg py-3 px-4">
+                                        <option value="">Select Warehouse</option>
+                                        {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Items Table */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-semibold text-gray-900">Items</h3>
+                                        <button onClick={addItemRow} className="text-green-600 hover:text-green-700 font-medium flex items-center gap-2">
+                                            <Plus className="w-5 h-5" /> Add Item
+                                        </button>
+                                    </div>
+
+                                    <div className="border rounded-xl overflow-hidden shadow-sm">
+                                        <table className="w-full">
+                                            <thead className="bg-gray-50 border-b">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">#</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Item Code *</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Item Name</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase">Qty</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase">UOM</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Rate ({form.currency})</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Amount ({form.currency})</th>
+                                                    <th className="w-12"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {form.items.map((item, i) => (
+                                                    <tr key={i} className="border-b hover:bg-gray-50">
+                                                        <td className="px-4 py-3 text-sm text-gray-600">{i + 1}</td>
+
+                                                        {/* ITEM SEARCH WITH PORTAL - ALWAYS VISIBLE */}
+                                                        <td className="px-4 py-3">
+                                                            <div className="relative">
                                                                 <input
                                                                     type="text"
                                                                     value={itemQueries[i] || ''}
@@ -664,133 +676,200 @@ const DeliveryNoteList = () => {
                                                                         const q = e.target.value;
                                                                         setItemQueries(prev => ({ ...prev, [i]: q }));
                                                                         if (q.length >= 2) searchItems(q, i);
+                                                                    }}
+                                                                    onFocus={(e) => {
+                                                                        const rect = e.target.getBoundingClientRect();
+                                                                        setDropdownPosition({
+                                                                            top: rect.bottom + window.scrollY + 8,
+                                                                            left: rect.left + window.scrollX,
+                                                                            width: rect.width
+                                                                        });
                                                                         setActiveItemRow(i);
                                                                     }}
-                                                                    onFocus={() => setActiveItemRow(i)}
                                                                     placeholder="Search item..."
-                                                                    className="w-full border rounded px-3 py-2 text-sm"
+                                                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
                                                                 />
-                                                                {activeItemRow === i && allItems.length > 0 && (
-                                                                    <div className="absolute z-30 mt-1 w-full bg-white border rounded-lg shadow-xl max-h-60 overflow-auto">
-                                                                        {allItems.map(it => (
-                                                                            <div key={it.item_code} onClick={() => selectItem(i, it)} className="px-4 py-2 hover:bg-green-50 cursor-pointer text-sm">
-                                                                                <div className="font-medium">{it.item_name}</div>
-                                                                                <div className="text-xs text-gray-500">{it.item_code} • {it.stock_uom}</div>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
+
+                                                                {/* Selected Item Name */}
+                                                                {item.item_name && (
+                                                                    <div className="mt-2 text-sm font-semibold text-gray-800">{item.item_name}</div>
                                                                 )}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm">{item.item_name || '-'}</td>
-                                                            <td className="px-4 py-3 text-center">
-                                                                <input type="number" value={item.qty || ''} onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 1)} className="w-20 text-center border rounded px-2 py-1 text-sm" min="1" />
-                                                            </td>
-                                                            <td className="px-4 py-3 text-center text-sm">{item.uom || 'Nos'}</td>
-                                                            <td className="px-4 py-3 text-right">
-                                                                <input type="number" value={item.rate || ''} onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)} className="w-24 text-right border rounded px-2 py-1 text-sm" step="0.01" />
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right font-medium">
-                                                                {currencySymbol}{(item.amount || 0).toFixed(2)}
-                                                            </td>
-                                                            <td>
-                                                                <button onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, x) => x !== i) }))} className="text-red-500 hover:text-red-700 p-1">
-                                                                    <X className="w-5 h-5" />
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {form.items.length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="8" className="text-center py-12 text-gray-500">No items added</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div className="text-right mt-4 font-medium text-gray-700">
-                                            Total Quantity: <span className="text-xl font-bold text-gray-900">{form.total_qty}</span>
-                                        </div>
-                                    </div>
 
-                                    {/* Tax Template */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Taxes & Charges Template</label>
-                                        <select value={form.taxes_and_charges} onChange={e => applyTaxTemplate(e.target.value)} className="w-full max-w-md border rounded-lg py-3 px-4">
-                                            <option value="">No Tax</option>
-                                            {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                                        </select>
-                                    </div>
+                                                                {/* PORTAL DROPDOWN - NEVER CUT! */}
+                                                                {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
+                                                                    <div
+                                                                        className="fixed bg-white border border-gray-300 rounded-lg shadow-2xl z-[9999] max-h-64 overflow-y-auto"
+                                                                        style={{
+                                                                            top: `${dropdownPosition.top}px`,
+                                                                            left: `${dropdownPosition.left}px`,
+                                                                            width: `${dropdownPosition.width}px`
+                                                                        }}
+                                                                    >
+                                                                        {allItems
+                                                                            .filter(it =>
+                                                                                it.item_name?.toLowerCase().includes((itemQueries[i] || '').toLowerCase()) ||
+                                                                                it.item_code?.toLowerCase().includes((itemQueries[i] || '').toLowerCase())
+                                                                            )
+                                                                            .slice(0, 20)
+                                                                            .map(it => (
+                                                                                <div
+                                                                                    key={it.item_code}
+                                                                                    onClick={() => {
+                                                                                        selectItem(i, it);
+                                                                                        setDropdownPosition(null);
+                                                                                        setActiveItemRow(null);
+                                                                                    }}
+                                                                                    className="px-4 py-3 hover:bg-green-50 cursor-pointer border-b last:border-b-0 transition-colors"
+                                                                                >
+                                                                                    <div className="font-medium text-gray-900">{it.item_name}</div>
+                                                                                    <div className="text-xs text-gray-500">{it.item_code} • Stock: {it.actual_qty || 0}</div>
+                                                                                </div>
+                                                                            ))}
+                                                                        {allItems.length === 0 && (
+                                                                            <div className="px-4 py-12 text-center text-gray-500 text-sm">No items found</div>
+                                                                        )}
+                                                                    </div>,
+                                                                    document.body
+                                                                )}
+                                                            </div>
+                                                        </td>
 
-                                    {/* Taxes Table */}
-                                    {form.taxes.length > 0 && (
-                                        <div className="bg-gray-50 rounded-xl p-6 border">
-                                            <h4 className="font-semibold mb-4 text-gray-900">Taxes & Charges</h4>
-                                            <table className="w-full text-sm">
-                                                <thead>
-                                                    <tr className="border-b">
-                                                        <th className="text-left py-2">Account Head</th>
-                                                        <th className="text-right py-2">Rate</th>
-                                                        <th className="text-right py-2">Amount</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {form.taxes.map((t, i) => {
-                                                        const amt = (t.rate / 100) * form.base_total;
-                                                        return (
-                                                            <tr key={i}>
-                                                                <td className="py-2">{t.account_head}</td>
-                                                                <td className="text-right py-2">{t.rate}%</td>
-                                                                <td className="text-right font-medium py-2">
-                                                                    {currencySymbol}{amt.toFixed(2)}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                    <tr className="font-bold text-base border-t-2 border-gray-300">
-                                                        <td colSpan="2" className="text-right py-3">Total Tax</td>
-                                                        <td className="text-right py-3">
-                                                            {currencySymbol}{form.total_taxes_and_charges.toFixed(2)}
+                                                        {/* Item Name */}
+                                                        <td className="px-4 py-3 text-sm">{item.item_name || '-'}</td>
+
+                                                        {/* Qty */}
+                                                        <td className="px-4 py-3 text-center">
+                                                            <input
+                                                                type="number"
+                                                                value={item.qty || ''}
+                                                                onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 1)}
+                                                                className="w-20 text-center border rounded px-2 py-2 text-sm"
+                                                                min="1"
+                                                            />
+                                                        </td>
+
+                                                        {/* UOM */}
+                                                        <td className="px-4 py-3 text-center text-sm">{item.uom || 'Nos'}</td>
+
+                                                        {/* Rate */}
+                                                        <td className="px-4 py-3 text-right">
+                                                            <input
+                                                                type="number"
+                                                                value={item.rate || ''}
+                                                                onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)}
+                                                                className="w-28 text-right border rounded px-2 py-2 text-sm"
+                                                                step="0.01"
+                                                            />
+                                                        </td>
+
+                                                        {/* Amount */}
+                                                        <td className="px-4 py-3 text-right font-medium">
+                                                            {currencySymbol}{(item.amount || 0).toFixed(2)}
+                                                        </td>
+
+                                                        {/* Remove */}
+                                                        <td className="px-4 py-3 text-center">
+                                                            <button
+                                                                onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }))}
+                                                                className="text-red-600 hover:text-red-800"
+                                                            >
+                                                                <X className="w-5 h-5" />
+                                                            </button>
                                                         </td>
                                                     </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-
-                                    {/* Final Totals */}
-                                    <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl p-6 text-center">
-                                        <div className="space-y-3">
-                                            <div className="text-xl">
-                                                <span className="font-medium">Grand Total</span>: {currencySymbol}{form.grand_total.toFixed(2)}
-                                            </div>
-                                            <div className="text-3xl font-bold">
-                                                {currencySymbol}{form.rounded_total.toFixed(2)}
-                                            </div>
-                                            {form.currency === 'INR' && form.in_words && (
-                                                <p className="text-lg italic mt-4 opacity-90">{form.in_words}</p>
-                                            )}
-                                        </div>
+                                                ))}
+                                                {form.items.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="8" className="text-center py-12 text-gray-500">No items added</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
-
-                                    {/* Buttons */}
-                                    <div className="flex justify-end gap-4 pt-6 border-t">
-                                        <button onClick={() => setShowModal(false)} className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium">
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={createDeliveryNote}
-                                            disabled={saving}
-                                            className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-3 disabled:opacity-50"
-                                        >
-                                            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
-                                            {saving ? 'Saving...' : 'Save Delivery Note'}
-                                        </button>
+                                    <div className="text-right mt-4 font-medium text-gray-700">
+                                        Total Quantity: <span className="text-xl font-bold text-gray-900">{form.total_qty}</span>
                                     </div>
+                                </div>
+
+                                {/* Tax Template */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Taxes & Charges Template</label>
+                                    <select value={form.taxes_and_charges} onChange={e => applyTaxTemplate(e.target.value)} className="w-full max-w-md border rounded-lg py-3 px-4">
+                                        <option value="">No Tax</option>
+                                        {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Taxes Table */}
+                                {form.taxes.length > 0 && (
+                                    <div className="bg-gray-50 rounded-xl p-6 border">
+                                        <h4 className="font-semibold mb-4 text-gray-900">Taxes & Charges</h4>
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b">
+                                                    <th className="text-left py-2">Account Head</th>
+                                                    <th className="text-right py-2">Rate</th>
+                                                    <th className="text-right py-2">Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {form.taxes.map((t, i) => {
+                                                    const amt = (t.rate / 100) * form.base_total;
+                                                    return (
+                                                        <tr key={i}>
+                                                            <td className="py-2">{t.account_head}</td>
+                                                            <td className="text-right py-2">{t.rate}%</td>
+                                                            <td className="text-right font-medium py-2">
+                                                                {currencySymbol}{amt.toFixed(2)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                <tr className="font-bold text-base border-t-2 border-gray-300">
+                                                    <td colSpan="2" className="text-right py-3">Total Tax</td>
+                                                    <td className="text-right py-3">
+                                                        {currencySymbol}{form.total_taxes_and_charges.toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {/* Final Totals */}
+                                <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl p-6 text-center">
+                                    <div className="space-y-3">
+                                        <div className="text-xl">
+                                            <span className="font-medium">Grand Total</span>: {currencySymbol}{form.grand_total.toFixed(2)}
+                                        </div>
+                                        <div className="text-3xl font-bold">
+                                            {currencySymbol}{form.rounded_total.toFixed(2)}
+                                        </div>
+                                        {form.currency === 'INR' && form.in_words && (
+                                            <p className="text-lg italic mt-4 opacity-90">{form.in_words}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Buttons */}
+                                <div className="flex justify-end gap-4 pt-6 border-t">
+                                    <button onClick={() => setShowModal(false)} className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium">
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={createDeliveryNote}
+                                        disabled={saving}
+                                        className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-3 disabled:opacity-50"
+                                    >
+                                        {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
+                                        {saving ? 'Saving...' : 'Save Delivery Note'}
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
+            </div>
         </>
     );
 };

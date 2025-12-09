@@ -1,6 +1,6 @@
 // src/pages/SalesOrder.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, Search, X, Trash2 } from 'lucide-react';
+import { Plus, Search, X, Trash2, Package, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 
@@ -84,6 +84,45 @@ function SalesOrder() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [filteredOrders, setFilteredOrders] = useState([]);
+
+    // Add these states with your others
+    const [searchTerm, setSearchTerm] = useState('');
+    const [titleFilter, setTitleFilter] = useState('');
+    const [customerFilter, setCustomerFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [minAmount, setMinAmount] = useState('');
+    const [maxAmount, setMaxAmount] = useState('');
+
+    useEffect(() => {
+        let filtered = orders;
+
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(o =>
+                o.name?.toLowerCase().includes(term) ||
+                o.customer_name?.toLowerCase().includes(term) ||
+                o.title?.toLowerCase().includes(term)
+            );
+        }
+        if (titleFilter) filtered = filtered.filter(o => (o.title || '').toLowerCase().includes(titleFilter.toLowerCase()));
+        if (customerFilter) filtered = filtered.filter(o => o.customer_name?.toLowerCase().includes(customerFilter.toLowerCase()));
+        if (statusFilter !== 'all') filtered = filtered.filter(o =>
+            (o.docstatus === 1 && statusFilter === 'Submitted') ||
+            (o.docstatus === 0 && statusFilter === 'Draft')
+        );
+
+        if (minAmount || maxAmount) {
+            filtered = filtered.filter(o => {
+                const amt = Number(o.grand_total || 0);
+                if (minAmount && amt < Number(minAmount)) return false;
+                if (maxAmount && amt > Number(maxAmount)) return false;
+                return true;
+            });
+        }
+
+        setFilteredOrders(filtered);
+    }, [searchTerm, titleFilter, customerFilter, statusFilter, minAmount, maxAmount, orders]);
 
     const [form, setForm] = useState({
         naming_series: 'SAL-ORD-.YYYY.-',
@@ -400,42 +439,165 @@ function SalesOrder() {
     return (
         <>
             <NavBar />
-            <div className="min-h-screen bg-gray-50 p-6">
-                <div className="bg-white rounded-lg shadow">
-                    <div className="px-6 py-4 border-b flex justify-between items-center">
-                        <h1 className="text-2xl font-bold">Sales Orders</h1>
-                        <button onClick={openNew} className="bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 hover:bg-gray-800">
-                            <Plus size={20} /> New Sales Order
+            <div className="min-h-screen bg-gray-100">
+
+                {/* ERPNext Style Header */}
+                <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
+                    <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
+                        <Package className="w-7 h-7" /> Sales Order
+                    </h1>
+                    <button
+                        onClick={openNew}
+                        className="bg-black text-white px-5 py-2.5 rounded-md hover:bg-gray-800 font-medium flex items-center gap-2"
+                    >
+                        <Plus className="w-5 h-5" /> Add Sales Order
+                    </button>
+                </div>
+
+                <div className="flex">
+
+                    {/* Sidebar Filters - Exact Sales Invoice Style */}
+                    <div className="w-72 bg-white border-r min-h-screen p-6 space-y-6">
+                        <h3 className="font-semibold text-gray-800 mb-4">Filters</h3>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                            <input
+                                type="text"
+                                placeholder="Search orders..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full border rounded-lg px-3 py-2 text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Cash, Credit"
+                                value={titleFilter}
+                                onChange={e => setTitleFilter(e.target.value)}
+                                className="w-full border rounded-lg px-3 py-2 text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
+                            <input
+                                type="text"
+                                placeholder="Customer name..."
+                                value={customerFilter}
+                                onChange={e => setCustomerFilter(e.target.value)}
+                                className="w-full border rounded-lg px-3 py-2 text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select
+                                value={statusFilter}
+                                onChange={e => setStatusFilter(e.target.value)}
+                                className="w-full border rounded-lg px-3 py-2 text-sm"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="Draft">Draft</option>
+                                <option value="To Deliver and Bill">To Deliver and Bill</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Amount Range</label>
+                            <div className="flex gap-2">
+                                <input type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" />
+                                <input type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} className="w-full border rounded px-3 py-2 text-sm mt-2" />
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setSearchTerm('');
+                                setTitleFilter('');
+                                setCustomerFilter('');
+                                setStatusFilter('all');
+                                setMinAmount('');
+                                setMaxAmount('');
+                            }}
+                            className="w-full py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium"
+                        >
+                            Clear Filters
                         </button>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {orders.map(order => (
-                                    <tr key={order.name} className="hover:bg-gray-50 cursor-pointer">
-                                        <td className="px-6 py-4 font-medium">{order.name}</td>
-                                        <td className="px-6 py-4">{order.customer_name}</td>
-                                        <td className="px-6 py-4">{order.transaction_date}</td>
-                                        <td className="px-6 py-4 font-bold">AED {parseFloat(order.grand_total || 0).toFixed(2)}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs ${order.docstatus === 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                {order.docstatus === 1 ? 'Submitted' : 'Draft'}
-                                            </span>
-                                        </td>
+                    {/* Main List - Exact Sales Invoice Style */}
+                    <div className="flex-1 p-6">
+                        <div className="flex justify-between items-center mb-4 text-sm text-gray-600">
+                            <div className="flex items-center gap-4">
+                                <span>{filteredOrders.length} items</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
+                            <table className="w-full">
+                                <thead className="bg-gray-50 border-b">
+                                    <tr>
+                                        <th className="w-12 px-6 py-3"><input type="checkbox" /></th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Grand Total</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {loading ? (
+                                        <tr><td colSpan="6" className="text-center py-16"><Loader2 className="w-10 h-10 animate-spin mx-auto" /></td></tr>
+                                    ) : orders.length === 0 ? (
+                                        <tr><td colSpan="6" className="text-center py-16 text-gray-500">No sales orders found</td></tr>
+                                    ) : (
+                                        orders.map(order => (
+                                            <tr key={order.name} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4"><input type="checkbox" /></td>
+                                                <td className="px-6 py-4 text-sm font-medium">{order.title || 'Sales Order'}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.docstatus === 1
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : order.docstatus === 0
+                                                            ? 'bg-yellow-100 text-yellow-800'
+                                                            : 'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                        {order.docstatus === 1 ? 'Submitted' : 'Draft'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm">{order.customer_name}</td>
+                                                <td className="px-6 py-4 text-sm text-right font-medium">
+                                                    AED {Number(order.grand_total || 0).toLocaleString('en-AE', { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-500 font-mono">{order.name}</td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination */}
+                        <div className="flex justify-between items-center mt-6">
+                            <div className="text-sm text-gray-600">
+                                Showing {orders.length > 0 ? '1' : '0'} to {orders.length} of {orders.length} entries
+                            </div>
+                            <div className="flex gap-2">
+                                <button className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50" disabled>
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <button className="px-4 py-2 border rounded bg-black text-white">1</button>
+                                <button className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50" disabled>
+                                    <ChevronRight className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
