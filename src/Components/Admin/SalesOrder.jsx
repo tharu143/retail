@@ -265,36 +265,61 @@ function SalesOrder() {
     };
 
     const selectItem = async (idx, item) => {
-        try {
-            const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
-                params: { item_code: item.item_code, price_list: form.selling_price_list },
-                withCredentials: true
-            });
-            const rate = rateRes.data.message?.rate || 0;
+    try {
+        const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
+            params: { 
+                item_code: item.item_code, 
+                price_list: form.selling_price_list 
+            },
+            withCredentials: true
+        });
 
-            setForm(prev => {
-                const items = [...prev.items];
-                items[idx] = {
-                    item_code: item.item_code,
-                    item_name: item.item_name,
-                    uom: item.stock_uom || 'Nos',
-                    qty: 1,
-                    rate: rate,
-                    amount: rate * 1,
-                    delivery_date: prev.delivery_date || prev.transaction_date
-                };
-                return { ...prev, items };
-            });
-            recalculate();
-        } catch (err) {
-            console.error(err);
-        }
-        setItemSearches(prev => ({ ...prev, [idx]: '' }));
-        setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
-    };
+        // Frappe adds double "message" wrapper → so we need message.message.rate
+        const fetchedRate = 
+            rateRes.data?.message?.message?.rate || 
+            rateRes.data?.message?.rate || 
+            rateRes.data?.rate || 
+            0;
+
+        console.log("Rate Response:", rateRes.data); // ← ഇത് console-ൽ നോക്കൂ, എന്താണ് വരുന്നതെന്ന്
+        console.log("Final Rate:", fetchedRate);
+
+        setForm(prev => {
+            const items = [...prev.items];
+            items[idx] = {
+                item_code: item.item_code,
+                item_name: item.item_name,
+                uom: item.stock_uom || 'Nos',
+                qty: 1,
+                rate: fetchedRate,
+                amount: fetchedRate * 1,
+                delivery_date: prev.delivery_date || prev.transaction_date
+            };
+            return { ...prev, items };
+        });
+
+        recalculate();
+    } catch (err) {
+        console.error("Rate fetch failed:", err.response?.data || err);
+        setForm(prev => {
+            const items = [...prev.items];
+            items[idx].rate = 0;
+            items[idx].amount = 0;
+            return { ...prev, items };
+        });
+        recalculate();
+    }
+
+    setItemSearches(prev => ({ ...prev, [idx]: '' }));
+    setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
+};
 
     const searchItems = async (query, idx) => {
-        if (!query.trim()) return;
+        if (!query.trim()) {
+            setItemsList([]);
+            setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
+            return;
+        }
         try {
             const res = await axios.get(`${API_PATH}.get_items_so`, {
                 params: { query },
@@ -303,7 +328,8 @@ function SalesOrder() {
             setItemsList(res.data.message || []);
             setShowItemDropdowns(prev => ({ ...prev, [idx]: true }));
         } catch (err) {
-            console.error(err);
+            console.error("Item search failed:", err);
+            setItemsList([]);
         }
     };
 
@@ -572,7 +598,7 @@ function SalesOrder() {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm">{order.customer_name}</td>
-                                                <td className="px-6 py-4 text-sm text-right font-medium">
+                                                <td className="px-6 py-4 text-sm text-left font-medium">
                                                     AED {Number(order.grand_total || 0).toLocaleString('en-AE', { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 font-mono">{order.name}</td>

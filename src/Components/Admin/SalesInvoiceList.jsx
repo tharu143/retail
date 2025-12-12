@@ -480,7 +480,7 @@ const SalesInvoiceList = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm">{inv.customer_name || 'Customer'}</td>
-                                                <td className="px-6 py-4 text-sm text-right font-medium">
+                                                <td className="px-6 py-4 text-sm text-left font-medium">
                                                     {getCurrencySymbol()}{Number(inv.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 font-mono">{inv.name}</td>
@@ -680,7 +680,7 @@ const SalesInvoiceList = () => {
                                                         <td className="px-4 py-3">
                                                             <input type="number" value={item.rate || ''} onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)} className="w-28 border rounded px-2 py-2 text-right" step="0.01" />
                                                         </td>
-                                                        <td className="px-4 py-3 text-right font-medium text-sm">
+                                                        <td className="px-4 py-3 text-left font-medium text-sm">
                                                             {getCurrencySymbol()}{(item.amount || 0).toFixed(2)}
                                                         </td>
                                                         <td className="px-4 py-3 text-center">
@@ -727,7 +727,7 @@ const SalesInvoiceList = () => {
                                                                 <tr key={i} className="border-b">
                                                                     <td className="py-3">{tax.account_head}</td>
                                                                     <td className="py-3 text-center">{tax.rate}%</td>
-                                                                    <td className="py-3 text-right font-medium">
+                                                                    <td className="py-3 text-left font-medium">
                                                                         {getCurrencySymbol()}{taxAmount.toFixed(2)}
                                                                     </td>
                                                                 </tr>
