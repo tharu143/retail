@@ -2,16 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
-import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const SalesInvoiceList = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [invoices, setInvoices] = useState([]);
     const [filteredInvoices, setFilteredInvoices] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [dropdownPosition, setDropdownPosition] = useState(null);
-
+    const [isReturnMode, setIsReturnMode] = useState(false);
+    const [returnAgainst, setReturnAgainst] = useState(null);
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [titleFilter, setTitleFilter] = useState('');
@@ -21,7 +25,6 @@ const SalesInvoiceList = () => {
     const [maxAmount, setMaxAmount] = useState('');
     const [pageSize, setPageSize] = useState(20);
     const [currentPage, setCurrentPage] = useState(1);
-
     // Form State
     const [form, setForm] = useState({
         posting_date: new Date().toISOString().split('T')[0],
@@ -30,6 +33,8 @@ const SalesInvoiceList = () => {
         is_pos: false,
         set_warehouse: '',
         update_stock: false,
+        is_return: 0,
+        return_against: '',
         items: [],
         taxes_and_charges: '',
         taxes: [],
@@ -40,17 +45,14 @@ const SalesInvoiceList = () => {
         rounded_total: 0,
         in_words: ''
     });
-
     const [customers, setCustomers] = useState([]);
     const [warehouses, setWarehouses] = useState([]);
     const [taxTemplates, setTaxTemplates] = useState([]);
     const [allItems, setAllItems] = useState([]);
-
     const [searchCustomer, setSearchCustomer] = useState('');
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [itemQueries, setItemQueries] = useState({});
     const [activeItemRow, setActiveItemRow] = useState(null);
-
     // Currency Symbol
     const getCurrencySymbol = () => {
         switch (form.currency || 'INR') {
@@ -60,7 +62,6 @@ const SalesInvoiceList = () => {
             default: return '₹';
         }
     };
-
     // Number to Words (INR only)
     const numberToWords = (num) => {
         if (form.currency !== 'INR' || !num) return '';
@@ -68,16 +69,13 @@ const SalesInvoiceList = () => {
             'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
         const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
         const scales = ['', 'Thousand', 'Lakh', 'Crore'];
-
         let rupees = Math.floor(num);
         let paise = Math.round((num - rupees) * 100);
-
         const convert = (n) => {
             if (n < 20) return ones[n];
             if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
             return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convert(n % 100) : '');
         };
-
         let words = '';
         let scaleIndex = 0;
         while (rupees > 0) {
@@ -88,10 +86,81 @@ const SalesInvoiceList = () => {
             rupees = Math.floor(rupees / 1000);
             scaleIndex++;
         }
-
         return (words.trim() || 'Zero') + ' Rupees' + (paise > 0 ? ' and ' + paise + ' Paise' : '') + ' Only';
     };
-
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const returnData = params.get('returnData');
+        const autoOpen = params.get('autoOpen') === 'true';
+        if (returnData) {
+            try {
+                const data = JSON.parse(returnData);
+                setIsReturnMode(true);
+                setReturnAgainst(data.return_against || 'Unknown');
+                setForm(prev => ({
+                    ...prev,
+                    ...data,
+                    is_return: 1,
+                    return_against: data.return_against || '',
+                    posting_date: new Date().toISOString().split('T')[0],
+                    items: data.items.map(i => ({
+                        ...i,
+                        qty: Math.abs(i.qty),
+                        amount: Math.abs(i.amount)
+                    }))
+                }));
+                setSearchCustomer(data.customer_name || '');
+                if (autoOpen) {
+                    setShowModal(true);
+                }
+                navigate('/salesinvoice', { replace: true });
+            } catch (e) {
+                console.error("Failed to parse return data", e);
+            }
+        }
+    }, [location.search, navigate]);
+    const loadInvoiceForEdit = async (invoiceName) => {
+        try {
+            const res = await axios.get(`/api/resource/Sales Invoice/${invoiceName}`);
+            const inv = res.data.data;
+            setIsReturnMode(inv.is_return === 1);
+            setReturnAgainst(inv.return_against || null);
+            setForm({
+                name: inv.name,
+                posting_date: inv.posting_date,
+                customer: inv.customer,
+                customer_name: inv.customer_name,
+                due_date: inv.due_date || '',
+                is_pos: inv.is_pos === 1,
+                set_warehouse: inv.set_warehouse || '',
+                update_stock: inv.update_stock === 1,
+                is_return: inv.is_return ? 1 : 0,
+                return_against: inv.return_against || '',
+                items: inv.items.map(i => ({
+                    item_code: i.item_code,
+                    item_name: i.item_name,
+                    qty: inv.is_return ? Math.abs(i.qty) : i.qty,
+                    rate: i.rate,
+                    amount: Math.abs(i.amount),
+                    uom: i.uom || 'Nos'
+                })),
+                taxes_and_charges: inv.taxes_and_charges || '',
+                taxes: inv.taxes || [],
+                total_qty: 0,
+                base_total: 0,
+                total_taxes_and_charges: 0,
+                grand_total: 0,
+                rounded_total: 0,
+                in_words: ''
+            });
+            setSearchCustomer(inv.customer_name || '');
+            setShowModal(true);
+            calculateTotals();
+        } catch (err) {
+            alert("Error loading invoice for edit");
+            console.error(err);
+        }
+    };
     // Load Data
     useEffect(() => {
         const loadData = async () => {
@@ -109,7 +178,6 @@ const SalesInvoiceList = () => {
                         }
                     })
                 ]);
-
                 setCustomers(custRes.data.message || []);
                 setWarehouses(whRes.data.message || []);
                 setTaxTemplates(taxRes.data.message || []);
@@ -124,11 +192,9 @@ const SalesInvoiceList = () => {
         };
         loadData();
     }, []);
-
     // Filtering
     useEffect(() => {
         let filtered = invoices;
-
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(inv =>
@@ -137,11 +203,9 @@ const SalesInvoiceList = () => {
                 inv.title?.toLowerCase().includes(term)
             );
         }
-
         if (titleFilter) filtered = filtered.filter(inv => (inv.title || '').toLowerCase().includes(titleFilter.toLowerCase()));
         if (customerFilter) filtered = filtered.filter(inv => inv.customer_name?.toLowerCase().includes(customerFilter.toLowerCase()));
         if (statusFilter !== 'all') filtered = filtered.filter(inv => inv.status === statusFilter);
-
         if (minAmount || maxAmount) {
             filtered = filtered.filter(inv => {
                 const amount = Number(inv.grand_total || 0);
@@ -150,11 +214,9 @@ const SalesInvoiceList = () => {
                 return true;
             });
         }
-
         setFilteredInvoices(filtered);
         setCurrentPage(1);
     }, [searchTerm, titleFilter, customerFilter, statusFilter, minAmount, maxAmount, invoices]);
-
     const getStatusColor = (status) => {
         switch (status) {
             case 'Paid': return 'bg-green-100 text-green-800';
@@ -165,7 +227,6 @@ const SalesInvoiceList = () => {
             default: return 'bg-gray-100 text-gray-800';
         }
     };
-
     // Calculate Totals
     const calculateTotals = () => {
         const items = form.items || [];
@@ -174,7 +235,6 @@ const SalesInvoiceList = () => {
         const taxTotal = form.taxes.reduce((s, t) => s + (netTotal * (parseFloat(t.rate) || 0) / 100), 0);
         const grand = netTotal + taxTotal;
         const rounded = Math.round(grand);
-
         setForm(prev => ({
             ...prev,
             total_qty: totalQty,
@@ -185,11 +245,9 @@ const SalesInvoiceList = () => {
             in_words: numberToWords(rounded)
         }));
     };
-
     useEffect(() => {
         calculateTotals();
     }, [form.items, form.taxes]);
-
     const searchItems = async (query) => {
         if (!query || query.trim().length < 2) return;
         try {
@@ -197,7 +255,6 @@ const SalesInvoiceList = () => {
             setAllItems(res.data.message || []);
         } catch (err) { }
     };
-
     const applyTaxTemplate = async (template) => {
         if (!template) {
             setForm(prev => ({ ...prev, taxes: [], taxes_and_charges: '' }));
@@ -210,45 +267,40 @@ const SalesInvoiceList = () => {
             calculateTotals();
         } catch (err) { }
     };
-
     const addItemRow = () => {
         setForm(prev => ({
             ...prev,
             items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: 'Nos', rate: 0, amount: 0 }]
         }));
     };
-
     const selectItem = async (idx, item) => {
-    const items = [...form.items];
-    items[idx] = {
-        item_code: item.item_code,
-        item_name: item.item_name,
-        uom: item.stock_uom || 'Nos',
-        qty: items[idx]?.qty || 1,
-        rate: 0,
-        amount: 0
+        const items = [...form.items];
+        items[idx] = {
+            item_code: item.item_code,
+            item_name: item.item_name,
+            uom: item.stock_uom || 'Nos',
+            qty: items[idx]?.qty || 1,
+            rate: 0,
+            amount: 0
+        };
+        try {
+            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_dn', {
+                params: {
+                    item_code: item.item_code,
+                    price_list: form.selling_price_list
+                }
+            });
+            items[idx].rate = res.data.message?.rate || 0;
+        } catch (e) {
+            console.error("Rate fetch failed:", e);
+        }
+        items[idx].amount = items[idx].qty * items[idx].rate;
+        setForm(prev => ({ ...prev, items }));
+        setItemQueries(prev => ({ ...prev, [idx]: '' }));
+        setActiveItemRow(null);
+        setDropdownPosition(null);
+        calculateTotals();
     };
-
-    try {
-        const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_dn', {
-            params: { 
-                item_code: item.item_code,
-                price_list: form.selling_price_list 
-            }
-        });
-        items[idx].rate = res.data.message?.rate || 0;
-    } catch (e) {
-        console.error("Rate fetch failed:", e);
-    }
-
-    items[idx].amount = items[idx].qty * items[idx].rate;
-    setForm(prev => ({ ...prev, items }));
-    setItemQueries(prev => ({ ...prev, [idx]: '' }));
-    setActiveItemRow(null);
-    setDropdownPosition(null);
-    calculateTotals();
-};
-
     const updateItem = (i, field, value) => {
         const items = [...form.items];
         items[i][field] = value;
@@ -258,8 +310,7 @@ const SalesInvoiceList = () => {
         setForm(prev => ({ ...prev, items }));
         calculateTotals();
     };
-
-    const createSalesInvoice = async () => {
+    const createSalesInvoice = async (submit = false) => {
         if (!form.customer) {
             alert("Customer is required!");
             return;
@@ -268,21 +319,20 @@ const SalesInvoiceList = () => {
             alert("Please add at least one valid item!");
             return;
         }
-
         setSaving(true);
-
-        const payload = {
-            doctype: "Sales Invoice",
+        const flatPayload = {
             posting_date: form.posting_date,
             customer: form.customer,
             due_date: form.due_date || form.posting_date,
             is_pos: form.is_pos ? 1 : 0,
             update_stock: form.update_stock ? 1 : 0,
             set_warehouse: form.set_warehouse || undefined,
+            is_return: form.is_return ? 1 : 0,
             items: form.items.map(i => ({
                 item_code: i.item_code,
-                qty: i.qty,
+                qty: isReturnMode ? -Math.abs(i.qty) : i.qty,
                 rate: i.rate,
+                amount: i.amount,
                 uom: i.uom
             })),
             taxes_and_charges: form.taxes_and_charges || undefined,
@@ -293,81 +343,116 @@ const SalesInvoiceList = () => {
                 description: t.description || t.account_head
             }))
         };
-
         try {
-            const res = await axios.post('/api/resource/Sales Invoice', payload);
-
-            // SUCCESS: Frappe always returns 200 with data on success
-            if (res.status === 200 && res.data?.data) {
-                const invoiceName = res.data.data.name || "Unknown";
-                alert(`Sales Invoice Created Successfully!\nID: ${invoiceName}`);
-
-                // Refresh list + reset form
-                setShowModal(false);
-                loadData();
-                setForm({
-                    posting_date: new Date().toISOString().split('T')[0],
-                    customer: '', customer_name: '',
-                    due_date: '', is_pos: false,
-                    set_warehouse: '', update_stock: false,
-                    items: [], taxes_and_charges: '', taxes: [],
-                    total_qty: 0, base_total: 0, total_taxes_and_charges: 0, grand_total: 0, rounded_total: 0, in_words: ''
+            let invoiceName;
+            if (form.name) {
+                // UPDATE DRAFT
+                await axios.put(`/api/resource/Sales Invoice/${form.name}`, flatPayload);
+                invoiceName = form.name;
+            } else {
+                // CREATE NEW
+                const res = await axios.post('/api/resource/Sales Invoice', flatPayload);
+                invoiceName = res.data.data.name;
+            }
+            let message = '';
+            if (submit) {
+                // FIXED: Fetch full document after save and submit it
+                const docRes = await axios.get(`/api/resource/Sales Invoice/${invoiceName}`);
+                const fullDoc = docRes.data.data;
+                await axios.post('/api/method/frappe.client.submit', {
+                    doc: JSON.stringify(fullDoc)
                 });
+                message = isReturnMode
+                    ? `Credit Note Submitted Successfully!\nID: ${invoiceName}`
+                    : `Sales Invoice Submitted Successfully!\nID: ${invoiceName}`;
+            } else {
+                message = isReturnMode
+                    ? `Credit Note Saved as Draft!\nID: ${invoiceName}`
+                    : `Sales Invoice Saved as Draft!\nID: ${invoiceName}`;
             }
+            alert(message);
+            setShowModal(false);
+            // Refresh list with full fields including status
+            const invRes = await axios.get('/api/resource/Sales Invoice', {
+                params: {
+                    fields: '["name","customer_name","posting_date","grand_total","status","title","company","outstanding_amount"]',
+                    limit_page_length: 500,
+                    order_by: 'modified desc'
+                }
+            });
+            setInvoices(invRes.data.data || []);
+            setFilteredInvoices(invRes.data.data || []);
+            // Reset form
+            setForm({
+                posting_date: new Date().toISOString().split('T')[0],
+                customer: '', customer_name: '',
+                due_date: '', is_pos: false,
+                set_warehouse: '', update_stock: false,
+                is_return: 0, return_against: '',
+                items: [], taxes_and_charges: '', taxes: [],
+                total_qty: 0, base_total: 0, total_taxes_and_charges: 0,
+                grand_total: 0, rounded_total: 0, in_words: ''
+            });
+            setIsReturnMode(false);
+            setReturnAgainst(null);
+            setSearchCustomer('');
         } catch (err) {
-            // REAL ERROR HANDLING
-            let errorMsg = "Failed to create invoice";
-
+            // IMPROVED: Better error handling for submit
+            let errorMsg = submit ? "Submission failed" : "Save failed";
             if (err.response?.data?._server_messages) {
-                // Frappe validation errors
-                const messages = JSON.parse(err.response.data._server_messages);
-                errorMsg = messages.map(m => JSON.parse(m).message).join('\n');
-            } else if (err.response?.data?.exception) {
-                errorMsg = err.response.data.exception;
+                const messages = JSON.parse(err.response.data._server_messages || '[]');
+                errorMsg += ": " + messages.map(m => JSON.parse(m).message).join('\n');
             } else if (err.response?.data?.message) {
-                errorMsg = err.response.data.message;
-            } else if (err.message) {
-                errorMsg = err.message;
+                errorMsg += ": " + err.response.data.message;
             }
+            if (submit && err.response?.status === 403) {
+                errorMsg += ": Permission denied. Ensure user has 'Submit' permission on Sales Invoice.";
+            }
+            alert("Error: " + errorMsg);
+            console.error('Submit/Save Error:', err.response?.data || err);
         } finally {
             setSaving(false);
         }
     };
-
     const filteredCustomers = useMemo(() => {
         return customers.filter(c =>
             c.customer_name?.toLowerCase().includes(searchCustomer.toLowerCase()) ||
             c.name?.toLowerCase().includes(searchCustomer.toLowerCase())
         ).slice(0, 10);
     }, [searchCustomer, customers]);
-
     const paginated = filteredInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
     const totalPages = Math.ceil(filteredInvoices.length / pageSize);
-
     return (
         <>
             <NavBar />
             <div className="min-h-screen bg-gray-100">
-
                 {/* ERPNext Header */}
                 <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
                     <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
                         <FileText className="w-7 h-7" /> Sales Invoice
                     </h1>
                     <button
-                        onClick={() => setShowModal(true)}
+                        onClick={() => {
+                            setIsReturnMode(false);
+                            setReturnAgainst(null);
+                            setForm(prev => ({
+                                ...prev,
+                                posting_date: new Date().toISOString().split('T')[0],
+                                is_return: 0,
+                                return_against: '',
+                                items: []
+                            }));
+                            setShowModal(true);
+                        }}
                         className="bg-black text-white px-5 py-2.5 rounded-md hover:bg-gray-800 font-medium flex items-center gap-2"
                     >
                         <Plus className="w-5 h-5" /> Add Sales Invoice
                     </button>
                 </div>
-
                 <div className="flex">
-
                     {/* Sidebar Filters */}
                     <div className="w-72 bg-white border-r min-h-screen p-6 space-y-6">
                         <h3 className="font-semibold text-gray-800 mb-4">Filters</h3>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
                             <input
@@ -378,7 +463,6 @@ const SalesInvoiceList = () => {
                                 className="w-full border rounded-lg px-3 py-2 text-sm"
                             />
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
                             <input
@@ -389,7 +473,6 @@ const SalesInvoiceList = () => {
                                 className="w-full border rounded-lg px-3 py-2 text-sm"
                             />
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
                             <input
@@ -400,7 +483,6 @@ const SalesInvoiceList = () => {
                                 className="w-full border rounded-lg px-3 py-2 text-sm"
                             />
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                             <select
@@ -416,7 +498,6 @@ const SalesInvoiceList = () => {
                                 <option value="Overdue">Overdue</option>
                             </select>
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Amount Range</label>
                             <div className="flex gap-2">
@@ -424,7 +505,6 @@ const SalesInvoiceList = () => {
                                 <input type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" />
                             </div>
                         </div>
-
                         <button
                             onClick={() => {
                                 setSearchTerm('');
@@ -439,10 +519,8 @@ const SalesInvoiceList = () => {
                             Clear Filters
                         </button>
                     </div>
-
                     {/* Main List */}
                     <div className="flex-1 p-6">
-
                         <div className="flex justify-between items-center mb-4 text-sm text-gray-600">
                             <div className="flex items-center gap-4">
                                 <span>{filteredInvoices.length} items</span>
@@ -451,7 +529,6 @@ const SalesInvoiceList = () => {
                                 </button>
                             </div>
                         </div>
-
                         <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
                             <table className="w-full">
                                 <thead className="bg-gray-50 border-b">
@@ -471,8 +548,12 @@ const SalesInvoiceList = () => {
                                         <tr><td colSpan="6" className="text-center py-16 text-gray-500">No invoices found</td></tr>
                                     ) : (
                                         paginated.map(inv => (
-                                            <tr key={inv.name} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4"><input type="checkbox" /></td>
+                                            <tr
+                                                key={inv.name}
+                                                className="hover:bg-gray-50 cursor-pointer"
+                                                onClick={() => loadInvoiceForEdit(inv.name)}
+                                            >
+                                                <td className="px-6 py-4"><input type="checkbox" onClick={(e) => e.stopPropagation()} /></td>
                                                 <td className="px-6 py-4 text-sm font-medium">{inv.title || 'Invoice'}</td>
                                                 <td className="px-6 py-4">
                                                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(inv.status)}`}>
@@ -490,7 +571,6 @@ const SalesInvoiceList = () => {
                                 </tbody>
                             </table>
                         </div>
-
                         {/* Pagination */}
                         <div className="flex justify-between items-center mt-6">
                             <div className="text-sm text-gray-600">
@@ -516,16 +596,20 @@ const SalesInvoiceList = () => {
                         </div>
                     </div>
                 </div>
-
                 {/* FULL MODAL - WITH TAX TABLE */}
                 {showModal && (
                     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-y-auto">
                             <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center">
-                                <h2 className="text-2xl font-bold">New Sales Invoice</h2>
+                                <h2 className="text-2xl font-bold flex items-center gap-3">
+                                    {isReturnMode ? (
+                                        <> <ArrowLeft className="w-6 h-6" /> Credit Note - Return Against: {returnAgainst} </>
+                                    ) : (
+                                        <> New Sales Invoice </>
+                                    )}
+                                </h2>
                                 <button onClick={() => setShowModal(false)} className="text-2xl hover:text-red-600">×</button>
                             </div>
-
                             <div className="p-8 space-y-8">
                                 {/* Header Fields */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -564,7 +648,6 @@ const SalesInvoiceList = () => {
                                             )}
                                         </div>
                                     </div>
-
                                     <div>
                                         <label className="block font-medium mb-1">Due Date</label>
                                         <input type="date" value={form.due_date} onChange={e => setForm(prev => ({ ...prev, due_date: e.target.value }))} className="w-full px-4 py-2 border rounded-lg" />
@@ -576,13 +659,11 @@ const SalesInvoiceList = () => {
                                             {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
                                         </select>
                                     </div>
-
                                     <div className="flex gap-8 items-center">
                                         <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_pos} onChange={e => setForm(prev => ({ ...prev, is_pos: e.target.checked }))} /> <span>Is POS</span></label>
                                         <label className="flex items-center gap-2"><input type="checkbox" checked={form.update_stock} onChange={e => setForm(prev => ({ ...prev, update_stock: e.target.checked }))} /> <span>Update Stock</span></label>
                                     </div>
                                 </div>
-
                                 {/* Items Table */}
                                 <div>
                                     <div className="flex justify-between mb-3">
@@ -605,7 +686,6 @@ const SalesInvoiceList = () => {
                                                 {form.items.map((item, i) => (
                                                     <tr key={i} className="border-t">
                                                         <td className="px-4 py-3">
-                                                            {/* PERFECT ITEM SEARCH WITH PORTAL DROPDOWN */}
                                                             <div className="relative">
                                                                 <input
                                                                     type="text"
@@ -628,13 +708,9 @@ const SalesInvoiceList = () => {
                                                                     placeholder="Search item..."
                                                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                                                                 />
-
-                                                                {/* Selected Item Name */}
                                                                 {item.item_name && (
                                                                     <div className="mt-2 text-sm font-semibold text-gray-800 pl-1">{item.item_name}</div>
                                                                 )}
-
-                                                                {/* PORTAL DROPDOWN - ALWAYS VISIBLE OUTSIDE MODAL */}
                                                                 {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
                                                                     <div
                                                                         className="fixed bg-white border border-gray-300 rounded-lg shadow-2xl z-[9999] max-h-64 overflow-y-auto"
@@ -671,8 +747,6 @@ const SalesInvoiceList = () => {
                                                                 )}
                                                             </div>
                                                         </td>
-
-                                                        {/* Rest of columns */}
                                                         <td className="px-4 py-3">
                                                             <input type="number" value={item.qty || ''} onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)} className="w-20 border rounded px-2 py-2 text-center" />
                                                         </td>
@@ -692,7 +766,6 @@ const SalesInvoiceList = () => {
                                         </table>
                                     </div>
                                 </div>
-
                                 {/* TAXES & CHARGES - FULLY VISIBLE */}
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                     <div>
@@ -707,8 +780,6 @@ const SalesInvoiceList = () => {
                                                 <option key={t.name} value={t.name}>{t.name}</option>
                                             ))}
                                         </select>
-
-                                        {/* TAX TABLE */}
                                         {form.taxes.length > 0 && (
                                             <div className="mt-6 bg-gray-50 rounded-xl p-5 border">
                                                 <h4 className="font-semibold text-gray-900 mb-4">Taxes & Charges</h4>
@@ -744,7 +815,6 @@ const SalesInvoiceList = () => {
                                             </div>
                                         )}
                                     </div>
-
                                     {/* Final Totals */}
                                     <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6">
                                         <div className="space-y-4 text-lg">
@@ -765,16 +835,26 @@ const SalesInvoiceList = () => {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="flex justify-end gap-4 p-6 border-t bg-white sticky bottom-0">
                                 <button onClick={() => setShowModal(false)} className="px-8 py-3 border rounded-lg hover:bg-gray-100 font-medium">Cancel</button>
+                                {/* SAVE DRAFT - only for new */}
+                                {!form.name && (
+                                    <button
+                                        onClick={() => createSalesInvoice(false)}
+                                        disabled={saving}
+                                        className="px-8 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-medium"
+                                    >
+                                        {saving ? 'Saving...' : 'Save Draft'}
+                                    </button>
+                                )}
+                                {/* SUBMIT - for new or existing draft */}
                                 <button
-                                    onClick={createSalesInvoice}
+                                    onClick={() => createSalesInvoice(true)}
                                     disabled={saving}
                                     className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center gap-3 disabled:opacity-50"
                                 >
                                     {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
-                                    {saving ? 'Saving...' : 'Save Invoice'}
+                                    {saving ? 'Submitting...' : (form.name ? 'Submit' : (isReturnMode ? 'Submit Credit Note' : 'Submit Invoice'))}
                                 </button>
                             </div>
                         </div>

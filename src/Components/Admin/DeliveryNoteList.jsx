@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
-import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight, ArrowLeft, FileMinus } from 'lucide-react';
 
 const DeliveryNoteList = () => {
+
+    const navigate = useNavigate();
+
     const [deliveryNotes, setDeliveryNotes] = useState([]);
     const [filteredNotes, setFilteredNotes] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -13,6 +17,8 @@ const DeliveryNoteList = () => {
     const [isReturnMode, setIsReturnMode] = useState(false);
     const [returnSourceDN, setReturnSourceDN] = useState(null);
     const [dropdownPosition, setDropdownPosition] = useState(null);
+
+    const [submittedReturnData, setSubmittedReturnData] = useState(null);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -115,7 +121,7 @@ const DeliveryNoteList = () => {
                     axios.get('/api/method/frappe.client.get_list', { params: { doctype: 'Price List', filters: { selling: 1 }, fields: ['name'] } }),
                     axios.get('/api/resource/Delivery Note', {
                         params: {
-                            fields: '["name","customer_name","posting_date","grand_total","status","title","company","modified","is_return","return_against","currency"]',
+                            fields: '["name","customer_name","posting_date","grand_total","status","title","company","modified","is_return","return_against","currency","issue_credit_note"]',
                             limit_page_length: 500,
                             order_by: 'modified desc'
                         }
@@ -365,86 +371,175 @@ const DeliveryNoteList = () => {
     };
 
     const saveDeliveryNote = async (submit = false) => {
-    if (!form.customer || !form.set_warehouse || form.items.length === 0 || form.items.some(i => !i.item_code || !i.item_name)) {
-        alert("Please fill all required fields and items properly.");
-        return;
-    }
+        if (!form.customer || !form.set_warehouse || form.items.length === 0 || form.items.some(i => !i.item_code || !i.item_name)) {
+            alert("Please fill all required fields and items properly.");
+            return;
+        }
 
-    setSaving(true);
+        setSaving(true);
 
-    const payload = {
-        doctype: "Delivery Note",
-        title: form.title || 'Cash',
-        posting_date: form.posting_date,
-        posting_time: form.posting_time,
-        customer: form.customer,
-        set_warehouse: form.set_warehouse,
-        is_return: form.is_return ? 1 : 0,
-        return_against: form.return_against || undefined,
-        currency: form.currency,
-        selling_price_list: form.selling_price_list,
-        ignore_pricing_rule: form.ignore_pricing_rule,
-        update_stock: submit ? 1 : 0,
-        items: form.items.map(i => ({
-            item_code: i.item_code,
-            item_name: i.item_name,
-            qty: form.is_return ? i.qty : Math.abs(i.qty),
-            rate: i.rate,
-            uom: i.uom,
-            conversion_factor: i.conversion_factor || 1,
-            return_against: form.is_return ? i.return_against : undefined
-        })),
-        taxes_and_charges: form.taxes_and_charges || undefined,
-        taxes: form.taxes || []
+        const payload = {
+            doctype: "Delivery Note",
+            title: form.title || 'Cash',
+            posting_date: form.posting_date,
+            posting_time: form.posting_time,
+            customer: form.customer,
+            set_warehouse: form.set_warehouse,
+            is_return: form.is_return ? 1 : 0,
+            return_against: form.return_against || undefined,
+            currency: form.currency,
+            selling_price_list: form.selling_price_list,
+            ignore_pricing_rule: form.ignore_pricing_rule,
+            update_stock: submit ? 1 : 0,
+            items: form.items.map(i => ({
+                item_code: i.item_code,
+                item_name: i.item_name,
+                qty: form.is_return ? i.qty : Math.abs(i.qty),
+                rate: i.rate,
+                uom: i.uom,
+                conversion_factor: i.conversion_factor || 1,
+                return_against: form.is_return ? i.return_against : undefined
+            })),
+            taxes_and_charges: form.taxes_and_charges || undefined,
+            taxes: form.taxes || []
+        };
+
+        if (submit) {
+            payload.docstatus = 1;
+        }
+
+        try {
+            let res;
+            let newDocName;
+
+            if (form.name) {
+                res = await axios.put(`/api/resource/Delivery Note/${form.name}`, payload);
+                newDocName = form.name;
+            } else {
+                res = await axios.post('/api/resource/Delivery Note', payload);
+                newDocName = res.data.data.name;
+            }
+
+            if (submit && form.is_return && form.return_against) {
+                await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.update_dn_status_on_return', {
+                    dn_name: form.return_against,
+                    status: 'Return Issued'
+                });
+            }
+
+            const dnRes = await axios.get('/api/resource/Delivery Note', {
+                params: { limit_page_length: 500, order_by: 'modified desc' }
+            });
+            setDeliveryNotes(dnRes.data.data || []);
+
+            alert(
+                form.is_return
+                    ? (submit ? "Sales Return Submitted! Original DN marked as Return Issued" : "Return Saved as Draft")
+                    : (submit ? "Delivery Note Submitted Successfully!" : "Saved as Draft")
+            );
+
+            // STORE DATA IF RETURN SUBMITTED → FOR CREDIT NOTE
+            if (submit && form.is_return) {
+                setSubmittedReturnData({
+                    return_against: form.return_against,
+                    customer: form.customer,
+                    customer_name: form.customer_name,
+                    currency: form.currency,
+                    selling_price_list: form.selling_price_list,
+                    taxes_and_charges: form.taxes_and_charges,
+                    taxes: form.taxes,
+                    items: form.items.map(i => ({
+                        item_code: i.item_code,
+                        item_name: i.item_name,
+                        qty: i.qty, // negative
+                        rate: i.rate,
+                        amount: i.amount, // negative
+                        uom: i.uom,
+                        return_against: i.return_against
+                    }))
+                });
+            }
+
+            setShowModal(false);
+            resetForm();
+
+        } catch (err) {
+            console.error(err);
+            alert("Error: " + (err.response?.data?.message || err.message || "Failed"));
+        } finally {
+            setSaving(false);
+        }
     };
 
-    if (submit) {
-        payload.docstatus = 1;
-    }
+    // NEW: Create Credit Note Function
+    const createCreditNote = () => {
+        if (!submittedReturnData) return;
 
-    try {
-        let res;
-        let newDocName;
+        const creditNoteData = {
+            is_return: 1,
+            return_against: submittedReturnData.return_against,
+            customer: submittedReturnData.customer,
+            customer_name: submittedReturnData.customer_name,
+            posting_date: new Date().toISOString().split('T')[0],
+            currency: submittedReturnData.currency,
+            selling_price_list: submittedReturnData.selling_price_list,
+            items: submittedReturnData.items.map(i => ({
+                item_code: i.item_code,
+                item_name: i.item_name,
+                qty: Math.abs(i.qty), // negative → positive
+                rate: i.rate,
+                amount: Math.abs(i.amount),
+                uom: i.uom
+            })),
+            taxes_and_charges: submittedReturnData.taxes_and_charges,
+            taxes: submittedReturnData.taxes
+        };
 
-        if (form.name) {
-            res = await axios.put(`/api/resource/Delivery Note/${form.name}`, payload);
-            newDocName = form.name;
-        } else {
-            res = await axios.post('/api/resource/Delivery Note', payload);
-            newDocName = res.data.data.name;
-        }
-
-        // THIS IS THE KEY PART — Only when SUBMITTING a RETURN
-        if (submit && form.is_return && form.return_against) {
-            await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.update_dn_status_on_return', {
-                dn_name: form.return_against,
-                status: 'Return Issued'
-            });
-        }
-
-        // Refresh list
-        const dnRes = await axios.get('/api/resource/Delivery Note', {
-            params: { limit_page_length: 500, order_by: 'modified desc' }
+        const params = new URLSearchParams({
+            returnData: JSON.stringify(creditNoteData)
         });
-        setDeliveryNotes(dnRes.data.data || []);
 
-        alert(
-            form.is_return
-                ? (submit ? "Sales Return Submitted! Original DN marked as Return Issued" : "Return Saved as Draft")
-                : (submit ? "Delivery Note Submitted Successfully!" : "Saved as Draft")
-        );
+        navigate(`/salesinvoice?${params.toString()}`);
+    };
 
-        setShowModal(false);
-        resetForm();
+    const loadReturnForCreditNote = async (returnDNName) => {
+        try {
+            const res = await axios.get(`/api/resource/Delivery Note/${returnDNName}`);
+            const dn = res.data.data;
 
-    } catch (err) {
-        console.error(err);
-        alert("Error: " + (err.response?.data?.message || err.message || "Failed"));
-    } finally {
-        setSaving(false);
-    }
-};
+            if (!dn.is_return) return;
 
+            const creditNoteData = {
+                is_return: 1,
+                return_against: dn.return_against,
+                customer: dn.customer,
+                customer_name: dn.customer_name,
+                posting_date: new Date().toISOString().split('T')[0],
+                currency: dn.currency,
+                selling_price_list: dn.selling_price_list,
+                items: dn.items.map(i => ({
+                    item_code: i.item_code,
+                    item_name: i.item_name,
+                    qty: Math.abs(i.qty),
+                    rate: i.rate,
+                    amount: Math.abs(i.amount),
+                    uom: i.uom || 'Nos'
+                })),
+                taxes_and_charges: dn.taxes_and_charges || '',
+                taxes: dn.taxes || []
+            };
+
+            const params = new URLSearchParams({
+                returnData: JSON.stringify(creditNoteData),
+                autoOpen: 'true' // ADD THIS
+            });
+
+            navigate(`/salesinvoice?${params.toString()}`);
+        } catch (err) {
+            alert("Error loading return data for Credit Note");
+            console.error(err);
+        }
+    };
     const resetForm = () => {
         setForm({
             name: '',
@@ -483,13 +578,16 @@ const DeliveryNoteList = () => {
                     <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
                         <Package className="w-7 h-7" /> Delivery Note
                     </h1>
-                    <button
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                        className="bg-black text-white px-5 py-2.5 rounded-md hover:bg-gray-800 font-medium flex items-center gap-2"
-                    >
-                        <Plus className="w-5 h-5" /> Add Delivery Note
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => { resetForm(); setShowModal(true); }}
+                            className="bg-black text-white px-5 py-2.5 rounded-md hover:bg-gray-800 font-medium flex items-center gap-2"
+                        >
+                            <Plus className="w-5 h-5" /> Add Delivery Note
+                        </button>
+                    </div>
                 </div>
+
                 <div className="flex">
                     {/* Sidebar Filters */}
                     <div className="w-72 bg-white border-r min-h-screen p-6 space-y-6">
@@ -535,6 +633,7 @@ const DeliveryNoteList = () => {
                             Clear Filters
                         </button>
                     </div>
+
                     {/* Main Content */}
                     <div className="flex-1 p-6">
                         <div className="flex justify-between items-center mb-4 text-sm text-gray-600">
@@ -581,6 +680,7 @@ const DeliveryNoteList = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 font-mono">{dn.name}</td>
                                                 <td className="px-6 py-4">
+                                                    {/* Existing Create Return button */}
                                                     {dn.status === 'To Bill' && !dn.is_return && (
                                                         <button
                                                             onClick={(e) => {
@@ -592,6 +692,15 @@ const DeliveryNoteList = () => {
                                                             <ArrowLeft className="w-4 h-4" /> Create Return
                                                         </button>
                                                     )}
+
+                                                    {/* NEW: Create Credit Note button for submitted returns */}
+                                                    {dn.is_return &&
+                                                        ['To Bill', 'Submitted'].includes(dn.status) &&
+                                                        dn.issue_credit_note !== 1 && (
+                                                            <button onClick={() => loadReturnForCreditNote(dn.name)}>
+                                                                <FileMinus className="w-4 h-4" /> Create Credit Note
+                                                            </button>
+                                                        )}
                                                 </td>
                                             </tr>
                                         ))
@@ -599,6 +708,7 @@ const DeliveryNoteList = () => {
                                 </tbody>
                             </table>
                         </div>
+
                         {/* Pagination */}
                         <div className="flex justify-between items-center mt-6">
                             <div className="text-sm text-gray-600">
