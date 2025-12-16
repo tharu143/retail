@@ -680,27 +680,38 @@ const DeliveryNoteList = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 font-mono">{dn.name}</td>
                                                 <td className="px-6 py-4">
-                                                    {/* Existing Create Return button */}
-                                                    {dn.status === 'To Bill' && !dn.is_return && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                loadDeliveryNote(dn.name, true);
-                                                            }}
-                                                            className="text-red-600 hover:text-red-800 font-medium text-sm flex items-center gap-1"
-                                                        >
-                                                            <ArrowLeft className="w-4 h-4" /> Create Return
-                                                        </button>
-                                                    )}
+                                                    <div className="flex items-center gap-6">
+                                                        {/* Create Return - Only for original DN that is To Bill and no return issued yet */}
+                                                        {dn.status === 'To Bill' &&
+                                                            !dn.is_return &&
+                                                            dn.issue_credit_note !== 1 && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        loadDeliveryNote(dn.name, true);
+                                                                    }}
+                                                                    className="text-red-600 hover:text-red-800 font-medium text-sm flex items-center gap-1"
+                                                                >
+                                                                    <ArrowLeft className="w-4 h-4" /> Create Return
+                                                                </button>
+                                                            )}
 
-                                                    {/* NEW: Create Credit Note button for submitted returns */}
-                                                    {dn.is_return &&
-                                                        ['To Bill', 'Submitted'].includes(dn.status) &&
-                                                        dn.issue_credit_note !== 1 && (
-                                                            <button onClick={() => loadReturnForCreditNote(dn.name)}>
-                                                                <FileMinus className="w-4 h-4" /> Create Credit Note
-                                                            </button>
-                                                        )}
+                                                        {/* Create Credit Note - Only for submitted returns that haven't issued credit note */}
+                                                        {dn.is_return === 1 &&
+                                                            ['To Bill', 'Submitted'].includes(dn.status) &&
+                                                            dn.issue_credit_note === 0 && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        loadReturnForCreditNote(dn.name);
+                                                                    }}
+                                                                    className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1"
+                                                                >
+                                                                    <FileMinus className="w-4 h-4" /> Create Credit Note
+                                                                </button>
+                                                            )}
+
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
