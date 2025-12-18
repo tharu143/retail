@@ -356,20 +356,31 @@ const SalesInvoiceList = () => {
             }
             let message = '';
             if (submit) {
-                // FIXED: Fetch full document after save and submit it
-                const docRes = await axios.get(`/api/resource/Sales Invoice/${invoiceName}`);
-                const fullDoc = docRes.data.data;
-                await axios.post('/api/method/frappe.client.submit', {
-                    doc: JSON.stringify(fullDoc)
-                });
-                message = isReturnMode
-                    ? `Credit Note Submitted Successfully!\nID: ${invoiceName}`
-                    : `Sales Invoice Submitted Successfully!\nID: ${invoiceName}`;
-            } else {
-                message = isReturnMode
-                    ? `Credit Note Saved as Draft!\nID: ${invoiceName}`
-                    : `Sales Invoice Saved as Draft!\nID: ${invoiceName}`;
-            }
+    // FIXED: Fetch full document after save and submit it
+    const docRes = await axios.get(`/api/resource/Sales Invoice/${invoiceName}`);
+    const fullDoc = docRes.data.data;
+    await axios.post('/api/method/frappe.client.submit', {
+        doc: JSON.stringify(fullDoc)
+    });
+
+    // NEW: Mark original Delivery Note that credit note has been issued
+    if (isReturnMode && form.return_against) {
+    try {
+        const updateRes = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.mark_dn_credit_note_issued', {
+            dn_name: form.return_against
+        });
+        console.log("Credit Note issued marked:", updateRes.data.message);
+        alert("Credit Note Submitted! Return DN updated successfully.");
+    } catch (err) {
+        console.error("Failed to update issue_credit_note:", err.response?.data?.message || err);
+        alert("Credit Note Submitted, but failed to mark Return DN. Please check manually.");
+    }
+}
+
+    message = isReturnMode
+        ? `Credit Note Submitted Successfully!\nID: ${invoiceName}`
+        : `Sales Invoice Submitted Successfully!\nID: ${invoiceName}`;
+}
             alert(message);
             setShowModal(false);
             // Refresh list with full fields including status

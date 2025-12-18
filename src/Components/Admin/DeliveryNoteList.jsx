@@ -6,7 +6,6 @@ import NavBar from '../Nav/NavBar';
 import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight, ArrowLeft, FileMinus } from 'lucide-react';
 
 const DeliveryNoteList = () => {
-
     const navigate = useNavigate();
 
     const [deliveryNotes, setDeliveryNotes] = useState([]);
@@ -17,7 +16,6 @@ const DeliveryNoteList = () => {
     const [isReturnMode, setIsReturnMode] = useState(false);
     const [returnSourceDN, setReturnSourceDN] = useState(null);
     const [dropdownPosition, setDropdownPosition] = useState(null);
-
     const [submittedReturnData, setSubmittedReturnData] = useState(null);
 
     // Filters
@@ -89,7 +87,7 @@ const DeliveryNoteList = () => {
         const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
             'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
         const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-        const scales = ['', 'Thousand', 'Million', 'Billion']; // Simplified for general use
+        const scales = ['', 'Thousand', 'Million', 'Billion'];
         const convert = (n) => {
             if (n < 20) return ones[n];
             if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
@@ -110,35 +108,38 @@ const DeliveryNoteList = () => {
         }
     };
 
+    const loadDeliveryNotes = async () => {
+        try {
+            setLoading(true);
+            const [custRes, whRes, taxRes, plRes, dnRes] = await Promise.all([
+                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_dn'),
+                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_dn'),
+                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn'),
+                axios.get('/api/method/frappe.client.get_list', { params: { doctype: 'Price List', filters: { selling: 1 }, fields: ['name'] } }),
+                axios.get('/api/resource/Delivery Note', {
+                    params: {
+                        fields: '["name","customer_name","posting_date","grand_total","status","title","company","modified","is_return","return_against","currency","issue_credit_note"]',
+                        limit_page_length: 500,
+                        order_by: 'modified desc'
+                    }
+                })
+            ]);
+
+            setCustomers(custRes.data.message || []);
+            setWarehouses(whRes.data.message || []);
+            setTaxTemplates(taxRes.data.message || []);
+            setPriceLists(plRes.data.data?.map(pl => pl.name) || ['Standard Selling']);
+            setDeliveryNotes(dnRes.data.data || []);
+            setFilteredNotes(dnRes.data.data || []);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLoading(true);
-                const [custRes, whRes, taxRes, plRes, dnRes] = await Promise.all([
-                    axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_dn'),
-                    axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_dn'),
-                    axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn'),
-                    axios.get('/api/method/frappe.client.get_list', { params: { doctype: 'Price List', filters: { selling: 1 }, fields: ['name'] } }),
-                    axios.get('/api/resource/Delivery Note', {
-                        params: {
-                            fields: '["name","customer_name","posting_date","grand_total","status","title","company","modified","is_return","return_against","currency","issue_credit_note"]',
-                            limit_page_length: 500,
-                            order_by: 'modified desc'
-                        }
-                    })
-                ]);
-                setCustomers(custRes.data.message || []);
-                setWarehouses(whRes.data.message || []);
-                setTaxTemplates(taxRes.data.message || []);
-                setPriceLists(plRes.data.data?.map(pl => pl.name) || ['Standard Selling']);
-                setDeliveryNotes(dnRes.data.data || []);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
+        loadDeliveryNotes();
     }, []);
 
     useEffect(() => {
@@ -223,7 +224,7 @@ const DeliveryNoteList = () => {
     };
 
     const addItemRow = () => {
-        if (isReturnMode) return; // Prevent adding new items in return mode
+        if (isReturnMode) return;
         setForm(prev => ({
             ...prev,
             items: [...prev.items, {
@@ -238,7 +239,7 @@ const DeliveryNoteList = () => {
     };
 
     const selectItem = async (idx, item) => {
-        if (isReturnMode) return; // Prevent changing items in return mode
+        if (isReturnMode) return;
         const items = [...form.items];
         items[idx] = {
             item_code: item.item_code,
@@ -278,7 +279,7 @@ const DeliveryNoteList = () => {
     };
 
     const removeItem = (i) => {
-        if (isReturnMode) return; // Prevent removing items in return mode
+        if (isReturnMode) return;
         setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }));
         calculateTotals();
     };
@@ -289,7 +290,6 @@ const DeliveryNoteList = () => {
             const dn = res.data.data;
             let items, formData;
             if (forceReturn) {
-                // Create new return entry
                 items = dn.items.map(i => ({
                     item_code: i.item_code,
                     item_name: i.item_name,
@@ -325,7 +325,6 @@ const DeliveryNoteList = () => {
                 setIsReturnMode(true);
                 setReturnSourceDN(dn.name);
             } else {
-                // Edit existing
                 items = dn.items.map(i => ({
                     item_code: i.item_code,
                     item_name: i.item_name,
@@ -409,15 +408,19 @@ const DeliveryNoteList = () => {
         }
 
         try {
-            let res;
             let newDocName;
 
             if (form.name) {
-                res = await axios.put(`/api/resource/Delivery Note/${form.name}`, payload);
+                await axios.put(`/api/resource/Delivery Note/${form.name}`, payload);
                 newDocName = form.name;
             } else {
-                res = await axios.post('/api/resource/Delivery Note', payload);
+                const res = await axios.post('/api/resource/Delivery Note', payload);
                 newDocName = res.data.data.name;
+            }
+
+            // Update the form with the saved name if it's a new document
+            if (!form.name && !submit) {
+                setForm(prev => ({ ...prev, name: newDocName }));
             }
 
             if (submit && form.is_return && form.return_against) {
@@ -427,18 +430,16 @@ const DeliveryNoteList = () => {
                 });
             }
 
-            const dnRes = await axios.get('/api/resource/Delivery Note', {
-                params: { limit_page_length: 500, order_by: 'modified desc' }
-            });
-            setDeliveryNotes(dnRes.data.data || []);
+            await loadDeliveryNotes(); // Refresh list
 
             alert(
-                form.is_return
-                    ? (submit ? "Sales Return Submitted! Original DN marked as Return Issued" : "Return Saved as Draft")
-                    : (submit ? "Delivery Note Submitted Successfully!" : "Saved as Draft")
+                submit
+                    ? (form.is_return
+                        ? "Sales Return Submitted! Original DN marked as Return Issued"
+                        : "Delivery Note Submitted Successfully!")
+                    : "Saved as Draft Successfully!"
             );
 
-            // STORE DATA IF RETURN SUBMITTED → FOR CREDIT NOTE
             if (submit && form.is_return) {
                 setSubmittedReturnData({
                     return_against: form.return_against,
@@ -451,17 +452,21 @@ const DeliveryNoteList = () => {
                     items: form.items.map(i => ({
                         item_code: i.item_code,
                         item_name: i.item_name,
-                        qty: i.qty, // negative
+                        qty: i.qty,
                         rate: i.rate,
-                        amount: i.amount, // negative
+                        amount: i.amount,
                         uom: i.uom,
                         return_against: i.return_against
                     }))
                 });
             }
 
-            setShowModal(false);
-            resetForm();
+            // Only close modal on Submit
+            if (submit) {
+                setShowModal(false);
+                resetForm();
+            }
+            // If it's just Save Draft → Keep modal open, do NOT reset or close
 
         } catch (err) {
             console.error(err);
@@ -471,7 +476,6 @@ const DeliveryNoteList = () => {
         }
     };
 
-    // NEW: Create Credit Note Function
     const createCreditNote = () => {
         if (!submittedReturnData) return;
 
@@ -486,7 +490,7 @@ const DeliveryNoteList = () => {
             items: submittedReturnData.items.map(i => ({
                 item_code: i.item_code,
                 item_name: i.item_name,
-                qty: Math.abs(i.qty), // negative → positive
+                qty: Math.abs(i.qty),
                 rate: i.rate,
                 amount: Math.abs(i.amount),
                 uom: i.uom
@@ -531,7 +535,7 @@ const DeliveryNoteList = () => {
 
             const params = new URLSearchParams({
                 returnData: JSON.stringify(creditNoteData),
-                autoOpen: 'true' // ADD THIS
+                autoOpen: 'true'
             });
 
             navigate(`/salesinvoice?${params.toString()}`);
@@ -540,6 +544,7 @@ const DeliveryNoteList = () => {
             console.error(err);
         }
     };
+
     const resetForm = () => {
         setForm({
             name: '',
@@ -569,6 +574,7 @@ const DeliveryNoteList = () => {
     const netTotal = form.items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
     const paginatedNotes = filteredNotes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
     const totalPages = Math.ceil(filteredNotes.length / pageSize);
+
     return (
         <>
             <NavBar />
@@ -681,7 +687,7 @@ const DeliveryNoteList = () => {
                                                 <td className="px-6 py-4 text-sm text-gray-500 font-mono">{dn.name}</td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-6">
-                                                        {/* Create Return - Only for original DN that is To Bill and no return issued yet */}
+                                                        {/* Create Return */}
                                                         {dn.status === 'To Bill' &&
                                                             !dn.is_return &&
                                                             dn.issue_credit_note !== 1 && (
@@ -696,10 +702,10 @@ const DeliveryNoteList = () => {
                                                                 </button>
                                                             )}
 
-                                                        {/* Create Credit Note - Only for submitted returns that haven't issued credit note */}
+                                                        {/* Create Credit Note */}
                                                         {dn.is_return === 1 &&
-                                                            ['To Bill', 'Submitted'].includes(dn.status) &&
-                                                            dn.issue_credit_note === 0 && (
+                                                            ['To Bill', 'Submitted'].includes(dn.status) &&  // Completed um include cheyyam if needed
+                                                            dn.issue_credit_note !== 1 && (  // This field is key
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -1028,9 +1034,13 @@ const DeliveryNoteList = () => {
                                     <button onClick={() => saveDeliveryNote(false)} disabled={saving} className="px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-md font-medium">
                                         {saving ? 'Saving...' : 'Save Draft'}
                                     </button>
-                                    <button onClick={() => saveDeliveryNote(true)} disabled={saving} className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center gap-2 disabled:opacity-50 transition-colors">
+                                    <button
+                                        onClick={() => saveDeliveryNote(true)}
+                                        disabled={saving || !form.name}  // Optional: disable submit until saved once
+                                        className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center gap-2 disabled:opacity-50 transition-colors"
+                                    >
                                         {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
-                                        {saving ? 'Submitting...' : (isReturnMode ? 'Submit Return' : 'Submit Delivery Note')}
+                                        {saving ? 'Submitting...' : (form.name ? 'Submit Delivery Note' : 'Save First to Submit')}
                                     </button>
                                 </div>
                             </div>
