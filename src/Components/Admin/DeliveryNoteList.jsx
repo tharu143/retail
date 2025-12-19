@@ -17,6 +17,9 @@ const DeliveryNoteList = () => {
     const [returnSourceDN, setReturnSourceDN] = useState(null);
     const [dropdownPosition, setDropdownPosition] = useState(null);
     const [submittedReturnData, setSubmittedReturnData] = useState(null);
+    const [defaultIncomeAccount, setDefaultIncomeAccount] = useState('');
+    const [barcodeInput, setBarcodeInput] = useState('');
+
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -63,6 +66,76 @@ const DeliveryNoteList = () => {
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [itemQueries, setItemQueries] = useState({});
     const [activeItemRow, setActiveItemRow] = useState(null);
+
+
+    const handleBarcodeScan = async (e) => {
+        if (e.key === 'Enter' && barcodeInput.trim()) {
+            e.preventDefault();
+            const barcode = barcodeInput.trim();
+    
+            try {
+                // Use safe backend method (bypasses child table permission)
+                const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+                    params: { barcode }
+                });
+    
+                if (checkRes.data.message.exists) {
+                    const itemCode = checkRes.data.message.item;
+    
+                    // Fetch full item details
+                    const itemRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
+                        params: { query: itemCode }
+                    });
+    
+                    const itemsList = itemRes.data.message || [];
+                    if (itemsList.length > 0) {
+                        const item = itemsList[0];
+    
+                        // Fetch rate
+                        let rate = 0;
+                        try {
+                            const rateRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
+                                params: {
+                                    item_code: item.item_code,
+                                    price_list: form.selling_price_list
+                                }
+                            });
+                            rate = rateRes.data.rate || rateRes.data.message?.rate || 0;
+                        } catch (err) { }
+    
+                        // Add to table
+                        setForm(prev => ({
+                            ...prev,
+                            items: [...prev.items, {
+                                item_code: item.item_code,
+                                item_name: item.item_name,
+                                qty: 1,
+                                uom: item.stock_uom || 'Nos',
+                                rate: rate,
+                                amount: rate * 1,
+                                income_account: defaultIncomeAccount
+                            }]
+                        }));
+    
+                        calculateTotals();
+                        setBarcodeInput('');
+                        // Focus back
+                        setTimeout(() => {
+                            const el = document.getElementById('barcode-scan-input');
+                            if (el) el.focus();
+                        }, 100);
+                    } else {
+                        alert("Item details not found");
+                    }
+                } else {
+                    alert("Invalid barcode - No item found");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error scanning barcode: " + (err.response?.data?.message || err.message));
+            }
+        }
+    };
 
     const getCurrencySymbol = (currency = 'INR') => {
         switch (currency) {
@@ -111,7 +184,7 @@ const DeliveryNoteList = () => {
     const loadDeliveryNotes = async () => {
         try {
             setLoading(true);
-            const [custRes, whRes, taxRes, plRes, dnRes] = await Promise.all([
+            const [custRes, whRes, taxRes, plRes, dnRes, companyRes] = await Promise.all([
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_dn'),
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_dn'),
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn'),
@@ -122,7 +195,8 @@ const DeliveryNoteList = () => {
                         limit_page_length: 500,
                         order_by: 'modified desc'
                     }
-                })
+                }),
+                axios.get('/api/resource/Company')  // Default company list
             ]);
 
             setCustomers(custRes.data.message || []);
@@ -131,6 +205,12 @@ const DeliveryNoteList = () => {
             setPriceLists(plRes.data.data?.map(pl => pl.name) || ['Standard Selling']);
             setDeliveryNotes(dnRes.data.data || []);
             setFilteredNotes(dnRes.data.data || []);
+
+            // Set default income account (first company usually default)
+            if (companyRes.data.data?.length > 0) {
+                const comp = companyRes.data.data[0];
+                setDefaultIncomeAccount(comp.default_income_account || '');
+            }
         } catch (err) {
             console.error(err);
         } finally {
@@ -865,6 +945,24 @@ const DeliveryNoteList = () => {
                                         {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
                                     </select>
                                 </div>
+
+                                <div className="col-span-1 md:col-span-3">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Scan Barcode
+                                    </label>
+                                    <input
+                                        id="barcode-scan-input"
+                                        type="text"
+                                        value={barcodeInput}
+                                        onChange={(e) => setBarcodeInput(e.target.value)}
+                                        onKeyDown={handleBarcodeScan}
+                                        placeholder="Scan or type barcode → press Enter"
+                                        className="w-full px-6 py-4 text-xl font-mono border border-gray-300 rounded-lg focus:ring-4 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-inner"
+                                        autoFocus={false}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Scanner auto-submits on Enter • Fast scanning ready!</p>
+                                </div>
+
                                 {/* Items Table */}
                                 <div className="bg-white rounded-lg border border-gray-300 overflow-hidden">
                                     <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
