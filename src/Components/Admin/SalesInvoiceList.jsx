@@ -110,73 +110,73 @@ const SalesInvoiceList = () => {
     };
 
     const handleBarcodeScan = async (e) => {
-    if (e.key === 'Enter' && barcodeInput.trim()) {
-        e.preventDefault();
-        const barcode = barcodeInput.trim();
+        if (e.key === 'Enter' && barcodeInput.trim()) {
+            e.preventDefault();
+            const barcode = barcodeInput.trim();
 
-        try {
-            // Use safe backend method (bypasses child table permission)
-            const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
-                params: { barcode }
-            });
-
-            if (checkRes.data.message.exists) {
-                const itemCode = checkRes.data.message.item;
-
-                // Fetch full item details
-                const itemRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
-                    params: { query: itemCode }
+            try {
+                // Use safe backend method (bypasses child table permission)
+                const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+                    params: { barcode }
                 });
 
-                const itemsList = itemRes.data.message || [];
-                if (itemsList.length > 0) {
-                    const item = itemsList[0];
+                if (checkRes.data.message.exists) {
+                    const itemCode = checkRes.data.message.item;
 
-                    // Fetch rate
-                    let rate = 0;
-                    try {
-                        const rateRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
-                            params: {
+                    // Fetch full item details
+                    const itemRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
+                        params: { query: itemCode }
+                    });
+
+                    const itemsList = itemRes.data.message || [];
+                    if (itemsList.length > 0) {
+                        const item = itemsList[0];
+
+                        // Fetch rate
+                        let rate = 0;
+                        try {
+                            const rateRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
+                                params: {
+                                    item_code: item.item_code,
+                                    price_list: form.selling_price_list
+                                }
+                            });
+                            rate = rateRes.data.rate || rateRes.data.message?.rate || 0;
+                        } catch (err) { }
+
+                        // Add to table
+                        setForm(prev => ({
+                            ...prev,
+                            items: [...prev.items, {
                                 item_code: item.item_code,
-                                price_list: form.selling_price_list
-                            }
-                        });
-                        rate = rateRes.data.rate || rateRes.data.message?.rate || 0;
-                    } catch (err) { }
+                                item_name: item.item_name,
+                                qty: 1,
+                                uom: item.stock_uom || 'Nos',
+                                rate: rate,
+                                amount: rate * 1,
+                                income_account: defaultIncomeAccount
+                            }]
+                        }));
 
-                    // Add to table
-                    setForm(prev => ({
-                        ...prev,
-                        items: [...prev.items, {
-                            item_code: item.item_code,
-                            item_name: item.item_name,
-                            qty: 1,
-                            uom: item.stock_uom || 'Nos',
-                            rate: rate,
-                            amount: rate * 1,
-                            income_account: defaultIncomeAccount
-                        }]
-                    }));
-
-                    calculateTotals();
-                    setBarcodeInput('');
-                    // Focus back
-                    setTimeout(() => {
-                        const el = document.getElementById('barcode-scan-input');
-                        if (el) el.focus();
-                    }, 100);
+                        calculateTotals();
+                        setBarcodeInput('');
+                        // Focus back
+                        setTimeout(() => {
+                            const el = document.getElementById('barcode-scan-input');
+                            if (el) el.focus();
+                        }, 100);
+                    } else {
+                        alert("Item details not found");
+                    }
                 } else {
-                    alert("Item details not found");
+                    alert("Invalid barcode - No item found");
                 }
-            } else {
-                alert("Invalid barcode - No item found");
+            } catch (err) {
+                console.error(err);
+                alert("Error scanning barcode: " + (err.response?.data?.message || err.message));
             }
-        } catch (err) {
-            console.error(err);
-            alert("Error scanning barcode: " + (err.response?.data?.message || err.message));
         }
-    }
-};
+    };
 
     useEffect(() => {
         if (!company) return;
@@ -768,12 +768,15 @@ const SalesInvoiceList = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 font-mono">{inv.name}</td>
                                                 <td className="px-6 py-4">
-                                                    {inv.status === 'Submitted' && !inv.is_return && (
+                                                    {(inv.status === 'Submitted' || inv.status === 'Unpaid') && !inv.is_return && (
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); loadForReturn(inv.name); }}
-                                                            className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                loadForReturn(inv.name);
+                                                            }}
+                                                            className="text-red-600 hover:text-red-800 font-medium text-sm flex items-center gap-1"
                                                         >
-                                                            Create Credit Note
+                                                            <ArrowLeft className="w-4 h-4" /> Create Credit Note (Return)
                                                         </button>
                                                     )}
                                                 </td>
