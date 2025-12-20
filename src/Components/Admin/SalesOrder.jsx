@@ -94,6 +94,88 @@ function SalesOrder() {
     const [minAmount, setMinAmount] = useState('');
     const [maxAmount, setMaxAmount] = useState('');
 
+    const [barcodeInput, setBarcodeInput] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingDocName, setEditingDocName] = useState(null);
+
+    const handleBarcodeScan = async (e) => {
+        if (e.key === 'Enter' && barcodeInput.trim()) {
+            e.preventDefault();
+            const barcode = barcodeInput.trim();
+
+            try {
+                // Step 1: Check if barcode exists
+                const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+                    params: { barcode },
+                    withCredentials: true
+                });
+
+                if (checkRes.data.message.exists) {
+                    const itemCode = checkRes.data.message.item;
+
+                    // Step 2: Fetch item details using existing SO item search endpoint
+                    const itemRes = await axios.get(`${API_PATH}.get_items_so`, {
+                        params: { query: itemCode },
+                        withCredentials: true
+                    });
+
+                    const itemsList = itemRes.data.message || [];
+                    if (itemsList.length > 0) {
+                        const item = itemsList[0];
+
+                        // Step 3: Fetch selling rate (reuse existing logic)
+                        let rate = 0;
+                        try {
+                            const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
+                                params: {
+                                    item_code: item.item_code,
+                                    price_list: form.selling_price_list
+                                },
+                                withCredentials: true
+                            });
+                            // Handle nested message structure same as selectItem
+                            rate = rateRes.data?.message?.message?.rate ||
+                                rateRes.data?.message?.rate ||
+                                rateRes.data?.rate || 0;
+                        } catch (err) {
+                            console.error("Rate fetch failed in barcode:", err);
+                        }
+
+                        // Step 4: Add to items table
+                        setForm(prev => ({
+                            ...prev,
+                            items: [...prev.items, {
+                                item_code: item.item_code,
+                                item_name: item.item_name,
+                                qty: 1,
+                                uom: item.stock_uom || 'Nos',
+                                rate: rate,
+                                amount: rate * 1,
+                                delivery_date: prev.delivery_date || prev.transaction_date
+                            }]
+                        }));
+
+                        recalculate(); // recalc totals
+                        setBarcodeInput(''); // clear input
+
+                        // Refocus barcode input for next scan
+                        setTimeout(() => {
+                            const el = document.getElementById('barcode-scan-input-so');
+                            if (el) el.focus();
+                        }, 100);
+                    } else {
+                        alert("Item details not found for this barcode");
+                    }
+                } else {
+                    alert("Invalid barcode - No item found");
+                }
+            } catch (err) {
+                console.error("Barcode scan error:", err);
+                alert("Error scanning barcode: " + (err.response?.data?.message || err.message));
+            }
+        }
+    };
+
     useEffect(() => {
         let filtered = orders;
 
@@ -265,54 +347,54 @@ function SalesOrder() {
     };
 
     const selectItem = async (idx, item) => {
-    try {
-        const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
-            params: { 
-                item_code: item.item_code, 
-                price_list: form.selling_price_list 
-            },
-            withCredentials: true
-        });
+        try {
+            const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
+                params: {
+                    item_code: item.item_code,
+                    price_list: form.selling_price_list
+                },
+                withCredentials: true
+            });
 
-        // Frappe adds double "message" wrapper → so we need message.message.rate
-        const fetchedRate = 
-            rateRes.data?.message?.message?.rate || 
-            rateRes.data?.message?.rate || 
-            rateRes.data?.rate || 
-            0;
+            // Frappe adds double "message" wrapper → so we need message.message.rate
+            const fetchedRate =
+                rateRes.data?.message?.message?.rate ||
+                rateRes.data?.message?.rate ||
+                rateRes.data?.rate ||
+                0;
 
-        console.log("Rate Response:", rateRes.data); // ← ഇത് console-ൽ നോക്കൂ, എന്താണ് വരുന്നതെന്ന്
-        console.log("Final Rate:", fetchedRate);
+            console.log("Rate Response:", rateRes.data); // ← ഇത് console-ൽ നോക്കൂ, എന്താണ് വരുന്നതെന്ന്
+            console.log("Final Rate:", fetchedRate);
 
-        setForm(prev => {
-            const items = [...prev.items];
-            items[idx] = {
-                item_code: item.item_code,
-                item_name: item.item_name,
-                uom: item.stock_uom || 'Nos',
-                qty: 1,
-                rate: fetchedRate,
-                amount: fetchedRate * 1,
-                delivery_date: prev.delivery_date || prev.transaction_date
-            };
-            return { ...prev, items };
-        });
+            setForm(prev => {
+                const items = [...prev.items];
+                items[idx] = {
+                    item_code: item.item_code,
+                    item_name: item.item_name,
+                    uom: item.stock_uom || 'Nos',
+                    qty: 1,
+                    rate: fetchedRate,
+                    amount: fetchedRate * 1,
+                    delivery_date: prev.delivery_date || prev.transaction_date
+                };
+                return { ...prev, items };
+            });
 
-        recalculate();
-    } catch (err) {
-        console.error("Rate fetch failed:", err.response?.data || err);
-        setForm(prev => {
-            const items = [...prev.items];
-            items[idx].rate = 0;
-            items[idx].amount = 0;
-            return { ...prev, items };
-        });
-        recalculate();
-    }
+            recalculate();
+        } catch (err) {
+            console.error("Rate fetch failed:", err.response?.data || err);
+            setForm(prev => {
+                const items = [...prev.items];
+                items[idx].rate = 0;
+                items[idx].amount = 0;
+                return { ...prev, items };
+            });
+            recalculate();
+        }
 
-    setItemSearches(prev => ({ ...prev, [idx]: '' }));
-    setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
-};
+        setItemSearches(prev => ({ ...prev, [idx]: '' }));
+        setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
+    };
 
     const searchItems = async (query, idx) => {
         if (!query.trim()) {
@@ -383,11 +465,14 @@ function SalesOrder() {
         recalculate();
     };
 
-    const handleSave = async () => {
+    const handleSave = async (submit = false) => {
         if (!form.customer) return alert("Customer is required");
+        if (form.items.length === 0) return alert("Add at least one item");
         if (form.items.some(i => !i.item_code)) return alert("All items must be selected");
 
-        setSaving(true);
+        const savingState = submit ? setIsSubmitting : setSaving;
+        savingState(true);
+
         const payload = {
             doctype: "Sales Order",
             naming_series: form.naming_series,
@@ -419,20 +504,110 @@ function SalesOrder() {
             rounding_adjustment: form.rounding_adjustment
         };
 
+        if (submit) {
+            payload.docstatus = 1;
+        }
+
         try {
-            await axios.post(`${RESOURCE_BASE}/Sales Order`, payload, { withCredentials: true });
-            alert("Sales Order Created Successfully!");
-            setShowModal(false);
-            fetchOrders();
+            let response;
+            if (editingDocName) {
+                // Edit existing draft
+                response = await axios.put(`${RESOURCE_BASE}/Sales Order/${editingDocName}`, payload, { withCredentials: true });
+                alert(submit ? "Sales Order Submitted Successfully!" : "Draft Updated Successfully!");
+            } else {
+                // New document
+                response = await axios.post(`${RESOURCE_BASE}/Sales Order`, payload, { withCredentials: true });
+                alert(submit ? "Sales Order Submitted Successfully!" : "Sales Order Saved as Draft!");
+                if (!submit) {
+                    setEditingDocName(response.data.data.name); // Set editing mode
+                }
+            }
+
+            // Only close modal on Submit
+            if (submit) {
+                setShowModal(false);
+                setEditingDocName(null);
+            }
+
+            fetchOrders(); // Refresh list
         } catch (err) {
             console.error(err);
             alert(err.response?.data?.message || "Failed to save Sales Order");
         } finally {
             setSaving(false);
+            setIsSubmitting(false);
+        }
+    };
+
+    const loadSalesOrder = async (docName) => {
+        try {
+            setLoading(true);
+            const res = await axios.get(`${RESOURCE_BASE}/Sales Order/${docName}`, { withCredentials: true });
+            const data = res.data.data;
+
+            // Only allow editing if Draft
+            if (data.docstatus !== 0) {
+                alert("Submitted/Completed orders cannot be edited");
+                return;
+            }
+
+            setForm({
+                naming_series: data.naming_series || 'SAL-ORD-.YYYY.-',
+                transaction_date: data.transaction_date,
+                delivery_date: data.delivery_date || '',
+                customer: data.customer || '',
+                customer_name: data.customer_name || '',
+                order_type: data.order_type || 'Sales',
+                currency: data.currency || 'AED',
+                selling_price_list: data.selling_price_list || 'Standard Selling',
+                price_list_currency: data.price_list_currency || 'AED',
+                items: (data.items || []).map(i => ({
+                    item_code: i.item_code || '',
+                    item_name: i.item_name || '',
+                    qty: i.qty || 1,
+                    rate: i.rate || 0,
+                    amount: i.amount || 0,
+                    uom: i.uom || 'Nos',
+                    delivery_date: data.delivery_date || data.transaction_date
+                })),
+                taxes_and_charges: data.taxes_and_charges || '',
+                taxes: (data.taxes || []).map(t => ({
+                    ...t,
+                    add_deduct_tax: t.add_deduct_tax || "Add",
+                    total: "0.000"
+                })),
+                apply_discount_on: data.apply_discount_on || 'Grand Total',
+                additional_discount_percentage: data.additional_discount_percentage || 0,
+                discount_amount: data.discount_amount || 0,
+                total_qty: data.total_qty || 0,
+                base_total: data.base_total || 0,
+                total: data.total || 0,
+                total_taxes_and_charges: data.total_taxes_and_charges || 0,
+                grand_total: data.grand_total || 0,
+                rounding_adjustment: data.rounding_adjustment || 0,
+                rounded_total: data.rounded_total || 0
+            });
+
+            setSearchCustomer(data.customer_name || '');
+            setEditingDocName(docName);
+            setShowModal(true);
+
+            // Focus barcode after load
+            setTimeout(() => {
+                const el = document.getElementById('barcode-scan-input-so');
+                if (el) el.focus();
+            }, 300);
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to load Sales Order");
+        } finally {
+            setLoading(false);
         }
     };
 
     const openNew = () => {
+        setEditingDocName(null);
         setForm({
             naming_series: 'SAL-ORD-.YYYY.-',
             transaction_date: new Date().toISOString().split('T')[0],
@@ -442,7 +617,7 @@ function SalesOrder() {
             currency: 'AED',
             selling_price_list: 'Standard Selling',
             price_list_currency: 'AED',
-            items: [{ item_code: '', item_name: '', qty: 1, rate: 0, amount: 0, uom: 'Nos', delivery_date: '' }],
+            items: [],
             taxes_and_charges: '',
             taxes: [],
             apply_discount_on: 'Grand Total',
@@ -459,7 +634,13 @@ function SalesOrder() {
         setSearchCustomer('');
         setItemSearches({});
         setShowItemDropdowns({});
+        setBarcodeInput('');
         setShowModal(true);
+
+        setTimeout(() => {
+            const el = document.getElementById('barcode-scan-input-so');
+            if (el) el.focus();
+        }, 300);
     };
 
     return (
@@ -569,7 +750,7 @@ function SalesOrder() {
                             <table className="w-full">
                                 <thead className="bg-gray-50 border-b">
                                     <tr>
-                                        <th className="w-12 px-6 py-3"><input type="checkbox" /></th>
+
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
@@ -584,15 +765,15 @@ function SalesOrder() {
                                         <tr><td colSpan="6" className="text-center py-16 text-gray-500">No sales orders found</td></tr>
                                     ) : (
                                         orders.map(order => (
-                                            <tr key={order.name} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4"><input type="checkbox" /></td>
+                                            <tr
+                                                key={order.name}
+                                                className="hover:bg-gray-50 cursor-pointer"
+                                                onClick={() => loadSalesOrder(order.name)}  // ← Click to open & edit
+                                            >
+
                                                 <td className="px-6 py-4 text-sm font-medium">{order.title || 'Sales Order'}</td>
                                                 <td className="px-6 py-4">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.docstatus === 1
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : order.docstatus === 0
-                                                            ? 'bg-yellow-100 text-yellow-800'
-                                                            : 'bg-gray-100 text-gray-800'
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.docstatus === 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                                                         }`}>
                                                         {order.docstatus === 1 ? 'Submitted' : 'Draft'}
                                                     </span>
@@ -632,8 +813,10 @@ function SalesOrder() {
                     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
                         <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-screen overflow-y-auto">
                             <div className="sticky top-0 bg-white px-6 py-4 border-b flex justify-between items-center z-10">
-                                <h2 className="text-2xl font-bold">New Sales Order</h2>
-                                <button onClick={() => setShowModal(false)}><X size={28} /></button>
+                                <h2 className="text-2xl font-bold">
+                                    {editingDocName ? `Edit Sales Order - ${editingDocName}` : 'New Sales Order'}
+                                </h2>
+                                <button onClick={() => { setShowModal(false); setEditingDocName(null); }}><X size={28} /></button>
                             </div>
 
                             <div className="p-6 space-y-8">
@@ -710,13 +893,31 @@ function SalesOrder() {
                                     </div>
                                 </div>
 
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <label className="block text-sm font-semibold text-blue-900 mb-2">
+                                        Scan Barcode
+                                    </label>
+                                    <input
+                                        id="barcode-scan-input-so"
+                                        type="text"
+                                        value={barcodeInput}
+                                        onChange={(e) => setBarcodeInput(e.target.value)}
+                                        onKeyDown={handleBarcodeScan}
+                                        placeholder="Scan or type barcode → press Enter"
+                                        className="w-full px-6 py-4 text-xl font-mono border-2 border-blue-300 rounded-lg focus:ring-4 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-inner"
+                                        autoFocus={false}
+                                    />
+                                    <p className="text-xs text-blue-700 mt-2">Scanner auto-submits on Enter • Fast scanning enabled!</p>
+                                </div>
+
                                 {/* Items */}
                                 <div>
                                     <div className="flex justify-between items-center mb-3">
                                         <h3 className="text-lg font-semibold">Items</h3>
                                         <button onClick={addItemRow} className="text-blue-600 flex items-center gap-1"><Plus size={18} /> Add Item</button>
                                     </div>
-                                    <div className="border rounded-lg overflow-hidden">
+                                    {/* REMOVED overflow-hidden here */}
+                                    <div className="border rounded-lg">
                                         <table className="w-full">
                                             <thead className="bg-gray-50">
                                                 <tr>
@@ -728,48 +929,89 @@ function SalesOrder() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {form.items.map((item, i) => (
-                                                    <tr key={i} className="border-t">
-                                                        <td className="p-3">
-                                                            {item.item_code ? (
-                                                                <div>
-                                                                    <div className="font-medium">{item.item_name}</div>
-                                                                    <div className="text-sm text-gray-500">{item.item_code}</div>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="relative">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={itemSearches[i] || ''}
-                                                                        onChange={e => {
-                                                                            const val = e.target.value;
-                                                                            setItemSearches(prev => ({ ...prev, [i]: val }));
-                                                                            searchItems(val, i);
-                                                                        }}
-                                                                        placeholder="Search item..."
-                                                                        className="w-full px-3 py-2 border rounded"
-                                                                    />
-                                                                    {showItemDropdowns[i] && itemsList.length > 0 && (
-                                                                        <div className="absolute z-30 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                                                            {itemsList.map(itm => (
-                                                                                <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">
-                                                                                    <div>{itm.item_name}</div>
-                                                                                    <div className="text-sm text-gray-500">{itm.item_code}</div>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        <td className="p-3"><input type="number" value={item.qty || ''} onChange={e => updateItem(i, 'qty', e.target.value)} className="w-full text-center border rounded px-2 py-1" /></td>
-                                                        <td className="p-3"><input type="number" step="0.01" value={item.rate || ''} onChange={e => updateItem(i, 'rate', e.target.value)} className="w-full text-right border rounded px-2 py-1" /></td>
-                                                        <td className="p-3 text-right font-medium">AED {(parseFloat(item.amount) || 0).toFixed(2)}</td>
-                                                        <td className="p-3 text-center">
-                                                            {form.items.length > 1 && <button onClick={() => removeItemRow(i)} className="text-red-600"><Trash2 size={18} /></button>}
+                                                {form.items.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="5" className="p-12 text-center text-gray-500">
+                                                            <div className="space-y-3">
+                                                                <p className="text-lg font-medium">No items added yet</p>
+                                                                <p className="text-sm">
+                                                                    Scan a barcode or click <span className="font-semibold text-blue-600">"Add Item"</span> to get started
+                                                                </p>
+                                                            </div>
                                                         </td>
                                                     </tr>
-                                                ))}
+                                                ) : (
+                                                    form.items.map((item, i) => (
+                                                        <tr key={i} className="border-t">
+                                                            <td className="p-3 relative">
+                                                                {item.item_code ? (
+                                                                    <div>
+                                                                        <div className="font-medium">{item.item_name}</div>
+                                                                        <div className="text-sm text-gray-500">{item.item_code}</div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={itemSearches[i] || ''}
+                                                                            onChange={e => {
+                                                                                const val = e.target.value;
+                                                                                setItemSearches(prev => ({ ...prev, [i]: val }));
+                                                                                searchItems(val, i);
+                                                                            }}
+                                                                            placeholder="Search item..."
+                                                                            className="w-full px-3 py-2 border rounded"
+                                                                        />
+                                                                        {/* DROPDOWN: z-index high + outside table flow */}
+                                                                        {showItemDropdowns[i] && itemsList.length > 0 && (
+                                                                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-2xl z-50 max-h-60 overflow-y-auto">
+                                                                                {itemsList.map(itm => (
+                                                                                    <div
+                                                                                        key={itm.item_code}
+                                                                                        onClick={() => selectItem(i, itm)}
+                                                                                        className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                                                                                    >
+                                                                                        <div className="font-medium">{itm.item_name}</div>
+                                                                                        <div className="text-sm text-gray-500">{itm.item_code}</div>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            {/* ... qty, rate, amount, delete same ... */}
+                                                            <td className="p-3">
+                                                                <input
+                                                                    type="number"
+                                                                    value={item.qty || ''}
+                                                                    onChange={e => updateItem(i, 'qty', e.target.value)}
+                                                                    className="w-full text-center border rounded px-2 py-1"
+                                                                />
+                                                            </td>
+                                                            <td className="p-3">
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={item.rate || ''}
+                                                                    onChange={e => updateItem(i, 'rate', e.target.value)}
+                                                                    className="w-full text-right border rounded px-2 py-1"
+                                                                />
+                                                            </td>
+                                                            <td className="p-3 text-right font-medium">
+                                                                AED {(parseFloat(item.amount) || 0).toFixed(2)}
+                                                            </td>
+                                                            <td className="p-3 text-center">
+                                                                <button
+                                                                    onClick={() => removeItemRow(i)}
+                                                                    className="text-red-600 hover:text-red-800"
+                                                                >
+                                                                    <Trash2 size={18} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -845,10 +1087,23 @@ function SalesOrder() {
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end gap-4">
-                                    <button onClick={() => setShowModal(false)} className="px-6 py-3 border rounded-lg hover:bg-gray-50">Cancel</button>
-                                    <button onClick={handleSave} disabled={saving} className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-70">
-                                        {saving ? 'Saving...' : 'Save Sales Order'}
+                                <div className="flex justify-end gap-4 pt-6 border-t">
+                                    <button onClick={() => { setShowModal(false); setEditingDocName(null); }} className="px-6 py-3 border rounded-lg hover:bg-gray-50">
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => handleSave(false)}
+                                        disabled={saving || isSubmitting}
+                                        className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-70"
+                                    >
+                                        {saving ? 'Saving...' : (editingDocName ? 'Update Draft' : 'Save Draft')}
+                                    </button>
+                                    <button
+                                        onClick={() => handleSave(true)}
+                                        disabled={saving || isSubmitting}
+                                        className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-70 flex items-center gap-2"
+                                    >
+                                        {isSubmitting ? 'Submitting...' : 'Submit Sales Order'}
                                     </button>
                                 </div>
                             </div>
