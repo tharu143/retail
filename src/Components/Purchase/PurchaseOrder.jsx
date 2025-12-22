@@ -28,7 +28,10 @@ function PurchaseOrder() {
       schedule_date: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0, 16)
     }],
     total_qty: 0,
-    total: 0
+    total: 0,
+    taxes_and_charges: null,   
+    taxes: [],                
+    grand_total: 0
   });
 
   const [warehouses, setWarehouses] = useState([]);
@@ -39,12 +42,14 @@ function PurchaseOrder() {
   const [allItems, setAllItems] = useState([]);
   const [dropdownPosition, setDropdownPosition] = useState(null);
   const [activeDropdownRow, setActiveDropdownRow] = useState(null);
+  const [taxTemplates, setTaxTemplates] = useState([]);
 
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
   useEffect(() => {
     fetchWarehouses();
+    fetchTaxTemplates();
   }, []);
 
   const fetchWarehouses = async () => {
@@ -58,6 +63,100 @@ function PurchaseOrder() {
       setWarehouses(data.message || []);
     } catch (err) {
       setError('Failed to load warehouses');
+    }
+  };
+
+    const fetchTaxTemplates = async () => {
+    try {
+      const res = await fetch(`${API_PATH}.get_purchase_taxes_templates_po`, {  // ← CHANGED
+        headers: { 'X-Frappe-SID': getSession() },
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      setTaxTemplates(data.message || data || []);  // Safe handling
+    } catch (err) {
+      console.error('Tax templates error:', err);
+    }
+  };
+
+      const fetchTaxRows = async (template) => {
+    if (!template) {
+      setFormData(prev => ({
+        ...prev,
+        taxes: [],
+        taxes_and_charges: null,
+        grand_total: prev.total
+      }));
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_PATH}.get_purchase_taxes_templates_po?template=${encodeURIComponent(template)}`, {
+        headers: { 'X-Frappe-SID': getSession() },
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        setError('Failed to load tax template');
+        return;
+      }
+
+      const data = await res.json();
+
+      const rawTaxes = Array.isArray(data) 
+        ? data 
+        : Array.isArray(data.message) 
+          ? data.message 
+          : [];
+
+      if (rawTaxes.length === 0) {
+        setError('No tax rows found in template');
+        return;
+      }
+
+      const formattedTaxes = rawTaxes.map(t => ({
+        charge_type: t.charge_type || "On Net Total",
+        account_head: t.account_head || '',
+        rate: parseFloat(t.rate) || 0,
+        tax_amount: 0,
+        description: t.description || t.account_head || 'Tax',
+        add_deduct_tax: t.add_deduct_tax || "Add"
+      }));
+
+      // State update + immediate recalculation with latest items
+      setFormData(prev => {
+        const netTotal = prev.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+        let taxesTotal = 0;
+        const updatedTaxes = formattedTaxes.map(tax => {
+          let taxAmt = 0;
+          if (tax.charge_type === "On Net Total") {
+            taxAmt = netTotal * (tax.rate || 0) / 100;
+          } else if (tax.charge_type === "Actual") {
+            taxAmt = tax.rate || 0;
+          }
+          if (tax.add_deduct_tax === "Deduct") {
+            taxAmt = -taxAmt;
+          }
+          taxesTotal += taxAmt;
+          return { ...tax, tax_amount: taxAmt };
+        });
+
+        const grandTotal = netTotal + taxesTotal;
+
+        return {
+          ...prev,
+          taxes: updatedTaxes,
+          taxes_and_charges: template,
+          total: netTotal,
+          grand_total: grandTotal
+        };
+      });
+
+    } catch (err) {
+      setError('Failed to load tax details');
+      console.error('Tax fetch error:', err);
     }
   };
 
@@ -95,10 +194,35 @@ function PurchaseOrder() {
     calculateTotals();
   };
 
-  const calculateTotals = () => {
+    const calculateTotals = () => {
     const totalQty = formData.items.reduce((sum, item) => sum + (item.qty || 0), 0);
-    const total = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
-    setFormData(prev => ({ ...prev, total_qty: totalQty, total }));
+    const netTotal = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+    let taxesTotal = 0;
+    const updatedTaxes = (formData.taxes || []).map(tax => {
+      let taxAmt = 0;
+      if (tax.charge_type === "On Net Total") {
+        taxAmt = netTotal * (tax.rate || 0) / 100;
+      } else if (tax.charge_type === "Actual") {
+        taxAmt = tax.rate || 0;
+      }
+      // Handle Deduct tax
+      if (tax.add_deduct_tax === "Deduct") {
+        taxAmt = -taxAmt;
+      }
+      taxesTotal += taxAmt;
+      return { ...tax, tax_amount: taxAmt };
+    });
+
+    const grandTotal = netTotal + taxesTotal;
+
+    setFormData(prev => ({
+      ...prev,
+      total_qty: totalQty,
+      total: netTotal,
+      taxes: updatedTaxes,
+      grand_total: grandTotal
+    }));
   };
 
   const addItemRow = () => {
@@ -140,7 +264,6 @@ function PurchaseOrder() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!formData.supplier?.name || !formData.company) {
       setError('Please select supplier and company');
       return;
@@ -153,18 +276,25 @@ function PurchaseOrder() {
       setError('Schedule date cannot be before transaction date');
       return;
     }
-
     setLoading(true);
     setError('');
     setSuccess('');
-
     try {
       const payload = {
         ...formData,
         supplier: formData.supplier.name,
+        taxes_and_charges: formData.taxes_and_charges,
+        taxes: formData.taxes.map(t => ({
+          charge_type: t.charge_type,
+          account_head: t.account_head,
+          rate: t.rate,
+          tax_amount: t.tax_amount,
+          description: t.description || t.account_head
+        }))
       };
       delete payload.total_qty;
       delete payload.total;
+      delete payload.grand_total;
 
       const res = await fetch(`${API_PATH}.create_purchase_order`, {
         method: 'POST',
@@ -178,12 +308,15 @@ function PurchaseOrder() {
       const apiResp = data.message || data;
 
       if (apiResp.status === 'success') {
-        setSuccess(`PO ${apiResp.name} created! Total: AED ${apiResp.grand_total?.toFixed(2) || formData.total.toFixed(2)}`);
+        setSuccess(`PO ${apiResp.name} created! Grand Total: AED ${apiResp.grand_total?.toFixed(2) || formData.grand_total.toFixed(2)}`);
         setFormData(prev => ({
           ...prev,
           items: [{ ...POItemModel, schedule_date: prev.transaction_date }],
+          taxes: [],
+          taxes_and_charges: null,
           total_qty: 0,
-          total: 0
+          total: 0,
+          grand_total: 0
         }));
       } else {
         setError(apiResp.message || 'Failed');
@@ -308,7 +441,7 @@ function PurchaseOrder() {
         (data.message || []).map(async (item) => {
           if (!item.rate) {
             try {
-              const rateRes = await fetch(`${API_PATH}.get_item_selling_rate_po?item_code=${item.item_code}`, {
+              const rateRes = await fetch(`${API_PATH}.get_item_buying_rate_po?item_code=${item.item_code}`, {
                 headers: { 'X-Frappe-SID': getSession() },
                 credentials: 'include'
               });
@@ -360,7 +493,6 @@ function PurchaseOrder() {
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            {/* SUPPLIER WITH TYPE DROPDOWN */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Supplier *</label>
               <CustomSearchDropdown
@@ -409,7 +541,7 @@ function PurchaseOrder() {
             </div>
           </div>
 
-          {/* Items Table */}
+          {/* Items Table - unchanged */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold flex items-center gap-2"><Package className="w-5 h-5" /> Items</h2>
@@ -440,7 +572,7 @@ function PurchaseOrder() {
                             onChange={async (e) => {
                               const q = e.target.value;
                               const items = [...formData.items];
-                              items[idx].item_name = q; // Show typed text
+                              items[idx].item_name = q;
                               setFormData({ ...formData, items });
 
                               if (q.length < 2) {
@@ -484,7 +616,6 @@ function PurchaseOrder() {
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                           />
 
-                          {/* PORTAL DROPDOWN — ONLY FOR ITEMS TABLE */}
                           {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
                             <div
                               className="fixed bg-white border border-gray-300 rounded-lg shadow-2xl z-[9999] max-h-64 overflow-y-auto"
@@ -538,16 +669,75 @@ function PurchaseOrder() {
             </div>
           </div>
 
+          {/* NEW TAX SECTION */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Taxes & Charges</h2>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Tax Template</label>
+              <select
+                value={formData.taxes_and_charges || ''}
+                onChange={(e) => fetchTaxRows(e.target.value || null)}
+                className="w-full md:w-96 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+              >
+                <option value="">-- No Template --</option>
+                {taxTemplates.map(t => (
+                  <option key={t.name} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {formData.taxes.length > 0 && (
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="text-left py-3 px-4">Description</th>
+                      <th className="text-left py-3 px-4">Type</th>
+                      <th className="text-right py-3 px-4">Rate (%)</th>
+                      <th className="text-right py-3 px-4">Amount (AED)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formData.taxes.map((tax, i) => (
+                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                        <td className="py-3 px-4">{tax.description || tax.account_head}</td>
+                        <td className="py-3 px-4 text-sm">{tax.charge_type}</td>
+                        <td className="py-3 px-4 text-right">{(tax.rate || 0).toFixed(2)}</td>
+                        <td className="py-3 px-4 text-right font-medium">
+                          {tax.tax_amount.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-slate-100 font-bold">
+                      <td colSpan={3} className="py-3 px-4 text-right">Total Tax</td>
+                      <td className="py-3 px-4 text-right">
+                        {(formData.grand_total - formData.total).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* UPDATED SUMMARY */}
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-6 text-white mb-6">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><DollarSign className="w-6 h-6" /> Summary</h3>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white/10 rounded-lg p-4">
                 <p className="text-slate-300">Total Quantity</p>
                 <p className="text-2xl font-bold">{formData.total_qty.toFixed(2)}</p>
               </div>
               <div className="bg-white/10 rounded-lg p-4">
-                <p className="text-slate-300">Grand Total</p>
+                <p className="text-slate-300">Net Total</p>
                 <p className="text-2xl font-bold">AED {formData.total.toFixed(2)}</p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-4">
+                <p className="text-slate-300">Grand Total</p>
+                <p className="text-3xl font-bold">AED {formData.grand_total.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -558,7 +748,7 @@ function PurchaseOrder() {
           </button>
         </form>
 
-        {/* History */}
+        {/* History section unchanged */}
         {Object.keys(history).length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><ShoppingCart className="w-6 h-6" /> Recent PO History</h2>
@@ -567,7 +757,11 @@ function PurchaseOrder() {
                 <p className="font-medium">Item: {code}</p>
                 <table className="w-full mt-2 text-sm">
                   {entries.slice(0, 3).map((e, i) => (
-                    <tr key={i}><td className="py-1">{e.parent}</td><td className="text-right">{e.qty}</td><td className="text-right">AED {parseFloat(e.rate).toFixed(2)}</td></tr>
+                    <tr key={i}>
+                      <td className="py-1">{e.parent}</td>
+                      <td className="text-right">{e.qty}</td>
+                      <td className="text-right">AED {parseFloat(e.rate).toFixed(2)}</td>
+                    </tr>
                   ))}
                 </table>
               </div>

@@ -21,8 +21,9 @@ function PurchaseReceiptList() {
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
-  // NEW: Track rate loading per row
   const [rateLoading, setRateLoading] = useState({});
+  const [docName, setDocName] = useState('');
+  const [barcodeInput, setBarcodeInput] = useState('');
 
   const [formData, setFormData] = useState({
     series: 'MAT-PRE-.YYYY.-',
@@ -86,15 +87,16 @@ function PurchaseReceiptList() {
   const itemRefs = useRef({});
 
   const recalcTaxesAndTotals = useCallback((items, net_total, taxes, additional_discount_percentage, discount_amount, rounded_total, apply_discount_on = 'Net Total') => {
-    // Calculate taxes sequentially
     let prev_tax_amount = 0;
-    let prev_total = net_total;
+    let prev_total = net_total;  // ← IMPORTANT: Initialize here
     const updatedTaxes = [];
+
     for (const tax of taxes) {
-      const charge_type = tax.charge_type;
+      const charge_type = tax.charge_type || "On Net Total";
       const rate = parseFloat(tax.rate) || 0;
       const tax_amount_fixed = parseFloat(tax.tax_amount) || 0;
       let gross_tax = 0;
+
       if (charge_type === 'Actual') {
         gross_tax = tax_amount_fixed;
       } else {
@@ -110,21 +112,37 @@ function PurchaseReceiptList() {
         }
         gross_tax = base * (rate / 100);
       }
-      const signed_total = tax.add_row ? gross_tax : -gross_tax;
-      updatedTaxes.push({ ...tax, total: signed_total.toFixed(2) });
+
+      // add_row can be boolean, 1, or "Add"
+      const isAdd = tax.add_row === true || tax.add_row === 1 || tax.add_deduct_tax === "Add";
+      const signed_total = isAdd ? gross_tax : -gross_tax;
+
+      updatedTaxes.push({
+        ...tax,
+        total: signed_total.toFixed(2),
+        tax_amount: gross_tax.toFixed(2)  // optional: show base tax
+      });
+
       prev_tax_amount = gross_tax;
       prev_total += signed_total;
     }
 
-    // Calc taxes totals
-    const added = updatedTaxes.filter(t => t.add_row).reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
-    const deducted = updatedTaxes.filter(t => !t.add_row).reduce((sum, t) => sum + Math.abs(parseFloat(t.total || 0)), 0);
+    const added = updatedTaxes.filter(t => {
+      const isAdd = t.add_row === true || t.add_row === 1 || t.add_deduct_tax === "Add";
+      return isAdd;
+    }).reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
+
+    const deducted = updatedTaxes.filter(t => {
+      const isAdd = t.add_row === true || t.add_row === 1 || t.add_deduct_tax === "Add";
+      return !isAdd;
+    }).reduce((sum, t) => sum + Math.abs(parseFloat(t.total || 0)), 0);
+
     const total_taxes = added - deducted;
 
-    // Calc discount
     const grand_before_discount = net_total + total_taxes;
     const discount_perc = parseFloat(additional_discount_percentage) || 0;
     const discount_amt = parseFloat(discount_amount) || 0;
+
     let discounted_amount = 0;
     if (apply_discount_on === 'Net Total') {
       discounted_amount = (net_total * (discount_perc / 100)) + discount_amt;
@@ -132,7 +150,6 @@ function PurchaseReceiptList() {
       discounted_amount = (grand_before_discount * (discount_perc / 100)) + discount_amt;
     }
 
-    // Calc grand
     const grand_total = grand_before_discount - discounted_amount;
     const final_rounded_total = parseFloat(rounded_total) || Math.round(grand_total * 100) / 100;
 
@@ -153,6 +170,70 @@ function PurchaseReceiptList() {
     fetchTaxesTemplates();
     fetchTaxTypes();
   }, []);
+
+    const handleBarcodeScan = async (e) => {
+    if (e.key === 'Enter' && barcodeInput.trim()) {
+      e.preventDefault();
+      const barcode = barcodeInput.trim();
+
+      try {
+        // Fetch items by barcode (your existing endpoint supports it)
+        const res = await axios.get(`${API_PATH}.get_items_for_pr`, {
+          params: { query: barcode },
+          withCredentials: true
+        });
+
+        const matchedItems = Array.isArray(res.data.message) ? res.data.message : [];
+
+        if (matchedItems.length > 0) {
+          const item = matchedItems[0]; // First match
+
+          // Fetch rate (reuse existing logic)
+          let rate = 0;
+          try {
+            const rateRes = await axios.get(`${API_PATH}.get_item_buying_rate_pr`, {
+              params: {
+                item_code: item.item_code,
+                buying_price_list: formData.buying_price_list,
+                supplier: formData.supplier || undefined
+              },
+              withCredentials: true
+            });
+            rate = rateRes.data.message?.rate || 0;
+          } catch (err) {
+            console.error("Rate fetch failed in barcode:", err);
+          }
+
+          // Add to last row
+          const lastIndex = formData.items.length - 1;
+          selectItem(lastIndex, item);
+          updateItem(lastIndex, 'rate', rate);
+          updateItem(lastIndex, 'accepted_qty', 1); // auto qty 1
+
+          // Clear input
+          setBarcodeInput('');
+
+          // Add new empty row
+          addItemRow();
+
+          // Focus on new row's item input
+          setTimeout(() => {
+            const newRowIndex = formData.items.length - 1;
+            const inputs = document.querySelectorAll('.pr-items-input');
+            if (inputs[newRowIndex]) inputs[newRowIndex].focus();
+          }, 100);
+
+        } else {
+          alert('No item found with this barcode');
+          setBarcodeInput('');
+        }
+      } catch (err) {
+        console.error('Barcode scan error:', err);
+        alert('Error scanning barcode');
+        setBarcodeInput('');
+      }
+    }
+  };
 
   const fetchReceipts = async () => {
     try {
@@ -504,27 +585,52 @@ function PurchaseReceiptList() {
     if (!template) {
       setFormData(prev => {
         const totals = recalcTaxesAndTotals(prev.items, prev.net_total, [], prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
-        return { ...prev, taxes_and_charges: '', taxes: [], ...totals };
+        return {
+          ...prev,
+          taxes_and_charges: '',
+          taxes: [],
+          ...totals
+        };
       });
       return;
     }
+
     try {
       const companyData = await getDefaultCompany();
       const res = await axios.get(`${API_PATH}.get_purchase_taxes_from_template`, {
         params: { template, company: companyData.company },
         withCredentials: true
       });
-      const newTaxes = res.data.message || [];
+
+      let newTaxes = (res.data.message || []).map(t => ({
+        add_row: t.add_row === 1 || t.add_deduct_tax === "Add",  // Handle both 1 and "Add"
+        charge_type: t.charge_type || "On Net Total",
+        account_head: t.account_head || '',
+        rate: parseFloat(t.rate) || 0,
+        tax_amount: parseFloat(t.tax_amount) || 0,
+        total: '0.00',  // initial
+        description: t.description || t.account_head || 'Tax'
+      }));
+
+      // Recalculate with latest net_total
       setFormData(prev => {
-        const updatedTaxes = newTaxes.map(t => ({ ...t, total: '0.00' }));
-        const totals = recalcTaxesAndTotals(prev.items, prev.net_total, updatedTaxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+        const net_total = prev.items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+        const totals = recalcTaxesAndTotals(prev.items, net_total, newTaxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+
         return {
           ...prev,
           taxes_and_charges: template,
-          taxes: updatedTaxes,
-          ...totals
+          taxes: totals.taxes,
+          net_total: net_total,
+          taxes_added: totals.taxes_added,
+          taxes_deducted: totals.taxes_deducted,
+          total_taxes_and_charges: totals.total_taxes_and_charges,
+          discounted_amount: totals.discounted_amount,
+          grand_total: totals.grand_total,
+          rounded_total: totals.rounded_total
         };
       });
+
     } catch (err) {
       console.error('Error loading taxes template:', err);
     }
@@ -565,6 +671,225 @@ function PurchaseReceiptList() {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
+
+
+    const fetchReceiptForEdit = async (docName) => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${RESOURCE_BASE}/Purchase Receipt/${docName}`, { withCredentials: true });
+      const doc = res.data.data;
+
+      if (!doc) {
+        alert('Receipt not found');
+        return;
+      }
+
+      // Map doc to formData
+      setFormData({
+        series: doc.name.split('-')[0] + '-...',
+        posting_date: doc.posting_date,
+        posting_time: doc.posting_time?.slice(0, 5) || '',
+        apply_putaway_rule: doc.apply_putaway_rule || false,
+        is_return: doc.is_return || false,
+        supplier: doc.supplier || '',
+        supplier_name: doc.supplier_name || '',
+        supplier_delivery_note: doc.supplier_delivery_note || '',
+        currency: doc.currency || 'AED',
+        buying_price_list: doc.buying_price_list || 'Standard Buying',
+        set_warehouse: doc.set_warehouse || '',
+        taxes_and_charges: doc.taxes_and_charges || '',
+        apply_discount_on: doc.apply_discount_on || 'Net Total',
+        additional_discount_percentage: doc.additional_discount_percentage || 0,
+        discount_amount: doc.discount_amount || 0,
+        rounded_total: doc.rounded_total || 0,
+        items: (doc.items || []).map(i => ({
+          item_code: i.item_code || '',
+          item_name: i.item_name || '',
+          accepted_qty: i.qty || 0,
+          rejected_qty: i.rejected_qty || 0,
+          received_qty: i.received_qty || 0,
+          qty: i.qty || 0,
+          uom: i.uom || '',
+          rate: i.rate || 0,
+          amount: i.amount?.toFixed(2) || '0.00'
+        })),
+        taxes: (doc.taxes || []).map(t => ({
+          add_row: t.add_deduct_tax === "Add",
+          charge_type: t.charge_type || '',
+          account_head: t.account_head || '',
+          rate: t.rate || 0,
+          tax_amount: t.tax_amount || 0,
+          total: t.total?.toFixed(2) || '0.00',
+          row_id: t.name || ''
+        })),
+        total_qty: doc.total_qty || 0,
+        net_total: doc.net_total || 0,
+        taxes_added: doc.taxes_added || '0.00',
+        taxes_deducted: doc.taxes_deducted || '0.00',
+        total_taxes_and_charges: doc.total_taxes_and_charges || '0.00',
+        discounted_amount: doc.discounted_amount || '0.00',
+        grand_total: doc.grand_total || '0.00'
+      });
+
+      setDocName(doc.name);
+      setSearchSupplier(doc.supplier_name || '');
+      setIsModalOpen(true);
+    } catch (err) {
+      console.error('Error fetching receipt:', err);
+      alert('Failed to load receipt for editing');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const getPayload = async () => {
+    const companyData = await getDefaultCompany();
+
+    // Calculate totals one last time before sending
+    const net_total = formData.items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+    const totals = recalcTaxesAndTotals(
+      formData.items,
+      net_total,
+      formData.taxes,
+      formData.additional_discount_percentage,
+      formData.discount_amount,
+      formData.rounded_total,
+      formData.apply_discount_on
+    );
+
+    const grand_total = parseFloat(totals.grand_total) || 0;
+    const rounded_total = parseFloat(totals.rounded_total) || grand_total;
+
+    // conversion_rate usually 1 for AED, but safe aa include
+    const conversion_rate = 1.0; // or fetch from company if multi-currency
+
+    return {
+      doctype: "Purchase Receipt",
+      company: companyData.company,
+      supplier: formData.supplier,
+      posting_date: formData.posting_date,
+      posting_time: formData.posting_time,
+      currency: formData.currency,
+      conversion_rate: conversion_rate,
+      set_warehouse: formData.set_warehouse,
+      buying_price_list: formData.buying_price_list,
+      apply_putaway_rule: formData.apply_putaway_rule,
+      is_return: formData.is_return,
+      supplier_delivery_note: formData.supplier_delivery_note,
+
+      // IMPORTANT: Explicitly send these
+      base_grand_total: grand_total,
+      base_rounded_total: rounded_total,
+      grand_total: grand_total,
+      rounded_total: rounded_total,
+
+      items: formData.items
+        .filter(i => i.item_code && parseFloat(i.accepted_qty) > 0)
+        .map(i => ({
+          doctype: "Purchase Receipt Item",
+          item_code: i.item_code,
+          received_qty: parseFloat(i.accepted_qty) + parseFloat(i.rejected_qty),
+          qty: parseFloat(i.accepted_qty),
+          rejected_qty: parseFloat(i.rejected_qty),
+          rate: parseFloat(i.rate || 0),
+          amount: parseFloat(i.amount || 0),
+          base_rate: parseFloat(i.rate || 0),
+          base_amount: parseFloat(i.amount || 0),
+          uom: i.uom,
+          warehouse: formData.set_warehouse,
+          accepted_warehouse: formData.set_warehouse,
+          rejected_warehouse: parseFloat(i.rejected_qty) > 0 ? formData.set_warehouse : ''
+        })),
+
+      taxes_and_charges: formData.taxes_and_charges,
+      taxes: formData.taxes
+        .filter(t => t.charge_type && t.account_head)
+        .map(t => ({
+          doctype: "Purchase Taxes and Charges",
+          charge_type: t.charge_type || "On Net Total",
+          account_head: t.account_head,
+          description: t.account_head,
+          rate: parseFloat(t.rate || 0),
+          tax_amount: t.charge_type === 'Actual' ? parseFloat(t.tax_amount || 0) : 0,
+          add_deduct_tax: t.add_row ? "Add" : "Deduct",
+          category: "Total"
+        })),
+
+      apply_discount_on: formData.apply_discount_on,
+      additional_discount_percentage: parseFloat(formData.additional_discount_percentage || 0),
+      discount_amount: parseFloat(formData.discount_amount || 0)
+    };
+  };
+
+
+    const handleSaveDraft = async () => {
+    if (!validateForm()) return;
+    setSaving(true);
+    const payload = await getPayload();
+
+    try {
+      let response;
+      if (docName) {
+        // Existing draft → UPDATE (PUT)
+        response = await axios.put(`${RESOURCE_BASE}/Purchase Receipt/${docName}`, payload, {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        alert(`Draft updated: ${docName}`);
+      } else {
+        // New → CREATE (POST)
+        response = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (response.data?.data?.name) {
+          setDocName(response.data.data.name);
+          alert(`Draft saved: ${response.data.data.name}`);
+        } else {
+          throw new Error('Failed to create draft');
+        }
+      }
+      // Refresh list to show updated status
+      fetchReceipts();
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+    const handleSubmit = async () => {
+    if (!validateForm()) return;
+    setSaving(true);
+    const payload = await getPayload();
+
+    try {
+      let name = docName;
+      if (!name) {
+        // First save as draft
+        const createRes = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!createRes.data?.data?.name) throw new Error('Create failed');
+        name = createRes.data.data.name;
+        setDocName(name);
+      }
+
+      // Submit
+      await axios.put(`${RESOURCE_BASE}/Purchase Receipt/${name}`, { docstatus: 1 }, { withCredentials: true });
+      alert(`Purchase Receipt Submitted: ${name}`);
+      setIsModalOpen(false);
+      setDocName('');
+      fetchReceipts();
+    } catch (err) {
+      alert('Submit failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -610,17 +935,17 @@ function PurchaseReceiptList() {
         }),
       taxes_and_charges: formData.taxes_and_charges,
       taxes: formData.taxes
-  .filter(t => t.charge_type && t.account_head) // Only valid rows
-  .map(t => ({
-    doctype: "Purchase Taxes and Charges",
-    charge_type: t.charge_type || "On Net Total",
-    account_head: t.account_head,
-    description: t.account_head, // ← This fixes the mandatory error
-    rate: parseFloat(t.rate || 0),
-    tax_amount: t.charge_type === 'Actual' ? parseFloat(t.tax_amount || 0) : 0,
-    add_deduct_tax: t.add_row ? "Add" : "Deduct",
-    category: "Total"
-  })),
+        .filter(t => t.charge_type && t.account_head) // Only valid rows
+        .map(t => ({
+          doctype: "Purchase Taxes and Charges",
+          charge_type: t.charge_type || "On Net Total",
+          account_head: t.account_head,
+          description: t.account_head, // ← This fixes the mandatory error
+          rate: parseFloat(t.rate || 0),
+          tax_amount: t.charge_type === 'Actual' ? parseFloat(t.tax_amount || 0) : 0,
+          add_deduct_tax: t.add_row ? "Add" : "Deduct",
+          category: "Total"
+        })),
       apply_discount_on: formData.apply_discount_on,
       additional_discount_percentage: parseFloat(formData.additional_discount_percentage || 0),
       discount_amount: parseFloat(formData.discount_amount || 0),
@@ -628,39 +953,39 @@ function PurchaseReceiptList() {
     };
 
     try {
-  // Create draft
-  const createRes = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
-    withCredentials: true,
-    headers: { 'Content-Type': 'application/json' }
-  });
+      // Create draft
+      const createRes = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' }
+      });
 
-  // ERPNext returns response in createRes.data.data
-  if (createRes.data?.data?.name) {
-    const docName = createRes.data.data.name;
+      // ERPNext returns response in createRes.data.data
+      if (createRes.data?.data?.name) {
+        const docName = createRes.data.data.name;
 
-    // Submit using PUT (most reliable)
-    await axios.put(
-      `${RESOURCE_BASE}/Purchase Receipt/${docName}`,
-      { docstatus: 1 },
-      { withCredentials: true }
-    );
+        // Submit using PUT (most reliable)
+        await axios.put(
+          `${RESOURCE_BASE}/Purchase Receipt/${docName}`,
+          { docstatus: 1 },
+          { withCredentials: true }
+        );
 
-    alert('Purchase Receipt Created & Submitted: ' + docName);
-    setIsModalOpen(false);
-    fetchReceipts();
-  } else {
-    console.error('Create failed - no name in response:', createRes.data);
-    alert('Failed to create receipt. Check console.');
-  }
-} catch (err) {
-  const errorMsg = err.response?.data?.exception || 
-                   err.response?.data?.message || 
-                   err.message || 'Unknown error';
-  console.error('Create error:', err.response?.data || err);
-  alert('Error: ' + errorMsg);
-} finally {
-  setSaving(false);
-}
+        alert('Purchase Receipt Created & Submitted: ' + docName);
+        setIsModalOpen(false);
+        fetchReceipts();
+      } else {
+        console.error('Create failed - no name in response:', createRes.data);
+        alert('Failed to create receipt. Check console.');
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.exception ||
+        err.response?.data?.message ||
+        err.message || 'Unknown error';
+      console.error('Create error:', err.response?.data || err);
+      alert('Error: ' + errorMsg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filteredReceipts = useMemo(() => {
@@ -711,7 +1036,7 @@ function PurchaseReceiptList() {
               <Filter className="pr-icon" />
               Filters
             </button>
-            
+
             <button onClick={openCreateModal} className="pr-btn-primary">
               <Plus className="pr-icon" />
               Create Receipt
@@ -802,9 +1127,7 @@ function PurchaseReceiptList() {
                 <table className="pr-table">
                   <thead>
                     <tr>
-                      <th className="pr-th-checkbox">
-                        <input type="checkbox" className="pr-checkbox" />
-                      </th>
+                      
                       <th className="pr-th">Receipt Number</th>
                       <th className="pr-th">Supplier</th>
                       <th className="pr-th">Date</th>
@@ -825,22 +1148,20 @@ function PurchaseReceiptList() {
                     ) : (
                       paginated.map(rec => (
                         <tr key={rec.name} className="pr-tr">
-                          <td className="pr-td-checkbox">
-                            <input type="checkbox" className="pr-checkbox" onClick={e => e.stopPropagation()} />
-                          </td>
-                          <td className="pr-td" onClick={() => window.location.href = `/purchase-receipt/${rec.name}`}>
+      
+                          <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
                             <span className="pr-receipt-number">{rec.name}</span>
                           </td>
-                          <td className="pr-td" onClick={() => window.location.href = `/purchase-receipt/${rec.name}`}>
+                          <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
                             <div className="pr-supplier">
                               <span className="pr-supplier-name">{rec.supplier_name}</span>
                               <span className="pr-supplier-code">{rec.supplier}</span>
                             </div>
                           </td>
-                          <td className="pr-td" onClick={() => window.location.href = `/purchase-receipt/${rec.name}`}>
+                          <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
                             <span className="pr-date">{format(new Date(rec.posting_date), 'dd MMM yyyy')}</span>
                           </td>
-                          <td className="pr-td" onClick={() => window.location.href = `/purchase-receipt/${rec.name}`}>
+                          <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
                             <span className={`pr-status ${getStatusColor(rec.status)}`}>
                               {rec.status}
                             </span>
@@ -1053,35 +1374,43 @@ function PurchaseReceiptList() {
                 <div className="pr-form-section">
                   <div className="pr-section-header">
                     <h3 className="pr-section-title">Items</h3>
-                    <div>
-                      <input type="text" placeholder="Scan Barcode" className="pr-input pr-scan-input" />
-                      <button onClick={addItemRow} className="pr-btn-link">
-                        <Plus className="pr-icon-sm" />
-                        Add Row
-                      </button>
-                    </div>
+                                          <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+                        <label className="block text-sm font-semibold text-blue-900 mb-2">
+                          Scan Barcode
+                        </label>
+                        <input
+                          id="barcode-scan-input-pr"
+                          type="text"
+                          value={barcodeInput}
+                          onChange={(e) => setBarcodeInput(e.target.value)}
+                          onKeyDown={handleBarcodeScan}
+                          placeholder="Scan or type barcode → press Enter"
+                          className="w-full px-6 py-4 text-xl font-mono border-2 border-blue-400 rounded-lg focus:ring-4 focus:ring-blue-500 focus:border-blue-600 bg-white shadow-inner"
+                          autoFocus
+                        />
+                        <p className="text-xs text-blue-700 mt-2 text-center">
+                          Fast scanning enabled • Auto add item on Enter
+                        </p>
+                      </div>
                   </div>
 
                   <div className="pr-items-table-wrapper">
                     <table className="pr-items-table">
                       <thead>
                         <tr>
-                          <th className="pr-items-th" style={{width: '40px'}}></th>
-                          <th className="pr-items-th" style={{width: '40px'}}>No.</th>
+            
+                          <th className="pr-items-th" style={{ width: '40px' }}>No.</th>
                           <th className="pr-items-th">Item Code <span className="pr-required">*</span></th>
-                          <th className="pr-items-th" style={{width: '120px'}}>Accepted Quantity</th>
-                          <th className="pr-items-th" style={{width: '100px'}}>Rejected Qty</th>
-                          <th className="pr-items-th" style={{width: '120px'}}>Rate (AED)</th>
-                          <th className="pr-items-th" style={{width: '120px'}}>Amount (AED)</th>
-                          <th className="pr-items-th" style={{width: '50px'}}></th>
+                          <th className="pr-items-th" style={{ width: '120px' }}>Accepted Quantity</th>
+                          <th className="pr-items-th" style={{ width: '100px' }}>Rejected Qty</th>
+                          <th className="pr-items-th" style={{ width: '120px' }}>Rate (AED)</th>
+                          <th className="pr-items-th" style={{ width: '120px' }}>Amount (AED)</th>
+                          <th className="pr-items-th" style={{ width: '50px' }}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {formData.items.map((item, i) => (
                           <tr key={i} className="pr-items-tr">
-                            <td className="pr-items-td">
-                              <input type="checkbox" className="pr-checkbox" />
-                            </td>
                             <td className="pr-items-td">
                               <span className="pr-items-text">{i + 1}</span>
                             </td>
@@ -1185,14 +1514,14 @@ function PurchaseReceiptList() {
                     <table className="pr-taxes-table">
                       <thead>
                         <tr>
-                          <th className="pr-taxes-th" style={{width: '40px'}}></th>
-                          <th className="pr-taxes-th" style={{width: '40px'}}>No.</th>
+                          <th className="pr-taxes-th" style={{ width: '40px' }}></th>
+                          <th className="pr-taxes-th" style={{ width: '40px' }}>No.</th>
                           <th className="pr-taxes-th">Type <span className="pr-required">*</span></th>
                           <th className="pr-taxes-th">Account Head <span className="pr-required">*</span></th>
-                          <th className="pr-taxes-th" style={{width: '100px'}}>Tax Rate</th>
-                          <th className="pr-taxes-th" style={{width: '100px'}}>Amount</th>
-                          <th className="pr-taxes-th" style={{width: '100px'}}>Total</th>
-                          <th className="pr-taxes-th" style={{width: '50px'}}></th>
+                          <th className="pr-taxes-th" style={{ width: '100px' }}>Tax Rate</th>
+                          <th className="pr-taxes-th" style={{ width: '100px' }}>Amount</th>
+                          <th className="pr-taxes-th" style={{ width: '100px' }}>Total</th>
+                          <th className="pr-taxes-th" style={{ width: '50px' }}></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1349,18 +1678,21 @@ function PurchaseReceiptList() {
                 </div>
               </div>
 
-              <div className="pr-modal-footer">
+                            <div className="pr-modal-footer">
                 <button onClick={() => setIsModalOpen(false)} className="pr-btn-secondary">
                   Cancel
                 </button>
-                <button onClick={handleSave} disabled={saving} className="pr-btn-primary">
+                <button onClick={handleSaveDraft} disabled={saving} className="pr-btn-secondary">
+                  {saving ? 'Saving...' : (docName ? 'Update Draft' : 'Save Draft')}
+                </button>
+                <button onClick={handleSubmit} disabled={saving} className="pr-btn-primary">
                   {saving ? (
                     <>
                       <div className="pr-btn-spinner"></div>
-                      Creating...
+                      Processing...
                     </>
                   ) : (
-                    'Create Receipt'
+                    docName ? 'Submit' : 'Save & Submit'
                   )}
                 </button>
               </div>
