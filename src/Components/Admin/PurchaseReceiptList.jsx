@@ -7,24 +7,19 @@ import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
 import './PurchaseReceiptList.css';
-
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const RESOURCE_BASE = '/api/resource';
-
 function PurchaseReceiptList() {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
-
   const [rateLoading, setRateLoading] = useState({});
   const [docName, setDocName] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
-
   const [formData, setFormData] = useState({
     series: 'MAT-PRE-.YYYY.-',
     posting_date: new Date().toISOString().split('T')[0],
@@ -62,41 +57,32 @@ function PurchaseReceiptList() {
     discounted_amount: '0.00',
     grand_total: '0.00'
   });
-
   const [searchSupplier, setSearchSupplier] = useState('');
   const [suppliers, setSuppliers] = useState([]);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
-
   const [itemsList, setItemsList] = useState([]);
   const [itemSearches, setItemSearches] = useState({});
   const [showItemDropdowns, setShowItemDropdowns] = useState({});
-
   const [warehouses, setWarehouses] = useState([]);
-
   const [taxesTemplates, setTaxesTemplates] = useState([]);
   const [taxTypes, setTaxTypes] = useState(['Actual', 'On Net Total', 'On Previous Row Amount', 'On Previous Row Total', 'Compound']); // charge_types
-
   const [filterName, setFilterName] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-
   const supplierRef = useRef(null);
   const itemRefs = useRef({});
-
   const recalcTaxesAndTotals = useCallback((items, net_total, taxes, additional_discount_percentage, discount_amount, rounded_total, apply_discount_on = 'Net Total') => {
     let prev_tax_amount = 0;
-    let prev_total = net_total;  // ← IMPORTANT: Initialize here
+    let prev_total = net_total; // ← IMPORTANT: Initialize here
     const updatedTaxes = [];
-
     for (const tax of taxes) {
       const charge_type = tax.charge_type || "On Net Total";
       const rate = parseFloat(tax.rate) || 0;
       const tax_amount_fixed = parseFloat(tax.tax_amount) || 0;
       let gross_tax = 0;
-
       if (charge_type === 'Actual') {
         gross_tax = tax_amount_fixed;
       } else {
@@ -112,47 +98,37 @@ function PurchaseReceiptList() {
         }
         gross_tax = base * (rate / 100);
       }
-
       // add_row can be boolean, 1, or "Add"
       const isAdd = tax.add_row === true || tax.add_row === 1 || tax.add_deduct_tax === "Add";
       const signed_total = isAdd ? gross_tax : -gross_tax;
-
       updatedTaxes.push({
         ...tax,
         total: signed_total.toFixed(2),
-        tax_amount: gross_tax.toFixed(2)  // optional: show base tax
+        tax_amount: gross_tax.toFixed(2) // optional: show base tax
       });
-
       prev_tax_amount = gross_tax;
       prev_total += signed_total;
     }
-
     const added = updatedTaxes.filter(t => {
       const isAdd = t.add_row === true || t.add_row === 1 || t.add_deduct_tax === "Add";
       return isAdd;
     }).reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
-
     const deducted = updatedTaxes.filter(t => {
       const isAdd = t.add_row === true || t.add_row === 1 || t.add_deduct_tax === "Add";
       return !isAdd;
     }).reduce((sum, t) => sum + Math.abs(parseFloat(t.total || 0)), 0);
-
     const total_taxes = added - deducted;
-
     const grand_before_discount = net_total + total_taxes;
     const discount_perc = parseFloat(additional_discount_percentage) || 0;
     const discount_amt = parseFloat(discount_amount) || 0;
-
     let discounted_amount = 0;
     if (apply_discount_on === 'Net Total') {
       discounted_amount = (net_total * (discount_perc / 100)) + discount_amt;
     } else {
       discounted_amount = (grand_before_discount * (discount_perc / 100)) + discount_amt;
     }
-
     const grand_total = grand_before_discount - discounted_amount;
     const final_rounded_total = parseFloat(rounded_total) || Math.round(grand_total * 100) / 100;
-
     return {
       taxes: updatedTaxes,
       taxes_added: added.toFixed(2),
@@ -163,31 +139,25 @@ function PurchaseReceiptList() {
       rounded_total: final_rounded_total.toFixed(2)
     };
   }, []);
-
   useEffect(() => {
     fetchReceipts();
     fetchWarehouses();
     fetchTaxesTemplates();
     fetchTaxTypes();
   }, []);
-
     const handleBarcodeScan = async (e) => {
     if (e.key === 'Enter' && barcodeInput.trim()) {
       e.preventDefault();
       const barcode = barcodeInput.trim();
-
       try {
         // Fetch items by barcode (your existing endpoint supports it)
         const res = await axios.get(`${API_PATH}.get_items_for_pr`, {
           params: { query: barcode },
           withCredentials: true
         });
-
         const matchedItems = Array.isArray(res.data.message) ? res.data.message : [];
-
         if (matchedItems.length > 0) {
           const item = matchedItems[0]; // First match
-
           // Fetch rate (reuse existing logic)
           let rate = 0;
           try {
@@ -203,26 +173,21 @@ function PurchaseReceiptList() {
           } catch (err) {
             console.error("Rate fetch failed in barcode:", err);
           }
-
           // Add to last row
           const lastIndex = formData.items.length - 1;
           selectItem(lastIndex, item);
           updateItem(lastIndex, 'rate', rate);
           updateItem(lastIndex, 'accepted_qty', 1); // auto qty 1
-
           // Clear input
           setBarcodeInput('');
-
           // Add new empty row
           addItemRow();
-
           // Focus on new row's item input
           setTimeout(() => {
             const newRowIndex = formData.items.length - 1;
             const inputs = document.querySelectorAll('.pr-items-input');
             if (inputs[newRowIndex]) inputs[newRowIndex].focus();
           }, 100);
-
         } else {
           alert('No item found with this barcode');
           setBarcodeInput('');
@@ -234,7 +199,6 @@ function PurchaseReceiptList() {
       }
     }
   };
-
   const fetchReceipts = async () => {
     try {
       setLoading(true);
@@ -248,7 +212,6 @@ function PurchaseReceiptList() {
       setLoading(false);
     }
   };
-
   const fetchSuppliers = async (query = '') => {
     try {
       const res = await axios.get(`${API_PATH}.get_suppliers_pr`, {
@@ -262,7 +225,6 @@ function PurchaseReceiptList() {
       setSuppliers([]);
     }
   };
-
   const fetchItems = async (query = '') => {
     try {
       const res = await axios.get(`${API_PATH}.get_items_for_pr`, {
@@ -276,7 +238,6 @@ function PurchaseReceiptList() {
       setItemsList([]);
     }
   };
-
   const fetchWarehouses = async () => {
     try {
       const res = await axios.get(`${API_PATH}.get_company_warehouses`, { withCredentials: true });
@@ -287,7 +248,6 @@ function PurchaseReceiptList() {
       setWarehouses([]);
     }
   };
-
   const fetchTaxesTemplates = async () => {
     try {
       const companyData = await getDefaultCompany();
@@ -300,12 +260,10 @@ function PurchaseReceiptList() {
       console.error('Taxes templates fetch error:', err);
     }
   };
-
   const fetchTaxTypes = async () => {
     // Hardcode common tax types for now: Actual, On Net Total, On Previous Row Amount, etc.
     setTaxTypes(['Actual', 'On Net Total', 'On Previous Row Amount', 'On Previous Row Total', 'Compound']);
   };
-
   const getDefaultCompany = async () => {
     try {
       const res = await axios.get(`${API_PATH}.get_default_company`, { withCredentials: true });
@@ -314,7 +272,6 @@ function PurchaseReceiptList() {
       return { company: '', currency: 'AED' };
     }
   };
-
   // UPDATED: Fetch rate after item selection (proceed even without supplier for general rate)
   const fetchItemRate = useCallback(async (rowIndex, itemCode) => {
     if (!itemCode) {
@@ -349,7 +306,6 @@ function PurchaseReceiptList() {
       setRateLoading(prev => ({ ...prev, [rowIndex]: false }));
     }
   }, [formData.supplier, formData.buying_price_list]);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchSupplier.trim()) {
@@ -361,7 +317,6 @@ function PurchaseReceiptList() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchSupplier]);
-
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (supplierRef.current && !supplierRef.current.contains(e.target)) {
@@ -376,7 +331,6 @@ function PurchaseReceiptList() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
   const openCreateModal = useCallback(async () => {
     const companyData = await getDefaultCompany();
     const defaultWarehouse = warehouses.length > 0 ? warehouses[0].name : '';
@@ -426,7 +380,6 @@ function PurchaseReceiptList() {
     setRateLoading({}); // Reset loading
     setIsModalOpen(true);
   }, [warehouses]);
-
   // UPDATED: Combined recalc for items update
   const updateItem = (index, field, value) => {
     setFormData(prev => {
@@ -452,23 +405,33 @@ function PurchaseReceiptList() {
       };
     });
   };
-
+ 
   const addItemRow = useCallback(() => {
-    setFormData(prev => {
-      const newItems = [...prev.items, { item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00' }];
-      const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
-      const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
-      const totals = recalcTaxesAndTotals(newItems, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
-      return {
-        ...prev,
-        items: newItems,
-        total_qty,
-        net_total,
-        ...totals
-      };
-    });
-  }, [recalcTaxesAndTotals]);
-
+  setFormData(prev => {
+    const newItems = [...prev.items, {
+      item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0,
+      received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00'
+    }];
+    const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
+    const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+    const totals = recalcTaxesAndTotals(newItems, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+   
+    // Auto focus on new row after render
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.pr-items-input');
+      if (inputs[newItems.length - 1]) {
+        inputs[newItems.length - 1].focus();
+      }
+    }, 100);
+    return {
+      ...prev,
+      items: newItems,
+      total_qty,
+      net_total,
+      ...totals
+    };
+  });
+}, [recalcTaxesAndTotals]);
   const removeItemRow = (index) => {
     setFormData(prev => {
       const newItems = prev.items.filter((_, i) => i !== index);
@@ -484,7 +447,6 @@ function PurchaseReceiptList() {
       };
     });
   };
-
   const selectSupplier = (supplier) => {
     setFormData(prev => {
       const updated = { ...prev, supplier: supplier.name, supplier_name: supplier.supplier_name };
@@ -497,7 +459,6 @@ function PurchaseReceiptList() {
     setSearchSupplier(supplier.supplier_name || supplier.name);
     setShowSupplierDropdown(false);
   };
-
   // UPDATED: Non-blocking async (fire-and-forget)
   const selectItem = (rowIndex, item) => {
     setFormData(prev => {
@@ -529,11 +490,9 @@ function PurchaseReceiptList() {
     });
     setItemSearches(prev => ({ ...prev, [rowIndex]: item.item_name }));
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
-
     // Fetch rate (non-blocking)
     fetchItemRate(rowIndex, item.item_code);
   };
-
   const handleItemSearch = (index, value) => {
     setItemSearches(prev => ({ ...prev, [index]: value }));
     if (value.trim().length > 1) {
@@ -543,7 +502,6 @@ function PurchaseReceiptList() {
       setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
     }
   };
-
   const addTaxRow = () => {
     setFormData(prev => {
       const newTaxes = [...prev.taxes, { add_row: true, charge_type: '', account_head: '', rate: 0, tax_amount: 0, total: '0.00', row_id: '' }];
@@ -555,7 +513,6 @@ function PurchaseReceiptList() {
       };
     });
   };
-
   const updateTax = (index, field, value) => {
     setFormData(prev => {
       const taxes = [...prev.taxes];
@@ -568,7 +525,6 @@ function PurchaseReceiptList() {
       };
     });
   };
-
   const removeTaxRow = (index) => {
     setFormData(prev => {
       const newTaxes = prev.taxes.filter((_, i) => i !== index);
@@ -580,7 +536,6 @@ function PurchaseReceiptList() {
       };
     });
   };
-
   const handleTaxesTemplateChange = async (template) => {
     if (!template) {
       setFormData(prev => {
@@ -594,29 +549,25 @@ function PurchaseReceiptList() {
       });
       return;
     }
-
     try {
       const companyData = await getDefaultCompany();
       const res = await axios.get(`${API_PATH}.get_purchase_taxes_from_template`, {
         params: { template, company: companyData.company },
         withCredentials: true
       });
-
       let newTaxes = (res.data.message || []).map(t => ({
-        add_row: t.add_row === 1 || t.add_deduct_tax === "Add",  // Handle both 1 and "Add"
+        add_row: t.add_row === 1 || t.add_deduct_tax === "Add", // Handle both 1 and "Add"
         charge_type: t.charge_type || "On Net Total",
         account_head: t.account_head || '',
         rate: parseFloat(t.rate) || 0,
         tax_amount: parseFloat(t.tax_amount) || 0,
-        total: '0.00',  // initial
+        total: '0.00', // initial
         description: t.description || t.account_head || 'Tax'
       }));
-
       // Recalculate with latest net_total
       setFormData(prev => {
         const net_total = prev.items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
         const totals = recalcTaxesAndTotals(prev.items, net_total, newTaxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
-
         return {
           ...prev,
           taxes_and_charges: template,
@@ -630,12 +581,10 @@ function PurchaseReceiptList() {
           rounded_total: totals.rounded_total
         };
       });
-
     } catch (err) {
       console.error('Error loading taxes template:', err);
     }
   };
-
   const updateDiscount = (field, value) => {
     setFormData(prev => {
       let newApply = prev.apply_discount_on;
@@ -660,7 +609,6 @@ function PurchaseReceiptList() {
       };
     });
   };
-
   const validateForm = () => {
     const errors = {};
     if (!formData.supplier) errors.supplier = 'Supplier is required';
@@ -671,19 +619,15 @@ function PurchaseReceiptList() {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
-
     const fetchReceiptForEdit = async (docName) => {
     try {
       setLoading(true);
       const res = await axios.get(`${RESOURCE_BASE}/Purchase Receipt/${docName}`, { withCredentials: true });
       const doc = res.data.data;
-
       if (!doc) {
         alert('Receipt not found');
         return;
       }
-
       // Map doc to formData
       setFormData({
         series: doc.name.split('-')[0] + '-...',
@@ -730,7 +674,6 @@ function PurchaseReceiptList() {
         discounted_amount: doc.discounted_amount || '0.00',
         grand_total: doc.grand_total || '0.00'
       });
-
       setDocName(doc.name);
       setSearchSupplier(doc.supplier_name || '');
       setIsModalOpen(true);
@@ -741,11 +684,8 @@ function PurchaseReceiptList() {
       setLoading(false);
     }
   };
-
-
   const getPayload = async () => {
     const companyData = await getDefaultCompany();
-
     // Calculate totals one last time before sending
     const net_total = formData.items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
     const totals = recalcTaxesAndTotals(
@@ -757,13 +697,10 @@ function PurchaseReceiptList() {
       formData.rounded_total,
       formData.apply_discount_on
     );
-
     const grand_total = parseFloat(totals.grand_total) || 0;
     const rounded_total = parseFloat(totals.rounded_total) || grand_total;
-
     // conversion_rate usually 1 for AED, but safe aa include
     const conversion_rate = 1.0; // or fetch from company if multi-currency
-
     return {
       doctype: "Purchase Receipt",
       company: companyData.company,
@@ -777,13 +714,11 @@ function PurchaseReceiptList() {
       apply_putaway_rule: formData.apply_putaway_rule,
       is_return: formData.is_return,
       supplier_delivery_note: formData.supplier_delivery_note,
-
       // IMPORTANT: Explicitly send these
       base_grand_total: grand_total,
       base_rounded_total: rounded_total,
       grand_total: grand_total,
       rounded_total: rounded_total,
-
       items: formData.items
         .filter(i => i.item_code && parseFloat(i.accepted_qty) > 0)
         .map(i => ({
@@ -801,7 +736,6 @@ function PurchaseReceiptList() {
           accepted_warehouse: formData.set_warehouse,
           rejected_warehouse: parseFloat(i.rejected_qty) > 0 ? formData.set_warehouse : ''
         })),
-
       taxes_and_charges: formData.taxes_and_charges,
       taxes: formData.taxes
         .filter(t => t.charge_type && t.account_head)
@@ -815,19 +749,15 @@ function PurchaseReceiptList() {
           add_deduct_tax: t.add_row ? "Add" : "Deduct",
           category: "Total"
         })),
-
       apply_discount_on: formData.apply_discount_on,
       additional_discount_percentage: parseFloat(formData.additional_discount_percentage || 0),
       discount_amount: parseFloat(formData.discount_amount || 0)
     };
   };
-
-
     const handleSaveDraft = async () => {
     if (!validateForm()) return;
     setSaving(true);
     const payload = await getPayload();
-
     try {
       let response;
       if (docName) {
@@ -858,12 +788,10 @@ function PurchaseReceiptList() {
       setSaving(false);
     }
   };
-
     const handleSubmit = async () => {
     if (!validateForm()) return;
     setSaving(true);
     const payload = await getPayload();
-
     try {
       let name = docName;
       if (!name) {
@@ -876,7 +804,6 @@ function PurchaseReceiptList() {
         name = createRes.data.data.name;
         setDocName(name);
       }
-
       // Submit
       await axios.put(`${RESOURCE_BASE}/Purchase Receipt/${name}`, { docstatus: 1 }, { withCredentials: true });
       alert(`Purchase Receipt Submitted: ${name}`);
@@ -889,19 +816,15 @@ function PurchaseReceiptList() {
       setSaving(false);
     }
   };
-
-
   const handleSave = async () => {
     if (!validateForm()) return;
     setSaving(true);
-
     const companyData = await getDefaultCompany();
     if (!companyData.company) {
       alert('No default company set');
       setSaving(false);
       return;
     }
-
     const payload = {
       doctype: "Purchase Receipt",
       company: companyData.company,
@@ -951,25 +874,21 @@ function PurchaseReceiptList() {
       discount_amount: parseFloat(formData.discount_amount || 0),
       rounded_total: parseFloat(formData.rounded_total || 0)
     };
-
     try {
       // Create draft
       const createRes = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
         withCredentials: true,
         headers: { 'Content-Type': 'application/json' }
       });
-
       // ERPNext returns response in createRes.data.data
       if (createRes.data?.data?.name) {
         const docName = createRes.data.data.name;
-
         // Submit using PUT (most reliable)
         await axios.put(
           `${RESOURCE_BASE}/Purchase Receipt/${docName}`,
           { docstatus: 1 },
           { withCredentials: true }
         );
-
         alert('Purchase Receipt Created & Submitted: ' + docName);
         setIsModalOpen(false);
         fetchReceipts();
@@ -987,7 +906,6 @@ function PurchaseReceiptList() {
       setSaving(false);
     }
   };
-
   const filteredReceipts = useMemo(() => {
     return receipts.filter(rec => {
       const matchesName = !filterName || rec.name.toLowerCase().includes(filterName.toLowerCase());
@@ -998,11 +916,9 @@ function PurchaseReceiptList() {
       return matchesName && matchesSupplier && matchesStatus && matchesFrom && matchesTo;
     });
   }, [receipts, filterName, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
-
   const total = filteredReceipts.length;
   const paginated = filteredReceipts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(total / pageSize);
-
   const getStatusColor = (status) => {
     const map = {
       'Completed': 'status-paid',
@@ -1013,7 +929,6 @@ function PurchaseReceiptList() {
     };
     return map[status] || 'status-default';
   };
-
   const clearFilters = () => {
     setFilterName('');
     setFilterSupplier('');
@@ -1021,7 +936,6 @@ function PurchaseReceiptList() {
     setFilterDateFrom('');
     setFilterDateTo('');
   };
-
   return (
     <>
       <NavBar />
@@ -1036,14 +950,12 @@ function PurchaseReceiptList() {
               <Filter className="pr-icon" />
               Filters
             </button>
-
             <button onClick={openCreateModal} className="pr-btn-primary">
               <Plus className="pr-icon" />
               Create Receipt
             </button>
           </div>
         </div>
-
         {showFilters && (
           <div className="pr-filters">
             <div className="pr-filters-grid">
@@ -1114,7 +1026,6 @@ function PurchaseReceiptList() {
             </div>
           </div>
         )}
-
         <main className="pr-main">
           {loading ? (
             <div className="pr-loading">
@@ -1127,7 +1038,7 @@ function PurchaseReceiptList() {
                 <table className="pr-table">
                   <thead>
                     <tr>
-                      
+                    
                       <th className="pr-th">Receipt Number</th>
                       <th className="pr-th">Supplier</th>
                       <th className="pr-th">Date</th>
@@ -1148,7 +1059,7 @@ function PurchaseReceiptList() {
                     ) : (
                       paginated.map(rec => (
                         <tr key={rec.name} className="pr-tr">
-      
+    
                           <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
                             <span className="pr-receipt-number">{rec.name}</span>
                           </td>
@@ -1180,7 +1091,6 @@ function PurchaseReceiptList() {
                   </tbody>
                 </table>
               </div>
-
               {total > 0 && (
                 <div className="pr-pagination">
                   <div className="pr-pagination-info">
@@ -1222,7 +1132,6 @@ function PurchaseReceiptList() {
             </div>
           )}
         </main>
-
         {isModalOpen && (
           <div className="pr-modal-overlay">
             <div className="pr-modal">
@@ -1235,7 +1144,6 @@ function PurchaseReceiptList() {
                   <X className="pr-icon" />
                 </button>
               </div>
-
               <div className="pr-modal-body">
                 <div className="pr-form-section">
                   <h3 className="pr-section-title">Details</h3>
@@ -1332,7 +1240,6 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
-
                 <div className="pr-form-section">
                   <h3 className="pr-section-title">Currency and Price List</h3>
                   <div className="pr-form-grid">
@@ -1370,14 +1277,13 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
-
                 <div className="pr-form-section">
-                  <div className="pr-section-header">
-                    <h3 className="pr-section-title">Items</h3>
-                                          <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
-                        <label className="block text-sm font-semibold text-blue-900 mb-2">
-                          Scan Barcode
-                        </label>
+                  <h3 className="pr-section-title">Items</h3>
+                  <div className="pr-form-grid">
+                    <div className="pr-form-group pr-full-width">
+                      <label className="pr-barcode-label">Scan Barcode</label>
+                      <div className="pr-input-wrapper">
+                        <Barcode className="pr-input-icon" />
                         <input
                           id="barcode-scan-input-pr"
                           type="text"
@@ -1385,20 +1291,20 @@ function PurchaseReceiptList() {
                           onChange={(e) => setBarcodeInput(e.target.value)}
                           onKeyDown={handleBarcodeScan}
                           placeholder="Scan or type barcode → press Enter"
-                          className="w-full px-6 py-4 text-xl font-mono border-2 border-blue-400 rounded-lg focus:ring-4 focus:ring-blue-500 focus:border-blue-600 bg-white shadow-inner"
+                          className="pr-input pr-barcode-input"
                           autoFocus
                         />
-                        <p className="text-xs text-blue-700 mt-2 text-center">
-                          Fast scanning enabled • Auto add item on Enter
-                        </p>
                       </div>
+                      <p className="pr-barcode-note">
+                        Fast scanning enabled • Auto add item on Enter
+                      </p>
+                    </div>
                   </div>
-
                   <div className="pr-items-table-wrapper">
                     <table className="pr-items-table">
                       <thead>
                         <tr>
-            
+          
                           <th className="pr-items-th" style={{ width: '40px' }}>No.</th>
                           <th className="pr-items-th">Item Code <span className="pr-required">*</span></th>
                           <th className="pr-items-th" style={{ width: '120px' }}>Accepted Quantity</th>
@@ -1425,7 +1331,7 @@ function PurchaseReceiptList() {
                                   className="pr-items-input"
                                 />
                                 {showItemDropdowns[i] && itemsList.length > 0 && (
-                                  <div className="pr-dropdown pr-dropdown-absolute">
+                                  <div className="pr-dropdown">
                                     {itemsList.map(itm => (
                                       <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="pr-dropdown-item">
                                         <div className="pr-dropdown-main">{itm.item_name}</div>
@@ -1483,6 +1389,12 @@ function PurchaseReceiptList() {
                         ))}
                       </tbody>
                     </table>
+                    <div style={{ marginTop: '1rem', textAlign: 'left' }}>
+    <button onClick={addItemRow} className="pr-btn-link">
+      <Plus className="pr-icon-sm" />
+      Add Another Item
+    </button>
+  </div>
                   </div>
                   {formErrors.items && <span className="pr-error">{formErrors.items}</span>}
                   <div className="pr-totals-row">
@@ -1490,24 +1402,21 @@ function PurchaseReceiptList() {
                     <span>Total (AED): {parseFloat(formData.net_total) || '0.00'}</span>
                   </div>
                 </div>
-
                 <div className="pr-form-section">
-                  <div className="pr-section-header">
-                    <h3 className="pr-section-title">Taxes and Charges</h3>
-                    <div className="pr-form-grid">
-                      <div className="pr-form-group">
-                        <label>Purchase Taxes and Charges Template</label>
-                        <select
-                          value={formData.taxes_and_charges}
-                          onChange={e => handleTaxesTemplateChange(e.target.value)}
-                          className="pr-select"
-                        >
-                          <option value="">Select Template</option>
-                          {taxesTemplates.map(t => (
-                            <option key={t.name} value={t.name}>{t.name}</option>
-                          ))}
-                        </select>
-                      </div>
+                  <h3 className="pr-section-title">Taxes and Charges</h3>
+                  <div className="pr-form-grid">
+                    <div className="pr-form-group">
+                      <label>Purchase Taxes and Charges Template</label>
+                      <select
+                        value={formData.taxes_and_charges}
+                        onChange={e => handleTaxesTemplateChange(e.target.value)}
+                        className="pr-select"
+                      >
+                        <option value="">Select Template</option>
+                        {taxesTemplates.map(t => (
+                          <option key={t.name} value={t.name}>{t.name}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="pr-taxes-table-wrapper">
@@ -1605,7 +1514,6 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
-
                 <div className="pr-form-section">
                   <h3 className="pr-section-title">Discounts and Rounding</h3>
                   <div className="pr-form-grid">
@@ -1654,7 +1562,6 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
-
                 <div className="pr-form-section">
                   <div className="pr-totals-section">
                     <div className="pr-total-row">
@@ -1677,7 +1584,6 @@ function PurchaseReceiptList() {
                   </div>
                 </div>
               </div>
-
                             <div className="pr-modal-footer">
                 <button onClick={() => setIsModalOpen(false)} className="pr-btn-secondary">
                   Cancel
@@ -1703,5 +1609,4 @@ function PurchaseReceiptList() {
     </>
   );
 }
-
 export default PurchaseReceiptList;

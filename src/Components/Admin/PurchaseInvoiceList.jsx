@@ -11,7 +11,6 @@ import './PurchaseInvoiceList.css';
 // Custom APIs (kept for suppliers, items, warehouses, tax templates)
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
-// Standard Resource API — ONLY for Purchase Invoice (Create/Update/Cancel/Delete)
 const RESOURCE_API = '/api/resource/Purchase Invoice';
 
 function PurchaseInvoiceList() {
@@ -24,6 +23,8 @@ function PurchaseInvoiceList() {
   const [isViewMode, setIsViewMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+  const [docName, setDocName] = useState('');
+  const [docStatus, setDocStatus] = useState(null);
 
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [loadingTaxTemplates, setLoadingTaxTemplates] = useState(false);
@@ -160,8 +161,6 @@ function PurchaseInvoiceList() {
     } catch (err) { }
   };
 
-  // Tax preview
-  // FIXED: Properly encode tax template name with spaces/special chars
   useEffect(() => {
     if (!formData.taxes_and_charges) {
       setTaxPreview([]);
@@ -200,6 +199,8 @@ function PurchaseInvoiceList() {
     setFormErrors({});
     setSearchSupplier('');
     setTaxPreview([]);
+    setDocName('');
+    setDocStatus(null);
     setIsEditMode(false);
     setIsViewMode(false);
     setIsModalOpen(true);
@@ -232,6 +233,8 @@ function PurchaseInvoiceList() {
           }))
         });
         setSearchSupplier(d.supplier_name || d.supplier);
+        setDocName(d.name);
+        setDocStatus(d.docstatus || 0); // Store docstatus
       }
     } catch (err) {
       alert('Failed to load invoice');
@@ -335,17 +338,7 @@ function PurchaseInvoiceList() {
     }
   };
 
-  const handleSave = async () => {
-    const errors = {};
-    if (!formData.supplier) errors.supplier = 'Supplier is required';
-    if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    setSaving(true);
-
+  const getPayload = async () => {
     // Calculate net total before discount
     const itemsTotal = formData.items
       .filter(i => i.item_code && i.qty > 0)
@@ -355,18 +348,18 @@ function PurchaseInvoiceList() {
       ? (itemsTotal * formData.additional_discount_percentage) / 100
       : parseFloat(formData.discount_amount) || 0;
 
-    const netTotal = itemsTotal - discountAmountCalc;
+    const netTotalCalc = itemsTotal - discountAmountCalc;
 
     // Build taxes array from taxPreview
     const taxes = taxPreview.map(tax => ({
       charge_type: "On Net Total",        // or "Actual" if needed
       account_head: tax.account_head,
       rate: parseFloat(tax.rate || 0),
-      tax_amount: netTotal * (parseFloat(tax.rate || 0) / 100),
+      tax_amount: netTotalCalc * (parseFloat(tax.rate || 0) / 100),
       description: tax.description || tax.account_head
     }));
 
-    const payload = {
+    return {
       supplier: formData.supplier,
       posting_date: formData.posting_date,
       due_date: formData.due_date || null,
@@ -385,16 +378,38 @@ function PurchaseInvoiceList() {
           rate: parseFloat(i.rate || 0)
         }))
     };
+  };
+
+  const handleSaveDraft = async () => {
+    const errors = {};
+    if (!formData.supplier) errors.supplier = 'Supplier is required';
+    if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setSaving(true);
+    const payload = await getPayload();
 
     try {
-      let res;
-      if (isEditMode) {
-        res = await axios.put(`${RESOURCE_API}/${formData.name}`, payload, { withCredentials: true });
+      let response;
+      if (docName) {
+        // Existing draft → UPDATE (PUT)
+        response = await axios.put(`${RESOURCE_API}/${docName}`, payload, { withCredentials: true });
+        alert(`Draft updated: ${docName}`);
       } else {
-        res = await axios.post(RESOURCE_API, payload, { withCredentials: true });
+        // New → CREATE (POST)
+        response = await axios.post(RESOURCE_API, payload, { withCredentials: true });
+        if (response.data?.data?.name) {
+          setDocName(response.data.data.name);
+          alert(`Draft saved: ${response.data.data.name}`);
+        } else {
+          throw new Error('Failed to create draft');
+        }
       }
-      alert(`${isEditMode ? 'Updated' : 'Created'} successfully: ${res.data.data.name}`);
-      setIsModalOpen(false);
+      setDocStatus(0); // Set as draft after save
+      // Refresh list to show updated status
       fetchInvoices();
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.exception || 'Save failed';
@@ -403,6 +418,75 @@ function PurchaseInvoiceList() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    const errors = {};
+    if (!formData.supplier) errors.supplier = 'Supplier is required';
+    if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setSaving(true);
+    const payload = await getPayload();
+    try {
+      let name = docName;
+      if (!name) {
+        // First save as draft
+        const createRes = await axios.post(RESOURCE_API, payload, { withCredentials: true });
+        if (!createRes.data?.data?.name) throw new Error('Create failed');
+        name = createRes.data.data.name;
+        setDocName(name);
+      }
+      // Submit
+      await axios.put(`${RESOURCE_API}/${name}`, { docstatus: 1 }, { withCredentials: true });
+      alert(`Purchase Invoice Submitted: ${name}`);
+      setIsModalOpen(false);
+      setDocName('');
+      setDocStatus(null);
+      fetchInvoices();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.response?.data?.exception || 'Submit failed';
+      alert("Error: " + msg);
+      console.error(err.response?.data);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (name) => {
+    if (confirm('Delete this draft?')) {
+      try {
+        await axios.delete(`${RESOURCE_API}/${name}`, { withCredentials: true });
+        fetchInvoices();
+        setShowActions(null);
+      } catch (err) {
+        alert('Delete failed');
+      }
+    }
+  };
+
+  const handleCancel = async (name) => {
+    if (confirm('Cancel this invoice?')) {
+      try {
+        await axios.put(`${RESOURCE_API}/${name}`, { docstatus: 2 }, { withCredentials: true });
+        fetchInvoices();
+        setShowActions(null);
+      } catch (err) {
+        alert('Cancel failed');
+      }
+    }
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setDocName('');
+    setDocStatus(null);
+    setIsEditMode(false);
+    setIsViewMode(false);
+    setFormErrors({});
   };
 
   const filteredInvoices = useMemo(() => invoices.filter(inv => {
@@ -512,7 +596,6 @@ function PurchaseInvoiceList() {
                 <table className="pi-table">
                   <thead>
                     <tr>
-                      <th className="pi-th-checkbox"><input type="checkbox" className="pi-checkbox" /></th>
                       <th className="pi-th">Invoice Number</th>
                       <th className="pi-th">Supplier</th>
                       <th className="pi-th">Date</th>
@@ -533,9 +616,6 @@ function PurchaseInvoiceList() {
                     ) : (
                       paginated.map(inv => (
                         <tr key={inv.name} className="pi-tr" onClick={() => handleRowClick(inv)}>
-                          <td className="pi-td-checkbox" onClick={e => e.stopPropagation()}>
-                            <input type="checkbox" className="pi-checkbox" />
-                          </td>
                           <td className="pi-td">
                             <span className="pi-invoice-number">{inv.name}</span>
                           </td>
@@ -561,7 +641,7 @@ function PurchaseInvoiceList() {
                               </button>
                               {showActions === inv.name && (
                                 <div className="pi-actions-dropdown">
-                                  {(inv.docstatus === 0 || inv.docstatus === 2) && (
+                                  {inv.docstatus === 0 && (
                                     <div className="pi-dropdown-item" onClick={() => handleDelete(inv.name)}>Delete</div>
                                   )}
                                   {inv.docstatus === 1 && (
@@ -610,7 +690,7 @@ function PurchaseInvoiceList() {
                 <h2 className="pi-modal-title">
                   {isEditMode ? 'Edit' : isViewMode ? 'View' : 'New'} Purchase Invoice
                 </h2>
-                <button onClick={() => setIsModalOpen(false)} className="pi-modal-close">
+                <button onClick={closeModal} className="pi-modal-close">
                   <X className="pi-icon" />
                 </button>
               </div>
@@ -620,7 +700,6 @@ function PurchaseInvoiceList() {
                 <div className="pi-form-section">
                   <h3 className="pi-section-title">Supplier Information</h3>
 
-                  {/* ഇവിപ്പോൾ 2×2 grid ആക്കി മാറ്റി */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* First Row */}
                     <div className="pi-form-group" ref={supplierRef}>
@@ -933,19 +1012,34 @@ function PurchaseInvoiceList() {
 
                 {/* Footer */}
                 <div className="pi-modal-footer" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                  <button onClick={() => setIsModalOpen(false)} className="pi-btn-secondary">
-                    {isViewMode ? 'Close' : 'Cancel'}
-                  </button>
-                  {!isViewMode && (
-                    <button onClick={handleSave} disabled={saving} className="pi-btn-primary" style={{ minWidth: '160px' }}>
-                      {saving ? (
-                        <>
-                          <Loader2 className="animate-spin" size={20} style={{ marginRight: '8px' }} />
-                          {isEditMode ? 'Updating...' : 'Creating...'}
-                        </>
-                      ) : (
-                        isEditMode ? 'Update Invoice' : 'Create Invoice'
-                      )}
+                  {/* Draft or New invoice (docStatus === 0 or null) → Editable + buttons */}
+                  {(docStatus === 0 || docStatus === null) && (
+                    <>
+                      <button onClick={closeModal} className="pi-btn-secondary">
+                        Cancel
+                      </button>
+
+                      <button onClick={handleSaveDraft} disabled={saving} className="pi-btn-secondary">
+                        {saving ? 'Saving...' : (docName ? 'Update Draft' : 'Save Draft')}
+                      </button>
+
+                      <button onClick={handleSubmit} disabled={saving} className="pi-btn-primary" style={{ minWidth: '160px' }}>
+                        {saving ? (
+                          <>
+                            <Loader2 className="animate-spin" size={20} style={{ marginRight: '8px' }} />
+                            Processing...
+                          </>
+                        ) : (
+                          'Submit Invoice'
+                        )}
+                      </button>
+                    </>
+                  )}
+
+                  {/* Submitted invoice (docStatus === 1) → View only + Close button */}
+                  {docStatus === 1 && (
+                    <button onClick={closeModal} className="pi-btn-secondary">
+                      Close
                     </button>
                   )}
                 </div>
