@@ -242,7 +242,6 @@ function PurchaseInvoiceList() {
   };
 
   const openEditModal = async (invoice) => {
-    if (invoice.docstatus !== 0) return alert('Can only edit draft invoices');
     await fetchPurchaseInvoice(invoice.name);
     setIsEditMode(true);
     setIsViewMode(false);
@@ -257,8 +256,11 @@ function PurchaseInvoiceList() {
   };
 
   const handleRowClick = (invoice) => {
-    if (invoice.docstatus === 0) openEditModal(invoice);
-    else openViewModal(invoice);
+    if (invoice.status === 'Draft') {
+      openEditModal(invoice);
+    } else {
+      openViewModal(invoice);
+    }
   };
 
   const updateItem = (index, field, value) => {
@@ -641,10 +643,10 @@ function PurchaseInvoiceList() {
                               </button>
                               {showActions === inv.name && (
                                 <div className="pi-actions-dropdown">
-                                  {inv.docstatus === 0 && (
+                                  {inv.status === 'Draft' && (
                                     <div className="pi-dropdown-item" onClick={() => handleDelete(inv.name)}>Delete</div>
                                   )}
-                                  {inv.docstatus === 1 && (
+                                  {inv.status !== 'Draft' && inv.status !== 'Cancelled' && (
                                     <div className="pi-dropdown-item" onClick={() => handleCancel(inv.name)}>Cancel</div>
                                   )}
                                 </div>
