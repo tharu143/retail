@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, DollarSign, ShoppingCart } from 'lucide-react';
+import { 
+  AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, 
+  DollarSign, ShoppingCart, Save, Send 
+} from 'lucide-react';
 import CustomSearchDropdown from './CustomSearchDropdown';
 
 const POItemModel = {
@@ -17,6 +20,7 @@ const POItemModel = {
 
 function PurchaseOrder() {
   const [formData, setFormData] = useState({
+    name: '', // For draft name
     supplier: null,
     transaction_date: new Date().toISOString().slice(0, 16),
     company: localStorage.getItem('company') || '',
@@ -31,21 +35,25 @@ function PurchaseOrder() {
     total: 0,
     taxes_and_charges: null,   
     taxes: [],                
-    grand_total: 0
+    grand_total: 0,
+    docstatus: 0 // 0 = Draft, 1 = Submitted
   });
 
   const [warehouses, setWarehouses] = useState([]);
   const [history, setHistory] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);     // For Submit
+  const [saving, setSaving] = useState(false);       // For Save Draft
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [allItems, setAllItems] = useState([]);
   const [dropdownPosition, setDropdownPosition] = useState(null);
   const [activeDropdownRow, setActiveDropdownRow] = useState(null);
   const [taxTemplates, setTaxTemplates] = useState([]);
+  const [isEditMode, setIsEditMode] = useState(false); // Shows if we are editing a draft
 
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+  const RESOURCE_API = '/api/resource/Purchase Order';
 
   useEffect(() => {
     fetchWarehouses();
@@ -54,7 +62,7 @@ function PurchaseOrder() {
 
   const fetchWarehouses = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_warehouses`, {
+      const res = await fetch(`${API_PATH}.get_warehouses?is_group=0`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -66,21 +74,21 @@ function PurchaseOrder() {
     }
   };
 
-    const fetchTaxTemplates = async () => {
+  const fetchTaxTemplates = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_purchase_taxes_templates_po`, {  // ← CHANGED
+      const res = await fetch(`${API_PATH}.get_purchase_taxes_templates_po`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
-      setTaxTemplates(data.message || data || []);  // Safe handling
+      setTaxTemplates(data.message || data || []);
     } catch (err) {
       console.error('Tax templates error:', err);
     }
   };
 
-      const fetchTaxRows = async (template) => {
+  const fetchTaxRows = async (template) => {
     if (!template) {
       setFormData(prev => ({
         ...prev,
@@ -103,17 +111,7 @@ function PurchaseOrder() {
       }
 
       const data = await res.json();
-
-      const rawTaxes = Array.isArray(data) 
-        ? data 
-        : Array.isArray(data.message) 
-          ? data.message 
-          : [];
-
-      if (rawTaxes.length === 0) {
-        setError('No tax rows found in template');
-        return;
-      }
+      const rawTaxes = Array.isArray(data) ? data : Array.isArray(data.message) ? data.message : [];
 
       const formattedTaxes = rawTaxes.map(t => ({
         charge_type: t.charge_type || "On Net Total",
@@ -124,7 +122,6 @@ function PurchaseOrder() {
         add_deduct_tax: t.add_deduct_tax || "Add"
       }));
 
-      // State update + immediate recalculation with latest items
       setFormData(prev => {
         const netTotal = prev.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
@@ -136,27 +133,21 @@ function PurchaseOrder() {
           } else if (tax.charge_type === "Actual") {
             taxAmt = tax.rate || 0;
           }
-          if (tax.add_deduct_tax === "Deduct") {
-            taxAmt = -taxAmt;
-          }
+          if (tax.add_deduct_tax === "Deduct") taxAmt = -taxAmt;
           taxesTotal += taxAmt;
           return { ...tax, tax_amount: taxAmt };
         });
-
-        const grandTotal = netTotal + taxesTotal;
 
         return {
           ...prev,
           taxes: updatedTaxes,
           taxes_and_charges: template,
           total: netTotal,
-          grand_total: grandTotal
+          grand_total: netTotal + taxesTotal
         };
       });
-
     } catch (err) {
       setError('Failed to load tax details');
-      console.error('Tax fetch error:', err);
     }
   };
 
@@ -171,8 +162,6 @@ function PurchaseOrder() {
         if (value < formData.transaction_date) {
           setError('Schedule date cannot be before transaction date');
           return;
-        } else {
-          setError('');
         }
         items[rowIndex][name] = value;
       } else {
@@ -181,7 +170,6 @@ function PurchaseOrder() {
       setFormData({ ...formData, items });
     } else {
       if (name === 'transaction_date') {
-        setError('');
         const items = formData.items.map(item => ({
           ...item,
           schedule_date: item.schedule_date < value ? value : item.schedule_date
@@ -194,7 +182,7 @@ function PurchaseOrder() {
     calculateTotals();
   };
 
-    const calculateTotals = () => {
+  const calculateTotals = () => {
     const totalQty = formData.items.reduce((sum, item) => sum + (item.qty || 0), 0);
     const netTotal = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
 
@@ -206,22 +194,17 @@ function PurchaseOrder() {
       } else if (tax.charge_type === "Actual") {
         taxAmt = tax.rate || 0;
       }
-      // Handle Deduct tax
-      if (tax.add_deduct_tax === "Deduct") {
-        taxAmt = -taxAmt;
-      }
+      if (tax.add_deduct_tax === "Deduct") taxAmt = -taxAmt;
       taxesTotal += taxAmt;
       return { ...tax, tax_amount: taxAmt };
     });
-
-    const grandTotal = netTotal + taxesTotal;
 
     setFormData(prev => ({
       ...prev,
       total_qty: totalQty,
       total: netTotal,
       taxes: updatedTaxes,
-      grand_total: grandTotal
+      grand_total: netTotal + taxesTotal
     }));
   };
 
@@ -239,7 +222,7 @@ function PurchaseOrder() {
   };
 
   const fetchHistory = async () => {
-    const itemCodes = formData.items.map(item => item.item_code).filter(Boolean);
+    const itemCodes = formData.items.map(i => i.item_code).filter(Boolean);
     if (!itemCodes.length) {
       setHistory({});
       return;
@@ -262,23 +245,22 @@ function PurchaseOrder() {
     calculateTotals();
   }, [formData.items]);
 
-  const handleSubmit = async (e) => {
+  // ======================= SAVE DRAFT =======================
+  const handleSaveDraft = async (e) => {
     e.preventDefault();
     if (!formData.supplier?.name || !formData.company) {
       setError('Please select supplier and company');
       return;
     }
-    if (formData.items.some(i => !i.item_code || !i.uom || i.qty <= 0)) {
-      setError('All items must have item, UOM and valid qty');
+    if (formData.items.some(i => !i.item_code || i.qty <= 0)) {
+      setError('All items must have item and valid qty');
       return;
     }
-    if (formData.items.some(i => i.schedule_date < formData.transaction_date)) {
-      setError('Schedule date cannot be before transaction date');
-      return;
-    }
-    setLoading(true);
+
+    setSaving(true);
     setError('');
     setSuccess('');
+
     try {
       const payload = {
         ...formData,
@@ -295,43 +277,100 @@ function PurchaseOrder() {
       delete payload.total_qty;
       delete payload.total;
       delete payload.grand_total;
+      delete payload.docstatus;
+      delete payload.name; // name will be auto-generated or updated
 
-      const res = await fetch(`${API_PATH}.create_purchase_order`, {
-        method: 'POST',
+      let response;
+      if (formData.name) {
+        // Update existing draft
+        response = await fetch(`${RESOURCE_API}/${formData.name}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        });
+      } else {
+        // Create new draft
+        response = await fetch(RESOURCE_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        });
+      }
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const docName = data.data?.name || data.message?.name;
+
+      setFormData(prev => ({ ...prev, name: docName, docstatus: 0 }));
+      setIsEditMode(true);
+      setSuccess(`Draft ${formData.name ? 'updated' : 'saved'}: ${docName}`);
+    } catch (err) {
+      setError(`Save Draft failed: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ======================= SUBMIT =======================
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.name) {
+      setError('Please Save as Draft first before submitting');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch(`${RESOURCE_API}/${formData.name}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
         credentials: 'include',
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ docstatus: 1 })
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const apiResp = data.message || data;
-
-      if (apiResp.status === 'success') {
-        setSuccess(`PO ${apiResp.name} created! Grand Total: AED ${apiResp.grand_total?.toFixed(2) || formData.grand_total.toFixed(2)}`);
-        setFormData(prev => ({
-          ...prev,
-          items: [{ ...POItemModel, schedule_date: prev.transaction_date }],
-          taxes: [],
-          taxes_and_charges: null,
-          total_qty: 0,
-          total: 0,
-          grand_total: 0
-        }));
-      } else {
-        setError(apiResp.message || 'Failed');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `HTTP ${response.status}`);
       }
+
+      setSuccess(`Purchase Order ${formData.name} submitted successfully!`);
+      // Reset form
+      setFormData({
+        name: '',
+        supplier: null,
+        transaction_date: new Date().toISOString().slice(0, 16),
+        company: localStorage.getItem('company') || '',
+        currency: 'AED',
+        conversion_rate: 1.0,
+        set_warehouse: '',
+        items: [{ ...POItemModel, schedule_date: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0, 16) }],
+        total_qty: 0,
+        total: 0,
+        taxes_and_charges: null,
+        taxes: [],
+        grand_total: 0,
+        docstatus: 0
+      });
+      setIsEditMode(false);
     } catch (err) {
-      setError(`Error: ${err.message}`);
+      setError(`Submit failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // SUPPLIER: Fixed with Type Dropdown
-  const handleSupplierSelect = (supplier) => {
-    setFormData(prev => ({ ...prev, supplier }));
-  };
+  // Supplier & Item handlers remain unchanged
+  const handleSupplierSelect = (supplier) => setFormData(prev => ({ ...prev, supplier }));
 
   const handleSupplierCreate = async (name) => {
     const typeSelect = document.getElementById('new-supplier-type');
@@ -340,58 +379,30 @@ function PurchaseOrder() {
     try {
       const res = await fetch(`${API_PATH}.create_supplier`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Frappe-SID': getSession()
-        },
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
         credentials: 'include',
-        body: JSON.stringify({
-          supplier_name: name.trim(),
-          supplier_type
-        })
+        body: JSON.stringify({ supplier_name: name.trim(), supplier_type })
       });
-
       const result = await res.json();
 
-      // FORMAT 1: { message: { status: "success", message: { ... } } }
       if (result.message?.status === 'success' && result.message?.message) {
         const s = result.message.message;
-        return {
-          name: s.name,
-          supplier_name: s.supplier_name || s.name,
-          supplier_type: s.supplier_type || supplier_type
-        };
+        return { name: s.name, supplier_name: s.supplier_name || s.name, supplier_type: s.supplier_type || supplier_type };
       }
-
-      // FORMAT 2: { status: "success", message: { ... } }
       if (result.status === 'success' && result.message) {
         const s = result.message;
-        return {
-          name: s.name,
-          supplier_name: s.supplier_name || s.name,
-          supplier_type: s.supplier_type || supplier_type
-        };
+        return { name: s.name, supplier_name: s.supplier_name || s.name, supplier_type: s.supplier_type || supplier_type };
       }
-
-      // FORMAT 3: { message: [ { name: "...", supplier_name: "..." } ] }
       if (Array.isArray(result.message) && result.message[0]) {
         const s = result.message[0];
-        return {
-          name: s.name,
-          supplier_name: s.supplier_name || s.name,
-          supplier_type: s.supplier_type || supplier_type
-        };
+        return { name: s.name, supplier_name: s.supplier_name || s.name, supplier_type: s.supplier_type || supplier_type };
       }
-
-      // FAILURE
-      throw new Error('Invalid response from server');
-
+      throw new Error('Invalid response');
     } catch (err) {
       setError(`Cannot create supplier: ${err.message}`);
       throw err;
     }
   };
-
 
   const fetchSuppliers = async (query) => {
     try {
@@ -401,17 +412,12 @@ function PurchaseOrder() {
       });
       if (!res.ok) return [];
       const data = await res.json();
-      return (data.message || []).map(s => ({
-        name: s.name,
-        supplier_name: s.supplier_name || s.name
-      }));
+      return (data.message || []).map(s => ({ name: s.name, supplier_name: s.supplier_name || s.name }));
     } catch (err) {
-      console.error(err);
       return [];
     }
   };
 
-  // ITEM HANDLERS
   const handleItemSelect = (item, rowIndex) => {
     const items = [...formData.items];
     items[rowIndex] = {
@@ -458,7 +464,6 @@ function PurchaseOrder() {
       setAllItems(itemsWithRate);
       return itemsWithRate;
     } catch (err) {
-      console.error(err);
       return [];
     }
   };
@@ -472,9 +477,12 @@ function PurchaseOrder() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <FileText className="w-8 h-8 text-slate-700" /> Purchase Order
+            <FileText className="w-8 h-8 text-slate-700" /> 
+            Purchase Order {isEditMode && formData.name ? `(Draft: ${formData.name})` : ''}
           </h1>
-          <p className="text-slate-600 mt-2">Create a new purchase order</p>
+          <p className="text-slate-600 mt-2">
+            {isEditMode ? 'Editing draft Purchase Order' : 'Create a new Purchase Order'}
+          </p>
         </div>
 
         {error && (
@@ -491,7 +499,8 @@ function PurchaseOrder() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+        <form className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+          {/* Header fields unchanged */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Supplier *</label>
@@ -541,7 +550,7 @@ function PurchaseOrder() {
             </div>
           </div>
 
-          {/* Items Table - unchanged */}
+          {/* Items Table */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold flex items-center gap-2"><Package className="w-5 h-5" /> Items</h2>
@@ -742,10 +751,27 @@ function PurchaseOrder() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg flex items-center justify-center gap-3 disabled:opacity-50">
-            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <CheckCircle2 className="w-6 h-6" />}
-            {loading ? 'Creating...' : 'Create Purchase Order'}
-          </button>
+          <div className="flex gap-4 justify-end mt-8">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={saving || loading}
+              className="px-8 py-4 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-lg flex items-center gap-3 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
+              {saving ? 'Saving Draft...' : 'Save as Draft'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading || saving || !formData.name}
+              className="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg flex items-center gap-3 disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
+              {loading ? 'Submitting...' : 'Submit Purchase Order'}
+            </button>
+          </div>
         </form>
 
         {/* History section unchanged */}

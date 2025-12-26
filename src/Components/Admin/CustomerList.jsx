@@ -1,7 +1,7 @@
 // src/pages/CustomerList.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, ChevronDown, Search, Save, Menu, Loader2, Phone, Mail
+  Plus, Search, Save, X, Phone, Mail, Users, ChevronLeft
 } from 'lucide-react';
 import NavBar from '../Nav/NavBar';
 
@@ -19,7 +19,6 @@ function CustomerList() {
   });
   const [saving, setSaving] = useState(false);
 
-  // Correct API Path
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
   const getSession = () => localStorage.getItem('session') || '';
 
@@ -41,7 +40,7 @@ function CustomerList() {
           email: c.email
         })));
       } catch (err) {
-        alert('Failed to load customers');
+        alert('Failed to load customers. Please try again.');
         console.error(err);
       } finally {
         setLoading(false);
@@ -90,8 +89,8 @@ function CustomerList() {
         setShowForm(false);
         setForm({ customer_name: '', mobile_no: '', email_id: '' });
 
-        // Refresh list
-        const refresh = await fetch(`${API_PATH}.get_customers`, {
+        // Refresh customers list
+        const refresh = await fetch(`${API_PATH}.get_customers_list`, {
           headers: { 'X-Frappe-SID': getSession() },
           credentials: 'include'
         });
@@ -102,14 +101,26 @@ function CustomerList() {
           mobile: c.mobile,
           email: c.email
         })));
+        setCurrentPage(1); // reset to first page
       } else {
-        alert(result.message?.message || 'Failed to save');
+        alert(result.message?.message || 'Failed to save customer');
       }
     } catch (err) {
-      alert('Failed to save customer');
+      alert('Network error. Please try again.');
       console.error(err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCloseForm = () => {
+    if (form.customer_name || form.mobile_no || form.email_id) {
+      if (window.confirm('Discard unsaved changes?')) {
+        setShowForm(false);
+        setForm({ customer_name: '', mobile_no: '', email_id: '' });
+      }
+    } else {
+      setShowForm(false);
     }
   };
 
@@ -118,152 +129,239 @@ function CustomerList() {
       <NavBar />
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <h1 className="text-xl font-semibold text-gray-900">Customers</h1>
-            <div className="flex items-center space-x-1 text-sm text-gray-600">
-              <span>List View</span>
-              <ChevronDown className="w-4 h-4" />
+        <div className="bg-white shadow-sm border-b border-gray-200">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Users className="w-8 h-8 text-gray-600" />
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900">Customers</h1>
+                <p className="text-sm text-gray-500 mt-1">{total} customers</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              <Plus className="w-5 h-5" />
+              Add Customer
+            </button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="px-6 pb-4">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={filterName}
+                onChange={e => {
+                  setFilterName(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search customers by name..."
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Customer</span>
-          </button>
         </div>
 
-        {/* Table */}
-        <main className="p-6">
-          {loading ? (
-            <div className="text-center py-10">Loading…</div>
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        <input type="checkbox" className="rounded border-gray-300" />
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        <div className="space-y-1">
-                          <span>Name</span>
-                          <div className="relative">
-                            <Search className="absolute left-2 top-2 w-3 h-3 text-gray-400" />
-                            <input
-                              type="text"
-                              value={filterName}
-                              onChange={e => setFilterName(e.target.value)}
-                              placeholder="Filter..."
-                              className="w-full pl-7 pr-2 py-1 text-xs border border-gray-300 rounded-md"
-                            />
-                          </div>
-                        </div>
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {paginated.length === 0 ? (
-                      <tr><td colSpan="4" className="px-6 py-8 text-center text-gray-500">No customers found</td></tr>
-                    ) : (
-                      paginated.map(c => (
-                        <tr key={c.value} className="hover:bg-gray-50">
-                          <td className="px-6 py-4"><input type="checkbox" className="rounded border-gray-300" /></td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{c.label}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {c.mobile ? <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {c.mobile}</span> : '-'}
+        {/* Main Content */}
+        <div className="p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-gray-600">Loading customers...</p>
+              </div>
+            ) : paginated.length === 0 ? (
+              <div className="text-center py-20">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {filterName ? 'No customers found' : 'No customers yet'}
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  {filterName ? 'Try adjusting your search.' : 'Start by adding your first customer.'}
+                </p>
+                {!filterName && (
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add First Customer
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Customer Name
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Mobile
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Email
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {paginated.map(c => (
+                        <tr key={c.value} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900">{c.label}</div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {c.email ? <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {c.email}</span> : '-'}
+                          <td className="px-6 py-4">
+                            {c.mobile ? (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Phone className="w-4 h-4 text-gray-400" />
+                                <span>{c.mobile}</span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            {c.email ? (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Mail className="w-4 h-4 text-gray-400" />
+                                <span>{c.email}</span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              <div className="px-6 py-3 flex items-center justify-between border-t">
-                <div className="text-sm text-gray-700">
-                  Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total}
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex space-x-2">
-                  {[20, 100, 500].map(size => (
-                    <button
-                      key={size}
-                      onClick={() => { setPageSize(size); setCurrentPage(1); }}
-                      className={`px-3 py-1 text-sm rounded-md ${pageSize === size ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300'}`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
 
-        {/* ────── FULL‑SCREEN CREATE FORM ────── */}
+                {/* Pagination Footer */}
+                <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 bg-gray-50">
+                  <div className="text-sm text-gray-700">
+                    Showing {(currentPage - 1) * pageSize + 1} to{' '}
+                    {Math.min(currentPage * pageSize, total)} of {total} customers
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-600">Rows per page:</span>
+                    <div className="flex gap-2">
+                      {[20, 50, 100].map(size => (
+                        <button
+                          key={size}
+                          onClick={() => {
+                            setPageSize(size);
+                            setCurrentPage(1);
+                          }}
+                          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                            pageSize === size
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white border border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ────── FULL-SCREEN ADD CUSTOMER FORM (MODAL STYLE) ────── */}
         {showForm && (
-          <div className="fixed inset-0 bg-white z-50 flex flex-col">
-            <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <button onClick={() => setShowForm(false)} className="text-gray-600 hover:text-gray-900">
-                  <Menu className="w-5 h-5" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              {/* Form Header */}
+              <div className="px-8 py-6 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={handleCloseForm}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <div>
+                    <h2 className="text-2xl font-semibold text-gray-900">New Customer</h2>
+                    <p className="text-sm text-gray-500 mt-1">Fill in the details below</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseForm}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-600" />
                 </button>
-                <h1 className="text-xl font-semibold text-gray-900">New Customer</h1>
-                <span className="text-sm text-orange-600">Not Saved</span>
               </div>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center space-x-1"
-              >
-                <Save className="w-4 h-4" />
-                <span>{saving ? 'Saving...' : 'Save'}</span>
-              </button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-2xl mx-auto space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Customer Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.customer_name}
-                    onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                    placeholder="John Doe"
-                  />
+              {/* Form Body */}
+              <div className="flex-1 overflow-y-auto px-8 py-6">
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Customer Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      autoFocus
+                      value={form.customer_name}
+                      onChange={e => setForm({ ...form, customer_name: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                      placeholder="Enter customer name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mobile Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.mobile_no}
+                      onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                      placeholder="+91 98765 43210"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={form.email_id}
+                      onChange={e => setForm({ ...form, email_id: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                      placeholder="customer@example.com"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile No</label>
-                  <input
-                    type="text"
-                    value={form.mobile_no}
-                    onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                    placeholder="+971 50 123 4567"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={form.email_id}
-                    onChange={e => setForm({ ...form, email_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                    placeholder="john@example.com"
-                  />
-                </div>
+              </div>
+
+              {/* Form Footer */}
+              <div className="px-8 py-6 border-t border-gray-200 flex justify-end gap-4">
+                <button
+                  onClick={handleCloseForm}
+                  className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !form.customer_name.trim()}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                >
+                  {saving && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>}
+                  {saving ? 'Saving...' : 'Save Customer'}
+                </button>
               </div>
             </div>
           </div>

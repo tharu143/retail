@@ -1067,9 +1067,6 @@ function PurchaseInvoiceList() {
                         <button onClick={addItemRow} className="pi-btn-secondary">
                           <Plus className="pi-icon-sm" /> Add Row
                         </button>
-                        <button className="pi-btn-secondary">Add Multiple</button>
-                        <button className="pi-btn-secondary">Download</button>
-                        <button className="pi-btn-secondary">Upload</button>
                       </div>
                     )}
                   </div>

@@ -22,6 +22,7 @@ import SupplierList from '../Components/Admin/SupplierList'
 import SalesOrder from '../Components/Admin/SalesOrder'
 import SalesInvoiceList from '../Components/Admin/SalesInvoiceList'
 import DeliveryNoteList from '../Components/Admin/DeliveryNoteList'
+import PurchaseOrderLists from '../Components/Admin/PurchaseOrderLists'
 
 
 function UserRouter() {
