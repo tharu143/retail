@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode
 } from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
@@ -30,11 +30,17 @@ function PurchaseInvoiceList() {
   const [loadingTaxTemplates, setLoadingTaxTemplates] = useState(false);
   const [taxPreview, setTaxPreview] = useState([]);
 
+  // NEW: Warehouses State (filtered for non-group)
+  const [warehouses, setWarehouses] = useState([]);
+
   const [formData, setFormData] = useState({
     name: '', supplier: '', supplier_name: '',
     posting_date: new Date().toISOString().split('T')[0],
     due_date: '', bill_no: '',
     update_stock: true,
+    accepted_warehouse: '',
+    rejected_warehouse: '',
+    is_subcontracted: false,
     apply_discount_on: 'Grand Total',
     additional_discount_percentage: 0,
     discount_amount: 0,
@@ -49,6 +55,11 @@ function PurchaseInvoiceList() {
   const [itemsList, setItemsList] = useState([]);
   const [itemSearches, setItemSearches] = useState({});
   const [showItemDropdowns, setShowItemDropdowns] = useState({});
+
+  // NEW: Barcode Scanner State
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const barcodeRef = useRef(null);
 
   const [filterName, setFilterName] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('');
@@ -79,12 +90,76 @@ function PurchaseInvoiceList() {
   useEffect(() => {
     fetchInvoices();
     fetchTaxTemplates();
+    fetchWarehouses(); // NEW: Fetch warehouses
   }, []);
+
+  // NEW: Auto-set default accepted warehouse if needed
+  useEffect(() => {
+    if (formData.update_stock && formData.accepted_warehouse === '' && warehouses.length > 0) {
+      setFormData(prev => ({ ...prev, accepted_warehouse: warehouses[0].name }));
+    }
+  }, [warehouses, formData.update_stock, formData.accepted_warehouse]);
 
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showActions]);
+
+  // FIXED: Fetch Warehouses (only non-group nodes)
+  const fetchWarehouses = async () => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_company_warehouses`, { 
+        params: { is_group: 0 }, // NEW: Filter for leaf nodes only
+        withCredentials: true 
+      });
+      setWarehouses(Array.isArray(res.data.message) ? res.data.message : []);
+    } catch (err) {
+      console.error('Failed to fetch warehouses:', err);
+      // Fallback: Fetch all and filter client-side
+      try {
+        const fallbackRes = await axios.get(`${API_PATH}.get_warehouses`, { withCredentials: true });
+        const allWh = Array.isArray(fallbackRes.data.message) ? fallbackRes.data.message : [];
+        setWarehouses(allWh.filter(w => w.is_group === 0)); // Client-side filter if API doesn't support
+      } catch (fallbackErr) {
+        console.error('Fallback warehouse fetch failed:', fallbackErr);
+      }
+    }
+  };
+
+  // NEW: Handle Barcode Scan on Enter
+  const handleBarcodeScan = async (e) => {
+    if (e.key === 'Enter' && barcodeInput.trim()) {
+      setBarcodeLoading(true);
+      try {
+        // Call API to fetch item by barcode (enhance backend if needed)
+        const res = await axios.get(`${API_PATH}.get_item_by_barcode_pi`, {
+          params: { barcode: barcodeInput.trim() },
+          withCredentials: true
+        });
+        const item = Array.isArray(res.data.message) ? res.data.message[0] : res.data.message;
+        
+        if (item && item.item_code) {
+          // Add to last row or create new row
+          const lastIndex = formData.items.length - 1;
+          if (formData.items[lastIndex].item_code) {
+            // Create new row if last is filled
+            addItemRow();
+          }
+          // Select item in the last row
+          await selectItem(lastIndex, item);
+        } else {
+          alert('Item not found for barcode: ' + barcodeInput);
+        }
+      } catch (err) {
+        console.error('Barcode fetch error:', err);
+        alert('Error fetching item by barcode');
+      } finally {
+        setBarcodeLoading(false);
+        setBarcodeInput(''); // Clear input after scan
+        barcodeRef.current?.focus(); // Refocus for next scan
+      }
+    }
+  };
 
   const handleClickOutside = (e) => {
     if (supplierRef.current && !supplierRef.current.contains(e.target)) setShowSupplierDropdown(false);
@@ -190,6 +265,9 @@ function PurchaseInvoiceList() {
       posting_date: new Date().toISOString().split('T')[0],
       due_date: '', bill_no: '',
       update_stock: true,
+      accepted_warehouse: '',
+      rejected_warehouse: '',
+      is_subcontracted: false,
       apply_discount_on: 'Grand Total',
       additional_discount_percentage: 0,
       discount_amount: 0,
@@ -201,6 +279,7 @@ function PurchaseInvoiceList() {
     setTaxPreview([]);
     setDocName('');
     setDocStatus(null);
+    setBarcodeInput(''); // NEW: Reset barcode
     setIsEditMode(false);
     setIsViewMode(false);
     setIsModalOpen(true);
@@ -219,6 +298,9 @@ function PurchaseInvoiceList() {
           due_date: d.due_date ? d.due_date.split('T')[0] : '',
           bill_no: d.bill_no || '',
           update_stock: !!d.update_stock,
+          accepted_warehouse: d.accepted_warehouse || '',
+          rejected_warehouse: d.rejected_warehouse || '',
+          is_subcontracted: !!d.is_subcontracted,
           apply_discount_on: d.apply_discount_on || 'Grand Total',
           additional_discount_percentage: d.additional_discount_percentage || 0,
           discount_amount: d.discount_amount || 0,
@@ -315,7 +397,6 @@ function PurchaseInvoiceList() {
     setItemSearches(prev => ({ ...prev, [rowIndex]: '' }));
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
 
-
     try {
       const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
         params: { item_code: item.item_code },
@@ -323,7 +404,6 @@ function PurchaseInvoiceList() {
       });
       if (res.data.message?.rate) {
         updateItem(rowIndex, 'rate', res.data.message.rate);
-
       }
     } catch (err) {
       console.log("No buying rate found");
@@ -367,6 +447,9 @@ function PurchaseInvoiceList() {
       due_date: formData.due_date || null,
       bill_no: formData.bill_no || null,
       update_stock: formData.update_stock ? 1 : 0,
+      accepted_warehouse: formData.update_stock ? formData.accepted_warehouse : null,
+      rejected_warehouse: formData.update_stock ? formData.rejected_warehouse : null,
+      is_subcontracted: formData.is_subcontracted ? 1 : 0,
       apply_discount_on: formData.apply_discount_on,
       additional_discount_percentage: formData.additional_discount_percentage > 0 ? parseFloat(formData.additional_discount_percentage) : null,
       discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
@@ -377,7 +460,8 @@ function PurchaseInvoiceList() {
         .map(i => ({
           item_code: i.item_code,
           qty: parseFloat(i.qty) || 1,
-          rate: parseFloat(i.rate || 0)
+          rate: parseFloat(i.rate || 0),
+          warehouse: formData.update_stock ? formData.accepted_warehouse : ''
         }))
     };
   };
@@ -386,6 +470,7 @@ function PurchaseInvoiceList() {
     const errors = {};
     if (!formData.supplier) errors.supplier = 'Supplier is required';
     if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
+    if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -426,6 +511,7 @@ function PurchaseInvoiceList() {
     const errors = {};
     if (!formData.supplier) errors.supplier = 'Supplier is required';
     if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
+    if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -489,6 +575,7 @@ function PurchaseInvoiceList() {
     setIsEditMode(false);
     setIsViewMode(false);
     setFormErrors({});
+    setBarcodeInput(''); // NEW: Reset barcode on close
   };
 
   const filteredInvoices = useMemo(() => invoices.filter(inv => {
@@ -775,21 +862,137 @@ function PurchaseInvoiceList() {
                 </div>
 
 
-                {/* Items Table - WAREHOUSE COLUMN REMOVED */}
+                {/* Items Table - WAREHOUSE REMOVED, STOCK FIELDS ADDED AT FORM LEVEL */}
                 <div className="pi-form-section">
                   <div className="pi-section-header">
                     <h3 className="pi-section-title">Items</h3>
                     {!isViewMode && <button onClick={addItemRow} className="pi-btn-link"><Plus className="pi-icon-sm" /> Add Item</button>}
                   </div>
+
+                  {/* NEW: Barcode Scanner Input */}
+                  {!isViewMode && (
+                    <div className="pi-barcode-scanner-wrapper" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '2px dashed #dee2e6' }}>
+                      <label className="pi-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Scan Barcode (Press Enter to Add)</label>
+                      <div className="pi-input-wrapper">
+                        <Barcode className="pi-input-icon" />
+                        <input
+                          ref={barcodeRef}
+                          type="text"
+                          value={barcodeInput}
+                          onChange={e => setBarcodeInput(e.target.value)}
+                          onKeyDown={handleBarcodeScan}
+                          placeholder="Scan or enter barcode..."
+                          className="pi-input"
+                          autoFocus
+                          disabled={barcodeLoading}
+                        />
+                        {barcodeLoading && <Loader2 className="animate-spin pi-input-icon" style={{ marginLeft: '0.5rem' }} />}
+                      </div>
+                      <p style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.25rem' }}>Scanned items will be added to the table automatically.</p>
+                    </div>
+                  )}
+
+                  {/* NEW: Stock Controls - Visible based on Update Stock */}
+                  <div className="pi-stock-controls" style={{ marginBottom: '1rem' }}>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                      cursor: isViewMode ? 'not-allowed' : 'pointer'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.update_stock}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            update_stock: checked,
+                            accepted_warehouse: checked ? (prev.accepted_warehouse || warehouses[0]?.name || '') : '',
+                            rejected_warehouse: checked ? prev.rejected_warehouse : '',
+                            is_subcontracted: checked ? prev.is_subcontracted : false
+                          }));
+                        }}
+                        disabled={isViewMode}
+                        style={{ width: '20px', height: '20px' }}
+                      />
+                      <span>Update Stock</span>
+                      <span style={{ fontWeight: '400', color: '#666' }}>(Receive items into warehouse)</span>
+                    </label>
+
+                    {formData.update_stock && !isViewMode && (
+                      <>
+                        <div className="pi-form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                          <div className="pi-form-group">
+                            <label className="pi-label">Set Accepted Warehouse {!isViewMode && <span className="pi-required">*</span>}</label>
+                            <select
+                              value={formData.accepted_warehouse}
+                              onChange={e => setFormData(prev => ({ ...prev, accepted_warehouse: e.target.value }))}
+                              className={`pi-select ${formErrors.accepted_warehouse ? 'pi-input-error' : ''}`}
+                              required
+                            >
+                              <option value="">Select Warehouse</option>
+                              {warehouses.map(w => (
+                                <option key={w.name} value={w.name}>{w.warehouse_name}</option>
+                              ))}
+                            </select>
+                            {formErrors.accepted_warehouse && <span className="pi-error">{formErrors.accepted_warehouse}</span>}
+                          </div>
+                          <div className="pi-form-group">
+                            <label className="pi-label">Rejected Warehouse</label>
+                            <select
+                              value={formData.rejected_warehouse}
+                              onChange={e => setFormData(prev => ({ ...prev, rejected_warehouse: e.target.value }))}
+                              className="pi-select"
+                            >
+                              <option value="">None</option>
+                              {warehouses.map(w => (
+                                <option key={w.name} value={w.name}>{w.warehouse_name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <label style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          marginTop: '1rem',
+                          fontSize: '1rem',
+                          fontWeight: '500',
+                          cursor: isViewMode ? 'not-allowed' : 'pointer'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={formData.is_subcontracted}
+                            onChange={e => setFormData(prev => ({ ...prev, is_subcontracted: e.target.checked }))}
+                            disabled={isViewMode}
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                          <span>Is Subcontracted</span>
+                        </label>
+                      </>
+                    )}
+                  </div>
+
                   <div className="pi-items-table-wrapper">
                     <table className="pi-items-table">
                       <thead>
                         <tr>
-                          <th className="pi-items-th">Item</th>
-                          <th className="pi-items-th" style={{ width: '120px' }}>Qty</th>
+                          <th className="pi-items-th">
+                            Item {!isViewMode && <span className="pi-required">*</span>}
+                          </th>
+                          <th className="pi-items-th" style={{ width: '120px' }}>
+                            Accepted Qty {!isViewMode && <span className="pi-required">*</span>}
+                          </th>
                           <th className="pi-items-th" style={{ width: '100px' }}>UOM</th>
-                          <th className="pi-items-th" style={{ width: '140px' }}>Rate (AED)</th>
-                          <th className="pi-items-th" style={{ width: '140px' }}>Amount (AED)</th>
+                          <th className="pi-items-th" style={{ width: '140px' }}>
+                            Rate (AED) {!isViewMode && <span className="pi-required">*</span>}
+                          </th>
+                          <th className="pi-items-th" style={{ width: '140px' }}>
+                            Amount (AED) {!isViewMode && <span className="pi-required">*</span>}
+                          </th>
                           <th className="pi-items-th" style={{ width: '60px' }}></th>
                         </tr>
                       </thead>
@@ -812,7 +1015,6 @@ function PurchaseInvoiceList() {
                                   {showItemDropdowns[i] && itemsList.length > 0 && !isViewMode && (
                                     <div className="pi-dropdown pi-dropdown-absolute">
                                       {itemsList.map(itm => (
-                                        // THIS LINE WAS BROKEN → FIXED ORDER
                                         <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="pi-dropdown-item">
                                           <div className="pi-dropdown-main">{itm.item_name}</div>
                                           <div className="pi-dropdown-sub">{itm.item_code}</div>
@@ -860,10 +1062,20 @@ function PurchaseInvoiceList() {
                         ))}
                       </tbody>
                     </table>
+                    {!isViewMode && (
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+                        <button onClick={addItemRow} className="pi-btn-secondary">
+                          <Plus className="pi-icon-sm" /> Add Row
+                        </button>
+                        <button className="pi-btn-secondary">Add Multiple</button>
+                        <button className="pi-btn-secondary">Download</button>
+                        <button className="pi-btn-secondary">Upload</button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Discount & Taxes Section */}
+                {/* Discount & Taxes Section - Update Stock REMOVED */}
                 <div className="pi-form-section">
                   <h3 className="pi-section-title">Discount & Taxes</h3>
 
@@ -953,28 +1165,6 @@ function PurchaseInvoiceList() {
                         </table>
                       </div>
                     )}
-                  </div>
-
-                  {/* Update Stock */}
-                  <div style={{ marginBottom: '2rem' }}>
-                    <label style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      fontSize: '1.1rem',
-                      fontWeight: '600',
-                      cursor: isViewMode ? 'not-allowed' : 'pointer'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.update_stock}
-                        onChange={e => setFormData(prev => ({ ...prev, update_stock: e.target.checked }))}
-                        disabled={isViewMode}
-                        style={{ width: '20px', height: '20px' }}
-                      />
-                      <span>Update Stock</span>
-                      <span style={{ fontWeight: '400', color: '#666' }}>(Receive items into warehouse)</span>
-                    </label>
                   </div>
 
                   {/* Grand Total Box */}
