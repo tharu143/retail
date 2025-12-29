@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { 
-  AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, 
-  DollarSign, ShoppingCart, Save, Send 
+import {
+  AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package,
+  DollarSign, ShoppingCart, Save, Send
 } from 'lucide-react';
 import CustomSearchDropdown from './CustomSearchDropdown';
 
@@ -33,8 +33,8 @@ function PurchaseOrder() {
     }],
     total_qty: 0,
     total: 0,
-    taxes_and_charges: null,   
-    taxes: [],                
+    taxes_and_charges: null,
+    taxes: [],
     grand_total: 0,
     docstatus: 0 // 0 = Draft, 1 = Submitted
   });
@@ -54,6 +54,77 @@ function PurchaseOrder() {
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
   const RESOURCE_API = '/api/resource/Purchase Order';
+
+  const [scanningRow, setScanningRow] = useState(null); // Track which row is scanning
+
+  const handleBarcodeScan = (e, rowIndex) => {
+    const value = e.target.value;
+    const items = [...formData.items];
+    items[rowIndex].temp_barcode = value;
+    setFormData({ ...formData, items });
+  };
+
+  const handleBarcodeEnter = async (e, rowIndex) => {
+    if (e.key !== 'Enter') return;
+
+    const barcode = e.target.value.trim();
+    if (!barcode) return;
+
+    setScanningRow(rowIndex);
+
+    try {
+      const res = await fetch(`${API_PATH}.get_item_by_barcode_po?barcode=${encodeURIComponent(barcode)}`, {
+        headers: { 'X-Frappe-SID': getSession() },
+        credentials: 'include'
+      });
+
+      if (!res.ok) throw new Error('Item not found');
+
+      const data = await res.json();
+      const item = data.message;
+
+      if (!item || !item.item_code) {
+        setError(`No item found for barcode: ${barcode}`);
+        return;
+      }
+
+      // Auto-fill the row with item data
+      const items = [...formData.items];
+      items[rowIndex] = {
+        ...items[rowIndex],
+        item_code: item.item_code,
+        item_name: item.item_name,
+        stock_uom: item.stock_uom || '',
+        uom: item.stock_uom || '',
+        rate: item.rate || 0,
+        qty: items[rowIndex].qty || 1,
+        amount: (item.rate || 0) * (items[rowIndex].qty || 1),
+        temp_barcode: '' // Clear barcode field
+      };
+
+      setFormData({ ...formData, items });
+      calculateTotals();
+
+      // Optional: Add new empty row if this was the last one
+      if (rowIndex === formData.items.length - 1) {
+        addItemRow();
+      }
+
+      // Focus next barcode field
+      setTimeout(() => {
+        const nextInput = document.querySelector(`tr:nth-child(${rowIndex + 2}) input[placeholder="Scan barcode..."]`);
+        nextInput?.focus();
+      }, 100);
+
+    } catch (err) {
+      setError(`Item not found for barcode: ${barcode}`);
+    } finally {
+      setScanningRow(null);
+    }
+
+    // Clear the barcode input
+    e.target.value = '';
+  };
 
   useEffect(() => {
     fetchWarehouses();
@@ -477,7 +548,7 @@ function PurchaseOrder() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <FileText className="w-8 h-8 text-slate-700" /> 
+            <FileText className="w-8 h-8 text-slate-700" />
             Purchase Order {isEditMode && formData.name ? `(Draft: ${formData.name})` : ''}
           </h1>
           <p className="text-slate-600 mt-2">
@@ -561,6 +632,7 @@ function PurchaseOrder() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b">
                   <tr>
+                    <th className="text-left py-3 px-4">Barcode</th>
                     <th className="text-left py-3 px-4">Item</th>
                     <th className="text-left py-3 px-4">Schedule Date</th>
                     <th className="text-right py-3 px-4">Qty</th>
@@ -573,6 +645,17 @@ function PurchaseOrder() {
                 <tbody>
                   {formData.items.map((item, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className="py-3 px-4">
+                        <input
+                          type="text"
+                          placeholder="Scan barcode..."
+                          value={item.temp_barcode || ''}
+                          onChange={(e) => handleBarcodeScan(e, idx)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleBarcodeEnter(e, idx)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                          autoFocus={idx === formData.items.length - 1} // Optional: auto focus last row
+                        />
+                      </td>
                       <td className="py-3 px-4">
                         <div className="relative">
                           <input
