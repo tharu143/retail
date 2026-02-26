@@ -237,33 +237,74 @@ function Home() {
       setCreatingCustomer(false);  // ← Loading ends (always!)
     }
   };
-  // ---------- FETCH ITEMS ----------
+  // ---------- FETCH ALL ITEMS ----------
+  // useEffect(() => {
+  //   const fetchItems = async () => {
+  //     if (!session) return;
+  //     try {
+  //       setLoadingItems(true); setError("");
+  //       const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
+  //       const data = await response.json();
+  //       const apiItems = data.message || data;
+  //       const baseUrl = 'http://75.119.130.59';
+  //       const transformed = apiItems.map(item => ({
+  //         id: item.name,
+  //         name: item.item_name,
+  //         image: item.image ? `${baseUrl}${item.image}` : 'https://via.placeholder.com/300?text=No+Image',
+  //         group: (item.item_group || "others").toLowerCase(),
+  //         price: item.price_list_rate || 0,
+  //         barcodes: item.barcodes || []  // This contains [{barcode: "12345"}, ...]
+  //       }));
+  //       const groups = [...new Set(transformed.map(i => i.group))];
+  //       setCategories(["all", ...groups.sort()]);
+  //       setItems(transformed);
+  //       setFilteredItems(transformed);
+  //     } catch (err) { setError(err.message || "Failed to load items."); }
+  //     finally { setLoadingItems(false); }
+  //   };
+  //   fetchItems();
+  // }, [authFetch, session]);
+  
+
+// FETCH sTATIONORY ITEMS //
   useEffect(() => {
-    const fetchItems = async () => {
-      if (!session) return;
-      try {
-        setLoadingItems(true); setError("");
-        const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
-        const data = await response.json();
-        const apiItems = data.message || data;
-        const baseUrl = 'http://75.119.130.59';
-        const transformed = apiItems.map(item => ({
+  const fetchItems = async () => {
+    if (!session) return;
+    try {
+      setLoadingItems(true); setError("");
+      const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
+      const data = await response.json();
+      const apiItems = data.message || data;
+
+      const baseUrl = 'http://75.119.130.59';
+      
+      // Filter only "Stationary" group items
+      const transformed = apiItems
+        .filter(item => (item.item_group || "").toLowerCase() === "stationary")
+        .map(item => ({
           id: item.name,
           name: item.item_name,
           image: item.image ? `${baseUrl}${item.image}` : 'https://via.placeholder.com/300?text=No+Image',
           group: (item.item_group || "others").toLowerCase(),
           price: item.price_list_rate || 0,
-          barcodes: item.barcodes || []  // This contains [{barcode: "12345"}, ...]
+          barcodes: item.barcodes || []
         }));
-        const groups = [...new Set(transformed.map(i => i.group))];
-        setCategories(["all", ...groups.sort()]);
-        setItems(transformed);
-        setFilteredItems(transformed);
-      } catch (err) { setError(err.message || "Failed to load items."); }
-      finally { setLoadingItems(false); }
-    };
-    fetchItems();
-  }, [authFetch, session]);
+
+      // No need for dynamic categories anymore
+      setCategories(["stationary"]);           // or just remove category slider if only one group
+      setItems(transformed);
+      setFilteredItems(transformed);
+      setSelectedCategory("stationary");
+
+    } catch (err) { 
+      setError(err.message || "Failed to load items."); 
+    } finally { 
+      setLoadingItems(false); 
+    }
+  };
+  fetchItems();
+}, [authFetch, session]);
+
 
   // Filter items
   useEffect(() => {
