@@ -69,7 +69,7 @@ function Home() {
   const [filteredItems, setFilteredItems] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [billItems, setBillItems] = useState([]);
-  const [customerName, setCustomerName] = useState('');
+  const [customerName, setCustomerName] = useState('Cash');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -238,72 +238,35 @@ function Home() {
     }
   };
   // ---------- FETCH ALL ITEMS ----------
-  // useEffect(() => {
-  //   const fetchItems = async () => {
-  //     if (!session) return;
-  //     try {
-  //       setLoadingItems(true); setError("");
-  //       const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
-  //       const data = await response.json();
-  //       const apiItems = data.message || data;
-  //       const baseUrl = 'http://75.119.130.59';
-  //       const transformed = apiItems.map(item => ({
-  //         id: item.name,
-  //         name: item.item_name,
-  //         image: item.image ? `${baseUrl}${item.image}` : 'https://via.placeholder.com/300?text=No+Image',
-  //         group: (item.item_group || "others").toLowerCase(),
-  //         price: item.price_list_rate || 0,
-  //         barcodes: item.barcodes || []  // This contains [{barcode: "12345"}, ...]
-  //       }));
-  //       const groups = [...new Set(transformed.map(i => i.group))];
-  //       setCategories(["all", ...groups.sort()]);
-  //       setItems(transformed);
-  //       setFilteredItems(transformed);
-  //     } catch (err) { setError(err.message || "Failed to load items."); }
-  //     finally { setLoadingItems(false); }
-  //   };
-  //   fetchItems();
-  // }, [authFetch, session]);
-  
 
-// FETCH sTATIONORY ITEMS //
   useEffect(() => {
-  const fetchItems = async () => {
-    if (!session) return;
-    try {
-      setLoadingItems(true); setError("");
-      const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
-      const data = await response.json();
-      const apiItems = data.message || data;
-
-      const baseUrl = 'http://75.119.130.59';
-      
-      // Filter only "Stationary" group items
-      const transformed = apiItems
-        .filter(item => (item.item_group || "").toLowerCase() === "stationary")
-        .map(item => ({
+    const fetchItems = async () => {
+      if (!session) return;
+      try {
+        setLoadingItems(true); setError("");
+        const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
+        const data = await response.json();
+        const apiItems = data.message || data;
+        const baseUrl = 'http://75.119.130.59';
+        const transformed = apiItems.map(item => ({
           id: item.name,
           name: item.item_name,
           image: item.image ? `${baseUrl}${item.image}` : 'https://via.placeholder.com/300?text=No+Image',
           group: (item.item_group || "others").toLowerCase(),
           price: item.price_list_rate || 0,
-          barcodes: item.barcodes || []
+          barcodes: item.barcodes || []  // This contains [{barcode: "12345"}, ...]
         }));
+        const groups = [...new Set(transformed.map(i => i.group))];
+        setCategories(["all", ...groups.sort()]);
+        setItems(transformed);
+        setFilteredItems(transformed);
+      } catch (err) { setError(err.message || "Failed to load items."); }
+      finally { setLoadingItems(false); }
+    };
+    fetchItems();
+  }, [authFetch, session]);
 
-      // No need for dynamic categories anymore
-      setCategories(["stationary"]);           // or just remove category slider if only one group
-      setItems(transformed);
-      setFilteredItems(transformed);
-      setSelectedCategory("stationary");
 
-    } catch (err) { 
-      setError(err.message || "Failed to load items."); 
-    } finally { 
-      setLoadingItems(false); 
-    }
-  };
-  fetchItems();
-}, [authFetch, session]);
 
 
   // Filter items
@@ -539,8 +502,6 @@ function Home() {
 
           {/* RIGHT: BILL */}
           <div className="home-bill-section">
-            <div className="home-bill-header"><h2 className="home-bill-title">Bill</h2></div>
-
             {/* BARCODE SCANNER INPUT */}
             <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
               <input
@@ -568,12 +529,30 @@ function Home() {
                 type="text"
                 placeholder="Customer Name (type to search)"
                 value={customerName}
-                onChange={e => { setCustomerName(e.target.value); setSelectedCustomer(null); }}
-                onFocus={() => customerName.trim().length >= 2 && setShowDropdown(true)}
+                onChange={e => {
+                  setCustomerName(e.target.value);
+
+                  if (e.target.value.trim() !== 'Cash') {
+                    setSelectedCustomer(null);
+                  }
+                }}
+                onFocus={() => {
+                  if (customerName.trim() === 'Cash') {
+
+                    nameInputRef.current?.select();
+                  }
+                  customerName.trim().length >= 2 && setShowDropdown(true);
+                }}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && customerName.trim()) {
-                    const existing = searchResults.find(c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase());
-                    existing ? pickCustomer(existing) : customerName.trim().length >= 2 && openCreate();
+                    const existing = searchResults.find(
+                      c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase()
+                    );
+                    if (existing) {
+                      pickCustomer(existing);
+                    } else if (customerName.trim().length >= 2) {
+                      openCreate();
+                    }
                   }
                 }}
                 className="home-customer-input"
@@ -630,7 +609,7 @@ function Home() {
             </div>
 
             {/* Tax Template Selector */}
-            {taxTemplates.length > 1 && (
+            {/* {taxTemplates.length > 1 && (
               <div style={{ margin: '0.5rem 0' }}>
                 <select value={selectedTaxTemplate} onChange={e => setSelectedTaxTemplate(e.target.value)} className="home-customer-input" style={{ fontSize: '0.9rem' }}>
                   {taxTemplates.map(t => (
@@ -638,7 +617,7 @@ function Home() {
                   ))}
                 </select>
               </div>
-            )}
+            )} */}
 
             {/* Summary */}
             <div className="home-bill-summary">

@@ -303,8 +303,8 @@
 /* Bill Items */
 .home-bill-items {
   flex: 1;
-  min-height: 180px;
-  max-height: 280px;
+  min-height: 350px;
+  max-height: 480px;
   overflow-y: auto;
   padding: 0.5rem;
   background: #f8fafc;
