@@ -81,7 +81,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
 
         try {
             const session = localStorage.getItem('session') || userData.session;
-            const response = await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
+            const response = await fetch('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -4,7 +4,7 @@ import { Plus, Search, X, Trash2, Package, Loader2, ChevronLeft, ChevronRight } 
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 
-const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+const API_PATH = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const RESOURCE_BASE = '/api/resource';
 
 
@@ -105,7 +105,7 @@ function SalesOrder() {
 
             try {
                 // Step 1: Check if barcode exists
-                const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+                const checkRes = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
                     params: { barcode },
                     withCredentials: true
                 });

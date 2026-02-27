@@ -116,7 +116,7 @@ const SalesInvoiceList = () => {
 
             try {
                 // Use safe backend method (bypasses child table permission)
-                const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+                const checkRes = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
                     params: { barcode }
                 });
 
@@ -124,7 +124,7 @@ const SalesInvoiceList = () => {
                     const itemCode = checkRes.data.message.item;
 
                     // Fetch full item details
-                    const itemRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
+                    const itemRes = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
                         params: { query: itemCode }
                     });
 
@@ -135,7 +135,7 @@ const SalesInvoiceList = () => {
                         // Fetch rate
                         let rate = 0;
                         try {
-                            const rateRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
+                            const rateRes = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
                                 params: {
                                     item_code: item.item_code,
                                     price_list: form.selling_price_list
@@ -231,9 +231,9 @@ const SalesInvoiceList = () => {
             try {
                 setLoading(true);
                 const [custRes, whRes, taxRes, invRes] = await Promise.all([
-                    axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_si'),
-                    axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_si'),
-                    axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_si'),
+                    axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_si'),
+                    axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_si'),
+                    axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_si'),
                     axios.get('/api/resource/Sales Invoice', {
                         params: {
                             fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
@@ -318,7 +318,7 @@ const SalesInvoiceList = () => {
     const searchItems = async (query) => {
         if (!query || query.trim().length < 2) return;
         try {
-            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', { params: { query } });
+            const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', { params: { query } });
             setAllItems(res.data.message || []);
         } catch (err) { }
     };
@@ -330,7 +330,7 @@ const SalesInvoiceList = () => {
             return;
         }
         try {
-            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_si', { params: { template } });
+            const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_si', { params: { template } });
             setForm(prev => ({ ...prev, taxes: res.data.message || [], taxes_and_charges: template }));
             calculateTotals();
         } catch (err) { }
@@ -364,7 +364,7 @@ const SalesInvoiceList = () => {
             amount: 0
         };
         try {
-            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
+            const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
                 params: {
                     item_code: item.item_code,
                     price_list: form.selling_price_list
@@ -475,7 +475,7 @@ const SalesInvoiceList = () => {
                 const latestDoc = latestDocRes.data.data;
 
                 // Submit
-                await axios.post('/api/method/frappe.client.submit', {
+                await axios.post('http://75.119.130.59/api/method/frappe.client.submit', {
                     doc: JSON.stringify({
                         ...latestDoc,
                         doctype: 'Sales Invoice',
@@ -487,7 +487,7 @@ const SalesInvoiceList = () => {
                 if (isReturnMode && returnAgainst && !returnAgainst.startsWith('ACC-SINV')) {
                     // returnAgainst = original DN name (e.g., MAT-DN-XXXX)
                     try {
-                        await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.update_dn_status_on_credit_note', {
+                        await axios.post('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.update_dn_status_on_credit_note', {
                             original_dn_name: returnAgainst  // Pass original DN to find Return DN
                         });
                     } catch (e) {
@@ -496,7 +496,7 @@ const SalesInvoiceList = () => {
                 }
                 // Direct SI return aanengil mark original SI
                 if (form.is_return && returnAgainst && returnAgainst.startsWith('ACC-SINV')) {
-                    await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.mark_si_credit_note_issued', {
+                    await axios.post('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.mark_si_credit_note_issued', {
                         original_si_name: returnAgainst
                     });
                 }

@@ -17,7 +17,7 @@ function Login() {
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login", {
+      const response = await fetch("http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login", {
         method: "POST",
         headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -32,12 +32,30 @@ function Login() {
       const data = await response.json();
       const resp = data.message || data;
 
-      const { user, session, pos_profile, company } = resp;
+      let { user, session, pos_profile, company } = resp;
+
+      // === FETCH EMPLOYEE TO GET CORRECT COMPANY ===
+      try {
+        const filters = encodeURIComponent(JSON.stringify([["user_id", "=", user]]));
+        const fields = encodeURIComponent(JSON.stringify(["name", "company"]));
+        const empRes = await fetch(`http://75.119.130.59/api/resource/Employee?filters=${filters}&fields=${fields}`, {
+          headers: { "X-Frappe-SID": session },
+          credentials: "include"
+        });
+        if (empRes.ok) {
+          const empData = await empRes.json();
+          if (empData.data && empData.data.length > 0) {
+            company = empData.data[0].company || company;
+          }
+        }
+      } catch (ex) {
+        console.warn("Failed to fetch employee company:", ex);
+      }
 
       // === CHECK FOR OPEN SHIFT ===
       let existingOpeningEntry = "";
       try {
-        const openRes = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries", {
+        const openRes = await fetch("http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries", {
           headers: { "X-Frappe-SID": session },
           credentials: "include"
         });

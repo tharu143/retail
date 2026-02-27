@@ -41,7 +41,7 @@ function ItemGroupList() {
     try {
       setLoading(true);
       const res = await axios.get(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups',
+        'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups',
         { withCredentials: true }
       );
       if (res.data.message?.success) {
@@ -58,7 +58,7 @@ function ItemGroupList() {
   const fetchParentGroups = async (q) => {
     try {
       const res = await axios.get(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups',
+        'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups',
         { params: { search: q }, withCredentials: true }
       );
       if (res.data.success) {
@@ -80,7 +80,7 @@ function ItemGroupList() {
     setSaving(true);
     try {
       const res = await axios.post(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item_group',
+        'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item_group',
         {
           item_group_name: form.item_group_name.trim(),
           parent_item_group: form.parent_item_group

@@ -33,7 +33,7 @@ function InvoiceList() {
 
         try {
             const response = await fetch(
-                "/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices",
+                "http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices",
                 {
                     method: "GET",
                     headers: {

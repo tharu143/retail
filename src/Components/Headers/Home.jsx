@@ -45,7 +45,7 @@ function Home() {
 
   // ---------- Auth Fetch ----------
   const authFetch = useCallback(async (url, options = {}) => {
-    const fullUrl = url.startsWith('http') ? url : `/api/method${url.startsWith('/') ? url : `/${url}`}`;
+    const fullUrl = url.startsWith('http') ? url : `http://75.119.130.59/api/method${url.startsWith('/') ? url : `/${url}`}`;
     const headers = {
       ...options.headers,
       "Accept": "application/json",

@@ -69,7 +69,7 @@ function ClosingEntry() {
         setError(null);
         const session = getSession();
         const res = await fetch(
-          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices_for_closing',
+          'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices_for_closing',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
@@ -186,7 +186,7 @@ function ClosingEntry() {
 
     const session = getSession();
     const res = await fetch(
-      '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry',
+      'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
@@ -215,7 +215,7 @@ function ClosingEntry() {
 
     alert(`${isDraft ? 'Draft' : 'Closing Entry'} saved! Logging out...`);
 
-    await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout', {
+    await fetch('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout', {
       method: 'POST',
       credentials: 'include',
     });

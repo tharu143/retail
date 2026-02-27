@@ -52,7 +52,7 @@ function PurchaseOrder() {
   const [isEditMode, setIsEditMode] = useState(false); // Shows if we are editing a draft
 
   const getSession = () => localStorage.getItem('session') || '';
-  const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+  const API_PATH = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
   const RESOURCE_API = '/api/resource/Purchase Order';
 
   const [scanningRow, setScanningRow] = useState(null); // Track which row is scanning

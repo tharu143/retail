@@ -13,7 +13,7 @@ function PurchaseReport() {
   const [suppliers, setSuppliers] = useState([]);
 
   const getSession = () => localStorage.getItem('session') || '';
-  const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+  const API_PATH = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
   useEffect(() => {
     fetchSuppliers();

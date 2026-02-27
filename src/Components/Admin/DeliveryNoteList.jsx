@@ -75,7 +75,7 @@ const DeliveryNoteList = () => {
     
             try {
                 // Use safe backend method (bypasses child table permission)
-                const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+                const checkRes = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
                     params: { barcode }
                 });
     
@@ -83,7 +83,7 @@ const DeliveryNoteList = () => {
                     const itemCode = checkRes.data.message.item;
     
                     // Fetch full item details
-                    const itemRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
+                    const itemRes = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
                         params: { query: itemCode }
                     });
     
@@ -94,7 +94,7 @@ const DeliveryNoteList = () => {
                         // Fetch rate
                         let rate = 0;
                         try {
-                            const rateRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
+                            const rateRes = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
                                 params: {
                                     item_code: item.item_code,
                                     price_list: form.selling_price_list
@@ -185,10 +185,10 @@ const DeliveryNoteList = () => {
         try {
             setLoading(true);
             const [custRes, whRes, taxRes, plRes, dnRes, companyRes] = await Promise.all([
-                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_dn'),
-                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_dn'),
-                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn'),
-                axios.get('/api/method/frappe.client.get_list', { params: { doctype: 'Price List', filters: { selling: 1 }, fields: ['name'] } }),
+                axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_dn'),
+                axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_dn'),
+                axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn'),
+                axios.get('http://75.119.130.59/api/method/frappe.client.get_list', { params: { doctype: 'Price List', filters: { selling: 1 }, fields: ['name'] } }),
                 axios.get('/api/resource/Delivery Note', {
                     params: {
                         fields: '["name","customer_name","posting_date","grand_total","status","title","company","modified","is_return","return_against","currency","issue_credit_note"]',
@@ -287,7 +287,7 @@ const DeliveryNoteList = () => {
     const searchItems = async (query) => {
         if (!query || query.trim().length < 2) return;
         try {
-            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_dn', { params: { query } });
+            const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_dn', { params: { query } });
             setAllItems(res.data.message || []);
         } catch (err) { }
     };
@@ -298,7 +298,7 @@ const DeliveryNoteList = () => {
             return;
         }
         try {
-            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn', { params: { template } });
+            const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn', { params: { template } });
             setForm(prev => ({ ...prev, taxes: res.data.message || [], taxes_and_charges: template }));
         } catch (err) { }
     };
@@ -330,7 +330,7 @@ const DeliveryNoteList = () => {
             amount: 0
         };
         try {
-            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_dn', {
+            const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_dn', {
                 params: {
                     item_code: item.item_code,
                     price_list: form.selling_price_list
@@ -504,7 +504,7 @@ const DeliveryNoteList = () => {
             }
 
             if (submit && form.is_return && form.return_against) {
-                await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.update_dn_status_on_return', {
+                await axios.post('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.update_dn_status_on_return', {
                     dn_name: form.return_against,
                     status: 'Return Issued'
                 });

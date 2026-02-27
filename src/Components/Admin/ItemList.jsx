@@ -81,7 +81,7 @@ function ItemList() {
     }
 
     try {
-      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+      const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
         params: { barcode: code },
         withCredentials: true
       });
@@ -142,7 +142,7 @@ function ItemList() {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_details', { withCredentials: true });
+      const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_details', { withCredentials: true });
       setItems(res.data.message || []);
     } catch (err) {
       alert('Failed to load items');
@@ -160,7 +160,7 @@ function ItemList() {
 
   const fetchItemGroups = async (search = '') => {
     try {
-      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups', {
+      const res = await axios.get('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups', {
         params: { search },
         withCredentials: true
       });
@@ -222,7 +222,7 @@ function ItemList() {
         barcodes: barcodes.length > 0 ? barcodes : undefined
       };
 
-      const res = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item', payload, { withCredentials: true });
+      const res = await axios.post('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item', payload, { withCredentials: true });
 
       if (res.data.message.success) {
         alert('Item created successfully!');

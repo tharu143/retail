@@ -18,7 +18,7 @@ function NavBar() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout", {
+      const response = await fetch("http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
