@@ -18,9 +18,17 @@ export default defineConfig({
             proxyReq.removeHeader('Expect');     // FIX 417
             proxyReq.removeHeader('Origin');
 
-            // Forward cookies
-            if (req.headers.cookie) {
-              proxyReq.setHeader('Cookie', req.headers.cookie);
+            // Forward cookies manually or via X-Frappe-SID injected fallback 
+            let cookieStr = req.headers.cookie || '';
+
+            if (req.headers['x-frappe-sid']) {
+              if (!cookieStr.includes('sid=')) {
+                cookieStr += (cookieStr ? '; ' : '') + 'sid=' + req.headers['x-frappe-sid'];
+              }
+            }
+
+            if (cookieStr) {
+              proxyReq.setHeader('Cookie', cookieStr);
             }
           });
 

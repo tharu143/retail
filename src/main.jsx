@@ -31,7 +31,13 @@ axios.interceptors.request.use((config) => {
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 403) {
+    if (
+      error.response &&
+      error.response.status === 403 &&
+      error.config &&
+      error.config.url &&
+      !error.config.url.includes('user_login')
+    ) {
       handleGlobalAuthError();
     }
     return Promise.reject(error);
@@ -60,7 +66,7 @@ window.fetch = async function (...args) {
 
   try {
     const response = await originalFetch(resource, config);
-    if (response.status === 403) {
+    if (response.status === 403 && typeof resource === 'string' && !resource.includes('user_login')) {
       handleGlobalAuthError();
     }
     return response;
