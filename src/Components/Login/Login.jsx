@@ -39,6 +39,7 @@ function Login() {
         const filters = encodeURIComponent(JSON.stringify([["user_id", "=", user]]));
         const fields = encodeURIComponent(JSON.stringify(["name", "company"]));
         const empRes = await fetch(`/api/resource/Employee?filters=${filters}&fields=${fields}`, {
+          headers: { "X-Frappe-SID": session },
           credentials: "include"
         });
         if (empRes.ok) {
@@ -55,6 +56,7 @@ function Login() {
       let existingOpeningEntry = "";
       try {
         const openRes = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries", {
+          headers: { "X-Frappe-SID": session },
           credentials: "include"
         });
         if (openRes.ok) {
