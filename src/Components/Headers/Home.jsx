@@ -91,6 +91,15 @@ function Home() {
 
     try {
       const response = await fetch(fullUrl, config);
+
+      // Handle Session Expiry (403 Forbidden)
+      if (response.status === 403) {
+        localStorage.clear();
+        dispatch(logout());
+        navigate('/');
+        throw new Error("Session expired or missing credentials. Please log in again.");
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP ${response.status}`);
@@ -103,7 +112,7 @@ function Home() {
       }
       throw err;
     }
-  }, [isOffline]);
+  }, [isOffline, dispatch, navigate]);
 
   // ---------- States ----------
   const [Items, setItems] = useState([]);
