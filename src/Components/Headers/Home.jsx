@@ -77,7 +77,7 @@ function Home() {
       throw new Error("You are currently offline. This action will be queued for sync.");
     }
 
-    const fullUrl = url.startsWith('http') ? url : `http://75.119.130.59/api/method/${url.startsWith('/') ? url.slice(1) : url}`;
+    const fullUrl = url.startsWith('http') ? url : `/api/method/${url.startsWith('/') ? url.slice(1) : url}`;
 
     // Frappe handles authentication via cookies when credentials: 'include' is used.
     // Adding custom headers like X-Frappe-SID can trigger a CORS preflight (OPTIONS)
