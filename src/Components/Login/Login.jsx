@@ -34,11 +34,14 @@ function Login() {
 
       let { user, session, pos_profile, company, warehouse, branch_prefix } = resp;
 
+      // Force cookie onto browser immediately (in case proxy hasn't restarted)
+      document.cookie = `sid=${session}; path=/;`;
+
       // === FETCH EMPLOYEE TO GET CORRECT COMPANY ===
       try {
         const filters = encodeURIComponent(JSON.stringify([["user_id", "=", user]]));
         const fields = encodeURIComponent(JSON.stringify(["name", "company"]));
-        const empRes = await fetch(`/api/resource/Employee?filters=${filters}&fields=${fields}`, {
+        const empRes = await fetch(`/api/resource/Employee?filters=${filters}&fields=${fields}&sid=${session}`, {
           headers: { "X-Frappe-SID": session },
           credentials: "include"
         });
@@ -55,7 +58,7 @@ function Login() {
       // === CHECK FOR OPEN SHIFT ===
       let existingOpeningEntry = "";
       try {
-        const openRes = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries", {
+        const openRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries?sid=${session}`, {
           headers: { "X-Frappe-SID": session },
           credentials: "include"
         });
