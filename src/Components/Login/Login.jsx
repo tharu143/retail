@@ -17,7 +17,7 @@ function Login() {
     setErrorMessage("");
 
     try {
-      const response = await fetch("http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login", {
+      const response = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login", {
         method: "POST",
         headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -38,7 +38,7 @@ function Login() {
       try {
         const filters = encodeURIComponent(JSON.stringify([["user_id", "=", user]]));
         const fields = encodeURIComponent(JSON.stringify(["name", "company"]));
-        const empRes = await fetch(`http://75.119.130.59/api/resource/Employee?filters=${filters}&fields=${fields}`, {
+        const empRes = await fetch(`/api/resource/Employee?filters=${filters}&fields=${fields}`, {
           credentials: "include"
         });
         if (empRes.ok) {
@@ -54,7 +54,7 @@ function Login() {
       // === CHECK FOR OPEN SHIFT ===
       let existingOpeningEntry = "";
       try {
-        const openRes = await fetch("http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries", {
+        const openRes = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries", {
           credentials: "include"
         });
         if (openRes.ok) {
