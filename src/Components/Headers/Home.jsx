@@ -545,7 +545,7 @@ function Home() {
 
       for (const inv of pending) {
         try {
-          const res = await fetch(`http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice`, {
+          const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
