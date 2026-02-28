@@ -32,14 +32,13 @@ function Login() {
       const data = await response.json();
       const resp = data.message || data;
 
-      let { user, session, pos_profile, company } = resp;
+      let { user, session, pos_profile, company, warehouse, branch_prefix } = resp;
 
       // === FETCH EMPLOYEE TO GET CORRECT COMPANY ===
       try {
         const filters = encodeURIComponent(JSON.stringify([["user_id", "=", user]]));
         const fields = encodeURIComponent(JSON.stringify(["name", "company"]));
         const empRes = await fetch(`http://75.119.130.59/api/resource/Employee?filters=${filters}&fields=${fields}`, {
-          headers: { "X-Frappe-SID": session },
           credentials: "include"
         });
         if (empRes.ok) {
@@ -56,7 +55,6 @@ function Login() {
       let existingOpeningEntry = "";
       try {
         const openRes = await fetch("http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries", {
-          headers: { "X-Frappe-SID": session },
           credentials: "include"
         });
         if (openRes.ok) {
@@ -71,11 +69,13 @@ function Login() {
       }
 
       // Store in Redux + localStorage
-      dispatch(loginSuccess({ user, session, pos_profile, company }));
+      dispatch(loginSuccess({ user, session, pos_profile, company, warehouse, branch_prefix }));
       localStorage.setItem("session", session);
       localStorage.setItem("user", user);
       localStorage.setItem("pos_profile", pos_profile);
       localStorage.setItem("company", company);
+      localStorage.setItem("warehouse", warehouse);
+      localStorage.setItem("branch_prefix", branch_prefix);
       localStorage.setItem("posOpeningEntry", existingOpeningEntry); // ← Only if exists
 
       alert("Login Successful!");

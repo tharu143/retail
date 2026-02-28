@@ -7,6 +7,8 @@ const userSlice = createSlice({
     session: null,
     posProfile: null,
     company: null,
+    warehouse: null,
+    branchPrefix: null,
     message: {
       allowed_item_groups: [],
       allowed_customer_groups: [],
@@ -20,6 +22,8 @@ const userSlice = createSlice({
       state.session = action.payload.session;
       state.posProfile = action.payload.pos_profile;
       state.company = action.payload.company;
+      state.warehouse = action.payload.warehouse;
+      state.branchPrefix = action.payload.branch_prefix;
       state.message = action.payload.message;
     },
     logout: (state) => {
@@ -27,6 +31,8 @@ const userSlice = createSlice({
       state.session = null;
       state.posProfile = null;
       state.company = null;
+      state.warehouse = null;
+      state.branchPrefix = null;
       state.message = {
         allowed_item_groups: [],
         allowed_customer_groups: [],

@@ -8,6 +8,7 @@ import {
 import { logout } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
+import { db } from '../../db';
 
 function Home() {
   const navigate = useNavigate();
@@ -16,10 +17,37 @@ function Home() {
   const session = useSelector((state) => state.user.session);
   const company = useSelector((state) => state.user.company);
   const posProfile = useSelector((state) => state.user.posProfile);
+  const warehouse = useSelector((state) => state.user.warehouse);
+  const branchPrefix = useSelector((state) => state.user.branchPrefix);
   const loading = useSelector((state) => state.user.loading || false);
 
   const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
   const [showOpeningModal, setShowOpeningModal] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+
+  // Connectivity monitoring
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Sync effect
+  useEffect(() => {
+    const checkSyncCount = async () => {
+      const count = await db.invoices.where('is_synced').equals(0).count();
+      setPendingSyncCount(count);
+    };
+    checkSyncCount();
+    const interval = setInterval(checkSyncCount, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
 
 
@@ -45,20 +73,37 @@ function Home() {
 
   // ---------- Auth Fetch ----------
   const authFetch = useCallback(async (url, options = {}) => {
-    const fullUrl = url.startsWith('http') ? url : `http://75.119.130.59/api/method${url.startsWith('/') ? url : `/${url}`}`;
+    if (isOffline && options.method !== 'GET') {
+      throw new Error("You are currently offline. This action will be queued for sync.");
+    }
+
+    const fullUrl = url.startsWith('http') ? url : `http://75.119.130.59/api/method/${url.startsWith('/') ? url.slice(1) : url}`;
+
+    // Frappe handles authentication via cookies when credentials: 'include' is used.
+    // Adding custom headers like X-Frappe-SID can trigger a CORS preflight (OPTIONS)
+    // which might fail with 403 if the backend isn't configured to allow that custom header.
     const headers = {
       ...options.headers,
       "Accept": "application/json",
-      ...(session ? { "X-Frappe-SID": session } : {}),
     };
+
     const config = { ...options, headers, credentials: 'include' };
-    const response = await fetch(fullUrl, config);
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP ${response.status}`);
+
+    try {
+      const response = await fetch(fullUrl, config);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+      return response;
+    } catch (err) {
+      if (err.name === 'TypeError' && !navigator.onLine) {
+        setIsOffline(true);
+        throw new Error("Network connection lost. Saved to offline storage.");
+      }
+      throw err;
     }
-    return response;
-  }, [session]);
+  }, [isOffline]);
 
   // ---------- States ----------
   const [Items, setItems] = useState([]);
@@ -244,27 +289,56 @@ function Home() {
       if (!session) return;
       try {
         setLoadingItems(true); setError("");
-        const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
-        const data = await response.json();
-        const apiItems = data.message || data;
+
+        // Try online fetch first
+        let apiItems = [];
+        try {
+          const response = await authFetch(`custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`);
+          const data = await response.json();
+          apiItems = data.message || data;
+
+          // Cache successful response in Dexie
+          if (Array.isArray(apiItems)) {
+            await db.items.clear();
+            await db.items.bulkAdd(apiItems.map(item => ({
+              id: item.name,
+              name: item.item_name,
+              image: item.image,
+              group: (item.item_group || "others").toLowerCase(),
+              price: item.price_list_rate || 0,
+              actual_qty: item.actual_qty || 0,
+              barcodes: item.barcodes || []
+            })));
+          }
+        } catch (fetchErr) {
+          console.warn("Online fetch failed, using local DB:", fetchErr);
+          apiItems = await db.items.toArray();
+          if (apiItems.length === 0) throw fetchErr;
+        }
+
         const baseUrl = 'http://75.119.130.59';
         const transformed = apiItems.map(item => ({
-          id: item.name,
-          name: item.item_name,
-          image: item.image ? `${baseUrl}${item.image}` : 'https://via.placeholder.com/300?text=No+Image',
-          group: (item.item_group || "others").toLowerCase(),
-          price: item.price_list_rate || 0,
-          barcodes: item.barcodes || []  // This contains [{barcode: "12345"}, ...]
+          id: item.id || item.name,
+          name: item.item_name || item.name,
+          image: item.image ? (item.image.startsWith('http') ? item.image : `${baseUrl}${item.image}`) : 'https://via.placeholder.com/300?text=No+Image',
+          group: (item.group || item.item_group || "others").toLowerCase(),
+          price: item.price || item.price_list_rate || 0,
+          actual_qty: item.actual_qty || 0,
+          barcodes: item.barcodes || []
         }));
+
         const groups = [...new Set(transformed.map(i => i.group))];
         setCategories(["all", ...groups.sort()]);
         setItems(transformed);
         setFilteredItems(transformed);
-      } catch (err) { setError(err.message || "Failed to load items."); }
-      finally { setLoadingItems(false); }
+      } catch (err) {
+        setError(err.message || "Failed to load items. Check your internet connection.");
+      } finally {
+        setLoadingItems(false);
+      }
     };
     fetchItems();
-  }, [authFetch, session]);
+  }, [authFetch, session, warehouse]);
 
 
 
@@ -373,55 +447,121 @@ function Home() {
     }
 
     setPaymentLoading(true);
+    const customer = selectedCustomer?.customer_name || customerName;
+    if (!customer.trim()) { alert('Enter customer name'); setPaymentLoading(false); return; }
+
+    const timestamp = Date.now();
+    const offlineId = `${branchPrefix || 'POS'}-${timestamp}`;
+
+    const payload = {
+      offline_id: offlineId,
+      customer,
+      contact_mobile: phoneNumber,
+      items: billItems.map(item => ({
+        item_code: item.id,
+        item_name: item.name,
+        quantity: item.qty,
+        basePrice: item.price,
+        income_account: 'Sales of I/C - KSPL'
+      })),
+      company,
+      pos_profile: posProfile,
+      warehouse: warehouse,
+      pos_opening_entry: posOpeningEntry,
+      payments: [{
+        mode_of_payment: selectedPaymentMode,
+        amount: parseFloat(grandTotal.toFixed(2))
+      }],
+      discount_amount: discountAmount,
+      apply_discount_on: "Net Total",
+      tax_template: selectedTaxTemplate,
+      posting_date: new Date().toISOString().slice(0, 10),
+      currency: 'AED',
+      due_date: new Date().toISOString().slice(0, 10)
+    };
+
     try {
-      const customer = selectedCustomer?.customer_name || customerName;
-      if (!customer.trim()) { alert('Enter customer name'); return; }
+      if (isOffline) {
+        // Save to Dexie
+        await db.invoices.add({
+          ...payload,
+          is_synced: 0,
+          grand_total: grandTotal
+        });
+        alert(`Offline Invoice Saved: ${offlineId}\nWill sync when online.`);
+        finalizeOrder();
+      } else {
+        const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await res.json();
+        const data = result.message || result;
 
-      const payload = {
-        customer,
-        contact_mobile: phoneNumber,
-        contact_email: '',
-        items: billItems.map(item => ({
-          item_code: item.id,
-          item_name: item.name,
-          quantity: item.qty,
-          basePrice: item.price,
-          income_account: 'Sales of I/C - KSPL'
-        })),
-        company,
-        pos_profile: posProfile,
-        pos_opening_entry: posOpeningEntry,
-        payments: [{
-          mode_of_payment: selectedPaymentMode,
-          amount: parseFloat(grandTotal.toFixed(2))
-        }],
-        discount_amount: discountAmount,
-        apply_discount_on: "Net Total",
-        tax_template: selectedTaxTemplate,
-        posting_date: new Date().toISOString().slice(0, 10),
-        currency: 'AED',
-        due_date: new Date().toISOString().slice(0, 10)
-      };
-
-      const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const result = await res.json();
-      const data = result.message || result;
-
-      if (data.status === 'success') {
-        alert(`Invoice: ${data.invoice_name}\nTotal: AED ${grandTotal.toFixed(2)}`);
-        setBillItems([]);
-        setDiscount({ type: 'amount', value: 0 });
-        setCustomerName(''); setSelectedCustomer(null); setPhoneNumber('');
-        setSelectedPaymentMode(''); setTenderedAmount(0);
-        setShowPaymentModal(false);
-      } else alert(data.message || 'Failed');
-    } catch (e) { alert('Payment failed: ' + e.message); }
-    finally { setPaymentLoading(false); }
+        if (data.status === 'success' || (data.message && data.message.includes("Duplicate ignored"))) {
+          alert(`Invoice: ${data.invoice_name || offlineId}\nTotal: AED ${grandTotal.toFixed(2)}`);
+          finalizeOrder();
+        } else {
+          // Fallback to offline on server error too
+          await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
+          alert("Server error. Invoice saved offline for sync.");
+          finalizeOrder();
+        }
+      }
+    } catch (e) {
+      await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
+      alert('Network issue. Invoice saved offline for sync.');
+      finalizeOrder();
+    } finally {
+      setPaymentLoading(false);
+    }
   };
+
+  const finalizeOrder = () => {
+    setBillItems([]);
+    setDiscount({ type: 'amount', value: 0 });
+    setCustomerName('Cash'); setSelectedCustomer(null); setPhoneNumber('');
+    setSelectedPaymentMode(''); setTenderedAmount(0);
+    setShowPaymentModal(false);
+  };
+
+  // Background sync logic
+  useEffect(() => {
+    if (isOffline) return;
+
+    const syncPending = async () => {
+      const pending = await db.invoices.where('is_synced').equals(0).toArray();
+      if (pending.length === 0) return;
+
+      for (const inv of pending) {
+        try {
+          const res = await fetch(`http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              "Accept": "application/json"
+            },
+            credentials: 'include',
+            body: JSON.stringify(inv),
+          });
+          const data = await res.json();
+          const result = data.message || data;
+
+          if (result.status === 'success' || (result.message && result.message.includes("Duplicate ignored"))) {
+            await db.invoices.update(inv.id, { is_synced: 1 });
+            console.log(`Synced offline invoice: ${inv.offline_id}`);
+          }
+        } catch (e) {
+          console.error(`Sync failed for ${inv.offline_id}:`, e);
+          break; // Stop sync loop if network error
+        }
+      }
+    };
+
+    const interval = setInterval(syncPending, 15000);
+    return () => clearInterval(interval);
+  }, [isOffline, session]);
 
   const handleLogout = async () => {
     try { await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.user_logout', { method: "POST" }); }
@@ -490,7 +630,19 @@ function Home() {
                         </div>
                         <div className="home-item-body">
                           <h4 className="home-item-title">{item.name}</h4>
-                          <p className="home-item-price"><strong>AED</strong> {item.price}</p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <p className="home-item-price"><strong>AED</strong> {item.price}</p>
+                            <span style={{
+                              fontSize: '0.75rem',
+                              color: item.actual_qty > 0 ? '#10b981' : '#ef4444',
+                              background: item.actual_qty > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              fontWeight: 700
+                            }}>
+                              Stock: {item.actual_qty}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -502,6 +654,50 @@ function Home() {
 
           {/* RIGHT: BILL */}
           <div className="home-bill-section">
+            {/* SYNC STATUS BAR */}
+            <div className="sync-status-bar" style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px 18px',
+              marginBottom: '1rem',
+              borderRadius: '16px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  backgroundColor: isOffline ? '#ef4444' : '#22c55e',
+                  boxShadow: isOffline ? '0 0 10px #ef4444' : '0 0 10px #22c55e'
+                }}></div>
+                <span style={{ fontWeight: 600, color: '#fff' }}>{isOffline ? 'OFFLINE' : 'ONLINE'}</span>
+              </div>
+              {pendingSyncCount > 0 && (
+                <div style={{
+                  background: '#3b82f6',
+                  color: '#fff',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}>
+                  <Loader2 size={12} className="animate-spin" />
+                  {pendingSyncCount} Pending Sync
+                </div>
+              )}
+              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', fontWeight: 500 }}>
+                {branchPrefix} | {warehouse}
+              </div>
+            </div>
+
             {/* BARCODE SCANNER INPUT */}
             <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
               <input
