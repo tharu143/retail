@@ -329,7 +329,7 @@ function Home() {
         const transformed = apiItems.map(item => ({
           id: item.id || item.name,
           name: item.item_name || item.name,
-          image: item.image ? (item.image.startsWith('http') ? item.image : `${baseUrl}${item.image}`) : 'https://via.placeholder.com/300?text=No+Image',
+          image: item.image ? (item.image.startsWith('http') ? item.image : `${baseUrl}${item.image}`) : 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTBlMGUwIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmaWxsPSIjOTk5OTk5IiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4KICAgIE5vIEltYWdlCiAgPC90ZXh0Pgo8L3N2Zz4=',
           group: (item.group || item.item_group || "others").toLowerCase(),
           price: item.price || item.price_list_rate || 0,
           actual_qty: item.actual_qty || 0,
@@ -635,7 +635,17 @@ function Home() {
                     <div key={item.id} className="home-item-wrapper" onClick={() => handleAddToBill(item)}>
                       <div className="home-item-card">
                         <div className="home-item-image-box">
-                          <img src={item.image} alt={item.name} className="home-item-image" onError={e => e.target.src = "https://via.placeholder.com/300?text=No+Image"} />
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="home-item-image"
+                            onError={e => {
+                              if (!e.target.dataset.errorResolved) {
+                                e.target.dataset.errorResolved = true;
+                                e.target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTBlMGUwIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmaWxsPSIjOTk5OTk5IiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4KICAgIE5vIEltYWdlCiAgPC90ZXh0Pgo8L3N2Zz4=";
+                              }
+                            }}
+                          />
                         </div>
                         <div className="home-item-body">
                           <h4 className="home-item-title">{item.name}</h4>
