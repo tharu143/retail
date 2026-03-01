@@ -680,11 +680,10 @@ function Home() {
               alignItems: 'center',
               padding: '12px 18px',
               marginBottom: '1rem',
-              borderRadius: '16px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
+              borderRadius: '12px',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{
@@ -692,27 +691,28 @@ function Home() {
                   height: '12px',
                   borderRadius: '50%',
                   backgroundColor: isOffline ? '#ef4444' : '#22c55e',
-                  boxShadow: isOffline ? '0 0 10px #ef4444' : '0 0 10px #22c55e'
+                  boxShadow: isOffline ? '0 0 10px rgba(239, 68, 68, 0.4)' : '0 0 10px rgba(34, 197, 94, 0.4)'
                 }}></div>
-                <span style={{ fontWeight: 600, color: '#fff' }}>{isOffline ? 'OFFLINE' : 'ONLINE'}</span>
+                <span style={{ fontWeight: 600, color: '#334155' }}>{isOffline ? 'OFFLINE' : 'ONLINE'}</span>
               </div>
               {pendingSyncCount > 0 && (
                 <div style={{
-                  background: '#3b82f6',
-                  color: '#fff',
+                  background: '#eff6ff',
+                  color: '#2563eb',
                   padding: '4px 12px',
                   borderRadius: '20px',
                   fontSize: '0.85rem',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '5px'
+                  gap: '5px',
+                  border: '1px solid #bfdbfe'
                 }}>
                   <Loader2 size={12} className="animate-spin" />
                   {pendingSyncCount} Pending Sync
                 </div>
               )}
-              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', fontWeight: 500 }}>
+              <div style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600 }}>
                 {branchPrefix} | {warehouse}
               </div>
             </div>
