@@ -23,7 +23,7 @@ function ClosingEntry() {
   const [periodEndDate, setPeriodEndDate] = useState(getCurrentISTDateTime());
 
   const getSession = () => localStorage.getItem('session') || '';
- 
+
   useEffect(() => {
     const storedCompany = localStorage.getItem('company') || '';
     setCompany(storedCompany);
@@ -36,6 +36,9 @@ function ClosingEntry() {
     const fetchOpeningEntries = async () => {
       try {
         setLoading(true);
+        if (!navigator.onLine) {
+          throw new Error('You are currently offline. Closing Entry requires an internet connection.');
+        }
         const session = getSession();
         const res = await fetch(
           '/api/resource/POS Opening Entry?filters=[["docstatus","=",1],["status","=","Open"]]&fields=["name","period_start_date","pos_profile","company","user"]',
@@ -67,9 +70,12 @@ function ClosingEntry() {
       try {
         setLoading(true);
         setError(null);
+        if (!navigator.onLine) {
+          throw new Error('You are offline. Cannot fetch invoices from the server.');
+        }
         const session = getSession();
         const res = await fetch(
-          'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices_for_closing',
+          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices_for_closing',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
@@ -88,7 +94,7 @@ function ClosingEntry() {
         const payload = apiResponse.data || {};
         if (payload.invoices && payload.invoices.length > 0) {
           setInvoicesData(payload);
-          
+
           // Compute paid_amount per mode from invoices payments
           const paidAmounts = {};
           payload.invoices.forEach(inv => {
@@ -101,7 +107,7 @@ function ClosingEntry() {
               });
             }
           });
-          
+
           // Fix reconciliation: expected_amount = opening + paid from invoices
           const fixedReconciliation = (payload.payment_reconciliation || []).map(pr => ({
             ...pr,
@@ -148,87 +154,92 @@ function ClosingEntry() {
   const flt = (val) => Math.round((val || 0) * 100) / 100;
 
   const handleSubmit = async (saveAsDraft = false) => {
-  if (!selectedOpeningEntry || !postingDate || !periodEndDate || !company) {
-    alert('Please fill all required fields');
-    return;
-  }
-  if (new Date(periodEndDate) < new Date(postingDate)) {
-    alert('Period End Date cannot be before Posting Date');
-    return;
-  }
-  if (!invoicesData) {
-    alert('No invoice data available');
-    return;
-  }
-  if (paymentReconciliation.some((p) => p.closing_amount === undefined)) {
-    alert('Please enter closing amount for all payment modes');
-    return;
-  }
+    if (!selectedOpeningEntry || !postingDate || !periodEndDate || !company) {
+      alert('Please fill all required fields');
+      return;
+    }
+    if (new Date(periodEndDate) < new Date(postingDate)) {
+      alert('Period End Date cannot be before Posting Date');
+      return;
+    }
+    if (!invoicesData) {
+      alert('No invoice data available');
+      return;
+    }
+    if (paymentReconciliation.some((p) => p.closing_amount === undefined)) {
+      alert('Please enter closing amount for all payment modes');
+      return;
+    }
 
-  const payload = {
-    pos_opening_entry: selectedOpeningEntry,
-    posting_date: postingDate,
-    period_end_date: periodEndDate,
-    pos_transactions: JSON.stringify(invoicesData.pos_transactions),
-    payment_reconciliation: JSON.stringify(paymentReconciliation),
-    taxes: JSON.stringify(invoicesData.taxes),
-    grand_total: flt(invoicesData.grand_total),
-    net_total: flt(invoicesData.net_total),
-    total_quantity: flt(invoicesData.total_quantity),
-    company,
-    save_as_draft: saveAsDraft,
-  };
+    const payload = {
+      pos_opening_entry: selectedOpeningEntry,
+      posting_date: postingDate,
+      period_end_date: periodEndDate,
+      pos_transactions: JSON.stringify(invoicesData.pos_transactions),
+      payment_reconciliation: JSON.stringify(paymentReconciliation),
+      taxes: JSON.stringify(invoicesData.taxes),
+      grand_total: flt(invoicesData.grand_total),
+      net_total: flt(invoicesData.net_total),
+      total_quantity: flt(invoicesData.total_quantity),
+      company,
+      save_as_draft: saveAsDraft,
+    };
 
-  try {
-    setLoading(true);
-    setError(null);
-    setSuccessMessage('');
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccessMessage('');
 
-    const session = getSession();
-    const res = await fetch(
-      'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
-        credentials: 'include',
-        body: JSON.stringify(payload),
+      if (!navigator.onLine) {
+        throw new Error('You are offline. Closing Entry requires a live connection to Frappe ERPNext.');
       }
-    );
 
-    const data = await res.json();
-    let apiResponse = data;
-    if (apiResponse.message && typeof apiResponse.message === 'object') {
-      apiResponse = apiResponse.message;
+      const session = getSession();
+      const res = await fetch(
+        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await res.json();
+      let apiResponse = data;
+      if (apiResponse.message && typeof apiResponse.message === 'object') {
+        apiResponse = apiResponse.message;
+      }
+
+      if (!res.ok || apiResponse.status === 'error') {
+        throw new Error(apiResponse.message || 'Failed to create closing entry');
+      }
+
+      const isDraft = saveAsDraft;
+      const name = apiResponse.name || 'Unknown';
+      const total = apiResponse.grand_total || invoicesData.grand_total || 0;
+
+      setSuccessMessage(
+        `POS Closing Entry ${isDraft ? 'saved as draft' : 'submitted'} successfully! Name: ${name}, Total: AED ${total.toFixed(2)}`
+      );
+
+      alert(`${isDraft ? 'Draft' : 'Closing Entry'} saved! Logging out...`);
+
+      // Use standard Frappe logout instead of non-existent retail_api logout
+      await fetch('/api/method/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      localStorage.clear();
+      window.location.href = '/';
+
+    } catch (err) {
+      setError(`Failed to submit: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
-
-    if (!res.ok || apiResponse.status === 'error') {
-      throw new Error(apiResponse.message || 'Failed to create closing entry');
-    }
-
-    const isDraft = saveAsDraft;
-    const name = apiResponse.name || 'Unknown';
-    const total = apiResponse.grand_total || invoicesData.grand_total || 0;
-
-    setSuccessMessage(
-      `POS Closing Entry ${isDraft ? 'saved as draft' : 'submitted'} successfully! Name: ${name}, Total: AED ${total.toFixed(2)}`
-    );
-
-    alert(`${isDraft ? 'Draft' : 'Closing Entry'} saved! Logging out...`);
-
-    await fetch('http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
-
-    localStorage.clear();
-    window.location.href = '/';
-
-  } catch (err) {
-    setError(`Failed to submit: ${err.message}`);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   if (loading && openingEntries.length === 0) {
     return (
@@ -414,9 +425,8 @@ function ClosingEntry() {
                             ref={(el) => (closingAmountRefs.current[idx] = el)}
                           />
                         </td>
-                        <td className={`py-3 px-4 text-sm text-right font-semibold font-mono ${
-                          pr.difference > 0 ? 'text-red-600' : pr.difference < 0 ? 'text-green-600' : 'text-slate-700'
-                        }`}>
+                        <td className={`py-3 px-4 text-sm text-right font-semibold font-mono ${pr.difference > 0 ? 'text-red-600' : pr.difference < 0 ? 'text-green-600' : 'text-slate-700'
+                          }`}>
                           AED {Math.abs(flt(pr.difference)).toFixed(2)}
                         </td>
                       </tr>

@@ -31,9 +31,15 @@ function InvoiceList() {
         setLoading(true);
         setError("");
 
+        if (!navigator.onLine) {
+            setError("You are currently offline. Please connect to the internet to view past invoices.");
+            setLoading(false);
+            return;
+        }
+
         try {
             const response = await fetch(
-                "http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices",
+                "/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices",
                 {
                     method: "GET",
                     headers: {

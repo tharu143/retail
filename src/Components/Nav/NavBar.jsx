@@ -18,23 +18,34 @@ function NavBar() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch("http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_logout", {
+      if (!navigator.onLine) {
+        // Offline local logout
+        dispatch(logout());
+        await persistor.purge();
+        localStorage.clear();
+        alert("Logged out locally (Offline Mode)");
+        navigate("/");
+        return;
+      }
+
+      const response = await fetch("/api/method/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
 
-      const result = await response.json();
-      const logoutData = result.message || result;
-
-      if (response.ok && logoutData.status === "success") {
+      if (response.ok) {
         dispatch(logout());
         await persistor.purge();
         localStorage.clear();
         alert("Logout successful!");
         navigate("/");
       } else {
-        alert(`Logout failed: ${logoutData.message || "Unknown error"}`);
+        alert("Logout failed from server, but clearing local session.");
+        dispatch(logout());
+        await persistor.purge();
+        localStorage.clear();
+        navigate("/");
       }
     } catch (error) {
       console.error("Logout error:", error);
@@ -68,11 +79,11 @@ function NavBar() {
           <div className="d-flex align-items-center gap-3 pe-3">
             {/* Item-wise Sales Report */}
             <i className="bi bi-gear" style={{ fontSize: '1.5rem' }}
-               onClick={() => navigate('/dashboard')} title="dashboard"></i>
+              onClick={() => navigate('/dashboard')} title="dashboard"></i>
 
             {/* Logout */}
             <i className="bi bi-power cursor-pointer power" style={{ fontSize: '1.5rem', color: 'black' }}
-               onClick={handleLogout} title="Logout"></i>
+              onClick={handleLogout} title="Logout"></i>
 
             {/* User Info */}
             <div className="text-end">
