@@ -80,6 +80,23 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         console.log('OpeningEntry - Payload:', payload);
 
         try {
+            if (!navigator.onLine) {
+                const dummyId = `OFFLINE-SHIFT-${new Date().getTime()}`;
+                if (onOpeningEntrySuccess) {
+                    onOpeningEntrySuccess(dummyId, company, posProfile);
+                } else {
+                    localStorage.setItem('posOpeningEntry', dummyId);
+                    localStorage.setItem('company', company);
+                    localStorage.setItem('pos_profile', posProfile);
+                    alert(`Offline Shift Started: ${dummyId}. Will sync when online.`);
+                    navigate('/homepage', {
+                        state: { posOpeningEntry: dummyId, company, pos_profile: posProfile },
+                    });
+                }
+                setLoading(false);
+                return;
+            }
+
             const session = localStorage.getItem('session') || userData.session;
             const response = await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
                 method: 'POST',
@@ -91,7 +108,17 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                 body: JSON.stringify(payload),
             });
 
-            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(`Server returned HTTP ${response.status}`);
+            }
+
+            let result;
+            try {
+                result = await response.json();
+            } catch (err) {
+                throw new Error("Unable to parse server response - it may be unreachable");
+            }
+
             console.log('OpeningEntry API Response:', { status: response.status, result });
 
             const responseData = result.message || result;
@@ -129,7 +156,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
             }
         } catch (error) {
             console.error('OpeningEntry Network Error:', error);
-            alert('Network error occurred while creating POS Opening Entry.');
+            alert(`Network error occurred while creating POS Opening Entry: ${error.message || ''}`);
         } finally {
             setLoading(false);
         }

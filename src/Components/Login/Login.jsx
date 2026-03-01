@@ -25,7 +25,40 @@ function Login() {
       });
 
       if (!response.ok) {
-        const err = await response.json();
+        // Fallback for offline mode or proxy unavailability
+        if (!navigator.onLine || response.status >= 500) {
+          const cachedUser = localStorage.getItem("user");
+          if (cachedUser && username.trim().toLowerCase() === cachedUser.toLowerCase()) {
+            const cachedSession = localStorage.getItem("session");
+            const cachedProfile = localStorage.getItem("pos_profile");
+            const cachedCompany = localStorage.getItem("company");
+            const cachedWarehouse = localStorage.getItem("warehouse");
+            const cachedBranch = localStorage.getItem("branch_prefix");
+            const cachedOpening = localStorage.getItem("posOpeningEntry");
+
+            dispatch(loginSuccess({
+              user: cachedUser,
+              session: cachedSession,
+              pos_profile: cachedProfile,
+              company: cachedCompany,
+              warehouse: cachedWarehouse,
+              branch_prefix: cachedBranch
+            }));
+
+            alert("Offline Mode: Logged in using cached credentials.");
+            navigate("/homepage");
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Parse actual error if not bypassed offline
+        let err;
+        try {
+          err = await response.json();
+        } catch (e) {
+          throw new Error(`Our server is unreachable offline. Please connect to internet or use your exact previously logged-in username.`);
+        }
         throw new Error(err.message || `HTTP ${response.status}`);
       }
 

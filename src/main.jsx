@@ -69,6 +69,20 @@ window.fetch = async function (...args) {
     if (response.status === 403 && typeof resource === 'string' && !resource.includes('user_login')) {
       handleGlobalAuthError();
     }
+
+    // Safely wrap response.json() to prevent HTML/proxy errors from crashing the app
+    const originalJson = response.json.bind(response);
+    response.json = async () => {
+      try {
+        return await originalJson();
+      } catch (err) {
+        if (!navigator.onLine || !response.ok) {
+          throw new Error(`Server is currently unreachable or offline (HTTP ${response.status})`);
+        }
+        throw new Error("Unable to parse server response.");
+      }
+    };
+
     return response;
   } catch (error) {
     throw error;
