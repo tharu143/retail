@@ -109,11 +109,18 @@ function ClosingEntry() {
           });
 
           // Fix reconciliation: expected_amount = opening + paid from invoices
-          const fixedReconciliation = (payload.payment_reconciliation || []).map(pr => ({
-            ...pr,
-            paid_amount: paidAmounts[pr.mode_of_payment] || 0,
-            expected_amount: flt(pr.opening_amount + (paidAmounts[pr.mode_of_payment] || 0))
-          }));
+          // Additionally, automatically initialize closing_amount to expected_amount to prevent Frappe 
+          // Write-Off Validation errors caused when users submit without configuring POS Profile write-off accounts.
+          const fixedReconciliation = (payload.payment_reconciliation || []).map(pr => {
+            const expected = flt(pr.opening_amount + (paidAmounts[pr.mode_of_payment] || 0));
+            return {
+              ...pr,
+              paid_amount: paidAmounts[pr.mode_of_payment] || 0,
+              expected_amount: expected,
+              closing_amount: expected,
+              difference: 0
+            };
+          });
           setPaymentReconciliation(fixedReconciliation);
           setNoInvoicesMessage('');
         } else {
@@ -211,8 +218,18 @@ function ClosingEntry() {
         apiResponse = apiResponse.message;
       }
 
+      let sysError = apiResponse.message;
+      if (!sysError && data._server_messages) {
+        try {
+          const msgs = JSON.parse(data._server_messages);
+          const latest = JSON.parse(msgs[msgs.length - 1]);
+          if (latest && latest.message) sysError = latest.message;
+        } catch (e) { } // Ignore parse failures
+      }
+
       if (!res.ok || apiResponse.status === 'error') {
-        throw new Error(apiResponse.message || 'Failed to create closing entry');
+        const fallbackMsg = `Failed to create closing entry. Server returned HTTP ${res.status}`;
+        throw new Error(sysError || (typeof apiResponse === 'string' ? apiResponse : fallbackMsg));
       }
 
       const isDraft = saveAsDraft;
