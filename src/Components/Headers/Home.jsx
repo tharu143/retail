@@ -73,7 +73,7 @@ function Home() {
 
   // ---------- Auth Fetch ----------
   const authFetch = useCallback(async (url, options = {}) => {
-    if (isOffline && options.method !== 'GET') {
+    if (isOffline && options.method && options.method !== 'GET') {
       throw new Error("You are currently offline. This action will be queued for sync.");
     }
 
@@ -192,7 +192,7 @@ function Home() {
     if (selectedPaymentMode === 'Cash') setTenderedAmount(grandTotal);
   }, [grandTotal, selectedPaymentMode]);
 
-  // ---------- TAX FETCH ----------
+  // ---------- TAX FETCH (with offline cache) ----------
   useEffect(() => {
     const fetchTaxTemplates = async () => {
       try {
@@ -201,12 +201,28 @@ function Home() {
         const templates = data.message || data || [];
         setTaxTemplates(templates);
         if (templates.length) setSelectedTaxTemplate(templates[0].name);
-      } catch (err) { console.error(err); }
+
+        // Cache to Dexie for offline use
+        await db.tax_templates.clear();
+        for (const t of templates) {
+          await db.tax_templates.put(t);
+        }
+      } catch (err) {
+        console.error('Tax fetch failed, trying local cache:', err);
+        // Fallback to cached tax templates
+        try {
+          const cached = await db.tax_templates.toArray();
+          if (cached.length) {
+            setTaxTemplates(cached);
+            setSelectedTaxTemplate(cached[0].name);
+          }
+        } catch (e) { console.error('Local tax cache also failed:', e); }
+      }
     };
     fetchTaxTemplates();
   }, [authFetch]);
 
-  // ---------- CUSTOMER SEARCH ----------
+  // ---------- CUSTOMER SEARCH (with offline fallback) ----------
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (customerName.trim().length < 2) {
@@ -214,16 +230,34 @@ function Home() {
       }
       setSearchLoading(true);
       try {
-        const res = await authFetch(
-          `custom_retailpos.custom_retailpos.retail_api.retail.get_customers?search=${encodeURIComponent(customerName.trim())}`
-        );
-        const data = await res.json();
-        setSearchResults(Array.isArray(data.message) ? data.message : []);
+        if (isOffline) {
+          // Search local Dexie customer cache
+          const allCustomers = await db.customers.toArray();
+          const query = customerName.trim().toLowerCase();
+          const filtered = allCustomers.filter(c =>
+            (c.customer_name || '').toLowerCase().includes(query) ||
+            (c.name || '').toLowerCase().includes(query) ||
+            (c.mobile_no || '').includes(query)
+          );
+          setSearchResults(filtered);
+        } else {
+          const res = await authFetch(
+            `custom_retailpos.custom_retailpos.retail_api.retail.get_customers?search=${encodeURIComponent(customerName.trim())}`
+          );
+          const data = await res.json();
+          const results = Array.isArray(data.message) ? data.message : [];
+          setSearchResults(results);
+
+          // Cache customers to Dexie for offline use
+          for (const cust of results) {
+            await db.customers.put(cust);
+          }
+        }
       } catch { setSearchResults([]); }
       finally { setSearchLoading(false); setShowDropdown(true); }
     }, 300);
     return () => clearTimeout(timer);
-  }, [customerName, authFetch]);
+  }, [customerName, authFetch, isOffline]);
 
   // Click outside dropdown
   useEffect(() => {
@@ -543,6 +577,7 @@ function Home() {
       const pending = await db.invoices.where('is_synced').equals(0).toArray();
       if (pending.length === 0) return;
 
+      let syncedCount = 0;
       for (const inv of pending) {
         try {
           const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice`, {
@@ -558,13 +593,35 @@ function Home() {
           const result = data.message || data;
 
           if (result.status === 'success' || (result.message && result.message.includes("Duplicate ignored"))) {
-            await db.invoices.update(inv.id, { is_synced: 1 });
-            console.log(`Synced offline invoice: ${inv.offline_id}`);
+            const now = new Date().toISOString();
+            const serverName = result.invoice_name || result.name || inv.offline_id;
+
+            await db.invoices.update(inv.id, {
+              is_synced: 1,
+              synced_at: now,
+              server_name: serverName
+            });
+
+            // Log sync action for history
+            await db.sync_log.add({
+              offline_id: inv.offline_id,
+              action: 'invoice_synced',
+              timestamp: now,
+              status: 'success',
+              server_name: serverName
+            });
+
+            syncedCount++;
+            console.log(`Synced offline invoice: ${inv.offline_id} → ${serverName}`);
           }
         } catch (e) {
           console.error(`Sync failed for ${inv.offline_id}:`, e);
-          break; // Stop sync loop if network error
+          break;
         }
+      }
+      if (syncedCount > 0) {
+        const remaining = await db.invoices.where('is_synced').equals(0).count();
+        setPendingSyncCount(remaining);
       }
     };
 

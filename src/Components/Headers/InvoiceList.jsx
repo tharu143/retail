@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
+import { db } from '../../db';
 import "./InvoiceList.css";
 
 function InvoiceList() {
@@ -12,12 +13,48 @@ function InvoiceList() {
     const [filterTime, setFilterTime] = useState("");
     const [filterMobile, setFilterMobile] = useState("");
     const [filterMode, setFilterMode] = useState("");
+    const [filterSource, setFilterSource] = useState(""); // 'all', 'synced', 'pending'
     const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    const [offlineInvoices, setOfflineInvoices] = useState([]);
 
     // Get session from Redux or localStorage
     const userData = useSelector((state) => state.user);
     const getSession = () => {
         return userData?.session || localStorage.getItem("session") || "";
+    };
+
+    // Load offline invoices from Dexie
+    const loadOfflineInvoices = async () => {
+        try {
+            const local = await db.invoices.toArray();
+            const mapped = local.map(inv => ({
+                ...inv,
+                name: inv.server_name || inv.offline_id || `LOCAL-${inv.id}`,
+                customer_name: inv.customer,
+                customer_details: {
+                    customer_name: inv.customer || 'N/A',
+                    mobile_no: inv.contact_mobile || 'N/A',
+                    email_id: '',
+                    address: '',
+                },
+                pos_invoice_items: (inv.items || []).map(it => ({
+                    item_name: it.item_name || it.item_code,
+                    item_code: it.item_code,
+                    qty: it.quantity || it.qty || 1,
+                    rate: it.basePrice || it.rate || 0,
+                    amount: (it.quantity || it.qty || 1) * (it.basePrice || it.rate || 0),
+                })),
+                payments: inv.payments || [],
+                grand_total: inv.grand_total || 0,
+                posting_date: inv.posting_date || '',
+                _source: inv.is_synced ? 'synced_local' : 'pending',
+                _synced_at: inv.synced_at || null,
+            }));
+            setOfflineInvoices(mapped);
+        } catch (e) {
+            console.error('Failed to load offline invoices:', e);
+        }
     };
 
     const fetchInvoices = async () => {
@@ -31,8 +68,11 @@ function InvoiceList() {
         setLoading(true);
         setError("");
 
+        // Always load offline invoices first
+        await loadOfflineInvoices();
+
         if (!navigator.onLine) {
-            setError("You are currently offline. Please connect to the internet to view past invoices.");
+            // When offline, only show local invoices (no error - just inform)
             setLoading(false);
             return;
         }
@@ -67,24 +107,49 @@ function InvoiceList() {
                         address: raw.customer_address || "N/A",
                     },
                     pos_invoice_items: raw.items || [],
-                    // Ensure payments is always an array
                     payments: Array.isArray(raw.payments) ? raw.payments : [],
+                    _source: 'server',
                 }));
                 setInvoices(mapped);
             } else {
-                setError("No invoices returned from the server.");
+                setInvoices([]);
             }
         } catch (err) {
             console.error("Fetch invoices error:", err);
-            setError(`Failed to load invoices: ${err.message}`);
+            // Don't show error if we have offline data
+            if (offlineInvoices.length === 0) {
+                setError(`Failed to load invoices: ${err.message}`);
+            }
         } finally {
             setLoading(false);
         }
     };
 
+    // Track online/offline
+    useEffect(() => {
+        const goOnline = () => { setIsOffline(false); fetchInvoices(); };
+        const goOffline = () => { setIsOffline(true); loadOfflineInvoices(); };
+        window.addEventListener('online', goOnline);
+        window.addEventListener('offline', goOffline);
+        return () => {
+            window.removeEventListener('online', goOnline);
+            window.removeEventListener('offline', goOffline);
+        };
+    }, []);
+
     useEffect(() => {
         fetchInvoices();
     }, []);
+
+    // Merge server invoices with pending offline invoices
+    const getMergedInvoices = () => {
+        const serverNames = new Set(invoices.map(inv => inv.name));
+        // Only add offline invoices that are NOT already synced (to avoid duplicates)
+        const pendingOffline = offlineInvoices.filter(
+            inv => inv._source === 'pending' && !serverNames.has(inv.name)
+        );
+        return [...pendingOffline, ...invoices];
+    };
 
     const filterInvoices = (list) => {
         return list.filter((inv) => {
@@ -97,8 +162,7 @@ function InvoiceList() {
                     .includes(filterMobile.toLowerCase())
                 : true;
 
-            // Build searchable string from all payment modes
-            const paymentModes = inv.payments
+            const paymentModes = (inv.payments || [])
                 .map((p) => p.mode_of_payment || "")
                 .filter(Boolean)
                 .join(", ")
@@ -108,8 +172,32 @@ function InvoiceList() {
                 ? paymentModes.includes(filterMode.toLowerCase())
                 : true;
 
-            return idMatch && dateMatch && timeMatch && mobileMatch && modeMatch;
+            // Source filter
+            let sourceMatch = true;
+            if (filterSource === 'pending') sourceMatch = inv._source === 'pending';
+            else if (filterSource === 'synced') sourceMatch = inv._source === 'server' || inv._source === 'synced_local';
+
+            return idMatch && dateMatch && timeMatch && mobileMatch && modeMatch && sourceMatch;
         });
+    };
+
+    const getSyncBadge = (inv) => {
+        if (inv._source === 'pending') {
+            return <span style={{
+                background: '#fef3c7', color: '#92400e', padding: '2px 8px',
+                borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
+            }}>⏳ Pending Sync</span>;
+        }
+        if (inv._source === 'synced_local' && inv._synced_at) {
+            return <span style={{
+                background: '#d1fae5', color: '#065f46', padding: '2px 8px',
+                borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
+            }}>✅ Synced {new Date(inv._synced_at).toLocaleString()}</span>;
+        }
+        return <span style={{
+            background: '#dbeafe', color: '#1e40af', padding: '2px 8px',
+            borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
+        }}>☁️ Server</span>;
     };
 
     const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "N/A");
@@ -268,12 +356,15 @@ function InvoiceList() {
                                 <th>Customer</th>
                                 <th>Payment Mode</th>
                                 <th>Grand Total</th>
+                                <th>Status</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {list.map((inv) => (
-                                <tr key={inv.name}>
+                            {list.map((inv, idx) => (
+                                <tr key={inv.name + '-' + idx} style={{
+                                    background: inv._source === 'pending' ? '#fffbeb' : 'inherit'
+                                }}>
                                     <td>{inv.name}</td>
                                     <td>{inv.customer_details?.customer_name || "N/A"}</td>
                                     <td>
@@ -282,10 +373,11 @@ function InvoiceList() {
                                             .filter(Boolean)
                                             .join(", ") || "N/A"}
                                     </td>
-                                    <td>AED {inv.grand_total || 0}</td>
+                                    <td>AED {parseFloat(inv.grand_total || 0).toFixed(2)}</td>
+                                    <td>{getSyncBadge(inv)}</td>
                                     <td>
                                         <button className="btn btn-sm btn-info" onClick={() => handleViewDetails(inv)}>
-                                            View Details
+                                            View
                                         </button>
                                     </td>
                                 </tr>
@@ -394,19 +486,23 @@ function InvoiceList() {
     };
 
     const splitInvoicesIntoThree = () => {
-        const filtered = filterInvoices(invoices);
+        const merged = getMergedInvoices();
+        const filtered = filterInvoices(merged);
         const third = Math.ceil(filtered.length / 3);
         return {
             part1: filtered.slice(0, third),
             part2: filtered.slice(third, third * 2),
             part3: filtered.slice(third * 2),
+            total: filtered.length,
         };
     };
 
     const renderContent = () => {
         if (loading) return <p className="text-center">Loading invoices…</p>;
         if (error) return <div className="alert alert-danger">{error}</div>;
-        if (!invoices.length) return <p className="text-center">No POS Invoices found.</p>;
+
+        const merged = getMergedInvoices();
+        if (!merged.length) return <p className="text-center">No POS Invoices found.</p>;
 
         const { part1, part2, part3 } = splitInvoicesIntoThree();
 
@@ -453,7 +549,7 @@ function InvoiceList() {
                             onChange={(e) => setFilterMobile(e.target.value)}
                         />
                     </div>
-                    <div className="col-md-3 mt-2">
+                    <div className="col-md-2 mt-2">
                         <label className="form-label fw-bold">Mode of Payment</label>
                         <input
                             type="text"
@@ -462,6 +558,18 @@ function InvoiceList() {
                             value={filterMode}
                             onChange={(e) => setFilterMode(e.target.value)}
                         />
+                    </div>
+                    <div className="col-md-2 mt-2">
+                        <label className="form-label fw-bold">Sync Status</label>
+                        <select
+                            className="form-control"
+                            value={filterSource}
+                            onChange={(e) => setFilterSource(e.target.value)}
+                        >
+                            <option value="">All</option>
+                            <option value="synced">Synced</option>
+                            <option value="pending">Pending</option>
+                        </select>
                     </div>
                 </div>
 
@@ -476,9 +584,25 @@ function InvoiceList() {
         );
     };
 
+    const pendingCount = offlineInvoices.filter(i => i._source === 'pending').length;
+
     return (
         <div className="container-fluid mt-4">
-            <h3 className="mb-4 text-center">POS Invoices</h3>
+            <div className="d-flex justify-content-center align-items-center gap-3 mb-4">
+                <h3 className="mb-0">POS Invoices</h3>
+                {isOffline && (
+                    <span style={{
+                        background: '#fef2f2', color: '#991b1b', padding: '4px 12px',
+                        borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #fecaca'
+                    }}>🔴 Offline Mode</span>
+                )}
+                {pendingCount > 0 && (
+                    <span style={{
+                        background: '#fffbeb', color: '#92400e', padding: '4px 12px',
+                        borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #fde68a'
+                    }}>⏳ {pendingCount} pending sync</span>
+                )}
+            </div>
             {renderContent()}
         </div>
     );
