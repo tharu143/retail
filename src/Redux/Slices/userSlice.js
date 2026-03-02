@@ -40,8 +40,11 @@ const userSlice = createSlice({
         filtered_customers: [],
       };
     },
+    setWarehouse: (state, action) => {
+      state.warehouse = action.payload;
+    },
   },
 });
 
-export const { loginSuccess, logout } = userSlice.actions;
+export const { loginSuccess, logout, setWarehouse } = userSlice.actions;
 export default userSlice.reducer;

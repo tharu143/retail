@@ -9,6 +9,7 @@ import { logout } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 import { db } from '../../db';
+import Swal from 'sweetalert2';
 
 function Home() {
   const navigate = useNavigate();
@@ -68,7 +69,15 @@ function Home() {
     localStorage.setItem('posOpeningEntry', entryId);
     setPosOpeningEntry(entryId);
     setShowOpeningModal(false);
-    alert("Shift opened successfully!");
+    Swal.fire({
+      icon: 'success',
+      title: 'Shift Opened',
+      text: 'Your shift has been opened successfully!',
+      timer: 2000,
+      showConfirmButton: false,
+      background: '#fff',
+      color: '#1e293b'
+    });
   };
 
   // ---------- Auth Fetch ----------
@@ -342,6 +351,7 @@ function Home() {
               group: (item.item_group || "others").toLowerCase(),
               price: item.price_list_rate || 0,
               actual_qty: item.actual_qty || 0,
+              total_qty: item.total_qty || item.actual_qty || 0, // NEW: Network stock
               barcodes: item.barcodes || []
             })));
           }
@@ -359,6 +369,7 @@ function Home() {
           group: (item.group || item.item_group || "others").toLowerCase(),
           price: item.price || item.price_list_rate || 0,
           actual_qty: item.actual_qty || 0,
+          total_qty: item.total_qty || item.actual_qty || 0, // NEW: Network stock
           barcodes: item.barcodes || []
         }));
 
@@ -429,6 +440,46 @@ function Home() {
     }
   };
 
+  // NEW: Request Stock from other warehouses
+  const handleRequestStock = async (item) => {
+    const { value: quantity } = await Swal.fire({
+      title: 'Request Stock',
+      text: `Enter quantity of "${item.name}" you need for ${warehouse}`,
+      input: 'number',
+      inputLabel: 'Quantity',
+      inputValue: 1,
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value || parseInt(value) <= 0) {
+          return 'Please enter a valid quantity'
+        }
+      }
+    });
+
+    if (quantity) {
+      try {
+        Swal.showLoading();
+        const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_material_request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            item_code: item.id,
+            qty: parseInt(quantity),
+            warehouse: warehouse
+          })
+        });
+
+        if (res.ok) {
+          Swal.fire('Success', 'Material Request generated successfully!', 'success');
+        } else {
+          throw new Error('Failed to generate request');
+        }
+      } catch (err) {
+        Swal.fire('Error', err.message, 'error');
+      }
+    }
+  };
+
   // ---------- ITEM HANDLERS ----------
   const handleFilter = (cat) => setSelectedCategory(cat);
   const handleAddToBill = (item) => {
@@ -463,8 +514,12 @@ function Home() {
 
   // Checkout
   const handleCheckout = () => {
-    if (grandTotal <= 0 || !posOpeningEntry) {
-      alert(grandTotal <= 0 ? 'No items in bill' : 'Open a shift first');
+    if (grandTotal <= 0) {
+      Swal.fire('Info', 'No items in bill', 'info');
+      return;
+    }
+    if (!posOpeningEntry) {
+      Swal.fire('Warning', 'Open a shift first', 'warning');
       return;
     }
     setShowPaymentModal(true);
@@ -505,12 +560,17 @@ function Home() {
   const completePayment = async () => {
     if (!selectedPaymentMode) return;
     if (selectedPaymentMode === 'Cash' && tenderedAmount < grandTotal) {
-      alert('Tendered amount insufficient'); return;
+      Swal.fire('Error', 'Tendered amount insufficient', 'error');
+      return;
     }
 
     setPaymentLoading(true);
     const customer = selectedCustomer?.customer_name || customerName;
-    if (!customer.trim()) { alert('Enter customer name'); setPaymentLoading(false); return; }
+    if (!customer.trim()) {
+      Swal.fire('Error', 'Enter customer name', 'error');
+      setPaymentLoading(false);
+      return;
+    }
 
     const timestamp = Date.now();
     const offlineId = `${branchPrefix || 'POS'}-${timestamp}`;
@@ -554,7 +614,13 @@ function Home() {
         // Decrement local stock immediately for offline sales
         await updateLocalStock(payload.items);
 
-        alert(`Offline Invoice Saved: ${offlineId}\nWill sync when online.`);
+        Swal.fire({
+          icon: 'success',
+          title: 'Offline Invoice Saved',
+          text: `Saved locally with ID: ${offlineId}. Will sync when online.`,
+          timer: 3000,
+          showConfirmButton: false
+        });
         finalizeOrder();
       } else {
         const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice', {
@@ -569,7 +635,13 @@ function Home() {
           // Decrement local stock for real-time UI update even when online
           await updateLocalStock(payload.items);
 
-          alert(`Invoice: ${data.invoice_name || offlineId}\nTotal: AED ${grandTotal.toFixed(2)}`);
+          Swal.fire({
+            icon: 'success',
+            title: 'Invoice Created',
+            text: `Invoice: ${data.invoice_name || offlineId} | Total: AED ${grandTotal.toFixed(2)}`,
+            timer: 2500,
+            showConfirmButton: false
+          });
           finalizeOrder();
         } else {
           // Fallback to offline on server error too
@@ -577,7 +649,7 @@ function Home() {
           // Decrement local stock even if it failed but saved offline
           await updateLocalStock(payload.items);
 
-          alert("Server error. Invoice saved offline for sync.");
+          Swal.fire('Info', "Server busy. Invoice saved offline for later sync.", 'info');
           finalizeOrder();
         }
       }
@@ -721,8 +793,8 @@ function Home() {
                   <p className="home-no-items">No items in this category</p>
                 ) : (
                   filteredItems.map(item => (
-                    <div key={item.id} className="home-item-wrapper" onClick={() => handleAddToBill(item)}>
-                      <div className="home-item-card">
+                    <div key={item.id} className="home-item-wrapper" onClick={() => item.actual_qty > 0 && handleAddToBill(item)}>
+                      <div className="home-item-card" style={{ opacity: item.actual_qty > 0 ? 1 : 0.8 }}>
                         <div className="home-item-image-box">
                           <img
                             src={item.image}
@@ -738,18 +810,50 @@ function Home() {
                         </div>
                         <div className="home-item-body">
                           <h4 className="home-item-title">{item.name}</h4>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <p className="home-item-price"><strong>AED</strong> {item.price}</p>
-                            <span style={{
-                              fontSize: '0.75rem',
-                              color: item.actual_qty > 0 ? '#10b981' : '#ef4444',
-                              background: item.actual_qty > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                              padding: '2px 8px',
-                              borderRadius: '10px',
-                              fontWeight: 700
-                            }}>
-                              Stock: {item.actual_qty}
-                            </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <p className="home-item-price" style={{ margin: 0 }}><strong>AED</strong> {item.price}</p>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                              <span style={{
+                                fontSize: '0.65rem',
+                                color: item.actual_qty > 0 ? '#10b981' : '#ef4444',
+                                background: item.actual_qty > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 700
+                              }}>
+                                Branch: {item.actual_qty}
+                              </span>
+                              <span style={{
+                                fontSize: '0.65rem',
+                                color: '#6366f1',
+                                background: 'rgba(99, 102, 241, 0.1)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 700
+                              }}>
+                                Total: {item.total_qty}
+                              </span>
+                            </div>
+
+                            {item.actual_qty <= 0 && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRequestStock(item); }}
+                                style={{
+                                  marginTop: '8px',
+                                  width: '100%',
+                                  padding: '4px',
+                                  fontSize: '0.75rem',
+                                  backgroundColor: '#4f46e5',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Request Stock
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>

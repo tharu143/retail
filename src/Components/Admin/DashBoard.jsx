@@ -12,9 +12,9 @@ const routeMap = {
 
   // Sales
   'Customer': '/customerlist',
-  'Sales Order':'/salesorderlist',
-  'Sales Invoice':'/salesinvoice',
-  'Delivery Note':'/deliverynote',
+  'Sales Order': '/salesorderlist',
+  'Sales Invoice': '/salesinvoice',
+  'Delivery Note': '/deliverynote',
 
 
   // Reports (you can add real report pages later)
@@ -31,7 +31,8 @@ const routeMap = {
   'POS Profile': '/posprofilelist',
   'POS Opening Entry': '/posopeningentrylist',
   'POS Closing Entry': '/posclosingentrylist',
-  'POS Invoice':'/invoicelist',
+  'POS Invoice': '/invoicelist',
+  'Settings': '/settings',
 };
 
 function Dashboard() {
@@ -42,7 +43,7 @@ function Dashboard() {
         'Supplier',
         'Purchase Order',
         'Purchase Receipt',
-        'Purchase Invoice', 
+        'Purchase Invoice',
 
       ],
     },
@@ -52,7 +53,7 @@ function Dashboard() {
         'Customer',
         'Sales Order',
         'Sales Invoice',
-        'Delivery Note' ,
+        'Delivery Note',
       ],
     },
     {
@@ -77,7 +78,8 @@ function Dashboard() {
         'POS Profile',
         'POS Opening Entry',
         'POS Closing Entry',
-        'POS Invoice'
+        'POS Invoice',
+        'Settings'
       ],
     },
   ];

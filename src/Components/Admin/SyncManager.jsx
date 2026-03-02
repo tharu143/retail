@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../db';
-import { Loader2, RefreshCw, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, FastForward } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const SyncManager = () => {
     const [pendingInvoices, setPendingInvoices] = useState([]);
@@ -38,16 +39,106 @@ const SyncManager = () => {
         };
     }, []);
 
-    const manualSync = async (invoice) => {
+    const bulkSync = async (invoicesToSync) => {
         if (!isOnline) {
-            alert("No internet connection. Please connect to sync.");
+            Swal.fire('Offline', "No internet connection. Please connect to sync.", 'warning');
+            return;
+        }
+
+        const count = invoicesToSync.length;
+        if (count === 0) return;
+
+        Swal.fire({
+            title: `Syncing ${count} Invoices`,
+            text: 'Please wait...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        try {
+            // Prepare payload for bulk_sync_invoices
+            const payload = invoicesToSync.map(inv => {
+                const { id, is_synced, synced_at, server_name, ...cleanInv } = inv;
+                return cleanInv;
+            });
+
+            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    "Accept": "application/json"
+                },
+                credentials: 'include',
+                body: JSON.stringify({ invoices: payload }),
+            });
+
+            if (res.status === 403) {
+                Swal.fire('Session Expired', "Please Logout and Login again.", 'error');
+                return;
+            }
+
+            const data = await res.json();
+            const results = data.message || [];
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const result of results) {
+                const originalInvoice = invoicesToSync.find(inv => inv.offline_id === result.offline_id);
+                if (!originalInvoice) continue;
+
+                if (result.status === 'success' || result.message?.includes("Duplicate ignored")) {
+                    successCount++;
+                    const now = new Date().toISOString();
+                    const serverName = result.invoice_name || result.name || originalInvoice.offline_id;
+
+                    await db.invoices.update(originalInvoice.id, {
+                        is_synced: 1,
+                        synced_at: now,
+                        server_name: serverName
+                    });
+
+                    await db.sync_log.add({
+                        offline_id: originalInvoice.offline_id,
+                        action: 'bulk_sync_success',
+                        timestamp: now,
+                        status: 'success',
+                        server_name: serverName
+                    });
+                } else {
+                    failCount++;
+                    await db.sync_log.add({
+                        offline_id: originalInvoice.offline_id,
+                        action: 'bulk_sync_failed',
+                        timestamp: new Date().toISOString(),
+                        status: 'failed',
+                        error: result.message || "Unknown server error"
+                    });
+                }
+            }
+
+            Swal.fire('Sync Complete', `Successfully synced ${successCount} invoices. ${failCount} failed.`, successCount > 0 ? 'success' : 'error');
+            fetchData();
+        } catch (err) {
+            console.error("Bulk sync error:", err);
+            Swal.fire('Error', `Network error: ${err.message}`, 'error');
+        }
+    };
+
+    const manualSync = async (invoice, hardProceed = false) => {
+        if (!isOnline) {
+            Swal.fire('Offline', "No internet connection.", 'warning');
             return;
         }
 
         setSyncingId(invoice.id);
         try {
-            // Strip Dexie-specific fields before sending to server
             const { id, is_synced, synced_at, server_name, ...payload } = invoice;
+
+            // Add hard_proceed flag if requested
+            if (hardProceed) {
+                payload.hard_proceed = 1;
+            }
 
             const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice`, {
                 method: 'POST',
@@ -60,7 +151,7 @@ const SyncManager = () => {
             });
 
             if (res.status === 403) {
-                alert("Session Expired or Invalid. Please Logout and Login again to sync.");
+                Swal.fire('Session Expired', "Please Logout and Login again.", 'error');
                 setSyncingId(null);
                 return;
             }
@@ -80,28 +171,46 @@ const SyncManager = () => {
 
                 await db.sync_log.add({
                     offline_id: invoice.offline_id,
-                    action: 'manual_sync_success',
+                    action: hardProceed ? 'hard_sync_success' : 'manual_sync_success',
                     timestamp: now,
                     status: 'success',
                     server_name: serverName
                 });
 
-                alert(`Successfully synced: ${serverName}`);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sync Successful',
+                    text: `Invoice: ${serverName}`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
                 fetchData();
             } else {
                 const errorMsg = result.message || "Unknown error from server";
                 await db.sync_log.add({
                     offline_id: invoice.offline_id,
-                    action: 'manual_sync_failed',
+                    action: hardProceed ? 'hard_sync_failed' : 'manual_sync_failed',
                     timestamp: new Date().toISOString(),
                     status: 'failed',
                     error: errorMsg
                 });
-                alert(`Sync failed: ${errorMsg}`);
+
+                Swal.fire({
+                    title: 'Sync Failed',
+                    text: errorMsg,
+                    icon: 'error',
+                    showCancelButton: true,
+                    confirmButtonText: 'Try Hard Proceed',
+                    confirmButtonColor: '#ef4444'
+                }).then((r) => {
+                    if (r.isConfirmed) {
+                        manualSync(invoice, true);
+                    }
+                });
             }
         } catch (err) {
             console.error("Manual sync error:", err);
-            alert(`Network error: ${err.message}`);
+            Swal.fire('Error', `Network error: ${err.message}`, 'error');
         } finally {
             setSyncingId(null);
         }
@@ -133,7 +242,29 @@ const SyncManager = () => {
             {/* Pending Section */}
             <div style={{ marginBottom: '32px', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Pending Sync ({pendingInvoices.length})</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Pending Sync ({pendingInvoices.length})</h3>
+                        {pendingInvoices.length > 0 && (
+                            <button
+                                onClick={() => bulkSync(pendingInvoices)}
+                                style={{
+                                    backgroundColor: '#22c55e',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '4px 12px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px'
+                                }}
+                            >
+                                <FastForward size={14} /> Sync All
+                            </button>
+                        )}
+                    </div>
                     <button onClick={fetchData} className="btn-refresh" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b' }}>
                         <RefreshCw size={18} />
                     </button>

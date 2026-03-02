@@ -1,7 +1,7 @@
 {
   "name": "kyle-retail",
   "private": true,
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Offline-First Retail POS Application",
   "author": "Tharu Kumar K <dev@kylesolutions.in>",
   "type": "module",
@@ -51,6 +51,7 @@
     "react-router-dom": "^7.9.4",
     "redux-persist": "^6.0.0",
     "sqlite3": "^5.1.7",
+    "sweetalert2": "^11.26.21",
     "tailwindcss": "^4.1.16",
     "uuid": "^13.0.0",
     "wait-on": "^9.0.4"

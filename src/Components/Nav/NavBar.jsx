@@ -5,7 +5,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 import { db } from "../../db";
-import { RefreshCw, LayoutDashboard, ChevronLeft, Settings } from "lucide-react";
+import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon } from "lucide-react";
+import Swal from 'sweetalert2';
 
 function NavBar() {
   const navigate = useNavigate();
@@ -42,7 +43,13 @@ function NavBar() {
         dispatch(logout());
         await persistor.purge();
         localStorage.clear();
-        alert("Logged out locally (Offline Mode)");
+        Swal.fire({
+          icon: 'info',
+          title: 'Logged Out',
+          text: 'Logged out from local session (Offline Mode)',
+          timer: 2000,
+          showConfirmButton: false
+        });
         navigate("/");
         return;
       }
@@ -57,10 +64,16 @@ function NavBar() {
         dispatch(logout());
         await persistor.purge();
         localStorage.clear();
-        alert("Logout successful!");
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: 'Logout successful!',
+          timer: 1500,
+          showConfirmButton: false
+        });
         navigate("/");
       } else {
-        alert("Logout failed from server, but clearing local session.");
+        Swal.fire('Info', "Logout failed from server, but clearing local session.", 'info');
         dispatch(logout());
         await persistor.purge();
         localStorage.clear();
@@ -152,10 +165,10 @@ function NavBar() {
             )}
 
             {/* Dashboard (Settings) Link */}
-            <i className="bi bi-gear cursor-pointer"
+            <SettingsIcon className="cursor-pointer"
               style={{ fontSize: '1.5rem', color: '#64748b' }}
               onClick={() => navigate('/dashboard')}
-              title="Settings / Dashboard"></i>
+              title="Settings / Dashboard" />
 
             {/* Sync Manager Link */}
             <LayoutDashboard

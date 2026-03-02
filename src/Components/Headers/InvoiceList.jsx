@@ -31,6 +31,8 @@ function InvoiceList() {
             const mapped = local.map(inv => ({
                 ...inv,
                 name: inv.server_name || inv.offline_id || `LOCAL-${inv.id}`,
+                offline_id: inv.offline_id,
+                server_name: inv.server_name,
                 customer_name: inv.customer,
                 customer_details: {
                     customer_name: inv.customer || 'N/A',
@@ -260,7 +262,8 @@ function InvoiceList() {
               <div class="invoice-logo">
                 <img src="/perfume-logo.png" alt="Logo"/>
               </div>
-              <p><strong>Invoice ID:</strong> <span class="value">${invoice.name}</span></p>
+              <p><strong>Offline ID:</strong> <span class="value">${invoice.offline_id || "N/A"}</span></p>
+              <p><strong>ERPNext ID:</strong> <span class="value">${invoice.server_name || "Pending Sync"}</span></p>
               <p><strong>Posting Date:</strong> <span class="value">${formatDate(invoice.posting_date)}</span></p>
               <p><strong>Posting Time:</strong> <span class="value">${formatTime(invoice.posting_time)}</span></p>
             </div>
@@ -365,7 +368,10 @@ function InvoiceList() {
                                 <tr key={inv.name + '-' + idx} style={{
                                     background: inv._source === 'pending' ? '#fffbeb' : 'inherit'
                                 }}>
-                                    <td>{inv.name}</td>
+                                    <td style={{ fontSize: '0.75rem' }}>
+                                        <div style={{ fontWeight: 700 }}>{inv.server_name || 'UNSYNCED'}</div>
+                                        <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Off: {inv.offline_id}</div>
+                                    </td>
                                     <td>{inv.customer_details?.customer_name || "N/A"}</td>
                                     <td>
                                         {(inv.payments || [])
@@ -396,9 +402,12 @@ function InvoiceList() {
             <div className="modal" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
                 <div className="modal-dialog modal-lg">
                     <div className="modal-content">
-                        <div className="modal-header">
-                            <h5 className="modal-title">Invoice – {selectedInvoice.name}</h5>
-                            <button type="button" className="btn-close" onClick={closePopup}></button>
+                        <div className="modal-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                            <h5 className="modal-title" style={{ margin: 0 }}>Invoice Details</h5>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                <strong>ERPNext:</strong> {selectedInvoice.server_name || 'Pending'} | <strong>Offline:</strong> {selectedInvoice.offline_id}
+                            </div>
+                            <button type="button" className="btn-close" onClick={closePopup} style={{ position: 'absolute', right: '1rem', top: '1.5rem' }}></button>
                         </div>
                         <div className="modal-body">
                             <div className="d-flex align-items-center mb-2">

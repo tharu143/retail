@@ -24,6 +24,7 @@ import SalesInvoiceList from '../Components/Admin/SalesInvoiceList'
 import DeliveryNoteList from '../Components/Admin/DeliveryNoteList'
 import PurchaseOrderLists from '../Components/Admin/PurchaseOrderLists'
 import SyncManagerPage from '../Pages/SyncManagerPage'
+import SettingsPage from '../Pages/SettingsPage'
 
 
 function UserRouter() {
@@ -54,6 +55,7 @@ function UserRouter() {
         <Route path='salesinvoice' element={<SalesInvoiceList />} />
         <Route path='deliverynote' element={<DeliveryNoteList />} />
         <Route path='syncmanager' element={<SyncManagerPage />} />
+        <Route path='settings' element={<SettingsPage />} />
       </Routes>
     </>
   )

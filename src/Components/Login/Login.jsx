@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../Redux/Slices/userSlice';
+import Swal from 'sweetalert2';
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -45,7 +46,13 @@ function Login() {
               branch_prefix: cachedBranch
             }));
 
-            alert("Offline Mode: Logged in using cached credentials.");
+            Swal.fire({
+              icon: 'info',
+              title: 'Offline Mode',
+              text: 'Logged in using cached credentials.',
+              timer: 3000,
+              showConfirmButton: false
+            });
             navigate("/homepage");
             setIsLoading(false);
             return;
@@ -119,12 +126,24 @@ function Login() {
       localStorage.setItem("branch_prefix", branch_prefix);
       localStorage.setItem("posOpeningEntry", existingOpeningEntry); // ← Only if exists
 
-      alert("Login Successful!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Login Successful',
+        text: 'Welcome to Retail POS',
+        timer: 1500,
+        showConfirmButton: false
+      });
 
       // === NAVIGATE BASED ON SHIFT ===
       if (existingOpeningEntry) {
         localStorage.setItem("posOpeningEntry", existingOpeningEntry);
-        alert("Welcome back! Your shift is still open.");
+        Swal.fire({
+          icon: 'info',
+          title: 'Active Shift',
+          text: 'Your previous shift is still open. Resuming session.',
+          timer: 2500,
+          showConfirmButton: false
+        });
         navigate("/homepage");
       } else {
         navigate("/homepage"); // ← Home will show modal
