@@ -768,52 +768,7 @@ function Home() {
             </div>
           </div>
 
-          {/* RIGHT: BILL */}
           <div className="home-bill-section">
-            {/* SYNC STATUS BAR */}
-            <div className="sync-status-bar" style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '12px 18px',
-              marginBottom: '1rem',
-              borderRadius: '12px',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  backgroundColor: isOffline ? '#ef4444' : '#22c55e',
-                  boxShadow: isOffline ? '0 0 10px rgba(239, 68, 68, 0.4)' : '0 0 10px rgba(34, 197, 94, 0.4)'
-                }}></div>
-                <span style={{ fontWeight: 600, color: '#334155' }}>{isOffline ? 'OFFLINE' : 'ONLINE'}</span>
-              </div>
-              {pendingSyncCount > 0 && (
-                <div style={{
-                  background: '#eff6ff',
-                  color: '#2563eb',
-                  padding: '4px 12px',
-                  borderRadius: '20px',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  border: '1px solid #bfdbfe'
-                }}>
-                  <Loader2 size={12} className="animate-spin" />
-                  {pendingSyncCount} Pending Sync
-                </div>
-              )}
-              <div style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600 }}>
-                {branchPrefix} | {warehouse}
-              </div>
-            </div>
-
             {/* BARCODE SCANNER INPUT */}
             <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
               <input
