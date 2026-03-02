@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import './NavBar.css';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 import { db } from "../../db";
-import { RefreshCw, LayoutDashboard } from "lucide-react";
+import { RefreshCw, LayoutDashboard, ChevronLeft } from "lucide-react";
 
 function NavBar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.user);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -81,17 +82,41 @@ function NavBar() {
     <div>
       <nav className="navbar navbar-expand-lg nav-div">
         <div className="container-fluid justify-content-between">
-          <div onClick={() => navigate('/homepage')} className="cursor-pointer">
-            <h1 style={{
-              color: '#21a9ff',
-              textShadow: '2px 2px 4px #c0c0c0ff',
-              fontSize: '2.5rem',
-              textAlign: 'center',
-              margin: '20px 0',
-              letterSpacing: '1px',
-              animation: 'fadeIn 1s ease-in-out',
-              fontFamily: 'Carla Sans'
-            }}>Retail POS</h1>
+          <div className="d-flex align-items-center gap-3">
+            {location.pathname !== '/homepage' && location.pathname !== '/' && (
+              <button
+                onClick={() => navigate(-1)}
+                style={{
+                  border: 'none',
+                  background: '#f1f5f9',
+                  padding: '8px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#475569',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
+                onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}
+              >
+                <ChevronLeft size={24} />
+              </button>
+            )}
+
+            <div onClick={() => navigate('/homepage')} className="cursor-pointer">
+              <h1 style={{
+                color: '#21a9ff',
+                textShadow: '2px 2px 4px #c0c0c0ff',
+                fontSize: '2.5rem',
+                textAlign: 'center',
+                margin: '20px 0',
+                letterSpacing: '1px',
+                animation: 'fadeIn 1s ease-in-out',
+                fontFamily: 'Carla Sans'
+              }}>Retail POS</h1>
+            </div>
           </div>
 
           <div className="d-flex align-items-center gap-4 pe-3">
