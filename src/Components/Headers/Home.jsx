@@ -332,7 +332,7 @@ function Home() {
   };
   // ---------- FETCH ALL ITEMS ----------
 
-  const fetchItems = useCallback(async () => {
+  const fetchItems = useCallback(async (force = false) => {
     if (!session) return;
     try {
       setLoadingItems(true); setError("");
@@ -360,34 +360,63 @@ function Home() {
           })));
         }
       } catch (fetchErr) {
+        if (force) throw fetchErr; // If force sync failed, propagate error
         console.warn("Online fetch failed, using local DB:", fetchErr);
         apiItems = await db.items.toArray();
         if (apiItems.length === 0) throw fetchErr;
       }
 
       const baseUrl = 'http://75.119.130.59';
-      const transformed = apiItems.map(item => ({
-        id: item.id || item.name,
-        name: item.item_name || item.name,
-        image: item.image ? (item.image.startsWith('http') ? item.image : `${baseUrl}${item.image}`) : 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTBlMGUwIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmaWxsPSIjOTk5OTk5IiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4KICAgIE5vIEltYWdlCiAgPC90ZXh0Pgo8L3N2Zz4=',
-        group: (item.group || item.item_group || "others").toLowerCase(),
-        price: item.price || item.price_list_rate || 0,
-        actual_qty: item.actual_qty || 0,
-        total_qty: item.total_qty || item.actual_qty || 0,
-        warehouse_details: item.warehouse_details || [],
-        barcodes: item.barcodes || []
-      }));
+      const transformed = apiItems.map(item => {
+        const hasImage = item.image && item.image.trim() !== "";
+        return {
+          id: item.id || item.name,
+          name: item.item_name || item.name,
+          image: hasImage ? (item.image.startsWith('http') ? item.image : `${baseUrl}${item.image}`) : null,
+          group: (item.group || item.item_group || "others").toLowerCase(),
+          price: item.price || item.price_list_rate || 0,
+          actual_qty: item.actual_qty || 0,
+          total_qty: item.total_qty || item.actual_qty || 0,
+          warehouse_details: item.warehouse_details || [],
+          barcodes: item.barcodes || []
+        };
+      });
 
       const groups = [...new Set(transformed.map(i => i.group))];
       setCategories(["all", ...groups.sort()]);
       setItems(transformed);
       setFilteredItems(transformed);
     } catch (err) {
-      setError(err.message || "Failed to load items. Check your internet connection.");
+      setError(err.message || "Failed to load items. Please check connection.");
     } finally {
       setLoadingItems(false);
     }
   }, [authFetch, session, warehouse]);
+
+  const forceFullRefresh = useCallback(async () => {
+    try {
+      setLoadingItems(true);
+      // Force clear cache
+      await db.items.clear();
+      await db.customers.clear();
+      await db.tax_templates.clear();
+
+      // Re-fetch everything
+      await fetchItems(true);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Database Synchronized',
+        text: 'Local cache cleared and updated with the latest 61 items from server.',
+        timer: 3000,
+        showConfirmButton: false
+      });
+    } catch (err) {
+      Swal.fire('Sync Error', 'Failed to force refresh items. Local data preserved.', 'error');
+    } finally {
+      setLoadingItems(false);
+    }
+  }, [fetchItems]);
 
   useEffect(() => {
     fetchItems();
@@ -764,8 +793,15 @@ function Home() {
         if (syncedCount > 0) {
           const count = await db.invoices.where('is_synced').equals(0).count();
           setPendingSyncCount(count);
-          // LIVE REFRESH: Refresh stock levels after successful background sync
-          fetchItems();
+
+          if (count === 0) {
+            // ALL PENDING SYNCED: Trigger Wipe & Full Restore
+            console.log("All pending invoices synced. Triggering full DB refresh...");
+            forceFullRefresh();
+          } else {
+            // Partial sync success: Regular refresh
+            fetchItems();
+          }
         }
       } catch (e) {
         console.error("Auto-sync error:", e);
@@ -837,19 +873,37 @@ function Home() {
                 ) : (
                   filteredItems.map(item => (
                     <div key={item.id} className="home-item-wrapper" onClick={() => item.actual_qty > 0 && handleAddToBill(item)}>
-                      <div className="home-item-card" style={{ opacity: item.actual_qty > 0 ? 1 : 0.8 }}>
+                      <div className="home-item-card" style={{ opacity: item.actual_qty > 0 ? 1 : 0.6, cursor: item.actual_qty > 0 ? 'pointer' : 'not-allowed' }}>
                         <div className="home-item-image-box">
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="home-item-image"
-                            onError={e => {
-                              if (!e.target.dataset.errorResolved) {
-                                e.target.dataset.errorResolved = true;
-                                e.target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTBlMGUwIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmaWxsPSIjOTk5OTk5IiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4KICAgIE5vIEltYWdlCiAgPC90ZXh0Pgo8L3N2Zz4=";
-                              }
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="home-item-image"
+                              onError={e => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className="home-item-placeholder"
+                            style={{
+                              display: item.image ? 'none' : 'flex',
+                              width: '100%',
+                              height: '100%',
+                              backgroundColor: '#f1f5f9',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#94a3b8',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              textAlign: 'center',
+                              padding: '10px'
                             }}
-                          />
+                          >
+                            {item.name}
+                          </div>
                         </div>
                         <div className="home-item-body">
                           <h4 className="home-item-title">{item.name}</h4>
