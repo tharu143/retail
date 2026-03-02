@@ -406,8 +406,8 @@ function Home() {
 
     try {
       setSearchLoading(true);
-      // Directly call API for the scanned barcode
-      const res = await authFetch(`custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?search_term=${encodeURIComponent(barcode.trim())}&warehouse=${encodeURIComponent(warehouse)}`);
+      // Directly call API for the scanned barcode / code
+      const res = await authFetch(`custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?search_term=${encodeURIComponent(barcode.trim())}`);
       const data = await res.json();
       const apiItem = (data.message || [])[0];
 
@@ -895,20 +895,21 @@ function Home() {
                                 borderRadius: '4px',
                                 fontWeight: 700
                               }}>
-                                Branch: {item.actual_qty}
+                                Branch: <span style={{ color: item.actual_qty > 0 ? '#059669' : '#dc2626' }}>{item.actual_qty}</span>
                               </span>
                               <span style={{
                                 fontSize: '0.65rem',
                                 color: '#6366f1',
                                 background: 'rgba(99, 102, 241, 0.1)',
-                                padding: '2px 6px',
+                                padding: '2px 8px',
                                 borderRadius: '4px',
-                                fontWeight: 700,
+                                fontWeight: 800,
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '2px'
-                              }} onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}>
+                                gap: '4px',
+                                border: '1px solid rgba(99, 102, 241, 0.2)'
+                              }} onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }} title="Click to view all branches">
                                 Total: {item.total_qty}
                                 <Search size={10} />
                               </span>

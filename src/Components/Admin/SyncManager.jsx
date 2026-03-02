@@ -133,33 +133,31 @@ const SyncManager = () => {
 
         setSyncingId(invoice.id);
         try {
-            const { id, is_synced, synced_at, server_name, ...payload } = invoice;
+            const { id, is_synced, synced_at, server_name, ...cleanInv } = invoice;
+            if (hardProceed) cleanInv.hard_proceed = 1;
 
-            // Add hard_proceed flag if requested
-            if (hardProceed) {
-                payload.hard_proceed = 1;
-            }
-
-            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice`, {
+            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     "Accept": "application/json"
                 },
                 credentials: 'include',
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ invoices: [cleanInv] }), // Use bulk even for signle
             });
 
             if (res.status === 403) {
                 Swal.fire('Session Expired', "Please Logout and Login again.", 'error');
-                setSyncingId(null);
                 return;
             }
 
             const data = await res.json();
-            const result = data.message || data;
+            const results = data.message || [];
+            const result = results[0];
 
-            if (result.status === 'success' || (result.message && result.message.includes("Duplicate ignored"))) {
+            if (!result) throw new Error("No response from server");
+
+            if (result.status === 'success' || result.message?.includes("Duplicate ignored")) {
                 const now = new Date().toISOString();
                 const serverName = result.invoice_name || result.name || invoice.offline_id;
 
@@ -177,16 +175,10 @@ const SyncManager = () => {
                     server_name: serverName
                 });
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Sync Successful',
-                    text: `Invoice: ${serverName}`,
-                    timer: 2000,
-                    showConfirmButton: false
-                });
+                Swal.fire({ icon: 'success', title: 'Sync Successful', text: `Invoice: ${serverName}`, timer: 1500, showConfirmButton: false });
                 fetchData();
             } else {
-                const errorMsg = result.message || "Unknown error from server";
+                const errorMsg = result.message || "Unknown server error (e.g., Warehouse missing, Zero qty)";
                 await db.sync_log.add({
                     offline_id: invoice.offline_id,
                     action: hardProceed ? 'hard_sync_failed' : 'manual_sync_failed',
@@ -199,14 +191,10 @@ const SyncManager = () => {
                     title: 'Sync Failed',
                     text: errorMsg,
                     icon: 'error',
-                    showCancelButton: true,
                     confirmButtonText: 'Try Hard Proceed',
-                    confirmButtonColor: '#ef4444'
-                }).then((r) => {
-                    if (r.isConfirmed) {
-                        manualSync(invoice, true);
-                    }
-                });
+                    confirmButtonColor: '#ef4444',
+                    showCancelButton: true
+                }).then((r) => { if (r.isConfirmed) manualSync(invoice, true); });
             }
         } catch (err) {
             console.error("Manual sync error:", err);

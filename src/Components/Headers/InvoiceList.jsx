@@ -369,8 +369,8 @@ function InvoiceList() {
                                     background: inv._source === 'pending' ? '#fffbeb' : 'inherit'
                                 }}>
                                     <td style={{ fontSize: '0.75rem' }}>
-                                        <div style={{ fontWeight: 700 }}>{inv.server_name || 'UNSYNCED'}</div>
-                                        <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Off: {inv.offline_id}</div>
+                                        <div style={{ fontWeight: 800, color: '#1e293b' }}>{inv.server_name || 'UNSYNCED'}</div>
+                                        <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Ref: {inv.offline_id}</div>
                                     </td>
                                     <td>{inv.customer_details?.customer_name || "N/A"}</td>
                                     <td>
@@ -402,10 +402,12 @@ function InvoiceList() {
             <div className="modal" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
                 <div className="modal-dialog modal-lg">
                     <div className="modal-content">
-                        <div className="modal-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                            <h5 className="modal-title" style={{ margin: 0 }}>Invoice Details</h5>
-                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                                <strong>ERPNext:</strong> {selectedInvoice.server_name || 'Pending'} | <strong>Offline:</strong> {selectedInvoice.offline_id}
+                        <div className="modal-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', borderBottom: '2px solid #f1f5f9' }}>
+                            <h5 className="modal-title" style={{ margin: 0, fontWeight: 800, color: '#0f172a' }}>
+                                {selectedInvoice.server_name || 'Pending Sync'}
+                            </h5>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
+                                <strong>Reference:</strong> {selectedInvoice.offline_id}
                             </div>
                             <button type="button" className="btn-close" onClick={closePopup} style={{ position: 'absolute', right: '1rem', top: '1.5rem' }}></button>
                         </div>
