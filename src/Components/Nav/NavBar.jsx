@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 import { db } from "../../db";
-import { RefreshCw, LayoutDashboard, ChevronLeft } from "lucide-react";
+import { RefreshCw, LayoutDashboard, ChevronLeft, Settings } from "lucide-react";
 
 function NavBar() {
   const navigate = useNavigate();
@@ -164,7 +164,15 @@ function NavBar() {
               </div>
             )}
 
-            {/* Dashboard Link */}
+            {/* Dashboard (Settings) Link */}
+            <Settings
+              className="cursor-pointer"
+              style={{ fontSize: '1.4rem', color: '#64748b' }}
+              onClick={() => navigate('/dashboard')}
+              title="Settings / Dashboard"
+            />
+
+            {/* Sync Manager Link */}
             <LayoutDashboard
               className="cursor-pointer"
               style={{ fontSize: '1.4rem', color: '#64748b' }}
