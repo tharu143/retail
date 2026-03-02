@@ -46,6 +46,9 @@ const SyncManager = () => {
 
         setSyncingId(invoice.id);
         try {
+            // Strip Dexie-specific fields before sending to server
+            const { id, is_synced, synced_at, server_name, ...payload } = invoice;
+
             const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice`, {
                 method: 'POST',
                 headers: {
@@ -53,8 +56,14 @@ const SyncManager = () => {
                     "Accept": "application/json"
                 },
                 credentials: 'include',
-                body: JSON.stringify(invoice),
+                body: JSON.stringify(payload),
             });
+
+            if (res.status === 403) {
+                alert("Session Expired or Invalid. Please Logout and Login again to sync.");
+                setSyncingId(null);
+                return;
+            }
 
             const data = await res.json();
             const result = data.message || data;
