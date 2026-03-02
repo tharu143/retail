@@ -17,17 +17,24 @@ const IS_PROD = window.location.protocol === 'file:';
 axios.defaults.withCredentials = true;
 
 const handleGlobalAuthError = () => {
-  // In Production (Electron), 403 might happen due to cookie issues, 
-  // we don't want to trap the user in a logout loop if we have a session token.
+  // In Production (Electron), we often hit 403 due to cookie restrictions.
+  // We MUST NOT force logout if we are already logged in locally, as we use X-Frappe-SID headers.
   if (IS_PROD) {
-    console.warn("403 Forbidden encountered in production. Not forcing logout to avoid loops.");
+    console.warn("403 Forbidden skipped in production to prevent logout loops.");
     return;
   }
+
+  if (window.location.hash === '#/' || window.location.hash === '') {
+    return; // Already on login page
+  }
+
   console.error("Session expired or missing credentials (403). Forcing logout.");
   store.dispatch(logout());
   localStorage.clear();
   window.location.hash = '#/';
 };
+
+console.log(`[APP] Mode: ${IS_PROD ? 'Production (Electron)' : 'Development (Vite)'}`);
 
 // Route Axios requests through local Vite Proxy to bypass CORS/SameSite cookie failures
 axios.interceptors.request.use((config) => {
