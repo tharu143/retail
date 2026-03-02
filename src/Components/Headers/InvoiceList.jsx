@@ -263,7 +263,7 @@ function InvoiceList() {
                 <img src="/perfume-logo.png" alt="Logo"/>
               </div>
               <p><strong>Invoice ID (ERPNext):</strong> <span class="value">${invoice.server_name || "Pending Sync"}</span></p>
-              <p><strong>Offline Reference:</strong> <span class="value">${invoice.offline_id || "N/A"}</span></p>
+              <p><strong>Reference No:</strong> <span class="value">${invoice.offline_id || "N/A"}</span></p>
               <p><strong>Posting Date:</strong> <span class="value">${formatDate(invoice.posting_date)}</span></p>
               <p><strong>Posting Time:</strong> <span class="value">${formatTime(invoice.posting_time)}</span></p>
             </div>
@@ -371,7 +371,7 @@ function InvoiceList() {
                                 }}>
                                     <td style={{ fontSize: '0.75rem' }}>
                                         <div style={{ fontWeight: 800, color: '#1e293b' }}>{inv.server_name || 'UNSYNCED'}</div>
-                                        <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Ref: {inv.offline_id}</div>
+                                        <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Ref No: {inv.offline_id}</div>
                                     </td>
                                     <td style={{ fontSize: '0.8rem', color: '#475569' }}>
                                         {inv.owner || 'Local User'}
@@ -411,7 +411,7 @@ function InvoiceList() {
                                 {selectedInvoice.server_name || 'Pending Sync'}
                             </h5>
                             <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
-                                <strong>Reference:</strong> {selectedInvoice.offline_id}
+                                <strong>Reference No:</strong> {selectedInvoice.offline_id}
                             </div>
                             <button type="button" className="btn-close" onClick={closePopup} style={{ position: 'absolute', right: '1rem', top: '1.5rem' }}></button>
                         </div>

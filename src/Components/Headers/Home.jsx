@@ -593,32 +593,9 @@ function Home() {
     setTenderedAmount(grandTotal);
   };
 
-  // ---------- UPDATE LOCAL STOCK ----------
-  const updateLocalStock = async (soldItems) => {
-    try {
-      // 1. Update Dexie DB
-      for (const sold of soldItems) {
-        const item = await db.items.get(sold.item_code);
-        if (item) {
-          const newQty = Math.max(0, (item.actual_qty || 0) - sold.quantity);
-          await db.items.update(sold.item_code, { actual_qty: newQty });
-        }
-      }
+  // Removed updateLocalStock as backend now handles Smart Virtual Stock deduction
+  // including pending POS sales.
 
-      // 2. Update React State to reflect immediately
-      setItems(prevItems =>
-        prevItems.map(item => {
-          const sold = soldItems.find(s => s.item_code === item.id);
-          if (sold) {
-            return { ...item, actual_qty: Math.max(0, (item.actual_qty || 0) - sold.quantity) };
-          }
-          return item;
-        })
-      );
-    } catch (err) {
-      console.error("Failed to update local stock:", err);
-    }
-  };
 
   // ---------- COMPLETE PAYMENT ----------
   const completePayment = async () => {
@@ -676,8 +653,8 @@ function Home() {
           grand_total: grandTotal
         });
 
-        // Decrement local stock immediately for offline sales
-        await updateLocalStock(payload.items);
+        // Decrement local stock removed - Handled by backend Smart Virtual Stock logic
+
 
         Swal.fire({
           icon: 'success',
@@ -697,9 +674,6 @@ function Home() {
         const data = result.message || result;
 
         if (data.status === 'success' || (data.message && data.message.includes("Duplicate ignored"))) {
-          // Decrement local stock for real-time UI update even when online
-          await updateLocalStock(payload.items);
-
           Swal.fire({
             icon: 'success',
             title: 'Invoice Created',
@@ -707,24 +681,16 @@ function Home() {
             timer: 2500,
             showConfirmButton: false
           });
-          // LIVE REFRESH: Fetch latest stock level after payment
           fetchItems();
           finalizeOrder();
         } else {
-          // Fallback to offline on server error too
           await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
-          // Decrement local stock even if it failed but saved offline
-          await updateLocalStock(payload.items);
-
           Swal.fire('Info', "Server busy. Invoice saved offline for later sync.", 'info');
           finalizeOrder();
         }
       }
     } catch (e) {
       await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
-      // Decrement local stock for catch block too
-      await updateLocalStock(payload.items);
-
       alert('Network issue. Invoice saved offline for sync.');
       finalizeOrder();
     } finally {

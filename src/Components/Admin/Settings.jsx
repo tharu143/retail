@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { setWarehouse as updateActiveWarehouse } from '../../Redux/Slices/userSlice';
-import { Loader2, Save, MapPin } from 'lucide-react';
+import { Loader2, Save, MapPin, AlertCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 const Settings = () => {
@@ -80,6 +80,16 @@ const Settings = () => {
                     >
                         <Save size={18} /> Save Changes
                     </button>
+                </div>
+
+                <div className="mt-8 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <h3 className="text-amber-800 font-bold flex items-center gap-2 mb-2">
+                        <AlertCircle size={18} /> Day End / POS Closing Tip
+                    </h3>
+                    <p className="text-sm text-amber-700 leading-relaxed">
+                        Physical stock levels in ERPNext will only settle after the <strong>POS Closing Entry</strong> process is completed.
+                        The "Smart Virtual Stock" you see in the POS reflects pending sales immediately, but official book records update after the daily closing.
+                    </p>
                 </div>
             </div>
         </div>
