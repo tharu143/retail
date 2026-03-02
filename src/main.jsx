@@ -11,6 +11,9 @@ import { logout } from './Redux/Slices/userSlice';
 // === GLOBAL API AND AUTHENTICATION CONFIGURATION ===
 
 // 1. Global Axios Configuration
+const BACKEND_URL = 'http://75.119.130.59';
+const IS_PROD = window.location.protocol === 'file:';
+
 axios.defaults.withCredentials = true;
 
 const handleGlobalAuthError = () => {
@@ -22,8 +25,18 @@ const handleGlobalAuthError = () => {
 
 // Route Axios requests through local Vite Proxy to bypass CORS/SameSite cookie failures
 axios.interceptors.request.use((config) => {
-  if (config.url && config.url.includes('http://75.119.130.59')) {
-    config.url = config.url.replace('http://75.119.130.59', '');
+  if (!config.url) return config;
+
+  // In Production (Electron), we need the full URL
+  if (IS_PROD) {
+    if (config.url.startsWith('/api')) {
+      config.url = `${BACKEND_URL}${config.url}`;
+    }
+  } else {
+    // In Development (Vite Proxy), we strip the URL
+    if (config.url.includes(BACKEND_URL)) {
+      config.url = config.url.replace(BACKEND_URL, '');
+    }
   }
   return config;
 });
@@ -49,9 +62,17 @@ const originalFetch = window.fetch;
 window.fetch = async function (...args) {
   let [resource, config] = args;
 
-  // Route Fetch requests through local Vite Proxy to bypass CORS/SameSite cookie failures
-  if (typeof resource === 'string' && resource.includes('http://75.119.130.59')) {
-    resource = resource.replace('http://75.119.130.59', '');
+  // Route Fetch requests through local Vite Proxy or add base URL for Production
+  if (typeof resource === 'string') {
+    if (IS_PROD) {
+      if (resource.startsWith('/api')) {
+        resource = `${BACKEND_URL}${resource}`;
+      }
+    } else {
+      if (resource.includes(BACKEND_URL)) {
+        resource = resource.replace(BACKEND_URL, '');
+      }
+    }
   }
 
   // Ensure config object exists
