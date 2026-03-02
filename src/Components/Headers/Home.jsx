@@ -201,7 +201,10 @@ function Home() {
         const data = await res.json();
         const templates = data.message || data || [];
         setTaxTemplates(templates);
-        if (templates.length) setSelectedTaxTemplate(templates[0].name);
+        if (templates.length) {
+          const defaultTax = templates.find(t => t.name.includes("UAE VAT 5%")) || templates[0];
+          setSelectedTaxTemplate(defaultTax.name);
+        }
 
         // Cache to Dexie for offline use
         await db.tax_templates.clear();
@@ -215,7 +218,8 @@ function Home() {
           const cached = await db.tax_templates.toArray();
           if (cached.length) {
             setTaxTemplates(cached);
-            setSelectedTaxTemplate(cached[0].name);
+            const defaultTax = cached.find(t => t.name.includes("UAE VAT 5%")) || cached[0];
+            setSelectedTaxTemplate(defaultTax.name);
           }
         } catch (e) { console.error('Local tax cache also failed:', e); }
       }
