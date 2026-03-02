@@ -23,7 +23,7 @@ import SalesOrder from '../Components/Admin/SalesOrder'
 import SalesInvoiceList from '../Components/Admin/SalesInvoiceList'
 import DeliveryNoteList from '../Components/Admin/DeliveryNoteList'
 import PurchaseOrderLists from '../Components/Admin/PurchaseOrderLists'
-import SyncManager from '../Components/Admin/SyncManager'
+import SyncManagerPage from '../Pages/SyncManagerPage'
 
 
 function UserRouter() {
@@ -53,7 +53,7 @@ function UserRouter() {
         <Route path='salesorderlist' element={<SalesOrder />} />
         <Route path='salesinvoice' element={<SalesInvoiceList />} />
         <Route path='deliverynote' element={<DeliveryNoteList />} />
-        <Route path='syncmanager' element={<SyncManager />} />
+        <Route path='syncmanager' element={<SyncManagerPage />} />
       </Routes>
     </>
   )

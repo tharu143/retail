@@ -84,25 +84,12 @@ function NavBar() {
         <div className="container-fluid justify-content-between">
           <div className="d-flex align-items-center gap-3">
             {location.pathname !== '/homepage' && location.pathname !== '/' && (
-              <button
+              <i
+                className="bi bi-arrow-left-circle cursor-pointer"
+                style={{ fontSize: '1.8rem', color: '#475569' }}
                 onClick={() => navigate(-1)}
-                style={{
-                  border: 'none',
-                  background: '#f1f5f9',
-                  padding: '8px',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: '#475569',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
-                onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}
-              >
-                <ChevronLeft size={24} />
-              </button>
+                title="Back"
+              ></i>
             )}
 
             <div onClick={() => navigate('/homepage')} className="cursor-pointer">
@@ -165,12 +152,10 @@ function NavBar() {
             )}
 
             {/* Dashboard (Settings) Link */}
-            <Settings
-              className="cursor-pointer"
-              style={{ fontSize: '1.4rem', color: '#64748b' }}
+            <i className="bi bi-gear cursor-pointer"
+              style={{ fontSize: '1.5rem', color: '#64748b' }}
               onClick={() => navigate('/dashboard')}
-              title="Settings / Dashboard"
-            />
+              title="Settings / Dashboard"></i>
 
             {/* Sync Manager Link */}
             <LayoutDashboard
