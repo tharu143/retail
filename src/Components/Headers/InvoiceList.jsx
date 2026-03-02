@@ -355,10 +355,11 @@ function InvoiceList() {
                     <table className="table table-bordered table-hover" style={{ fontSize: "14px" }}>
                         <thead className="thead-dark">
                             <tr>
-                                <th>Invoice ID</th>
+                                <th>Invoice Details</th>
+                                <th>Cashier</th>
                                 <th>Customer</th>
-                                <th>Payment Mode</th>
-                                <th>Grand Total</th>
+                                <th>Payment</th>
+                                <th>Total</th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
@@ -372,17 +373,20 @@ function InvoiceList() {
                                         <div style={{ fontWeight: 800, color: '#1e293b' }}>{inv.server_name || 'UNSYNCED'}</div>
                                         <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Ref: {inv.offline_id}</div>
                                     </td>
+                                    <td style={{ fontSize: '0.8rem', color: '#475569' }}>
+                                        {inv.owner || 'Local User'}
+                                    </td>
                                     <td>{inv.customer_details?.customer_name || "N/A"}</td>
-                                    <td>
+                                    <td style={{ fontSize: '0.75rem' }}>
                                         {(inv.payments || [])
                                             .map((p) => p.mode_of_payment)
                                             .filter(Boolean)
                                             .join(", ") || "N/A"}
                                     </td>
-                                    <td>AED {parseFloat(inv.grand_total || 0).toFixed(2)}</td>
+                                    <td style={{ fontWeight: 700 }}>AED {parseFloat(inv.grand_total || 0).toFixed(2)}</td>
                                     <td>{getSyncBadge(inv)}</td>
                                     <td>
-                                        <button className="btn btn-sm btn-info" onClick={() => handleViewDetails(inv)}>
+                                        <button className="btn btn-sm btn-info" style={{ fontSize: '0.75rem', fontWeight: 600 }} onClick={() => handleViewDetails(inv)}>
                                             View
                                         </button>
                                     </td>
