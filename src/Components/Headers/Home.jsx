@@ -482,6 +482,33 @@ function Home() {
     setTenderedAmount(grandTotal);
   };
 
+  // ---------- UPDATE LOCAL STOCK ----------
+  const updateLocalStock = async (soldItems) => {
+    try {
+      // 1. Update Dexie DB
+      for (const sold of soldItems) {
+        const item = await db.items.get(sold.item_code);
+        if (item) {
+          const newQty = Math.max(0, (item.actual_qty || 0) - sold.quantity);
+          await db.items.update(sold.item_code, { actual_qty: newQty });
+        }
+      }
+
+      // 2. Update React State to reflect immediately
+      setItems(prevItems =>
+        prevItems.map(item => {
+          const sold = soldItems.find(s => s.item_code === item.id);
+          if (sold) {
+            return { ...item, actual_qty: Math.max(0, (item.actual_qty || 0) - sold.quantity) };
+          }
+          return item;
+        })
+      );
+    } catch (err) {
+      console.error("Failed to update local stock:", err);
+    }
+  };
+
   // ---------- COMPLETE PAYMENT ----------
   const completePayment = async () => {
     if (!selectedPaymentMode) return;
@@ -531,6 +558,10 @@ function Home() {
           is_synced: 0,
           grand_total: grandTotal
         });
+
+        // Decrement local stock immediately for offline sales
+        await updateLocalStock(payload.items);
+
         alert(`Offline Invoice Saved: ${offlineId}\nWill sync when online.`);
         finalizeOrder();
       } else {
@@ -543,17 +574,26 @@ function Home() {
         const data = result.message || result;
 
         if (data.status === 'success' || (data.message && data.message.includes("Duplicate ignored"))) {
+          // Decrement local stock for real-time UI update even when online
+          await updateLocalStock(payload.items);
+
           alert(`Invoice: ${data.invoice_name || offlineId}\nTotal: AED ${grandTotal.toFixed(2)}`);
           finalizeOrder();
         } else {
           // Fallback to offline on server error too
           await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
+          // Decrement local stock even if it failed but saved offline
+          await updateLocalStock(payload.items);
+
           alert("Server error. Invoice saved offline for sync.");
           finalizeOrder();
         }
       }
     } catch (e) {
       await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
+      // Decrement local stock for catch block too
+      await updateLocalStock(payload.items);
+
       alert('Network issue. Invoice saved offline for sync.');
       finalizeOrder();
     } finally {
