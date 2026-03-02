@@ -422,6 +422,16 @@ function Home() {
     fetchItems();
   }, [fetchItems]);
 
+  // ---------- PERIODIC 5-MINUTE REFRESH ----------
+  useEffect(() => {
+    if (isOffline) return;
+    const interval = setInterval(() => {
+      console.log("5-Minute Periodic Sync: Refreshing item cache...");
+      fetchItems();
+    }, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [isOffline, fetchItems]);
+
 
 
 
@@ -793,13 +803,10 @@ function Home() {
         if (syncedCount > 0) {
           const count = await db.invoices.where('is_synced').equals(0).count();
           setPendingSyncCount(count);
-
           if (count === 0) {
-            // ALL PENDING SYNCED: Trigger Wipe & Full Restore
-            console.log("All pending invoices synced. Triggering full DB refresh...");
-            forceFullRefresh();
+            console.log("All pending invoices synced. Scheduling full DB refresh in 2 minutes...");
+            setTimeout(() => { forceFullRefresh(); }, 2 * 60 * 1000);
           } else {
-            // Partial sync success: Regular refresh
             fetchItems();
           }
         }
@@ -810,7 +817,7 @@ function Home() {
 
     const interval = setInterval(syncPending, 15000);
     return () => clearInterval(interval);
-  }, [isOffline, session]);
+  }, [isOffline, session, fetchItems, forceFullRefresh]);
 
   const handleLogout = async () => {
     try { await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.user_logout', { method: "POST" }); }
