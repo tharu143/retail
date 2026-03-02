@@ -155,7 +155,8 @@ function InvoiceList() {
 
     const filterInvoices = (list) => {
         return list.filter((inv) => {
-            const idMatch = inv.name?.toLowerCase().includes(filterId.toLowerCase());
+            const idMatch = (inv.name?.toLowerCase().includes(filterId.toLowerCase())) ||
+                (inv.offline_id?.toLowerCase().includes(filterId.toLowerCase()));
             const dateMatch = filterDate ? (inv.posting_date || "").includes(filterDate) : true;
             const timeMatch = filterTime ? (inv.posting_time || "").includes(filterTime) : true;
             const mobileMatch = filterMobile
