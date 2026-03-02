@@ -17,7 +17,7 @@ const handleGlobalAuthError = () => {
   console.error("Session expired or missing credentials (403). Forcing logout.");
   store.dispatch(logout());
   localStorage.clear();
-  window.location.href = '/';
+  window.location.hash = '#/';
 };
 
 // Route Axios requests through local Vite Proxy to bypass CORS/SameSite cookie failures
