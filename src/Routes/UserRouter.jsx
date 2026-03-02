@@ -23,36 +23,38 @@ import SalesOrder from '../Components/Admin/SalesOrder'
 import SalesInvoiceList from '../Components/Admin/SalesInvoiceList'
 import DeliveryNoteList from '../Components/Admin/DeliveryNoteList'
 import PurchaseOrderLists from '../Components/Admin/PurchaseOrderLists'
+import SyncManager from '../Components/Admin/SyncManager'
 
 
 function UserRouter() {
   return (
-    <> 
-    <Routes>
-      <Route path='/' element={<LoginPage/>}/>
-      <Route path='homepage' element={<HomePage/>}/>
-      <Route path='closingentry' element={<ClosingEntryPage/>}/>
-      <Route path='invoicelist' element={<InvoiceListPage/>}/>
-      <Route path='purchaseorder' element={<PurchaseOrderPage/>}/>
-      <Route path='purchaseorderlist' element={<PurchaseOrderListPage/>}/>
-      <Route path='salesreport' element={<SalesReportPage/>}/>
-      <Route path='purchasereport' element={<PurchaseReportPage/>}/>
-      <Route path='itemwisereport' element={<ItemWiseSalesReportPage/>}/>
-      <Route path='dashboard' element={<DashboardPage/>}/>
-      <Route path='customerlist' element={<CustomerList/>}/>
-      <Route path='itemgrouplist' element={<ItemGroupList/>}/>
-      <Route path='itemlist' element={<ItemList/>}/>
-      <Route path='itempricelist' element={<ItemPriceList/>}/>
-      <Route path='posclosingentrylist' element={<PosClosingEntryList/>}/>
-      <Route path='posopeningentrylist' element={<PosOpeningentryList/>}/>
-      <Route path='posprofilelist' element={<PosProfileList/>}/>
-      <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList/>}/>
-      <Route path='purchasereceiptlist'  element={<PurchaseReceiptList/>}/>
-      <Route path='supplierlist' element={<SupplierList/>}/>
-      <Route path='salesorderlist' element={<SalesOrder/>}/>
-      <Route path='salesinvoice' element={<SalesInvoiceList/>}/>
-      <Route path='deliverynote' element={<DeliveryNoteList/>}/>
-    </Routes>
+    <>
+      <Routes>
+        <Route path='/' element={<LoginPage />} />
+        <Route path='homepage' element={<HomePage />} />
+        <Route path='closingentry' element={<ClosingEntryPage />} />
+        <Route path='invoicelist' element={<InvoiceListPage />} />
+        <Route path='purchaseorder' element={<PurchaseOrderPage />} />
+        <Route path='purchaseorderlist' element={<PurchaseOrderListPage />} />
+        <Route path='salesreport' element={<SalesReportPage />} />
+        <Route path='purchasereport' element={<PurchaseReportPage />} />
+        <Route path='itemwisereport' element={<ItemWiseSalesReportPage />} />
+        <Route path='dashboard' element={<DashboardPage />} />
+        <Route path='customerlist' element={<CustomerList />} />
+        <Route path='itemgrouplist' element={<ItemGroupList />} />
+        <Route path='itemlist' element={<ItemList />} />
+        <Route path='itempricelist' element={<ItemPriceList />} />
+        <Route path='posclosingentrylist' element={<PosClosingEntryList />} />
+        <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
+        <Route path='posprofilelist' element={<PosProfileList />} />
+        <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
+        <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />
+        <Route path='supplierlist' element={<SupplierList />} />
+        <Route path='salesorderlist' element={<SalesOrder />} />
+        <Route path='salesinvoice' element={<SalesInvoiceList />} />
+        <Route path='deliverynote' element={<DeliveryNoteList />} />
+        <Route path='syncmanager' element={<SyncManager />} />
+      </Routes>
     </>
   )
 }
