@@ -259,12 +259,11 @@ function InvoiceList() {
         </head>
         <body>
           <div class="invoice-container">
-            <div class="invoice-details">
               <div class="invoice-logo">
                 <img src="/perfume-logo.png" alt="Logo"/>
               </div>
-              <p><strong>Offline ID:</strong> <span class="value">${invoice.offline_id || "N/A"}</span></p>
-              <p><strong>ERPNext ID:</strong> <span class="value">${invoice.server_name || "Pending Sync"}</span></p>
+              <p><strong>Invoice ID (ERPNext):</strong> <span class="value">${invoice.server_name || "Pending Sync"}</span></p>
+              <p><strong>Offline Reference:</strong> <span class="value">${invoice.offline_id || "N/A"}</span></p>
               <p><strong>Posting Date:</strong> <span class="value">${formatDate(invoice.posting_date)}</span></p>
               <p><strong>Posting Time:</strong> <span class="value">${formatTime(invoice.posting_time)}</span></p>
             </div>
@@ -520,11 +519,11 @@ function InvoiceList() {
             <>
                 <div className="row mb-4 justify-content-center">
                     <div className="col-md-3">
-                        <label className="form-label fw-bold">Invoice ID</label>
+                        <label className="form-label fw-bold">Invoice / Offline ID</label>
                         <input
                             type="text"
                             className="form-control"
-                            placeholder="e.g. POSINV-001"
+                            placeholder="e.g. POSINV or Off-ID"
                             value={filterId}
                             onChange={(e) => setFilterId(e.target.value)}
                         />

@@ -352,6 +352,7 @@ function Home() {
               price: item.price_list_rate || 0,
               actual_qty: item.actual_qty || 0,
               total_qty: item.total_qty || item.actual_qty || 0, // NEW: Network stock
+              warehouse_details: item.warehouse_details || [], // NEW: Stock breakdown
               barcodes: item.barcodes || []
             })));
           }
@@ -370,6 +371,7 @@ function Home() {
           price: item.price || item.price_list_rate || 0,
           actual_qty: item.actual_qty || 0,
           total_qty: item.total_qty || item.actual_qty || 0, // NEW: Network stock
+          warehouse_details: item.warehouse_details || [], // NEW: Stock breakdown
           barcodes: item.barcodes || []
         }));
 
@@ -398,41 +400,72 @@ function Home() {
   }, [selectedCategory, Items]);
 
   // ---------- BARCODE SCANNER HANDLER ----------
-  const handleBarcodeScan = useCallback((barcode) => {
+  const handleBarcodeScan = useCallback(async (barcode) => {
     if (!barcode.trim()) return;
 
-    const foundItem = Items.find(item =>
-      item.barcodes?.some(b => b.barcode === barcode.trim())
-    );
+    try {
+      setSearchLoading(true);
+      // Directly call API for the scanned barcode
+      const res = await authFetch(`custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?search_term=${encodeURIComponent(barcode.trim())}&warehouse=${encodeURIComponent(warehouse)}`);
+      const data = await res.json();
+      const apiItem = (data.message || [])[0];
 
-    if (foundItem) {
-      setBillItems(prev => {
-        const existing = prev.find(i => i.id === foundItem.id);
-        return existing
-          ? prev.map(i => i.id === foundItem.id ? { ...i, qty: i.qty + 1 } : i)
-          : [...prev, { ...foundItem, qty: 1 }];
-      });
+      if (apiItem) {
+        const itemToBill = {
+          id: apiItem.name,
+          name: apiItem.item_name,
+          price: apiItem.price_list_rate || 0,
+          actual_qty: apiItem.actual_qty || 0,
+          warehouse_details: apiItem.warehouse_details || []
+        };
 
-      setBarcodeInput('');
-      barcodeInputRef.current?.focus();
+        if (itemToBill.actual_qty <= 0) {
+          Swal.fire('Out of Stock', `"${itemToBill.name}" is out of stock in this branch.`, 'warning');
+          return;
+        }
 
-      // Green flash
-      if (barcodeInputRef.current) {
-        barcodeInputRef.current.style.backgroundColor = '#d1fae5';
-        setTimeout(() => {
-          if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
-        }, 200);
+        setBillItems(prev => {
+          const existing = prev.find(i => i.id === itemToBill.id);
+          return existing
+            ? prev.map(i => i.id === itemToBill.id ? { ...i, qty: i.qty + 1 } : i)
+            : [...prev, { ...itemToBill, qty: 1 }];
+        });
+
+        setBarcodeInput('');
+        barcodeInputRef.current?.focus();
+
+        // Green flash
+        if (barcodeInputRef.current) {
+          barcodeInputRef.current.style.backgroundColor = '#d1fae5';
+          setTimeout(() => {
+            if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
+          }, 200);
+        }
+      } else {
+        // Fallback to local search if API fails to find it (for offline support)
+        const foundLocal = Items.find(item =>
+          item.barcodes?.some(b => b.barcode === barcode.trim())
+        );
+
+        if (foundLocal) {
+          handleAddToBill(foundLocal);
+          setBarcodeInput('');
+        } else {
+          Swal.fire('Not Found', 'Item not found in database.', 'error');
+          if (barcodeInputRef.current) {
+            barcodeInputRef.current.style.backgroundColor = '#fee2e2';
+            setTimeout(() => {
+              if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
+            }, 400);
+          }
+        }
       }
-    } else {
-      // Red flash if not found
-      if (barcodeInputRef.current) {
-        barcodeInputRef.current.style.backgroundColor = '#fee2e2';
-        setTimeout(() => {
-          if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
-        }, 400);
-      }
+    } catch (err) {
+      console.warn("Barcode search error:", err);
+    } finally {
+      setSearchLoading(false);
     }
-  }, [Items]);
+  }, [Items, warehouse, authFetch]);
 
   const onBarcodeKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -478,6 +511,32 @@ function Home() {
         Swal.fire('Error', err.message, 'error');
       }
     }
+  };
+
+  const showStockBreakdown = (item) => {
+    const details = item.warehouse_details || [];
+    if (details.length === 0) {
+      Swal.fire('No Data', 'No warehouse breakdown available.', 'info');
+      return;
+    }
+
+    const html = `
+        <div style="text-align: left; padding: 10px;">
+            ${details.map(d => `
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 8px 0;">
+                    <span style="font-weight: 600;">${d.warehouse_name || d.warehouse}</span>
+                    <span style="color: ${parseFloat(d.actual_qty) > 0 ? '#10b981' : '#ef4444'}">${d.actual_qty}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    Swal.fire({
+      title: `Stock Breakdown: ${item.name}`,
+      html: html,
+      confirmButtonText: 'Close',
+      confirmButtonColor: '#3b82f6'
+    });
   };
 
   // ---------- ITEM HANDLERS ----------
@@ -584,7 +643,8 @@ function Home() {
         item_name: item.name,
         quantity: item.qty,
         basePrice: item.price,
-        income_account: 'Sales of I/C - KSPL'
+        income_account: 'Sales of I/C - KSPL',
+        warehouse: warehouse // STRICT DEDUCTION: Pass branch warehouse per line
       })),
       company,
       pos_profile: posProfile,
@@ -681,20 +741,31 @@ function Home() {
       const pending = await db.invoices.where('is_synced').equals(0).toArray();
       if (pending.length === 0) return;
 
-      let syncedCount = 0;
-      for (const inv of pending) {
-        try {
-          const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              "Accept": "application/json"
-            },
-            credentials: 'include',
-            body: JSON.stringify(inv),
-          });
-          const data = await res.json();
-          const result = data.message || data;
+      try {
+        const payload = pending.map(inv => {
+          const { id, is_synced, synced_at, server_name, ...cleanInv } = inv;
+          return cleanInv;
+        });
+
+        const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            "Accept": "application/json"
+          },
+          credentials: 'include',
+          body: JSON.stringify({ invoices: payload }),
+        });
+
+        if (res.status === 403) return; // Exit if session expired
+
+        const data = await res.json();
+        const results = data.message || [];
+
+        let syncedCount = 0;
+        for (const result of results) {
+          const inv = pending.find(i => i.offline_id === result.offline_id);
+          if (!inv) continue;
 
           if (result.status === 'success' || (result.message && result.message.includes("Duplicate ignored"))) {
             const now = new Date().toISOString();
@@ -706,26 +777,23 @@ function Home() {
               server_name: serverName
             });
 
-            // Log sync action for history
             await db.sync_log.add({
               offline_id: inv.offline_id,
-              action: 'invoice_synced',
+              action: 'auto_bulk_sync_success',
               timestamp: now,
               status: 'success',
               server_name: serverName
             });
-
             syncedCount++;
-            console.log(`Synced offline invoice: ${inv.offline_id} → ${serverName}`);
           }
-        } catch (e) {
-          console.error(`Sync failed for ${inv.offline_id}:`, e);
-          break;
         }
-      }
-      if (syncedCount > 0) {
-        const remaining = await db.invoices.where('is_synced').equals(0).count();
-        setPendingSyncCount(remaining);
+
+        if (syncedCount > 0) {
+          const count = await db.invoices.where('is_synced').equals(0).count();
+          setPendingSyncCount(count);
+        }
+      } catch (e) {
+        console.error("Auto-sync error:", e);
       }
     };
 
@@ -830,9 +898,14 @@ function Home() {
                                 background: 'rgba(99, 102, 241, 0.1)',
                                 padding: '2px 6px',
                                 borderRadius: '4px',
-                                fontWeight: 700
-                              }}>
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '2px'
+                              }} onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}>
                                 Total: {item.total_qty}
+                                <Search size={10} />
                               </span>
                             </div>
 
@@ -882,7 +955,11 @@ function Home() {
                   transition: 'background-color 0.3s ease'
                 }}
               />
-              <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#000000ff' }} />
+              {searchLoading ? (
+                <Loader2 size={18} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#3b82f6' }} />
+              ) : (
+                <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#000000ff' }} />
+              )}
             </div>
 
             {/* Customer */}
