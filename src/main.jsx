@@ -113,6 +113,11 @@ window.fetch = async function (...args) {
   // Handle Production Session Token
   const session = localStorage.getItem('session');
   if (IS_PROD && session) {
+    // Notify Main Process for Cookie Injection
+    if (window.electronAPI?.setSession) {
+      window.electronAPI.setSession(session);
+    }
+
     if (!config.headers) config.headers = {};
     config.headers['X-Frappe-SID'] = session;
 

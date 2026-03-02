@@ -109,6 +109,9 @@ function Login() {
       // Store in Redux + localStorage
       dispatch(loginSuccess({ user, session, pos_profile, company, warehouse, branch_prefix }));
       localStorage.setItem("session", session);
+      if (window.electronAPI?.setSession) {
+        window.electronAPI.setSession(session);
+      }
       localStorage.setItem("user", user);
       localStorage.setItem("pos_profile", pos_profile);
       localStorage.setItem("company", company);

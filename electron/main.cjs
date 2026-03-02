@@ -56,3 +56,36 @@ ipcMain.handle('save-invoice', async (event, invoiceData) => {
 ipcMain.handle('sync-data', async (event, syncPayload) => {
     return await db.syncLocalDatabase(syncPayload);
 });
+
+// Session Management (Cookie Injection)
+let userSid = '';
+ipcMain.on('set-session', (event, sid) => {
+    userSid = sid;
+    console.log('[ELECTRON] Session token received:', sid ? 'Yes' : 'No');
+});
+
+app.whenReady().then(() => {
+    const { session } = require('electron');
+    session.defaultSession.webRequest.onBeforeSendHeaders(
+        { urls: ['http://75.119.130.59/*'] },
+        (details, callback) => {
+            if (userSid) {
+                // Remove existing cookies if any to prevent duplicates
+                const headers = { ...details.requestHeaders };
+
+                // Construct Cookie String
+                const cookies = headers['Cookie'] || '';
+                if (!cookies.includes('sid=')) {
+                    headers['Cookie'] = cookies ? `${cookies}; sid=${userSid}` : `sid=${userSid}`;
+                }
+
+                // Also add it as a header for good measure
+                headers['X-Frappe-SID'] = userSid;
+
+                callback({ requestHeaders: headers });
+            } else {
+                callback({ requestHeaders: details.requestHeaders });
+            }
+        }
+    );
+});
