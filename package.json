@@ -1,7 +1,7 @@
 {
   "name": "kyle-retail",
   "private": true,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Offline-First Retail POS Application",
   "author": "Tharu Kumar K <dev@kylesolutions.in>",
   "type": "module",

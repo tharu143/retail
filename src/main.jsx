@@ -50,6 +50,12 @@ axios.interceptors.request.use((config) => {
     // Force Session Token if available
     if (session) {
       config.headers['X-Frappe-SID'] = session;
+
+      // Also inject sid into URL query because Frappe is more likely to accept it
+      const separator = config.url.includes('?') ? '&' : '?';
+      if (!config.url.includes('sid=')) {
+        config.url = `${config.url}${separator}sid=${session}`;
+      }
     }
   } else {
     // In Development (Vite Proxy), we strip the URL
@@ -109,6 +115,12 @@ window.fetch = async function (...args) {
   if (IS_PROD && session) {
     if (!config.headers) config.headers = {};
     config.headers['X-Frappe-SID'] = session;
+
+    // Inject sid into URL for fetch as well
+    if (typeof resource === 'string' && !resource.includes('sid=')) {
+      const separator = resource.includes('?') ? '&' : '?';
+      resource = `${resource}${separator}sid=${session}`;
+    }
   }
 
   try {
