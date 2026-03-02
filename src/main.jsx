@@ -17,6 +17,12 @@ const IS_PROD = window.location.protocol === 'file:';
 axios.defaults.withCredentials = true;
 
 const handleGlobalAuthError = () => {
+  // In Production (Electron), 403 might happen due to cookie issues, 
+  // we don't want to trap the user in a logout loop if we have a session token.
+  if (IS_PROD) {
+    console.warn("403 Forbidden encountered in production. Not forcing logout to avoid loops.");
+    return;
+  }
   console.error("Session expired or missing credentials (403). Forcing logout.");
   store.dispatch(logout());
   localStorage.clear();
@@ -27,10 +33,16 @@ const handleGlobalAuthError = () => {
 axios.interceptors.request.use((config) => {
   if (!config.url) return config;
 
-  // In Production (Electron), we need the full URL
+  const session = localStorage.getItem('session');
+
+  // In Production (Electron), we need the full URL and Manual Sid Forwarding
   if (IS_PROD) {
     if (config.url.startsWith('/api')) {
       config.url = `${BACKEND_URL}${config.url}`;
+    }
+    // Force Session Token if available
+    if (session) {
+      config.headers['X-Frappe-SID'] = session;
     }
   } else {
     // In Development (Vite Proxy), we strip the URL
@@ -83,6 +95,13 @@ window.fetch = async function (...args) {
   // Force credentials inclusion for all standard fetch requests
   if (config.credentials === undefined) {
     config.credentials = 'include';
+  }
+
+  // Handle Production Session Token
+  const session = localStorage.getItem('session');
+  if (IS_PROD && session) {
+    if (!config.headers) config.headers = {};
+    config.headers['X-Frappe-SID'] = session;
   }
 
   try {
