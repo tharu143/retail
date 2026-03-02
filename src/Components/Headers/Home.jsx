@@ -328,65 +328,66 @@ function Home() {
   };
   // ---------- FETCH ALL ITEMS ----------
 
-  useEffect(() => {
-    const fetchItems = async () => {
-      if (!session) return;
+  const fetchItems = useCallback(async () => {
+    if (!session) return;
+    try {
+      setLoadingItems(true); setError("");
+
+      // Try online fetch first
+      let apiItems = [];
       try {
-        setLoadingItems(true); setError("");
+        const response = await authFetch(`custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`);
+        const data = await response.json();
+        apiItems = data.message || data;
 
-        // Try online fetch first
-        let apiItems = [];
-        try {
-          const response = await authFetch(`custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`);
-          const data = await response.json();
-          apiItems = data.message || data;
-
-          // Cache successful response in Dexie
-          if (Array.isArray(apiItems)) {
-            await db.items.clear();
-            await db.items.bulkAdd(apiItems.map(item => ({
-              id: item.name,
-              name: item.item_name,
-              image: item.image,
-              group: (item.item_group || "others").toLowerCase(),
-              price: item.price_list_rate || 0,
-              actual_qty: item.actual_qty || 0,
-              total_qty: item.total_qty || item.actual_qty || 0, // NEW: Network stock
-              warehouse_details: item.warehouse_details || [], // NEW: Stock breakdown
-              barcodes: item.barcodes || []
-            })));
-          }
-        } catch (fetchErr) {
-          console.warn("Online fetch failed, using local DB:", fetchErr);
-          apiItems = await db.items.toArray();
-          if (apiItems.length === 0) throw fetchErr;
+        // Cache successful response in Dexie
+        if (Array.isArray(apiItems)) {
+          await db.items.clear();
+          await db.items.bulkAdd(apiItems.map(item => ({
+            id: item.name,
+            name: item.item_name,
+            image: item.image,
+            group: (item.item_group || "others").toLowerCase(),
+            price: item.price_list_rate || 0,
+            actual_qty: item.actual_qty || 0,
+            total_qty: item.total_qty || item.actual_qty || 0,
+            warehouse_details: item.warehouse_details || [],
+            barcodes: item.barcodes || []
+          })));
         }
-
-        const baseUrl = 'http://75.119.130.59';
-        const transformed = apiItems.map(item => ({
-          id: item.id || item.name,
-          name: item.item_name || item.name,
-          image: item.image ? (item.image.startsWith('http') ? item.image : `${baseUrl}${item.image}`) : 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTBlMGUwIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmaWxsPSIjOTk5OTk5IiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4KICAgIE5vIEltYWdlCiAgPC90ZXh0Pgo8L3N2Zz4=',
-          group: (item.group || item.item_group || "others").toLowerCase(),
-          price: item.price || item.price_list_rate || 0,
-          actual_qty: item.actual_qty || 0,
-          total_qty: item.total_qty || item.actual_qty || 0, // NEW: Network stock
-          warehouse_details: item.warehouse_details || [], // NEW: Stock breakdown
-          barcodes: item.barcodes || []
-        }));
-
-        const groups = [...new Set(transformed.map(i => i.group))];
-        setCategories(["all", ...groups.sort()]);
-        setItems(transformed);
-        setFilteredItems(transformed);
-      } catch (err) {
-        setError(err.message || "Failed to load items. Check your internet connection.");
-      } finally {
-        setLoadingItems(false);
+      } catch (fetchErr) {
+        console.warn("Online fetch failed, using local DB:", fetchErr);
+        apiItems = await db.items.toArray();
+        if (apiItems.length === 0) throw fetchErr;
       }
-    };
-    fetchItems();
+
+      const baseUrl = 'http://75.119.130.59';
+      const transformed = apiItems.map(item => ({
+        id: item.id || item.name,
+        name: item.item_name || item.name,
+        image: item.image ? (item.image.startsWith('http') ? item.image : `${baseUrl}${item.image}`) : 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTBlMGUwIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmaWxsPSIjOTk5OTk5IiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4KICAgIE5vIEltYWdlCiAgPC90ZXh0Pgo8L3N2Zz4=',
+        group: (item.group || item.item_group || "others").toLowerCase(),
+        price: item.price || item.price_list_rate || 0,
+        actual_qty: item.actual_qty || 0,
+        total_qty: item.total_qty || item.actual_qty || 0,
+        warehouse_details: item.warehouse_details || [],
+        barcodes: item.barcodes || []
+      }));
+
+      const groups = [...new Set(transformed.map(i => i.group))];
+      setCategories(["all", ...groups.sort()]);
+      setItems(transformed);
+      setFilteredItems(transformed);
+    } catch (err) {
+      setError(err.message || "Failed to load items. Check your internet connection.");
+    } finally {
+      setLoadingItems(false);
+    }
   }, [authFetch, session, warehouse]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
 
 
 
@@ -702,6 +703,8 @@ function Home() {
             timer: 2500,
             showConfirmButton: false
           });
+          // LIVE REFRESH: Fetch latest stock level after payment
+          fetchItems();
           finalizeOrder();
         } else {
           // Fallback to offline on server error too
@@ -791,6 +794,8 @@ function Home() {
         if (syncedCount > 0) {
           const count = await db.invoices.where('is_synced').equals(0).count();
           setPendingSyncCount(count);
+          // LIVE REFRESH: Refresh stock levels after successful background sync
+          fetchItems();
         }
       } catch (e) {
         console.error("Auto-sync error:", e);
