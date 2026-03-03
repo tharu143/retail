@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import { useSelector } from "react-redux";
 import { db } from '../../db';
 import "./InvoiceList.css";
@@ -432,6 +433,30 @@ function InvoiceList() {
                                 <p><strong>Address:</strong> {selectedInvoice.customer_details.address}</p>
                             )}
                             <p><strong>Phone:</strong> {selectedInvoice.customer_details?.mobile_no || "N/A"}</p>
+
+                            {/* Sync Conflict Alerts */}
+                            {(selectedInvoice.conflicts || []).length > 0 && (
+                                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <h6 className="text-red-800 font-bold mb-2 flex items-center gap-2">
+                                        <AlertCircle size={16} /> Sync Conflicts Detected
+                                    </h6>
+                                    <ul className="mb-0 ps-3">
+                                        {selectedInvoice.conflicts.map((c, i) => (
+                                            <li key={i} className="text-red-700 text-sm font-medium">
+                                                {c.type === 'price_mismatch' ? `Price Mismatch: ${c.details || c.message}` :
+                                                    c.type === 'stock_low' ? `Low Stock Warning: ${c.details || c.message}` :
+                                                        c.message || 'Unknown Conflict'}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {selectedInvoice.retry_count > 0 && selectedInvoice._source === 'pending' && (
+                                <div className="mt-2 text-xs text-amber-600 font-bold">
+                                    ⚠️ Sync retry attempt: {selectedInvoice.retry_count}/5
+                                </div>
+                            )}
 
                             <h6 className="mt-3">Items</h6>
                             {selectedInvoice.pos_invoice_items?.length ? (
