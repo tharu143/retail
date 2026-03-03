@@ -72,8 +72,8 @@ const Settings = () => {
             if (!result.isConfirmed) return;
         } else {
             const result = await Swal.fire({
-                title: 'Clear Local Cache?',
-                text: 'This will wipe all local items, customers, and price lists. A fresh sync will start immediately.',
+                title: 'Clear Local Database?',
+                text: 'This will wipe all local items, customers, price lists, synced invoices, and sync logs. A fresh sync will start immediately.',
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Yes, Clear & Sync'
@@ -91,10 +91,12 @@ const Settings = () => {
                 }
             });
 
-            // Wipe specific stores (Keep invoices but clear master data)
+            // Wipe specific stores
             await db.items.clear();
             await db.customers.clear();
             await db.tax_templates.clear();
+            await db.sync_log.clear();
+            await db.invoices.clear();
 
             // Reset sync timestamps
             localStorage.removeItem('last_item_sync_time');

@@ -925,9 +925,9 @@ function Home() {
             const now = new Date().toISOString();
             const serverName = result.invoice_name || result.name || result.message?.invoice_name;
 
-            // CRITICAL: Only mark as truly synced if server returned a valid ERPNext naming series
-            // Valid prefixes: DXB-, AUH-, ACC-, SINV-, etc. (any alphabetic prefix followed by dash)
-            const isValidERPName = serverName && /^[A-Z]{2,}-/.test(serverName);
+            // CRITICAL: Validate ERPNext naming series (DXB-, AUH-, ACC-, SINV-, KS1-, etc.)
+            // Now supports alphanumeric prefixes (e.g., KS1-ACC-PSINV-2026-00030)
+            const isValidERPName = serverName && /^[A-Za-z0-9]{2,}-/.test(serverName);
 
             if (isValidERPName) {
               await db.invoices.update(inv.id, {

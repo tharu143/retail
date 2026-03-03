@@ -91,8 +91,8 @@ const SyncManager = () => {
                     const now = new Date().toISOString();
                     const serverName = result.invoice_name || result.name || result.message?.invoice_name || result.message?.name;
 
-                    // CRITICAL: Validate ERPNext naming series (DXB-, AUH-, GEN-, etc.)
-                    const isValidERPName = serverName && /^[A-Z]{2,}-/.test(serverName);
+                    // CRITICAL: Validate ERPNext naming series (DXB-, AUH-, GEN-, KS1-, etc.)
+                    const isValidERPName = serverName && /^[A-Za-z0-9]{2,}-/.test(serverName);
 
                     if (isValidERPName) {
                         successCount++;
@@ -181,7 +181,7 @@ const SyncManager = () => {
                 const serverName = result.invoice_name || result.name || result.message?.invoice_name || result.message?.name;
 
                 // CRITICAL: Validate ERPNext naming series
-                const isValidERPName = serverName && /^[A-Z]{2,}-/.test(serverName);
+                const isValidERPName = serverName && /^[A-Za-z0-9]{2,}-/.test(serverName);
 
                 if (isValidERPName) {
                     await db.invoices.update(invoice.id, {

@@ -53,8 +53,8 @@ function InvoiceList() {
                 posting_date: inv.posting_date || '',
                 _source: (() => {
                     if (!inv.is_synced) return 'pending';
-                    // Validate server_name is a real ERPNext ID (e.g. DXB-POS-INV-2026-00042)
-                    const hasValidERPName = inv.server_name && /^[A-Z]{2,}-/.test(inv.server_name);
+                    // Validate server_name is a real ERPNext ID (e.g. DXB-POS-INV-2026-00042, KS1-ACC-...)
+                    const hasValidERPName = inv.server_name && /^[A-Za-z0-9]{2,}-/.test(inv.server_name);
                     if (hasValidERPName) return 'synced_local';
                     // is_synced=1 but no valid ERP name = sync was false positive
                     return 'sync_failed';
