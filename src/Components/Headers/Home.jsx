@@ -334,13 +334,16 @@ function Home() {
           timer: 2000,
           showConfirmButton: false
         });
-        pickCustomer({
+        const newCust = {
           name: inner.customer_id || inner.name,
           customer_name: createForm.name.trim(),
           mobile_no: createForm.phone || "",
           primary_address: createForm.address || "",
           email_id: createForm.email || "",
-        });
+          is_synced: 1
+        };
+        await db.customers.put(newCust); // Keep local searchable copy
+        pickCustomer(newCust);
         setShowCreateModal(false);
         setCreateForm({ name: '', phone: '', address: '', email: '' });
       } else {
@@ -356,6 +359,7 @@ function Home() {
           mobile_no: createForm.phone || "",
           primary_address: createForm.address || "",
           email_id: createForm.email || "",
+          is_synced: 0,
           is_offline: true
         };
         await db.customers.put(offlineCustomer);
@@ -393,20 +397,34 @@ function Home() {
         if (Array.isArray(results) && results.length > 0) {
           if (force) await db.items.clear();
 
-          await db.items.bulkPut(results.map(item => ({
-            id: item.name,
-            name: item.item_name,
-            image: item.image,
-            group: (item.item_group || "others").toLowerCase(),
-            price: item.price_list_rate || 0,
-            actual_qty: item.actual_qty || 0,
-            total_qty: item.total_qty || item.actual_qty || 0,
-            warehouse_details: item.warehouse_details || [],
-            barcodes: item.barcodes || [],
-            modified: item.modified
-          })));
+          // Recalibrate local_qty: server_actual_qty - pending_sales
+          const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
+          const pendingSales = {}; // item_code -> total_qty
+          pendingInvoices.forEach(inv => {
+            (inv.items || []).forEach(it => {
+              const code = it.item_code || it.id;
+              pendingSales[code] = (pendingSales[code] || 0) + (it.quantity || it.qty || 0);
+            });
+          });
 
-          // Update last sync time from the most recently modified item
+          await db.items.bulkPut(results.map(item => {
+            const serverQty = item.actual_qty || 0;
+            const pendingQty = pendingSales[item.name] || 0;
+            return {
+              id: item.name,
+              name: item.item_name,
+              image: item.image,
+              group: (item.item_group || "others").toLowerCase(),
+              price: item.price_list_rate || 0,
+              actual_qty: serverQty,
+              local_qty: serverQty - pendingQty, // Recalibration
+              total_qty: item.total_qty || serverQty,
+              warehouse_details: item.warehouse_details || [],
+              barcodes: item.barcodes || [],
+              modified: item.modified
+            };
+          }));
+
           const newestTimeFromItems = results.reduce((max, item) =>
             !max || item.modified > max ? item.modified : max, lastSync
           );
@@ -438,6 +456,7 @@ function Home() {
           group: (item.group || item.item_group || "others").toLowerCase(),
           price: item.price || item.price_list_rate || 0,
           actual_qty: item.actual_qty || 0,
+          local_qty: item.local_qty !== undefined ? item.local_qty : (item.actual_qty || 0),
           total_qty: item.total_qty || item.actual_qty || 0,
           warehouse_details: item.warehouse_details || [],
           barcodes: item.barcodes || []
@@ -707,7 +726,7 @@ function Home() {
     }
 
     setPaymentLoading(true);
-    const customer = selectedCustomer?.customer_name || customerName;
+    const customer = selectedCustomer?.name || selectedCustomer?.customer_name || customerName;
     if (!customer.trim()) {
       Swal.fire('Error', 'Enter customer name', 'error');
       setPaymentLoading(false);
@@ -747,11 +766,22 @@ function Home() {
     try {
       if (isOffline) {
         // Save to Dexie
-        await db.invoices.add({
+        const invoiceData = {
           ...payload,
           is_synced: 0,
           grand_total: grandTotal
-        });
+        };
+        await db.invoices.add(invoiceData);
+
+        // Deduct from local_qty in Dexie immediately
+        for (const item of billItems) {
+          const localItem = await db.items.get(item.id);
+          if (localItem) {
+            await db.items.update(item.id, {
+              local_qty: (localItem.local_qty || 0) - item.qty
+            });
+          }
+        }
 
         // Decrement local stock removed - Handled by backend Smart Virtual Stock logic
 
@@ -811,37 +841,68 @@ function Home() {
     if (isOffline) return;
 
     const syncPending = async () => {
-      const pending = await db.invoices
+      if (isOffline) return;
+
+      // 1. Sync Customers FIRST
+      const pendingCustomers = await db.customers.where('is_synced').equals(0).toArray();
+      for (const cust of pendingCustomers) {
+        try {
+          const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: cust.customer_name,
+              mobile_no: cust.mobile_no,
+              email_id: cust.email_id,
+              primary_address: cust.primary_address
+            }),
+          });
+          const result = await res.json();
+          const data = result.message || result;
+
+          if (data.status === 'success' || data.name) {
+            const serverId = data.name || data.customer_id;
+            // Update the customer record
+            await db.customers.update(cust.name, {
+              name: serverId, // Update local key if needed, or just track server_id
+              is_synced: 1
+            });
+            // Update any pending invoices using this temporary local ID
+            await db.invoices.where('customer').equals(cust.name).modify({
+              customer: serverId
+            });
+          }
+        } catch (e) { console.error("Customer sync failed:", e); }
+      }
+
+      // 2. Sync Invoices
+      const pendingInvoices = await db.invoices
         .where('is_synced').equals(0)
-        .filter(inv => (inv.retry_count || 0) < 5)
+        .filter(inv => {
+          // Optimization: Ensure customer is already synced (not starting with OFFLINE-CUST)
+          return (inv.retry_count || 0) < 5 && !inv.customer.startsWith('OFFLINE-CUST');
+        })
         .toArray();
 
-      if (pending.length === 0) return;
+      if (pendingInvoices.length === 0) return;
 
       try {
-        const payload = pending.map(inv => {
+        const payload = pendingInvoices.map(inv => {
           const { id, is_synced, synced_at, server_name, retry_count, conflicts, ...cleanInv } = inv;
           return cleanInv;
         });
 
-        const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices`, {
+        const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            "Accept": "application/json"
-          },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ invoices: payload }),
         });
-
-        if (res.status === 403) return;
 
         const data = await res.json();
         const results = data.message || [];
 
-        let syncedCount = 0;
         for (const result of results) {
-          const inv = pending.find(i => i.offline_id === result.offline_id);
+          const inv = pendingInvoices.find(i => i.offline_id === result.offline_id);
           if (!inv) continue;
 
           if (result.status === 'success' || (result.message && result.message.includes("Duplicate ignored"))) {
@@ -890,12 +951,12 @@ function Home() {
     };
 
     window.addEventListener('online', syncPending);
-    const interval = setInterval(syncPending, 15000);
+    const interval = setInterval(syncPending, 300000); // 5 minutes
     return () => {
       window.removeEventListener('online', syncPending);
       clearInterval(interval);
     };
-  }, [isOffline, session, fetchItems, forceFullRefresh]);
+  }, [isOffline, session, fetchItems, forceFullRefresh, warehouse]);
 
   const handleLogout = async () => {
     try { await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.user_logout', { method: "POST" }); }
@@ -995,8 +1056,8 @@ function Home() {
                   <p className="home-no-items">No items in this category</p>
                 ) : (
                   filteredItems.map(item => (
-                    <div key={item.id} className="home-item-wrapper" onClick={() => item.actual_qty > 0 && handleAddToBill(item)}>
-                      <div className="home-item-card" style={{ opacity: item.actual_qty > 0 ? 1 : 0.6, cursor: item.actual_qty > 0 ? 'pointer' : 'not-allowed' }}>
+                    <div key={item.id} className="home-item-wrapper" onClick={() => item.local_qty > 0 && handleAddToBill(item)}>
+                      <div className="home-item-card" style={{ opacity: item.local_qty > 0 ? 1 : 0.6, cursor: item.local_qty > 0 ? 'pointer' : 'not-allowed' }}>
                         <div className="home-item-image-box">
                           {item.image ? (
                             <img
@@ -1036,13 +1097,13 @@ function Home() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
                               <span style={{
                                 fontSize: '0.65rem',
-                                color: item.actual_qty > 0 ? '#10b981' : '#ef4444',
-                                background: item.actual_qty > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                color: item.local_qty > 0 ? '#10b981' : '#ef4444',
+                                background: item.local_qty > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                                 padding: '2px 6px',
                                 borderRadius: '4px',
                                 fontWeight: 700
                               }}>
-                                Branch: <span style={{ color: item.actual_qty > 0 ? '#059669' : '#dc2626' }}>{item.actual_qty}</span>
+                                Stock: <span style={{ color: item.local_qty > 0 ? '#059669' : '#dc2626' }}>{item.local_qty}</span>
                               </span>
                               <span style={{
                                 fontSize: '0.65rem',
@@ -1062,7 +1123,7 @@ function Home() {
                               </span>
                             </div>
 
-                            {item.actual_qty <= 0 && (
+                            {item.local_qty <= 0 && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleRequestStock(item); }}
                                 style={{
