@@ -99,15 +99,11 @@ const Settings = () => {
             // Reset sync timestamps
             localStorage.removeItem('last_item_sync_time');
 
-            // Redirect to home which triggers full sync or trigger manually
             Swal.fire({
                 icon: 'success',
                 title: 'Cache Cleared',
-                text: 'Redirecting to homepage for fresh sync...',
-                timer: 2000,
-                showConfirmButton: false
-            }).then(() => {
-                window.location.href = '/homepage'; // Force reload/sync
+                text: 'Local database cache has been wiped. A fresh sync will occur on the next refresh or return to Home.',
+                confirmButtonText: 'OK'
             });
 
         } catch (err) {
