@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -380,70 +381,80 @@ function Home() {
     try {
       setLoadingItems(true); setError("");
 
-      const lastSync = localStorage.getItem('last_item_sync_time') || "";
+      const storedLastSync = localStorage.getItem('last_item_sync_time') || "";
       let url = `custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`;
-      if (lastSync && !force) {
-        url += `&modified_after=${encodeURIComponent(lastSync)}`;
+
+      if (storedLastSync && !force) {
+        // Ensure format is YYYY-MM-DD HH:MM:SS for Frappe compatibility
+        const formattedDate = format(new Date(storedLastSync), 'yyyy-MM-dd HH:mm:ss');
+        url += `&modified_after=${encodeURIComponent(formattedDate)}`;
       }
 
-      // Try online fetch first
       let apiItems = [];
-      try {
-        const response = await authFetch(url);
-        const data = await response.json();
-        const results = data.message || data;
+      const isActuallyOnline = navigator.onLine;
 
-        // Cache successful response in Dexie
-        if (Array.isArray(results) && results.length > 0) {
-          if (force) await db.items.clear();
+      if (isActuallyOnline) {
+        try {
+          const response = await authFetch(url);
+          const data = await response.json();
+          const results = data.message || data;
 
-          // Recalibrate local_qty: server_actual_qty - pending_sales
-          const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
-          const pendingSales = {}; // item_code -> total_qty
-          pendingInvoices.forEach(inv => {
-            (inv.items || []).forEach(it => {
-              const code = it.item_code || it.id;
-              pendingSales[code] = (pendingSales[code] || 0) + (it.quantity || it.qty || 0);
-            });
-          });
+          if (Array.isArray(results)) {
+            if (force || results.length > 0) {
+              if (force) await db.items.clear();
 
-          await db.items.bulkPut(results.map(item => {
-            const serverQty = item.actual_qty || 0;
-            const pendingQty = pendingSales[item.name] || 0;
-            return {
-              id: item.name,
-              name: item.item_name,
-              image: item.image,
-              group: (item.item_group || "others").toLowerCase(),
-              price: item.price_list_rate || 0,
-              actual_qty: serverQty,
-              local_qty: serverQty - pendingQty, // Recalibration
-              total_qty: item.total_qty || serverQty,
-              warehouse_details: item.warehouse_details || [],
-              barcodes: item.barcodes || [],
-              modified: item.modified
-            };
-          }));
+              // Recalibrate local_qty: server_actual_qty - pending_sales
+              const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
+              const pendingSales = {};
+              pendingInvoices.forEach(inv => {
+                (inv.items || []).forEach(it => {
+                  const code = it.item_code || it.id;
+                  pendingSales[code] = (pendingSales[code] || 0) + (it.quantity || it.qty || 0);
+                });
+              });
 
-          const newestTimeFromItems = results.reduce((max, item) =>
-            !max || item.modified > max ? item.modified : max, lastSync
-          );
+              await db.items.bulkPut(results.map(item => {
+                const serverQty = item.actual_qty || 0;
+                const pendingQty = pendingSales[item.name] || 0;
+                return {
+                  id: item.name,
+                  name: item.item_name,
+                  image: item.image,
+                  group: (item.item_group || "others").toLowerCase(),
+                  price: item.price_list_rate || 0,
+                  actual_qty: serverQty,
+                  local_qty: serverQty - pendingQty,
+                  total_qty: item.total_qty || serverQty,
+                  warehouse_details: item.warehouse_details || [],
+                  barcodes: item.barcodes || [],
+                  modified: item.modified
+                };
+              }));
 
-          // Use item time or current time as checkpoint
-          const finalSyncTime = results.length > 0 ? newestTimeFromItems : new Date().toISOString();
-          localStorage.setItem('last_item_sync_time', finalSyncTime);
-        } else {
-          // Success but 0 modified items - update checkpoint to now
-          localStorage.setItem('last_item_sync_time', new Date().toISOString());
+              const newestTimeFromItems = results.reduce((max, item) =>
+                !max || item.modified > max ? item.modified : max, storedLastSync
+              );
+
+              const finalSyncTime = results.length > 0 ? newestTimeFromItems : new Date().toISOString();
+              localStorage.setItem('last_item_sync_time', finalSyncTime);
+            } else {
+              // 0 items returned - update checkpoint
+              localStorage.setItem('last_item_sync_time', new Date().toISOString());
+            }
+            apiItems = await db.items.toArray();
+          } else {
+            throw new Error("Invalid response format from server");
+          }
+        } catch (fetchErr) {
+          console.error("Strict Online fetch failed:", fetchErr);
+          // If strictly online and server fails, do not silently fallback if we want fresh data
+          // But show the error so user knows why it's blank or old
+          setError(`Sync Failed: ${fetchErr.message}. Showing local cache if available.`);
+          apiItems = await db.items.toArray();
         }
-
-        // Always read full state from DB for UI
+      } else {
+        // Strictly Offline - use local DB
         apiItems = await db.items.toArray();
-      } catch (fetchErr) {
-        if (force) throw fetchErr;
-        console.warn("Online fetch failed, using local DB:", fetchErr);
-        apiItems = await db.items.toArray();
-        if (apiItems.length === 0) throw fetchErr;
       }
 
       const baseUrl = 'http://75.119.130.59';
