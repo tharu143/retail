@@ -447,15 +447,18 @@ function Home() {
           }
         } catch (fetchErr) {
           console.error("Strict Online fetch failed:", fetchErr);
-          setError(`Server Error (HTTP 500): The backend is currently unable to provide item data. URL: ${url}`);
+          // We are online but server failed. Strictly show error, no Dexie fallback.
+          setError(`Server Connection Issue (HTTP 500). The system is online but the backend API is unreachable or returned an error. URL: ${url}`);
+          setItems([]);
+          setFilteredItems([]);
           setLoadingItems(false);
-          return; // STOP here, do not load from Dexie automatically as per "Strict Online" rule
+          return; // Strictly stop here.
         }
       } else {
         // Strictly Offline - load what we have in cache
         apiItems = await db.items.toArray();
         if (apiItems.length === 0) {
-          setError("Offline and no local cache found. Please connect to internet.");
+          setError("You are currently OFFLINE and no local item cache was found. Please connect to internet to sync items.");
         }
       }
 
@@ -980,40 +983,50 @@ function Home() {
 
   if (loadingItems) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
   if (error) return (
-    <div className="home-container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: '1.5rem', backgroundColor: '#f8fafc' }}>
-      <div style={{ textAlign: 'center', color: '#ef4444', maxWidth: '500px', padding: '0 20px' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Connection or Server Issue</h2>
-        <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #fee2e2', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', textAlign: 'left' }}>
-          <p style={{ margin: 0, color: '#991b1b', fontSize: '0.9rem', wordBreak: 'break-all' }}><strong>Error:</strong> {error}</p>
+    <div className="home-container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: '1.5rem', backgroundColor: '#fff' }}>
+      <div style={{ textAlign: 'center', color: '#ef4444', maxWidth: '600px', padding: '0 20px' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📡</div>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '1rem', color: '#1e293b' }}>Strict Online Sync Required</h2>
+        <div style={{ background: '#fef2f2', padding: '1.25rem', borderRadius: '12px', border: '1px solid #fee2e2', textAlign: 'left' }}>
+          <p style={{ margin: 0, color: '#991b1b', fontSize: '0.85rem', fontWeight: 600 }}>{error}</p>
         </div>
-        <p style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.85rem' }}>This usually happens if the server is down or the network is unstable.</p>
+        <p style={{ marginTop: '1.5rem', color: '#64748b', fontSize: '0.85rem', lineHeight: '1.5' }}>
+          The system is configured to use <strong>Live Server Data</strong> while online.
+          If this error persists, it usually means the Backend is down or the network is blocked.
+        </p>
       </div>
-      <div style={{ display: 'flex', gap: '1rem' }}>
-        <button
-          onClick={() => window.location.reload()}
-          className="home-retry-btn"
-          style={{ padding: '12px 24px', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-        >
-          Try Online Again
-        </button>
-        <button
-          onClick={async () => {
+      <button
+        onClick={() => { setError(""); fetchItems(true); }}
+        style={{
+          padding: '12px 32px',
+          borderRadius: '8px',
+          backgroundColor: '#2563eb',
+          color: 'white',
+          border: 'none',
+          fontWeight: 800,
+          cursor: 'pointer',
+          boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+        }}
+      >
+        Retry Online Sync
+      </button>
+
+      {/* Secret Emergency Button - for technician only */}
+      <button
+        onClick={async () => {
+          const local = await db.items.toArray();
+          if (local.length > 0) {
             setError("");
-            const local = await db.items.toArray();
-            if (local.length > 0) {
-              const groups = [...new Set(local.map(i => (i.group || "others").toLowerCase()))];
-              setCategories(["all", ...groups.sort()]);
-              setItems(local);
-              setFilteredItems(local);
-            } else {
-              setError("No local cache available. Please sync online.");
-            }
-          }}
-          style={{ padding: '12px 24px', borderRadius: '8px', backgroundColor: '#94a3b8', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-        >
-          Use Emergency Offline Data
-        </button>
-      </div>
+            const groups = [...new Set(local.map(i => (i.group || "others").toLowerCase()))];
+            setCategories(["all", ...groups.sort()]);
+            setItems(local);
+            setFilteredItems(local);
+          }
+        }}
+        style={{ opacity: 0.1, fontSize: '10px', marginTop: '20px', border: 'none', background: 'none' }}
+      >
+        Emergency Bypass
+      </button>
     </div>
   );
 
