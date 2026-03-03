@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { setWarehouse as updateActiveWarehouse } from '../../Redux/Slices/userSlice';
-import { Loader2, Save, MapPin, AlertCircle } from 'lucide-react';
+import { Loader2, Save, MapPin, AlertCircle, Database, RefreshCw, Trash2 } from 'lucide-react';
+import { db } from '../../db';
+import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
 const Settings = () => {
@@ -49,6 +51,71 @@ const Settings = () => {
         });
     };
 
+    const handleForceReset = async () => {
+        if (!navigator.onLine) {
+            Swal.fire('Offline', 'You must be online to perform a fresh sync after clear.', 'warning');
+            return;
+        }
+
+        // Check for unsynced invoices first (CRITICAL SAFETY)
+        const unsyncedCount = await db.invoices.where('is_synced').equals(0).count();
+        if (unsyncedCount > 0) {
+            const result = await Swal.fire({
+                title: 'Unsynced Invoices!',
+                text: `You have ${unsyncedCount} invoices that are not yet synced to the server. Resetting now might cause issues. Do you want to continue?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, Reset anyway'
+            });
+            if (!result.isConfirmed) return;
+        } else {
+            const result = await Swal.fire({
+                title: 'Clear Local Cache?',
+                text: 'This will wipe all local items, customers, and price lists. A fresh sync will start immediately.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Clear & Sync'
+            });
+            if (!result.isConfirmed) return;
+        }
+
+        try {
+            Swal.fire({
+                title: 'Resetting...',
+                text: 'Wiping local database and starting fresh sync...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Wipe specific stores (Keep invoices but clear master data)
+            await db.items.clear();
+            await db.customers.clear();
+            await db.tax_templates.clear();
+
+            // Reset sync timestamps
+            localStorage.removeItem('last_item_sync_time');
+
+            // Redirect to home which triggers full sync or trigger manually
+            Swal.fire({
+                icon: 'success',
+                title: 'Cache Cleared',
+                text: 'Redirecting to homepage for fresh sync...',
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                window.location.href = '/homepage'; // Force reload/sync
+            });
+
+        } catch (err) {
+            console.error("Reset failed:", err);
+            Swal.fire('Error', 'Failed to reset local database', 'error');
+        }
+    };
+
     if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin inline mr-2" /> Loading settings...</div>;
 
     return (
@@ -90,6 +157,26 @@ const Settings = () => {
                         Physical stock levels in ERPNext will only settle after the <strong>POS Closing Entry</strong> process is completed.
                         The "Smart Virtual Stock" you see in the POS reflects pending sales immediately, but official book records update after the daily closing.
                     </p>
+                </div>
+
+                <div className="pt-8 border-t border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Database className="text-red-500" /> Data Management
+                    </h3>
+                    <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-sm font-bold text-red-800">Force Database Reset</p>
+                                <p className="text-xs text-red-600 mt-1">If your stock counts or prices look wrong, use this to wipe local cache and fetch everything fresh from the server.</p>
+                            </div>
+                            <button
+                                onClick={handleForceReset}
+                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
+                            >
+                                <Trash2 size={14} /> Reset & Sync
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
