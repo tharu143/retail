@@ -88,23 +88,40 @@ const SyncManager = () => {
                 if (!originalInvoice) continue;
 
                 if (result.status === 'success' || result.message?.includes("Duplicate ignored")) {
-                    successCount++;
                     const now = new Date().toISOString();
-                    const serverName = result.invoice_name || result.name || originalInvoice.offline_id;
+                    const serverName = result.invoice_name || result.name;
 
-                    await db.invoices.update(originalInvoice.id, {
-                        is_synced: 1,
-                        synced_at: now,
-                        server_name: serverName
-                    });
+                    // CRITICAL: Validate ERPNext naming series (DXB-, AUH-, GEN-, etc.)
+                    const isValidERPName = serverName && /^[A-Z]{2,}-/.test(serverName);
 
-                    await db.sync_log.add({
-                        offline_id: originalInvoice.offline_id,
-                        action: 'bulk_sync_success',
-                        timestamp: now,
-                        status: 'success',
-                        server_name: serverName
-                    });
+                    if (isValidERPName) {
+                        successCount++;
+                        await db.invoices.update(originalInvoice.id, {
+                            is_synced: 1,
+                            synced_at: now,
+                            server_name: serverName
+                        });
+                        await db.sync_log.add({
+                            offline_id: originalInvoice.offline_id,
+                            action: 'bulk_sync_success',
+                            timestamp: now,
+                            status: 'success',
+                            server_name: serverName
+                        });
+                    } else {
+                        // Server returned UUID or null — NOT a real sync
+                        failCount++;
+                        await db.invoices.update(originalInvoice.id, {
+                            retry_count: (originalInvoice.retry_count || 0) + 1
+                        });
+                        await db.sync_log.add({
+                            offline_id: originalInvoice.offline_id,
+                            action: 'bulk_sync_failed',
+                            timestamp: now,
+                            status: 'failed',
+                            error: `Server returned invalid ID: '${serverName || 'null'}' — Invoice NOT posted to ERPNext`
+                        });
+                    }
                 } else {
                     failCount++;
                     await db.sync_log.add({
@@ -159,24 +176,41 @@ const SyncManager = () => {
 
             if (result.status === 'success' || result.message?.includes("Duplicate ignored")) {
                 const now = new Date().toISOString();
-                const serverName = result.invoice_name || result.name || invoice.offline_id;
+                const serverName = result.invoice_name || result.name;
 
-                await db.invoices.update(invoice.id, {
-                    is_synced: 1,
-                    synced_at: now,
-                    server_name: serverName
-                });
+                // CRITICAL: Validate ERPNext naming series
+                const isValidERPName = serverName && /^[A-Z]{2,}-/.test(serverName);
 
-                await db.sync_log.add({
-                    offline_id: invoice.offline_id,
-                    action: hardProceed ? 'hard_sync_success' : 'manual_sync_success',
-                    timestamp: now,
-                    status: 'success',
-                    server_name: serverName
-                });
-
-                Swal.fire({ icon: 'success', title: 'Sync Successful', text: `Invoice: ${serverName}`, timer: 1500, showConfirmButton: false });
-                fetchData();
+                if (isValidERPName) {
+                    await db.invoices.update(invoice.id, {
+                        is_synced: 1,
+                        synced_at: now,
+                        server_name: serverName
+                    });
+                    await db.sync_log.add({
+                        offline_id: invoice.offline_id,
+                        action: hardProceed ? 'hard_sync_success' : 'manual_sync_success',
+                        timestamp: now,
+                        status: 'success',
+                        server_name: serverName
+                    });
+                    Swal.fire({ icon: 'success', title: 'Sync Successful', text: `Invoice: ${serverName}`, timer: 1500, showConfirmButton: false });
+                    fetchData();
+                } else {
+                    // Server returned UUID/null — NOT truly synced
+                    await db.invoices.update(invoice.id, {
+                        retry_count: (invoice.retry_count || 0) + 1
+                    });
+                    await db.sync_log.add({
+                        offline_id: invoice.offline_id,
+                        action: hardProceed ? 'hard_sync_failed' : 'manual_sync_failed',
+                        timestamp: now,
+                        status: 'failed',
+                        error: `Server returned invalid ID: '${serverName || 'null'}' — Invoice NOT posted to ERPNext`
+                    });
+                    Swal.fire('Sync Rejected', `Server returned '${serverName || 'null'}' instead of a valid ERPNext Invoice ID. The invoice was NOT posted.`, 'error');
+                    fetchData();
+                }
             } else {
                 const errorMsg = result.message || "Unknown server error (e.g., Warehouse missing, Zero qty)";
                 await db.sync_log.add({
@@ -350,7 +384,7 @@ const SyncManager = () => {
                                         backgroundColor: log.status === 'success' ? '#ecfdf5' : '#fef2f2',
                                         color: log.status === 'success' ? '#059669' : '#dc2626'
                                     }}>
-                                        {log.status}
+                                        {log.status === 'success' ? '✅ POSTED' : '❌ FAILED'}
                                     </div>
                                 </div>
                             ))}
