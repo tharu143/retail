@@ -39,7 +39,20 @@ const POSHealth = () => {
         return () => clearInterval(interval);
     }, [fetchHealthData]);
 
-    const isOutOfSync = healthData?.last_item_update && localSyncTime && (healthData.last_item_update > localSyncTime);
+    const getSyncStatus = () => {
+        if (!healthData?.last_item_update || !localSyncTime) return { label: 'UNKNOWN', color: 'gray' };
+
+        const serverTime = new Date(healthData.last_item_update).getTime();
+        const localTime = new Date(localSyncTime).getTime();
+
+        if (serverTime > localTime + 1000) { // 1s tolerance
+            return { label: 'OUTDATED', color: 'red' };
+        }
+        return { label: 'UP TO DATE', color: 'emerald' };
+    };
+
+    const syncStatus = getSyncStatus();
+    const isOutOfSync = syncStatus.label === 'OUTDATED';
 
     const StatCard = ({ title, value, icon: Icon, color }) => (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-start justify-between">
@@ -111,11 +124,9 @@ const POSHealth = () => {
                                 <p className="text-sm font-medium text-gray-900">Last Server Item Update</p>
                                 <p className="text-xs text-gray-500">{healthData?.last_item_update || 'N/A'}</p>
                             </div>
-                            {isOutOfSync ? (
-                                <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">OUTDATED</span>
-                            ) : (
-                                <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">UP TO DATE</span>
-                            )}
+                            <span className={`px-3 py-1 bg-${syncStatus.color}-100 text-${syncStatus.color}-700 text-xs font-bold rounded-full`}>
+                                {syncStatus.label}
+                            </span>
                         </div>
                         <div className="flex justify-between items-center pb-4 border-b border-gray-50">
                             <div>

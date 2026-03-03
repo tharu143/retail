@@ -326,10 +326,16 @@ function Home() {
       const result = await res.json();
       const inner = result.message || result;
 
-      if (inner.status === "success") {
-        alert("Customer created successfully!");
+      if (inner.status === "success" || inner.name) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Customer Created',
+          text: `"${createForm.name}" has been saved to ERPNext.`,
+          timer: 2000,
+          showConfirmButton: false
+        });
         pickCustomer({
-          name: inner.customer_id,
+          name: inner.customer_id || inner.name,
           customer_name: createForm.name.trim(),
           mobile_no: createForm.phone || "",
           primary_address: createForm.address || "",
@@ -338,11 +344,27 @@ function Home() {
         setShowCreateModal(false);
         setCreateForm({ name: '', phone: '', address: '', email: '' });
       } else {
-        alert(inner.message || "Failed to create customer");
+        Swal.fire('Error', inner.message || "Failed to create customer", 'error');
       }
     } catch (err) {
       console.error(err);
-      alert("Network error or server issue");
+      if (isOffline) {
+        // Save to local cache for offline usage
+        const offlineCustomer = {
+          name: `OFFLINE-CUST-${Date.now()}`,
+          customer_name: createForm.name.trim(),
+          mobile_no: createForm.phone || "",
+          primary_address: createForm.address || "",
+          email_id: createForm.email || "",
+          is_offline: true
+        };
+        await db.customers.put(offlineCustomer);
+        pickCustomer(offlineCustomer);
+        setShowCreateModal(false);
+        Swal.fire('Offline Save', 'Customer saved locally. Will sync when online.', 'info');
+      } else {
+        Swal.fire('Error', "Network error while creating customer", 'error');
+      }
     } finally {
       setCreatingCustomer(false);  // ← Loading ends (always!)
     }
@@ -385,10 +407,16 @@ function Home() {
           })));
 
           // Update last sync time from the most recently modified item
-          const newestTime = results.reduce((max, item) =>
+          const newestTimeFromItems = results.reduce((max, item) =>
             !max || item.modified > max ? item.modified : max, lastSync
           );
-          localStorage.setItem('last_item_sync_time', newestTime);
+
+          // Use item time or current time as checkpoint
+          const finalSyncTime = results.length > 0 ? newestTimeFromItems : new Date().toISOString();
+          localStorage.setItem('last_item_sync_time', finalSyncTime);
+        } else {
+          // Success but 0 modified items - update checkpoint to now
+          localStorage.setItem('last_item_sync_time', new Date().toISOString());
         }
 
         // Always read full state from DB for UI
@@ -818,12 +846,12 @@ function Home() {
 
           if (result.status === 'success' || (result.message && result.message.includes("Duplicate ignored"))) {
             const now = new Date().toISOString();
-            const serverName = result.invoice_name || result.name || inv.offline_id;
+            const serverName = result.invoice_name || result.name || result.message?.invoice_name;
 
             await db.invoices.update(inv.id, {
               is_synced: 1,
               synced_at: now,
-              server_name: serverName,
+              server_name: serverName || inv.offline_id,
               conflicts: result.conflicts || []
             });
 

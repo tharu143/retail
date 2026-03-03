@@ -191,11 +191,11 @@ function InvoiceList() {
                 borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
             }}>⏳ Pending Sync</span>;
         }
-        if (inv._source === 'synced_local' && inv._synced_at) {
+        if (inv._source === 'synced_local') {
             return <span style={{
                 background: '#d1fae5', color: '#065f46', padding: '2px 8px',
                 borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
-            }}>✅ Synced {new Date(inv._synced_at).toLocaleString()}</span>;
+            }}>✅ Synced {inv._synced_at ? new Date(inv._synced_at).toLocaleTimeString() : ''}</span>;
         }
         return <span style={{
             background: '#dbeafe', color: '#1e40af', padding: '2px 8px',
@@ -370,7 +370,9 @@ function InvoiceList() {
                                     background: inv._source === 'pending' ? '#fffbeb' : 'inherit'
                                 }}>
                                     <td style={{ fontSize: '0.75rem' }}>
-                                        <div style={{ fontWeight: 800, color: '#1e293b' }}>{inv.server_name || 'UNSYNCED'}</div>
+                                        <div style={{ fontWeight: 800, color: '#1e293b' }}>
+                                            {inv.server_name || (inv._source === 'pending' ? 'UNSYNCED' : 'SYNCING...')}
+                                        </div>
                                         <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Ref No: {inv.offline_id}</div>
                                     </td>
                                     <td style={{ fontSize: '0.8rem', color: '#475569' }}>
