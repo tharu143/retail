@@ -9,6 +9,7 @@ import SalesReportPage from '../Pages/SalesReportPage'
 import PurchaseReportPage from '../Pages/PurchaseReportPage'
 import ItemWiseSalesReportPage from '../Pages/ItemWiseSalesReportPage'
 import DashboardPage from '../Pages/DashboardPage'
+import POSHealthPage from '../Pages/POSHealthPage'
 import CustomerList from '../Components/Admin/CustomerList'
 import ItemGroupList from '../Components/Admin/ItemGroupList'
 import ItemList from '../Components/Admin/ItemList'
@@ -41,6 +42,7 @@ function UserRouter() {
         <Route path='purchasereport' element={<PurchaseReportPage />} />
         <Route path='itemwisereport' element={<ItemWiseSalesReportPage />} />
         <Route path='dashboard' element={<DashboardPage />} />
+        <Route path='poshealth' element={<POSHealthPage />} />
         <Route path='customerlist' element={<CustomerList />} />
         <Route path='itemgrouplist' element={<ItemGroupList />} />
         <Route path='itemlist' element={<ItemList />} />

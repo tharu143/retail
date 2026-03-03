@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -148,6 +149,22 @@ function Home() {
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
   const [tenderedAmount, setTenderedAmount] = useState(0);
   const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Sync Status
+  const [hoursSinceSync, setHoursSinceSync] = useState(0);
+
+  useEffect(() => {
+    const updateSyncAge = () => {
+      const lastSync = localStorage.getItem('last_item_sync_time');
+      if (lastSync) {
+        const diffMs = new Date() - new Date(lastSync);
+        setHoursSinceSync(diffMs / (1000 * 60 * 60));
+      }
+    };
+    updateSyncAge();
+    const interval = setInterval(updateSyncAge, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const dropdownRef = useRef(null);
   const nameInputRef = useRef(null);
@@ -337,17 +354,24 @@ function Home() {
     try {
       setLoadingItems(true); setError("");
 
+      const lastSync = localStorage.getItem('last_item_sync_time') || "";
+      let url = `custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`;
+      if (lastSync && !force) {
+        url += `&modified_after=${encodeURIComponent(lastSync)}`;
+      }
+
       // Try online fetch first
       let apiItems = [];
       try {
-        const response = await authFetch(`custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`);
+        const response = await authFetch(url);
         const data = await response.json();
-        apiItems = data.message || data;
+        const results = data.message || data;
 
         // Cache successful response in Dexie
-        if (Array.isArray(apiItems)) {
-          await db.items.clear();
-          await db.items.bulkAdd(apiItems.map(item => ({
+        if (Array.isArray(results) && results.length > 0) {
+          if (force) await db.items.clear();
+
+          await db.items.bulkPut(results.map(item => ({
             id: item.name,
             name: item.item_name,
             image: item.image,
@@ -356,11 +380,21 @@ function Home() {
             actual_qty: item.actual_qty || 0,
             total_qty: item.total_qty || item.actual_qty || 0,
             warehouse_details: item.warehouse_details || [],
-            barcodes: item.barcodes || []
+            barcodes: item.barcodes || [],
+            modified: item.modified
           })));
+
+          // Update last sync time from the most recently modified item
+          const newestTime = results.reduce((max, item) =>
+            !max || item.modified > max ? item.modified : max, lastSync
+          );
+          localStorage.setItem('last_item_sync_time', newestTime);
         }
+
+        // Always read full state from DB for UI
+        apiItems = await db.items.toArray();
       } catch (fetchErr) {
-        if (force) throw fetchErr; // If force sync failed, propagate error
+        if (force) throw fetchErr;
         console.warn("Online fetch failed, using local DB:", fetchErr);
         apiItems = await db.items.toArray();
         if (apiItems.length === 0) throw fetchErr;
@@ -652,8 +686,7 @@ function Home() {
       return;
     }
 
-    const timestamp = Date.now();
-    const offlineId = `${branchPrefix || 'POS'}-${timestamp}`;
+    const offlineId = uuidv4();
 
     const payload = {
       offline_id: offlineId,
@@ -750,12 +783,16 @@ function Home() {
     if (isOffline) return;
 
     const syncPending = async () => {
-      const pending = await db.invoices.where('is_synced').equals(0).toArray();
+      const pending = await db.invoices
+        .where('is_synced').equals(0)
+        .filter(inv => (inv.retry_count || 0) < 5)
+        .toArray();
+
       if (pending.length === 0) return;
 
       try {
         const payload = pending.map(inv => {
-          const { id, is_synced, synced_at, server_name, ...cleanInv } = inv;
+          const { id, is_synced, synced_at, server_name, retry_count, conflicts, ...cleanInv } = inv;
           return cleanInv;
         });
 
@@ -769,7 +806,7 @@ function Home() {
           body: JSON.stringify({ invoices: payload }),
         });
 
-        if (res.status === 403) return; // Exit if session expired
+        if (res.status === 403) return;
 
         const data = await res.json();
         const results = data.message || [];
@@ -786,7 +823,8 @@ function Home() {
             await db.invoices.update(inv.id, {
               is_synced: 1,
               synced_at: now,
-              server_name: serverName
+              server_name: serverName,
+              conflicts: result.conflicts || []
             });
 
             await db.sync_log.add({
@@ -797,6 +835,11 @@ function Home() {
               server_name: serverName
             });
             syncedCount++;
+          } else {
+            // Increment retry count on failure
+            await db.invoices.update(inv.id, {
+              retry_count: (inv.retry_count || 0) + 1
+            });
           }
         }
 
@@ -804,7 +847,6 @@ function Home() {
           const count = await db.invoices.where('is_synced').equals(0).count();
           setPendingSyncCount(count);
           if (count === 0) {
-            console.log("All pending invoices synced. Scheduling full DB refresh in 2 minutes...");
             setTimeout(() => { forceFullRefresh(); }, 2 * 60 * 1000);
           } else {
             fetchItems();
@@ -812,11 +854,19 @@ function Home() {
         }
       } catch (e) {
         console.error("Auto-sync error:", e);
+        // Increment retry for all pending on network error
+        for (const inv of pending) {
+          await db.invoices.update(inv.id, { retry_count: (inv.retry_count || 0) + 1 });
+        }
       }
     };
 
+    window.addEventListener('online', syncPending);
     const interval = setInterval(syncPending, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('online', syncPending);
+      clearInterval(interval);
+    };
   }, [isOffline, session, fetchItems, forceFullRefresh]);
 
   const handleLogout = async () => {
@@ -839,6 +889,44 @@ function Home() {
 
           {/* LEFT: MENU */}
           <div className="home-main-section">
+            {hoursSinceSync > 4 && (
+              <div style={{
+                backgroundColor: hoursSinceSync > 24 ? '#fee2e2' : '#fef3c7',
+                color: hoursSinceSync > 24 ? '#991b1b' : '#92400e',
+                padding: '10px',
+                borderRadius: '8px',
+                marginBottom: '1rem',
+                border: '1px solid',
+                borderColor: hoursSinceSync > 24 ? '#fecaca' : '#fde68a',
+                fontSize: '0.875rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span>
+                  <strong>{hoursSinceSync > 24 ? "CRITICAL: " : "Warning: "}</strong>
+                  Item data is {Math.floor(hoursSinceSync)} hours old. {hoursSinceSync > 24 ? "Sales disabled." : "Please sync now."}
+                </span>
+                <button
+                  onClick={() => forceFullRefresh()}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '4px',
+                    backgroundColor: 'white',
+                    border: '1px solid currentColor',
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  Sync Now
+                </button>
+              </div>
+            )}
+            {pendingSyncCount > 0 && (
+              <div style={{ fontSize: '0.75rem', color: '#6366f1', marginBottom: '0.5rem', fontWeight: '600' }}>
+                {pendingSyncCount} invoices waiting for sync...
+              </div>
+            )}
             {/* Category Slider */}
             <div className="home-category-sidebar">
               <div className="home-carousel-container">
@@ -1119,7 +1207,17 @@ function Home() {
                     <button className="home-bill-discount-btn" onClick={() => setShowDiscountModal(true)}>
                       {discount.value > 0 ? `Edit (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}
                     </button>
-                    {grandTotal > 0 && <button className="home-bill-pay-btn" onClick={handleCheckout}>Pay</button>}
+                    {grandTotal > 0 && (
+                      <button
+                        className="home-bill-pay-btn"
+                        onClick={handleCheckout}
+                        disabled={hoursSinceSync > 24}
+                        title={hoursSinceSync > 24 ? "Sync required to sell" : ""}
+                        style={hoursSinceSync > 24 ? { backgroundColor: '#94a3b8', cursor: 'not-allowed' } : {}}
+                      >
+                        {hoursSinceSync > 24 ? "Sync Required" : "Pay"}
+                      </button>
+                    )}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
                     {billItems.length > 0 && (

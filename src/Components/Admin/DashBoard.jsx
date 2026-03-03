@@ -32,6 +32,7 @@ const routeMap = {
   'POS Opening Entry': '/posopeningentrylist',
   'POS Closing Entry': '/posclosingentrylist',
   'POS Invoice': '/invoicelist',
+  'POS Health': '/poshealth',
   'Settings': '/settings',
 };
 
@@ -79,6 +80,7 @@ function Dashboard() {
         'POS Opening Entry',
         'POS Closing Entry',
         'POS Invoice',
+        'POS Health',
         'Settings'
       ],
     },
