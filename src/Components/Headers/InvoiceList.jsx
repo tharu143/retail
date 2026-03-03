@@ -51,8 +51,17 @@ function InvoiceList() {
                 payments: inv.payments || [],
                 grand_total: inv.grand_total || 0,
                 posting_date: inv.posting_date || '',
-                _source: inv.is_synced ? 'synced_local' : 'pending',
+                _source: (() => {
+                    if (!inv.is_synced) return 'pending';
+                    // Validate server_name is a real ERPNext ID (e.g. DXB-POS-INV-2026-00042)
+                    const hasValidERPName = inv.server_name && /^[A-Z]{2,}-/.test(inv.server_name);
+                    if (hasValidERPName) return 'synced_local';
+                    // is_synced=1 but no valid ERP name = sync was false positive
+                    return 'sync_failed';
+                })(),
                 _synced_at: inv.synced_at || null,
+                retry_count: inv.retry_count || 0,
+                conflicts: inv.conflicts || [],
             }));
             setOfflineInvoices(mapped);
         } catch (e) {
@@ -187,10 +196,22 @@ function InvoiceList() {
 
     const getSyncBadge = (inv) => {
         if (inv._source === 'pending') {
+            if ((inv.retry_count || 0) >= 5) {
+                return <span style={{
+                    background: '#fee2e2', color: '#991b1b', padding: '2px 8px',
+                    borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
+                }}>❌ Failed (Max Retries)</span>;
+            }
             return <span style={{
                 background: '#fef3c7', color: '#92400e', padding: '2px 8px',
                 borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
-            }}>⏳ Pending Sync</span>;
+            }}>⏳ Pending Sync {inv.retry_count > 0 ? `(Retry ${inv.retry_count}/5)` : ''}</span>;
+        }
+        if (inv._source === 'sync_failed') {
+            return <span style={{
+                background: '#fee2e2', color: '#991b1b', padding: '2px 8px',
+                borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
+            }}>⚠️ Sync Failed - Invalid ERP ID</span>;
         }
         if (inv._source === 'synced_local') {
             return <span style={{

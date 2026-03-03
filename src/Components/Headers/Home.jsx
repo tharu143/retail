@@ -925,23 +925,37 @@ function Home() {
             const now = new Date().toISOString();
             const serverName = result.invoice_name || result.name || result.message?.invoice_name;
 
-            await db.invoices.update(inv.id, {
-              is_synced: 1,
-              synced_at: now,
-              server_name: serverName || inv.offline_id,
-              conflicts: result.conflicts || []
-            });
+            // CRITICAL: Only mark as truly synced if server returned a valid ERPNext naming series
+            // Valid prefixes: DXB-, AUH-, ACC-, SINV-, etc. (any alphabetic prefix followed by dash)
+            const isValidERPName = serverName && /^[A-Z]{2,}-/.test(serverName);
 
-            await db.sync_log.add({
-              offline_id: inv.offline_id,
-              action: 'auto_bulk_sync_success',
-              timestamp: now,
-              status: 'success',
-              server_name: serverName
-            });
-            syncedCount++;
+            if (isValidERPName) {
+              await db.invoices.update(inv.id, {
+                is_synced: 1,
+                synced_at: now,
+                server_name: serverName,
+                conflicts: result.conflicts || []
+              });
+
+              await db.sync_log.add({
+                offline_id: inv.offline_id,
+                action: 'auto_bulk_sync_success',
+                timestamp: now,
+                status: 'success',
+                server_name: serverName
+              });
+              syncedCount++;
+            } else {
+              // Server said success but returned UUID/null — mark as FAILED
+              console.warn(`Sync returned invalid server_name: ${serverName} for ${inv.offline_id}`);
+              await db.invoices.update(inv.id, {
+                retry_count: (inv.retry_count || 0) + 1,
+                server_name: serverName || null,
+                conflicts: [{ type: 'invalid_name', message: `Server returned '${serverName}' instead of ERPNext ID` }]
+              });
+            }
           } else {
-            // Increment retry count on failure
+            // Explicit failure from server
             await db.invoices.update(inv.id, {
               retry_count: (inv.retry_count || 0) + 1
             });
