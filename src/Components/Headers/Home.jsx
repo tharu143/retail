@@ -447,14 +447,18 @@ function Home() {
           }
         } catch (fetchErr) {
           console.error("Strict Online fetch failed:", fetchErr);
-          // If strictly online and server fails, do not silently fallback if we want fresh data
-          // But show the error so user knows why it's blank or old
-          setError(`Sync Failed: ${fetchErr.message}. Showing local cache if available.`);
-          apiItems = await db.items.toArray();
+          setError(`Server Error (HTTP 500): The backend is currently unable to provide item data. Please check server logs or try again.`);
+          setItems([]);
+          setFilteredItems([]);
+          setLoadingItems(false);
+          return; // STOP here, do not load from Dexie
         }
       } else {
-        // Strictly Offline - use local DB
+        // Strictly Offline - load what we have in cache
         apiItems = await db.items.toArray();
+        if (apiItems.length === 0) {
+          setError("Offline and no local cache found. Please connect to internet.");
+        }
       }
 
       const baseUrl = 'http://75.119.130.59';
