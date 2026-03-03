@@ -947,11 +947,12 @@ function Home() {
               syncedCount++;
             } else {
               // Server said success but returned UUID/null — mark as FAILED
-              console.warn(`Sync returned invalid server_name: ${serverName} for ${inv.offline_id}`);
+              const errDump = JSON.stringify(result).substring(0, 100);
+              console.warn(`Sync returned invalid server_name: ${serverName} for ${inv.offline_id}. Payload: ${errDump}`);
               await db.invoices.update(inv.id, {
                 retry_count: (inv.retry_count || 0) + 1,
                 server_name: serverName || null,
-                conflicts: [{ type: 'invalid_name', message: `Server returned '${serverName}' instead of ERPNext ID` }]
+                conflicts: [{ type: 'invalid_name', message: `Server returned false success. Payload: ${errDump}` }]
               });
             }
           } else {

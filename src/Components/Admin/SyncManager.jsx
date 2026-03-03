@@ -89,7 +89,7 @@ const SyncManager = () => {
 
                 if (result.status === 'success' || result.message?.includes("Duplicate ignored")) {
                     const now = new Date().toISOString();
-                    const serverName = result.invoice_name || result.name;
+                    const serverName = result.invoice_name || result.name || result.message?.invoice_name || result.message?.name;
 
                     // CRITICAL: Validate ERPNext naming series (DXB-, AUH-, GEN-, etc.)
                     const isValidERPName = serverName && /^[A-Z]{2,}-/.test(serverName);
@@ -114,12 +114,14 @@ const SyncManager = () => {
                         await db.invoices.update(originalInvoice.id, {
                             retry_count: (originalInvoice.retry_count || 0) + 1
                         });
+                        // Dump the JSON to easily see why it failed
+                        const errDump = JSON.stringify(result).substring(0, 100);
                         await db.sync_log.add({
                             offline_id: originalInvoice.offline_id,
                             action: 'bulk_sync_failed',
                             timestamp: now,
                             status: 'failed',
-                            error: `Server returned invalid ID: '${serverName || 'null'}' — Invoice NOT posted to ERPNext`
+                            error: `Server Response: ${errDump} — Invoice NOT posted`
                         });
                     }
                 } else {
@@ -176,7 +178,7 @@ const SyncManager = () => {
 
             if (result.status === 'success' || result.message?.includes("Duplicate ignored")) {
                 const now = new Date().toISOString();
-                const serverName = result.invoice_name || result.name;
+                const serverName = result.invoice_name || result.name || result.message?.invoice_name || result.message?.name;
 
                 // CRITICAL: Validate ERPNext naming series
                 const isValidERPName = serverName && /^[A-Z]{2,}-/.test(serverName);
@@ -201,14 +203,15 @@ const SyncManager = () => {
                     await db.invoices.update(invoice.id, {
                         retry_count: (invoice.retry_count || 0) + 1
                     });
+                    const errDump = JSON.stringify(result).substring(0, 150);
                     await db.sync_log.add({
                         offline_id: invoice.offline_id,
                         action: hardProceed ? 'hard_sync_failed' : 'manual_sync_failed',
                         timestamp: now,
                         status: 'failed',
-                        error: `Server returned invalid ID: '${serverName || 'null'}' — Invoice NOT posted to ERPNext`
+                        error: `Response: ${errDump} — Invoice NOT posted`
                     });
-                    Swal.fire('Sync Rejected', `Server returned '${serverName || 'null'}' instead of a valid ERPNext Invoice ID. The invoice was NOT posted.`, 'error');
+                    Swal.fire('Sync Rejected', `Backend failed to provide valid Invoice ID. Response: ${errDump}`, 'error');
                     fetchData();
                 }
             } else {
