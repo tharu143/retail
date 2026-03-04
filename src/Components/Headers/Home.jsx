@@ -151,21 +151,6 @@ function Home() {
   const [tenderedAmount, setTenderedAmount] = useState(0);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
-  // Sync Status
-  const [hoursSinceSync, setHoursSinceSync] = useState(0);
-
-  useEffect(() => {
-    const updateSyncAge = () => {
-      const lastSync = localStorage.getItem('last_item_sync_time');
-      if (lastSync) {
-        const diffMs = new Date() - new Date(lastSync);
-        setHoursSinceSync(diffMs / (1000 * 60 * 60));
-      }
-    };
-    updateSyncAge();
-    const interval = setInterval(updateSyncAge, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   const dropdownRef = useRef(null);
   const nameInputRef = useRef(null);
@@ -552,26 +537,32 @@ function Home() {
       const apiItem = (data.message || [])[0];
 
       if (apiItem) {
+        // Recalibrate local_qty: server_actual_qty - pending_sales
+        const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
+        let pendingQty = 0;
+        pendingInvoices.forEach(inv => {
+          (inv.items || []).forEach(it => {
+            if (it.item_code === apiItem.name || it.id === apiItem.name) {
+              pendingQty += (it.quantity || it.qty || 0);
+            }
+          });
+        });
+
         const itemToBill = {
           id: apiItem.name,
           name: apiItem.item_name,
           price: apiItem.price_list_rate || 0,
           actual_qty: apiItem.actual_qty || 0,
+          local_qty: (apiItem.actual_qty || 0) - pendingQty,
           warehouse_details: apiItem.warehouse_details || []
         };
 
-        if (itemToBill.actual_qty <= 0) {
-          Swal.fire('Out of Stock', `"${itemToBill.name}" is out of stock in this branch.`, 'warning');
+        if (itemToBill.local_qty <= 0) {
+          Swal.fire('Out of Stock', `"${itemToBill.name}" is out of stock (including pending offline sales).`, 'warning');
           return;
         }
 
-        setBillItems(prev => {
-          const existing = prev.find(i => i.id === itemToBill.id);
-          return existing
-            ? prev.map(i => i.id === itemToBill.id ? { ...i, qty: i.qty + 1 } : i)
-            : [...prev, { ...itemToBill, qty: 1 }];
-        });
-
+        handleAddToBill(itemToBill);
         setBarcodeInput('');
         barcodeInputRef.current?.focus();
 
@@ -685,14 +676,34 @@ function Home() {
   const handleAddToBill = (item) => {
     setBillItems(prev => {
       const existing = prev.find(i => i.id === item.id);
-      return existing
-        ? prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i)
-        : [...prev, { ...item, qty: 1 }];
+      if (existing) {
+        if (existing.qty >= item.local_qty) {
+          Swal.fire('Out of Stock', `Cannot add more "${item.name}". Only ${item.local_qty} available.`, 'warning');
+          return prev;
+        }
+        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+      } else {
+        if (item.local_qty <= 0) {
+          Swal.fire('Out of Stock', `"${item.name}" is out of stock.`, 'warning');
+          return prev;
+        }
+        return [...prev, { ...item, qty: 1 }];
+      }
     });
   };
   const removeFromBill = (id) => setBillItems(prev => prev.filter(i => i.id !== id));
   const updateQuantity = (id, delta) => {
-    setBillItems(prev => prev.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+    setBillItems(prev => prev.map(i => {
+      if (i.id === id) {
+        const newQty = Math.max(1, i.qty + delta);
+        if (delta > 0 && newQty > (i.local_qty || 0)) {
+          Swal.fire('Out of Stock', `Only ${i.local_qty} available for "${i.name}".`, 'warning');
+          return i;
+        }
+        return { ...i, qty: newQty };
+      }
+      return i;
+    }));
   };
 
   // Category slider
@@ -749,7 +760,20 @@ function Home() {
       return;
     }
 
-    const offlineId = uuidv4();
+    const generateOfflineId = () => {
+      const prefix = user?.split('@')[0].slice(0, 4).toUpperCase() || 'POS';
+      const year = new Date().getFullYear();
+      const currentSeq = parseInt(localStorage.getItem('offline_seq') || '1');
+      const sequenceStr = currentSeq.toString().padStart(7, '0');
+
+      const newId = `${prefix}-OFF-${year}-${sequenceStr}`;
+
+      // Increment for next one
+      localStorage.setItem('offline_seq', (currentSeq + 1).toString());
+      return newId;
+    };
+
+    const offlineId = generateOfflineId();
 
     const payload = {
       offline_id: offlineId,
@@ -798,9 +822,7 @@ function Home() {
             });
           }
         }
-
-        // Decrement local stock removed - Handled by backend Smart Virtual Stock logic
-
+        await fetchItems();
 
         Swal.fire({
           icon: 'success',
@@ -859,7 +881,56 @@ function Home() {
     const syncPending = async () => {
       if (isOffline) return;
 
-      // 1. Sync Customers FIRST
+      // 0. Sync Opening Entries FIRST (Mandatory for Invoices)
+      const pendingOpening = await db.opening_entries.where('is_synced').equals(0).toArray();
+      for (const entry of pendingOpening) {
+        try {
+          const { id, is_synced, offline_id, timestamp, ...payload } = entry;
+          const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const result = await res.json();
+          const data = result.message || result;
+          if (data.status === 'success' || data.name) {
+            const serverName = data.name;
+            await db.opening_entries.update(entry.id, { is_synced: 1 });
+
+            // Update the posOpeningEntry in localStorage and any pending invoices/closing entries
+            if (localStorage.getItem('posOpeningEntry') === entry.offline_id) {
+              localStorage.setItem('posOpeningEntry', serverName);
+              setPosOpeningEntry(serverName);
+            }
+            await db.invoices.where('pos_opening_entry').equals(entry.offline_id).modify({ pos_opening_entry: serverName });
+            await db.closing_entries.where('pos_opening_entry').equals(entry.offline_id).modify({ pos_opening_entry: serverName });
+          }
+        } catch (e) {
+          console.error("Opening Entry sync failed:", e);
+          // If opening entry sync fails, we can't sync invoices for this shift
+          return;
+        }
+      }
+
+      // 0.1 Sync Closing Entries (After Opening)
+      const pendingClosing = await db.closing_entries.where('is_synced').equals(0).toArray();
+      for (const entry of pendingClosing) {
+        try {
+          const { id, is_synced, offline_id, timestamp, ...payload } = entry;
+          const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const result = await res.json();
+          const data = result.message || result;
+          if (data.status === 'success' || data.name) {
+            await db.closing_entries.update(entry.id, { is_synced: 1 });
+          }
+        } catch (e) { console.error("Closing Entry sync failed:", e); }
+      }
+
+      // 1. Sync Customers
       const pendingCustomers = await db.customers.where('is_synced').equals(0).toArray();
       for (const cust of pendingCustomers) {
         try {
@@ -895,8 +966,10 @@ function Home() {
       const pendingInvoices = await db.invoices
         .where('is_synced').equals(0)
         .filter(inv => {
-          // Optimization: Ensure customer is already synced (not starting with OFFLINE-CUST)
-          return (inv.retry_count || 0) < 5 && !inv.customer.startsWith('OFFLINE-CUST');
+          // Optimization: Ensure customer and shift are already synced (not starting with OFFLINE-)
+          return (inv.retry_count || 0) < 5 &&
+            !inv.customer.startsWith('OFFLINE-CUST') &&
+            !inv.pos_opening_entry.startsWith('OFFLINE-SHIFT');
         })
         .toArray();
 
@@ -916,7 +989,7 @@ function Home() {
 
         const data = await res.json();
         const results = data.message || [];
-
+        let syncedCount = 0;
         for (const result of results) {
           const inv = pendingInvoices.find(i => i.offline_id === result.offline_id);
           if (!inv) continue;
@@ -975,7 +1048,7 @@ function Home() {
       } catch (e) {
         console.error("Auto-sync error:", e);
         // Increment retry for all pending on network error
-        for (const inv of pending) {
+        for (const inv of pendingInvoices) {
           await db.invoices.update(inv.id, { retry_count: (inv.retry_count || 0) + 1 });
         }
       }
@@ -1055,39 +1128,6 @@ function Home() {
 
           {/* LEFT: MENU */}
           <div className="home-main-section">
-            {hoursSinceSync > 4 && (
-              <div style={{
-                backgroundColor: hoursSinceSync > 24 ? '#fee2e2' : '#fef3c7',
-                color: hoursSinceSync > 24 ? '#991b1b' : '#92400e',
-                padding: '10px',
-                borderRadius: '8px',
-                marginBottom: '1rem',
-                border: '1px solid',
-                borderColor: hoursSinceSync > 24 ? '#fecaca' : '#fde68a',
-                fontSize: '0.875rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span>
-                  <strong>{hoursSinceSync > 24 ? "CRITICAL: " : "Warning: "}</strong>
-                  Item data is {Math.floor(hoursSinceSync)} hours old. {hoursSinceSync > 24 ? "Sales disabled." : "Please sync now."}
-                </span>
-                <button
-                  onClick={() => forceFullRefresh()}
-                  style={{
-                    padding: '4px 12px',
-                    borderRadius: '4px',
-                    backgroundColor: 'white',
-                    border: '1px solid currentColor',
-                    cursor: 'pointer',
-                    fontWeight: '600'
-                  }}
-                >
-                  Sync Now
-                </button>
-              </div>
-            )}
             {pendingSyncCount > 0 && (
               <div style={{ fontSize: '0.75rem', color: '#6366f1', marginBottom: '0.5rem', fontWeight: '600' }}>
                 {pendingSyncCount} invoices waiting for sync...
@@ -1377,11 +1417,8 @@ function Home() {
                       <button
                         className="home-bill-pay-btn"
                         onClick={handleCheckout}
-                        disabled={hoursSinceSync > 24}
-                        title={hoursSinceSync > 24 ? "Sync required to sell" : ""}
-                        style={hoursSinceSync > 24 ? { backgroundColor: '#94a3b8', cursor: 'not-allowed' } : {}}
                       >
-                        {hoursSinceSync > 24 ? "Sync Required" : "Pay"}
+                        Pay
                       </button>
                     )}
                   </div>
@@ -1473,10 +1510,57 @@ function Home() {
               </div>
               <div className="home-modal-body">
                 {!selectedPaymentMode ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <button className="payment-mode-btn" onClick={() => selectPaymentMode('Cash')}><DollarSign size={24} /> Cash</button>
-                    <button className="payment-mode-btn" onClick={() => selectPaymentMode('Credit Card')}><CreditCard size={24} /> Credit Card</button>
-                    <button className="payment-mode-btn" onClick={() => selectPaymentMode('UPI')}><Smartphone size={24} /> UPI</button>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <button className="payment-mode-btn"
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '32px',
+                        borderRadius: '24px', border: '2px solid #e2e8f0', background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)',
+                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: '800', fontSize: '1.25rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        color: '#064e3b'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = '#10b981';
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(16, 185, 129, 0.2)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = '#e2e8f0';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                      }}
+                      onClick={() => selectPaymentMode('Cash')}
+                    >
+                      <div style={{ background: '#10b981', padding: '12px', borderRadius: '50%', color: 'white' }}>
+                        <DollarSign size={32} />
+                      </div>
+                      Cash
+                    </button>
+                    <button className="payment-mode-btn"
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '32px',
+                        borderRadius: '24px', border: '2px solid #e2e8f0', background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)',
+                        cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: '800', fontSize: '1.25rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        color: '#1e3a8a'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(59, 130, 246, 0.2)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = '#e2e8f0';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                      }}
+                      onClick={() => selectPaymentMode('Credit Card')}
+                    >
+                      <div style={{ background: '#3b82f6', padding: '12px', borderRadius: '50%', color: 'white' }}>
+                        <CreditCard size={32} />
+                      </div>
+                      Card
+                    </button>
                   </div>
                 ) : selectedPaymentMode === 'Cash' ? (
                   <div>
@@ -1520,7 +1604,7 @@ function Home() {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }
 

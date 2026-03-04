@@ -5,6 +5,8 @@ import Swal from 'sweetalert2';
 
 const SyncManager = () => {
     const [pendingInvoices, setPendingInvoices] = useState([]);
+    const [pendingOpening, setPendingOpening] = useState([]);
+    const [pendingClosing, setPendingClosing] = useState([]);
     const [syncLogs, setSyncLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [syncingId, setSyncingId] = useState(null);
@@ -14,8 +16,12 @@ const SyncManager = () => {
     const fetchData = async () => {
         try {
             const pending = await db.invoices.where('is_synced').equals(0).toArray();
+            const opening = await db.opening_entries.where('is_synced').equals(0).toArray();
+            const closing = await db.closing_entries.where('is_synced').equals(0).toArray();
             const logs = await db.sync_log.orderBy('timestamp').reverse().limit(50).toArray();
             setPendingInvoices(pending);
+            setPendingOpening(opening);
+            setPendingClosing(closing);
             setSyncLogs(logs);
         } catch (err) {
             console.error("Failed to fetch sync data:", err);
@@ -264,7 +270,42 @@ const SyncManager = () => {
                 </div>
             </div>
 
-            {/* Pending Section */}
+            {/* Opening & Closing Priority Section */}
+            {(pendingOpening.length > 0 || pendingClosing.length > 0) && (
+                <div style={{ marginBottom: '32px', border: '2px solid #6366f1', borderRadius: '12px', overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 20px', backgroundColor: '#eef2ff', color: '#4338ca', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <AlertCircle size={20} /> HIGH PRIORITY: Shift Entries Required for Data Sync
+                    </div>
+                    {pendingOpening.length > 0 && (
+                        <div style={{ padding: '15px', backgroundColor: '#fff', borderBottom: '1px solid #eef2ff' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>Pending Opening Entries ({pendingOpening.length})</h4>
+                            {pendingOpening.map(entry => (
+                                <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#f8fafc', borderRadius: '8px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 'bold' }}>{entry.offline_id}</div>
+                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{entry.company} | {entry.pos_profile}</div>
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: '#6366f1' }}>Sync via Home Page Auto-Sync</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {pendingClosing.length > 0 && (
+                        <div style={{ padding: '15px', backgroundColor: '#fff' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>Pending Closing Entries ({pendingClosing.length})</h4>
+                            {pendingClosing.map(entry => (
+                                <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#f8fafc', borderRadius: '8px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 'bold' }}>{entry.offline_id}</div>
+                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{entry.company} | Total: AED {entry.grand_total?.toFixed(2)}</div>
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: '#6366f1' }}>Sync via Home Page Auto-Sync</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
             <div style={{ marginBottom: '32px', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>

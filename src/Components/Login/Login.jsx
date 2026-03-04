@@ -113,6 +113,30 @@ function Login() {
         console.warn("Failed to check open shift:", ex);
       }
 
+      // === FETCH OFFLINE SEED (SMART ID) ===
+      try {
+        const healthRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_health_data?sid=${session}`, {
+          headers: { "X-Frappe-SID": session },
+          credentials: "include"
+        });
+        if (healthRes.ok) {
+          const healthData = await healthRes.ok ? await healthRes.json() : {};
+          const lastId = healthData.message?.last_offline_id;
+          if (lastId && lastId.includes('-OFF-')) {
+            const parts = lastId.split('-');
+            const lastSeq = parseInt(parts[parts.length - 1]);
+            localStorage.setItem("offline_seq", lastSeq + 1);
+          } else {
+            // Check if we already have a local sequence, if not, start at 1
+            if (!localStorage.getItem("offline_seq")) {
+              localStorage.setItem("offline_seq", "1");
+            }
+          }
+        }
+      } catch (ex) {
+        console.warn("Failed to fetch offline seed:", ex);
+      }
+
       // Store in Redux + localStorage
       dispatch(loginSuccess({ user, session, pos_profile, company, warehouse, branch_prefix }));
       localStorage.setItem("session", session);

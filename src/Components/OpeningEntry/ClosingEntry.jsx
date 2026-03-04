@@ -1,16 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, Receipt, Calendar, CreditCard, TrendingUp, DollarSign } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { db } from '../../db';
 
 function ClosingEntry() {
+  const currentUser = useSelector((state) => state.user.user);
+  const currentPosProfile = useSelector((state) => state.user.posProfile);
+  const reduxCompany = useSelector((state) => state.user.company);
   const [openingEntries, setOpeningEntries] = useState([]);
   const [selectedOpeningEntry, setSelectedOpeningEntry] = useState('');
-  const [company, setCompany] = useState('');
+  const [company, setCompany] = useState(reduxCompany || localStorage.getItem('company') || '');
   const [invoicesData, setInvoicesData] = useState(null);
   const [paymentReconciliation, setPaymentReconciliation] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [noInvoicesMessage, setNoInvoicesMessage] = useState('');
+  const [userRoles, setUserRoles] = useState([]);
   const closingAmountRefs = useRef([]);
 
   const getCurrentISTDateTime = () => {
@@ -30,18 +36,63 @@ function ClosingEntry() {
     if (!storedCompany) {
       setError('Company information missing. Please login again.');
     }
-  }, []);
+
+    const fetchUserRoles = async () => {
+      if (!currentUser) return;
+      try {
+        const session = getSession();
+        const res = await fetch(`/api/resource/User/${currentUser}?fields=["roles"]`, {
+          headers: { 'X-Frappe-SID': session },
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const roles = data.data?.roles?.map(r => r.role) || [];
+          console.log("User Roles Debug:", roles); // Log roles to console for verification
+          setUserRoles(roles);
+        }
+      } catch (err) {
+        console.error("Failed to fetch roles:", err);
+      }
+    };
+    fetchUserRoles();
+  }, [currentUser]);
 
   useEffect(() => {
     const fetchOpeningEntries = async () => {
+      if (!company) return; // Wait for company to be available
       try {
         setLoading(true);
         if (!navigator.onLine) {
-          throw new Error('You are currently offline. Closing Entry requires an internet connection.');
+          const offlineOpening = await db.opening_entries.where('is_synced').equals(0).toArray();
+          const syncedOpening = await db.opening_entries.where('is_synced').equals(1).toArray(); // We might need previously synced ones too
+
+          // Fallback: If we are offline, we only show what we have in Dexie
+          setOpeningEntries(offlineOpening.map(e => ({
+            name: e.offline_id,
+            period_start_date: e.period_start_date,
+            pos_profile: e.pos_profile,
+            company: e.company,
+            user: e.user
+          })));
+          return;
         }
         const session = getSession();
+        const filters = [
+          ["docstatus", "=", 1],
+          ["status", "=", "Open"],
+          ["company", "=", company]
+        ];
+
+        if (currentUser) {
+          filters.push(["user", "=", currentUser]);
+        }
+        if (currentPosProfile) {
+          filters.push(["pos_profile", "=", currentPosProfile]);
+        }
+
         const res = await fetch(
-          '/api/resource/POS Opening Entry?filters=[["docstatus","=",1],["status","=","Open"]]&fields=["name","period_start_date","pos_profile","company","user"]',
+          `/api/resource/POS Opening Entry?filters=${JSON.stringify(filters)}&fields=["name","period_start_date","pos_profile","company","user"]`,
           {
             headers: { 'X-Frappe-SID': session },
             credentials: 'include',
@@ -57,7 +108,7 @@ function ClosingEntry() {
       }
     };
     fetchOpeningEntries();
-  }, []);
+  }, [company, currentUser, currentPosProfile]);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -70,28 +121,76 @@ function ClosingEntry() {
       try {
         setLoading(true);
         setError(null);
+
+        let payload = {};
+
         if (!navigator.onLine) {
-          throw new Error('You are offline. Cannot fetch invoices from the server.');
-        }
-        const session = getSession();
-        const res = await fetch(
-          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices_for_closing',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
-            credentials: 'include',
-            body: JSON.stringify({ pos_opening_entry: selectedOpeningEntry, company }),
+          // Fetch invoices from Dexie for this opening entry
+          const offlineInvoices = await db.invoices
+            .where('pos_opening_entry').equals(selectedOpeningEntry)
+            .toArray();
+
+          if (offlineInvoices.length === 0) {
+            setInvoicesData(null);
+            setPaymentReconciliation([]);
+            setNoInvoicesMessage('No offline invoices found for this shift.');
+            return;
           }
-        );
-        const data = await res.json();
-        let apiResponse = data;
-        if (apiResponse.message && typeof apiResponse.message === 'object') {
-          apiResponse = apiResponse.message;
+
+          // Construct a payload similar to what the server returns
+          payload = {
+            invoices: offlineInvoices.map(inv => ({
+              name: inv.offline_id,
+              customer_name: inv.customer,
+              posting_date: inv.posting_date,
+              net_total: inv.grand_total / 1.05, // Approximation for offline
+              total_taxes_and_charges: inv.grand_total - (inv.grand_total / 1.05),
+              grand_total: inv.grand_total,
+              payments: inv.payments
+            })),
+            pos_transactions: offlineInvoices.map(inv => ({
+              offline_id: inv.offline_id
+            })),
+            payment_reconciliation: [], // We will build this below
+            taxes: [], // We will build this below
+            grand_total: offlineInvoices.reduce((sum, inv) => sum + inv.grand_total, 0),
+            net_total: offlineInvoices.reduce((sum, inv) => sum + (inv.grand_total / 1.05), 0),
+            total_quantity: offlineInvoices.reduce((sum, inv) => sum + inv.items.reduce((s, it) => s + it.quantity, 0), 0)
+          };
+
+          // Get modes of payment from Opening Entry
+          const openingEntry = await db.opening_entries.where('offline_id').equals(selectedOpeningEntry).first();
+          if (openingEntry && openingEntry.balance_details) {
+            payload.payment_reconciliation = openingEntry.balance_details.map(bd => ({
+              mode_of_payment: bd.mode_of_payment,
+              opening_amount: parseFloat(bd.opening_amount) || 0,
+              expected_amount: 0,
+              closing_amount: 0
+            }));
+          }
+
+        } else {
+          const session = getSession();
+          const res = await fetch(
+            '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices_for_closing',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': session },
+              credentials: 'include',
+              body: JSON.stringify({ pos_opening_entry: selectedOpeningEntry, company }),
+            }
+          );
+          const data = await res.json();
+          let apiResponse = data;
+          if (apiResponse.message && typeof apiResponse.message === 'object') {
+            apiResponse = apiResponse.message;
+          }
+          if (!res.ok || apiResponse.status === 'error') {
+            throw new Error(apiResponse.message || 'Failed to fetch invoices');
+          }
+          payload = apiResponse.data || {};
         }
-        if (!res.ok || apiResponse.status === 'error') {
-          throw new Error(apiResponse.message || 'Failed to fetch invoices');
-        }
-        const payload = apiResponse.data || {};
+
         if (payload.invoices && payload.invoices.length > 0) {
           setInvoicesData(payload);
 
@@ -109,8 +208,6 @@ function ClosingEntry() {
           });
 
           // Fix reconciliation: expected_amount = opening + paid from invoices
-          // Additionally, automatically initialize closing_amount to expected_amount to prevent Frappe 
-          // Write-Off Validation errors caused when users submit without configuring POS Profile write-off accounts.
           const fixedReconciliation = (payload.payment_reconciliation || []).map(pr => {
             const expected = flt(pr.opening_amount + (paidAmounts[pr.mode_of_payment] || 0));
             return {
@@ -198,7 +295,19 @@ function ClosingEntry() {
       setSuccessMessage('');
 
       if (!navigator.onLine) {
-        throw new Error('You are offline. Closing Entry requires a live connection to Frappe ERPNext.');
+        const dummyId = `OFFLINE-CLOSE-${new Date().getTime()}`;
+        const offlineClosing = {
+          ...payload,
+          offline_id: dummyId,
+          is_synced: 0,
+          timestamp: new Date().toISOString()
+        };
+        await db.closing_entries.add(offlineClosing);
+
+        alert(`Offline Closing Entry saved! It will be synced automatically when online. Logging out...`);
+        localStorage.clear();
+        window.location.hash = '/'; // Using hash router
+        return;
       }
 
       const session = getSession();
@@ -236,11 +345,15 @@ function ClosingEntry() {
       const name = apiResponse.name || 'Unknown';
       const total = apiResponse.grand_total || invoicesData.grand_total || 0;
 
-      setSuccessMessage(
-        `POS Closing Entry ${isDraft ? 'saved as draft' : 'submitted'} successfully! Name: ${name}, Total: AED ${total.toFixed(2)}`
-      );
-
-      alert(`${isDraft ? 'Draft' : 'Closing Entry'} saved! Logging out...`);
+      if (isDraft) {
+        setSuccessMessage("Shift data saved successfully! An Admin will perform the final closing.");
+        alert("Shift data saved successfully! An Admin will perform the final closing. Logging out...");
+      } else {
+        setSuccessMessage(
+          `POS Closing Entry submitted successfully! Name: ${name}, Total: AED ${total.toFixed(2)}`
+        );
+        alert(`POS Closing Entry submitted successfully! Logging out...`);
+      }
 
       // Use standard Frappe logout instead of non-existent retail_api logout
       await fetch('/api/method/logout', {
@@ -249,10 +362,11 @@ function ClosingEntry() {
       });
 
       localStorage.clear();
-      window.location.href = '/';
+      window.location.hash = '/';
 
     } catch (err) {
-      setError(`Failed to submit: ${err.message}`);
+      let msg = err.message;
+      setError(`Failed to submit: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -508,22 +622,36 @@ function ClosingEntry() {
         )}
 
         <div className="flex flex-col sm:flex-row gap-4 justify-end">
-          <button
-            className="px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            onClick={() => handleSubmit(true)}
-            disabled={loading || !invoicesData}
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-            Save as Draft
-          </button>
-          <button
-            className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            onClick={() => handleSubmit(false)}
-            disabled={loading || !invoicesData}
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-            {loading ? 'Processing...' : 'Create Closing Entry'}
-          </button>
+          {/* ONLY show Finalize & Submit if user is a manager/admin. Otherwise ONLY show Save as Draft */}
+          {userRoles.includes('Administrator') || userRoles.includes('System Manager') ? (
+            <>
+              <button
+                className="px-6 py-3 bg-slate-500 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                onClick={() => handleSubmit(true)}
+                disabled={loading || !invoicesData}
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                Save as Draft
+              </button>
+              <button
+                className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                onClick={() => handleSubmit(false)}
+                disabled={loading || !invoicesData}
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                {loading ? 'Processing...' : 'Finalize & Submit'}
+              </button>
+            </>
+          ) : (
+            <button
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              onClick={() => handleSubmit(true)}
+              disabled={loading || !invoicesData}
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+              {loading ? 'Processing...' : 'Save as Draft'}
+            </button>
+          )}
         </div>
       </div>
     </div>

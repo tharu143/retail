@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Calendar, DollarSign, User, Building2, CreditCard, Plus, Trash2, Check, X } from 'lucide-react';
+import { db } from '../../db';
 
 function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: propUser, onOpeningEntrySuccess }) {
     const navigate = useNavigate();
@@ -82,13 +83,22 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         try {
             if (!navigator.onLine) {
                 const dummyId = `OFFLINE-SHIFT-${new Date().getTime()}`;
+                const offlineEntry = {
+                    ...payload,
+                    offline_id: dummyId,
+                    is_synced: 0,
+                    timestamp: new Date().toISOString()
+                };
+
+                await db.opening_entries.add(offlineEntry);
+
                 if (onOpeningEntrySuccess) {
                     onOpeningEntrySuccess(dummyId, company, posProfile);
                 } else {
                     localStorage.setItem('posOpeningEntry', dummyId);
                     localStorage.setItem('company', company);
                     localStorage.setItem('pos_profile', posProfile);
-                    alert(`Offline Shift Started: ${dummyId}. Will sync when online.`);
+                    alert(`Offline Shift Started: ${dummyId}. It will be synced automatically when online.`);
                     navigate('/homepage', {
                         state: { posOpeningEntry: dummyId, company, pos_profile: posProfile },
                     });
