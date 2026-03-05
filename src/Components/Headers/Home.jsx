@@ -57,6 +57,9 @@ function Home() {
   // NEW: Barcode scanner state
   const [barcodeInput, setBarcodeInput] = useState('');
   const barcodeInputRef = useRef(null);
+  const [itemSearchResults, setItemSearchResults] = useState([]);
+  const [showItemDropdown, setShowItemDropdown] = useState(false);
+  const itemDropdownRef = useRef(null);
 
   // ---------- Auth ----------
   useEffect(() => {
@@ -267,14 +270,32 @@ function Home() {
     return () => clearTimeout(timer);
   }, [customerName, authFetch, isOffline]);
 
-  // Click outside dropdown
+  // Click outside dropdowns
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
+      if (itemDropdownRef.current && !itemDropdownRef.current.contains(e.target)) setShowItemDropdown(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // NEW: Item search logic for barcode input
+  useEffect(() => {
+    if (barcodeInput.trim().length >= 2) {
+      const query = barcodeInput.toLowerCase();
+      const results = Items.filter(it =>
+        (it.name || "").toLowerCase().includes(query) ||
+        (it.id || "").toLowerCase().includes(query) ||
+        (it.barcodes || []).some(b => (b.barcode || "").toLowerCase().includes(query))
+      ).slice(0, 10);
+      setItemSearchResults(results);
+      setShowItemDropdown(results.length > 0);
+    } else {
+      setItemSearchResults([]);
+      setShowItemDropdown(false);
+    }
+  }, [barcodeInput, Items]);
 
   // ---------- CUSTOMER HANDLERS ----------
   const openCreate = () => {
@@ -401,6 +422,16 @@ function Home() {
               await db.items.bulkPut(results.map(item => {
                 const serverQty = item.actual_qty || 0;
                 const pendingQty = pendingSales[item.name] || 0;
+
+                // Recalibrate warehouse_details: server_actual_qty - pending_sales (for current warehouse)
+                const recalibratedWarehouseDetails = (item.warehouse_details || []).map(wd => {
+                  const name = wd.warehouse_name || wd.warehouse;
+                  if (name === warehouse) {
+                    return { ...wd, actual_qty: (wd.actual_qty || 0) - pendingQty };
+                  }
+                  return wd;
+                });
+
                 return {
                   id: item.name,
                   name: item.item_name,
@@ -409,8 +440,8 @@ function Home() {
                   price: item.price_list_rate || 0,
                   actual_qty: serverQty,
                   local_qty: serverQty - pendingQty,
-                  total_qty: item.total_qty || serverQty,
-                  warehouse_details: item.warehouse_details || [],
+                  total_qty: (item.total_qty || serverQty) - pendingQty,
+                  warehouse_details: recalibratedWarehouseDetails,
                   barcodes: item.barcodes || [],
                   modified: item.modified
                 };
@@ -761,15 +792,16 @@ function Home() {
     }
 
     const generateOfflineId = () => {
-      const prefix = user?.split('@')[0].slice(0, 4).toUpperCase() || 'POS';
-      const year = new Date().getFullYear();
-      const currentSeq = parseInt(localStorage.getItem('offline_seq') || '1');
-      const sequenceStr = currentSeq.toString().padStart(7, '0');
+      const now = new Date();
+      // Format: PREFIX-YYYYMMDD-HHMMSS-RAND
+      const prefix = branchPrefix || user?.split('@')[0].slice(0, 4).toUpperCase() || 'POS';
+      const year = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const timeStr = format(now, 'HHmmss');
+      const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
 
-      const newId = `${prefix}-OFF-${year}-${sequenceStr}`;
-
-      // Increment for next one
-      localStorage.setItem('offline_seq', (currentSeq + 1).toString());
+      const newId = `${prefix}-OFF-${year}${mm}${dd}-${timeStr}-${randomStr}`;
       return newId;
     };
 
@@ -822,7 +854,31 @@ function Home() {
             });
           }
         }
-        await fetchItems();
+
+        // IMMEDIATE UI UPDATE: Decrement stock from local React state
+        const updateStock = (it) => {
+          const sold = billItems.find(bi => bi.id === it.id);
+          if (!sold) return it;
+          return {
+            ...it,
+            local_qty: (it.local_qty || 0) - sold.qty,
+            total_qty: (it.total_qty || 0) - sold.qty,
+            warehouse_details: (it.warehouse_details || []).map(wd => {
+              if ((wd.warehouse_name || wd.warehouse) === warehouse) {
+                return { ...wd, actual_qty: (wd.actual_qty || 0) - sold.qty };
+              }
+              return wd;
+            })
+          };
+        };
+        setItems(prev => prev.map(updateStock));
+        setFilteredItems(prev => prev.map(updateStock));
+
+        // FORCE NEXT FETCH TO BE FULL: Clear sync time to avoid 'modified_after' filter
+        // This ensures we get fresh actual_qty from Bin even if Item doc isn't modified
+        localStorage.removeItem('last_item_sync_time');
+
+        fetchItems(true); // Call with force=true for extra safety
 
         Swal.fire({
           icon: 'success',
@@ -841,19 +897,64 @@ function Home() {
         const result = await res.json();
         const data = result.message || result;
 
-        if (data.status === 'success' || (data.message && data.message.includes("Duplicate ignored"))) {
+        // Check for success or duplicate
+        const isSuccess = data.status === 'success' ||
+          (data.message && String(data.message).includes("Duplicate ignored")) ||
+          (result.message && String(result.message).includes("Duplicate ignored"));
+
+        if (isSuccess) {
+          const serverName = data.invoice_name || data.name || (data.message && data.message.invoice_name) || offlineId;
+
           Swal.fire({
             icon: 'success',
-            title: 'Invoice Created',
-            text: `Invoice: ${data.invoice_name || offlineId} | Total: AED ${grandTotal.toFixed(2)}`,
-            timer: 2500,
-            showConfirmButton: false
+            title: isSuccess && String(data.message || result.message).includes("Duplicate") ? 'Already Sync Verified' : 'Invoice Created',
+            text: `Invoice: ${serverName} | Total: AED ${grandTotal.toFixed(2)}`,
+            showCancelButton: true,
+            confirmButtonText: 'Print Receipt',
+            cancelButtonText: 'Done',
+            confirmButtonColor: '#16a34a'
+          }).then((res) => {
+            if (res.isConfirmed) {
+              handlePrint({
+                name: serverName,
+                grand_total: grandTotal,
+                posting_date: format(new Date(), 'yyyy-MM-dd'),
+                posting_time: format(new Date(), 'HH:mm:ss'),
+                items: billItems
+              });
+            }
           });
-          fetchItems();
+
+          // IMMEDIATE UI UPDATE: Decrement stock even for online invoices
+          const updateStock = (it) => {
+            const sold = billItems.find(bi => bi.id === it.id);
+            if (!sold) return it;
+            return {
+              ...it,
+              local_qty: (it.local_qty || 0) - sold.qty,
+              total_qty: (it.total_qty || 0) - sold.qty,
+              warehouse_details: (it.warehouse_details || []).map(wd => {
+                if ((wd.warehouse_name || wd.warehouse) === warehouse) {
+                  return { ...wd, actual_qty: (wd.actual_qty || 0) - sold.qty };
+                }
+                return wd;
+              })
+            };
+          };
+          setItems(prev => prev.map(updateStock));
+          setFilteredItems(prev => prev.map(updateStock));
+
+          // FORCE NEXT FETCH TO BE FULL: Clear sync time to avoid 'modified_after' filter
+          // This ensures we get fresh actual_qty from Bin even if Item doc isn't modified
+          localStorage.removeItem('last_item_sync_time');
+
           finalizeOrder();
         } else {
+          // If server returns error, show EXACT message so we can debug
+          Swal.fire('Server Error', data.message || "Unknown error from server", 'error');
+
+          // Still save offline as fallback so data isn't lost
           await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
-          Swal.fire('Info', "Server busy. Invoice saved offline for later sync.", 'info');
           finalizeOrder();
         }
       }
@@ -874,193 +975,134 @@ function Home() {
     setShowPaymentModal(false);
   };
 
+  const handlePrint = (invoiceData) => {
+    const cashierName = user?.split('@')[0].toUpperCase() || 'CASHIER';
+    const companyName = company || 'KYLE RETAIL';
+    const storeAddress = warehouse || 'Main Store Address';
+    const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoiceData.name}&scale=2&height=10`;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Receipt - ${invoiceData.name}</title>
+                <style>
+                    @page { size: 80mm auto; margin: 0; }
+                    body { 
+                        width: 72mm; margin: 0 auto; padding: 10px 0; 
+                        font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.2; color: #000;
+                    }
+                    .center { text-align: center; }
+                    .bold { font-weight: bold; }
+                    .divider { border-top: 1px dashed #000; margin: 8px 0; }
+                    .header h2 { margin: 0; font-size: 18px; text-transform: uppercase; }
+                    .header p { margin: 2px 0; font-size: 11px; }
+                    .info { margin: 10px 0; font-size: 11px; }
+                    .info-row { display: flex; justify-content: space-between; }
+                    .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                    .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; font-size: 11px; }
+                    .items-table td { padding: 4px 0; vertical-align: top; font-size: 11px; }
+                    .text-right { text-align: right; }
+                    .totals { margin: 8px 0; }
+                    .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 12px; }
+                    .grand-total { font-size: 16px; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
+                    .barcode { display: block; margin: 15px auto; width: 100%; max-height: 40px; }
+                    .footer { font-size: 10px; margin-top: 15px; }
+                    @media print { body { width: 72mm; margin: 0 auto; } }
+                </style>
+            </head>
+            <body>
+                <div class="header center">
+                    <h2 class="bold">${companyName}</h2>
+                    <p>${storeAddress}</p>
+                    <p>Tel: +971 00 000 0000</p>
+                </div>
+                <div class="divider"></div>
+                <div class="info">
+                    <div class="info-row"><span>CASHIER:</span> <span class="bold">#${cashierName}</span></div>
+                    <div class="info-row"><span>DATE:</span> <span>${invoiceData.posting_date}</span></div>
+                    <div class="info-row"><span>TIME:</span> <span>${invoiceData.posting_time || 'N/A'}</span></div>
+                    <div class="info-row"><span>INV NO:</span> <span class="bold">${invoiceData.name}</span></div>
+                </div>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">ITEM</th>
+                            <th class="text-right" style="width: 15%;">QTY</th>
+                            <th class="text-right" style="width: 35%;">PRICE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(invoiceData.items || []).map(it => `
+                            <tr>
+                                <td>${String(it.item_name || it.item_code || it.name || 'ITEM').substring(0, 20)}</td>
+                                <td class="text-right">${it.qty || 1}</td>
+                                <td class="text-right">${parseFloat(it.rate || it.basePrice || 0).toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div class="divider"></div>
+                <div class="totals">
+                    <div class="total-row bold">
+                        <span>SUB TOTAL</span>
+                        <span>AED ${parseFloat(invoiceData.grand_total).toFixed(2)}</span>
+                    </div>
+                    <div class="total-row grand-total bold">
+                        <span>TOTAL</span>
+                        <span>AED ${parseFloat(invoiceData.grand_total).toFixed(2)}</span>
+                    </div>
+                    <div class="total-row" style="margin-top: 10px;">
+                        <span>CASH</span>
+                        <span>AED ${parseFloat(invoiceData.grand_total).toFixed(2)}</span>
+                    </div>
+                    <div class="total-row">
+                        <span>CHANGE</span>
+                        <span>AED 0.00</span>
+                    </div>
+                </div>
+                <div class="center">
+                    <img class="barcode" src="${barCodeUrl}" />
+                    <div class="footer">
+                        <p class="bold" style="font-size: 12px;">THANK YOU!</p>
+                        <p>GLAD TO SEE YOU AGAIN!</p>
+                        <p style="margin-top: 5px; opacity: 0.7;">Powered by KYLE RETAIL</p>
+                    </div>
+                </div>
+                <script>
+                    window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+                </script>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+  };
+
   // Background sync logic
+  // Centralized Global Sync Listeners
   useEffect(() => {
-    if (isOffline) return;
-
-    const syncPending = async () => {
-      if (isOffline) return;
-
-      // 0. Sync Opening Entries FIRST (Mandatory for Invoices)
-      const pendingOpening = await db.opening_entries.where('is_synced').equals(0).toArray();
-      for (const entry of pendingOpening) {
-        try {
-          const { id, is_synced, offline_id, timestamp, ...payload } = entry;
-          const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          const result = await res.json();
-          const data = result.message || result;
-          if (data.status === 'success' || data.name) {
-            const serverName = data.name;
-            await db.opening_entries.update(entry.id, { is_synced: 1 });
-
-            // Update the posOpeningEntry in localStorage and any pending invoices/closing entries
-            if (localStorage.getItem('posOpeningEntry') === entry.offline_id) {
-              localStorage.setItem('posOpeningEntry', serverName);
-              setPosOpeningEntry(serverName);
-            }
-            await db.invoices.where('pos_opening_entry').equals(entry.offline_id).modify({ pos_opening_entry: serverName });
-            await db.closing_entries.where('pos_opening_entry').equals(entry.offline_id).modify({ pos_opening_entry: serverName });
-          }
-        } catch (e) {
-          console.error("Opening Entry sync failed:", e);
-          // If opening entry sync fails, we can't sync invoices for this shift
-          return;
-        }
-      }
-
-      // 0.1 Sync Closing Entries (After Opening)
-      const pendingClosing = await db.closing_entries.where('is_synced').equals(0).toArray();
-      for (const entry of pendingClosing) {
-        try {
-          const { id, is_synced, offline_id, timestamp, ...payload } = entry;
-          const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          const result = await res.json();
-          const data = result.message || result;
-          if (data.status === 'success' || data.name) {
-            await db.closing_entries.update(entry.id, { is_synced: 1 });
-          }
-        } catch (e) { console.error("Closing Entry sync failed:", e); }
-      }
-
-      // 1. Sync Customers
-      const pendingCustomers = await db.customers.where('is_synced').equals(0).toArray();
-      for (const cust of pendingCustomers) {
-        try {
-          const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: cust.customer_name,
-              mobile_no: cust.mobile_no,
-              email_id: cust.email_id,
-              primary_address: cust.primary_address
-            }),
-          });
-          const result = await res.json();
-          const data = result.message || result;
-
-          if (data.status === 'success' || data.name) {
-            const serverId = data.name || data.customer_id;
-            // Update the customer record
-            await db.customers.update(cust.name, {
-              name: serverId, // Update local key if needed, or just track server_id
-              is_synced: 1
-            });
-            // Update any pending invoices using this temporary local ID
-            await db.invoices.where('customer').equals(cust.name).modify({
-              customer: serverId
-            });
-          }
-        } catch (e) { console.error("Customer sync failed:", e); }
-      }
-
-      // 2. Sync Invoices
-      const pendingInvoices = await db.invoices
-        .where('is_synced').equals(0)
-        .filter(inv => {
-          // Optimization: Ensure customer and shift are already synced (not starting with OFFLINE-)
-          return (inv.retry_count || 0) < 5 &&
-            !inv.customer.startsWith('OFFLINE-CUST') &&
-            !inv.pos_opening_entry.startsWith('OFFLINE-SHIFT');
-        })
-        .toArray();
-
-      if (pendingInvoices.length === 0) return;
-
-      try {
-        const payload = pendingInvoices.map(inv => {
-          const { id, is_synced, synced_at, server_name, retry_count, conflicts, ...cleanInv } = inv;
-          return cleanInv;
-        });
-
-        const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ invoices: payload }),
-        });
-
-        const data = await res.json();
-        const results = data.message || [];
-        let syncedCount = 0;
-        for (const result of results) {
-          const inv = pendingInvoices.find(i => i.offline_id === result.offline_id);
-          if (!inv) continue;
-
-          if (result.status === 'success' || (result.message && result.message.includes("Duplicate ignored"))) {
-            const now = new Date().toISOString();
-            const serverName = result.invoice_name || result.name || result.message?.invoice_name;
-
-            // CRITICAL: Validate ERPNext naming series (DXB-, AUH-, ACC-, SINV-, KS1-, etc.)
-            // Now supports alphanumeric prefixes (e.g., KS1-ACC-PSINV-2026-00030)
-            const isValidERPName = serverName && /^[A-Za-z0-9]{2,}-/.test(serverName);
-
-            if (isValidERPName) {
-              await db.invoices.update(inv.id, {
-                is_synced: 1,
-                synced_at: now,
-                server_name: serverName,
-                conflicts: result.conflicts || []
-              });
-
-              await db.sync_log.add({
-                offline_id: inv.offline_id,
-                action: 'auto_bulk_sync_success',
-                timestamp: now,
-                status: 'success',
-                server_name: serverName
-              });
-              syncedCount++;
-            } else {
-              // Server said success but returned UUID/null — mark as FAILED
-              const errDump = JSON.stringify(result).substring(0, 100);
-              console.warn(`Sync returned invalid server_name: ${serverName} for ${inv.offline_id}. Payload: ${errDump}`);
-              await db.invoices.update(inv.id, {
-                retry_count: (inv.retry_count || 0) + 1,
-                server_name: serverName || null,
-                conflicts: [{ type: 'invalid_name', message: `Server returned false success. Payload: ${errDump}` }]
-              });
-            }
-          } else {
-            // Explicit failure from server
-            await db.invoices.update(inv.id, {
-              retry_count: (inv.retry_count || 0) + 1
-            });
-          }
-        }
-
-        if (syncedCount > 0) {
-          const count = await db.invoices.where('is_synced').equals(0).count();
-          setPendingSyncCount(count);
-          if (count === 0) {
-            setTimeout(() => { forceFullRefresh(); }, 2 * 60 * 1000);
-          } else {
-            fetchItems();
-          }
-        }
-      } catch (e) {
-        console.error("Auto-sync error:", e);
-        // Increment retry for all pending on network error
-        for (const inv of pendingInvoices) {
-          await db.invoices.update(inv.id, { retry_count: (inv.retry_count || 0) + 1 });
-        }
-      }
+    const handleShiftSynced = (e) => {
+      const serverName = e.detail.name;
+      setPosOpeningEntry(serverName);
     };
 
-    window.addEventListener('online', syncPending);
-    const interval = setInterval(syncPending, 300000); // 5 minutes
+    const handleInvoicesSynced = () => {
+      fetchItems(); // Refresh stock immediately after sync
+      const checkCount = async () => {
+        const count = await db.invoices.where('is_synced').equals(0).count();
+        setPendingSyncCount(count);
+      };
+      checkCount();
+    };
+
+    window.addEventListener('shift-synced', handleShiftSynced);
+    window.addEventListener('invoices-synced', handleInvoicesSynced);
+
     return () => {
-      window.removeEventListener('online', syncPending);
-      clearInterval(interval);
+      window.removeEventListener('shift-synced', handleShiftSynced);
+      window.removeEventListener('invoices-synced', handleInvoicesSynced);
     };
-  }, [isOffline, session, fetchItems, forceFullRefresh, warehouse]);
+  }, [fetchItems]);
 
   const handleLogout = async () => {
     try { await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.user_logout', { method: "POST" }); }
@@ -1274,7 +1316,7 @@ function Home() {
               <input
                 ref={barcodeInputRef}
                 type="text"
-                placeholder="Scan / Type Barcode + Enter"
+                placeholder="Scan / Type Name or Barcode"
                 value={barcodeInput}
                 onChange={(e) => setBarcodeInput(e.target.value)}
                 onKeyDown={onBarcodeKeyDown}
@@ -1290,6 +1332,58 @@ function Home() {
                 <Loader2 size={18} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#3b82f6' }} />
               ) : (
                 <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#000000ff' }} />
+              )}
+
+              {/* Item Search Dropdown */}
+              {showItemDropdown && (
+                <div ref={itemDropdownRef} style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  zIndex: 20,
+                  marginTop: '4px',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                }}>
+                  {itemSearchResults.map(it => (
+                    <div
+                      key={it.id}
+                      onClick={() => {
+                        handleAddToBill(it);
+                        setBarcodeInput('');
+                        setShowItemDropdown(false);
+                      }}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}
+                    >
+                      {it.image ? (
+                        <img src={it.image.startsWith('http') ? it.image : `http://75.119.130.59${it.image}`} alt={it.name} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} />
+                      ) : (
+                        <div style={{ width: '32px', height: '32px', backgroundColor: '#f1f5f9', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyCenter: 'center', fontSize: '10px', color: '#64748b' }}>No img</div>
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{it.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                          Code: {it.id} | Stock: {it.local_qty}
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: '#1e293b' }}>AED {it.price}</div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 

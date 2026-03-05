@@ -236,10 +236,13 @@ function ClosingEntry() {
   }, [selectedOpeningEntry, company]);
 
   useEffect(() => {
-    if (paymentReconciliation.length > 0 && closingAmountRefs.current[0]) {
-      closingAmountRefs.current[0].focus();
+    if (invoicesData && paymentReconciliation.length > 0 && closingAmountRefs.current[0]) {
+      // Use a small timeout to ensure DOM is ready
+      setTimeout(() => {
+        closingAmountRefs.current[0]?.focus();
+      }, 100);
     }
-  }, [paymentReconciliation]);
+  }, [invoicesData]); // Only focus when new data is first loaded, NOT on every keystroke
 
   const handleClosingAmountChange = (index, value) => {
     const amt = parseFloat(value) || 0;

@@ -1,672 +1,509 @@
-import { useEffect, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import {
+    AlertCircle, Search, Calendar, Clock, CreditCard,
+    CheckCircle, Cloud, RefreshCw, XCircle, FileText,
+    Printer, Eye, Filter, Trash2, ArrowLeft, Smartphone
+} from "lucide-react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { db } from '../../db';
 import "./InvoiceList.css";
 
 function InvoiceList() {
+    const navigate = useNavigate();
     const [invoices, setInvoices] = useState([]);
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    // Modern Filter State
     const [filterId, setFilterId] = useState("");
     const [filterDate, setFilterDate] = useState("");
     const [filterTime, setFilterTime] = useState("");
     const [filterMobile, setFilterMobile] = useState("");
     const [filterMode, setFilterMode] = useState("");
     const [filterSource, setFilterSource] = useState(""); // 'all', 'synced', 'pending'
+
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [offlineInvoices, setOfflineInvoices] = useState([]);
 
-    // Get session from Redux or localStorage
-    const userData = useSelector((state) => state.user);
-    const getSession = () => {
-        return userData?.session || localStorage.getItem("session") || "";
-    };
+    // NEW: Search Suggestions
+    const [showIdSuggestions, setShowIdSuggestions] = useState(false);
+    const idSuggestions = useMemo(() => {
+        if (!filterId || filterId.length < 2) return [];
+        const unique = new Set();
+        const allNames = [...offlineInvoices.map(i => i.name), ...invoices.map(i => i.name)];
+        const allOffIds = [...offlineInvoices.map(i => i.offline_id), ...invoices.map(i => i.offline_id)].filter(Boolean);
 
-    // Load offline invoices from Dexie
-    const loadOfflineInvoices = async () => {
+        return [...allNames, ...allOffIds]
+            .filter(id => id.toLowerCase().includes(filterId.toLowerCase()))
+            .filter(id => {
+                const lower = id.toLowerCase();
+                if (unique.has(lower)) return false;
+                unique.add(lower);
+                return true;
+            }).slice(0, 8);
+    }, [filterId, offlineInvoices, invoices]);
+
+    const userData = useSelector((state) => state.user);
+    const getSession = () => userData?.session || localStorage.getItem("session") || "";
+
+    // Load local and server data
+    const loadData = async () => {
+        setLoading(true);
         try {
+            // 1. Load Local Dexie Invoices
             const local = await db.invoices.toArray();
-            const mapped = local.map(inv => ({
+            const mappedLocal = local.map(inv => ({
                 ...inv,
                 name: inv.server_name || inv.offline_id || `LOCAL-${inv.id}`,
-                offline_id: inv.offline_id,
-                server_name: inv.server_name,
-                customer_name: inv.customer,
-                customer_details: {
-                    customer_name: inv.customer || 'N/A',
-                    mobile_no: inv.contact_mobile || 'N/A',
-                    email_id: '',
-                    address: '',
-                },
-                pos_invoice_items: (inv.items || []).map(it => ({
-                    item_name: it.item_name || it.item_code,
-                    item_code: it.item_code,
-                    qty: it.quantity || it.qty || 1,
-                    rate: it.basePrice || it.rate || 0,
-                    amount: (it.quantity || it.qty || 1) * (it.basePrice || it.rate || 0),
-                })),
-                payments: inv.payments || [],
+                customer_name: inv.customer || 'Cash',
                 grand_total: inv.grand_total || 0,
                 posting_date: inv.posting_date || '',
+                posting_time: inv.posting_time || '',
                 _source: (() => {
                     if (!inv.is_synced) return 'pending';
-                    // Validate server_name is a real ERPNext ID (e.g. DXB-POS-INV-2026-00042, KS1-ACC-...)
                     const hasValidERPName = inv.server_name && /^[A-Za-z0-9]{2,}-/.test(inv.server_name);
-                    if (hasValidERPName) return 'synced_local';
-                    // is_synced=1 but no valid ERP name = sync was false positive
-                    return 'sync_failed';
+                    return hasValidERPName ? 'synced_local' : 'sync_failed';
                 })(),
                 _synced_at: inv.synced_at || null,
-                retry_count: inv.retry_count || 0,
-                conflicts: inv.conflicts || [],
             }));
-            setOfflineInvoices(mapped);
-        } catch (e) {
-            console.error('Failed to load offline invoices:', e);
-        }
-    };
+            setOfflineInvoices(mappedLocal);
 
-    const fetchInvoices = async () => {
-        const session = getSession();
-        if (!session) {
-            setError("Session not found. Please log in again.");
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        setError("");
-
-        // Always load offline invoices first
-        await loadOfflineInvoices();
-
-        if (!navigator.onLine) {
-            // When offline, only show local invoices (no error - just inform)
-            setLoading(false);
-            return;
-        }
-
-        try {
-            const response = await fetch(
-                "/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices",
-                {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Frappe-SID": session,
-                    },
-                    credentials: "include",
+            // 2. Load Server Invoices if Online
+            if (navigator.onLine) {
+                const session = getSession();
+                const response = await fetch(
+                    "/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices",
+                    {
+                        method: "GET",
+                        headers: { "X-Frappe-SID": session },
+                        credentials: "include",
+                    }
+                );
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.message?.status === "success" && Array.isArray(data.message?.data)) {
+                        setInvoices(data.message.data.map(raw => ({
+                            ...raw,
+                            _source: 'server',
+                            customer_name: raw.customer_name || raw.customer || "N/A",
+                        })));
+                    }
                 }
-            );
-
-            if (!response.ok) {
-                const txt = await response.text();
-                throw new Error(`HTTP ${response.status}: ${txt}`);
-            }
-
-            const data = await response.json();
-
-            if (data.message?.status === "success" && Array.isArray(data.message?.data)) {
-                const mapped = data.message.data.map((raw) => ({
-                    ...raw,
-                    customer_details: {
-                        customer_name: raw.customer_name || raw.customer || "N/A",
-                        mobile_no: raw.contact_mobile || "N/A",
-                        email_id: raw.contact_email || "N/A",
-                        address: raw.customer_address || "N/A",
-                    },
-                    pos_invoice_items: raw.items || [],
-                    payments: Array.isArray(raw.payments) ? raw.payments : [],
-                    _source: 'server',
-                }));
-                setInvoices(mapped);
-            } else {
-                setInvoices([]);
             }
         } catch (err) {
-            console.error("Fetch invoices error:", err);
-            // Don't show error if we have offline data
-            if (offlineInvoices.length === 0) {
-                setError(`Failed to load invoices: ${err.message}`);
-            }
+            console.error("Data load failed:", err);
+            setError("Failed to synchronize invoice list. Local data is still available.");
         } finally {
             setLoading(false);
         }
     };
 
-    // Track online/offline
     useEffect(() => {
-        const goOnline = () => { setIsOffline(false); fetchInvoices(); };
-        const goOffline = () => { setIsOffline(true); loadOfflineInvoices(); };
-        window.addEventListener('online', goOnline);
-        window.addEventListener('offline', goOffline);
-        return () => {
-            window.removeEventListener('online', goOnline);
-            window.removeEventListener('offline', goOffline);
-        };
+        loadData();
+        const interval = setInterval(loadData, 30000); // Auto-refresh every 30s
+        return () => clearInterval(interval);
     }, []);
 
-    useEffect(() => {
-        fetchInvoices();
-    }, []);
-
-    // Merge server invoices with pending offline invoices
-    const getMergedInvoices = () => {
+    // Filter Logic
+    const filteredInvoices = useMemo(() => {
         const serverNames = new Set(invoices.map(inv => inv.name));
-        // Only add offline invoices that are NOT already synced (to avoid duplicates)
         const pendingOffline = offlineInvoices.filter(
             inv => inv._source === 'pending' && !serverNames.has(inv.name)
         );
-        return [...pendingOffline, ...invoices];
-    };
+        const merged = [...pendingOffline, ...invoices];
 
-    const filterInvoices = (list) => {
-        return list.filter((inv) => {
-            const idMatch = (inv.name?.toLowerCase().includes(filterId.toLowerCase())) ||
-                (inv.offline_id?.toLowerCase().includes(filterId.toLowerCase()));
-            const dateMatch = filterDate ? (inv.posting_date || "").includes(filterDate) : true;
-            const timeMatch = filterTime ? (inv.posting_time || "").includes(filterTime) : true;
-            const mobileMatch = filterMobile
-                ? (inv.customer_details?.mobile_no || "")
-                    .toLowerCase()
-                    .includes(filterMobile.toLowerCase())
-                : true;
+        return merged.filter(inv => {
+            const idLower = (inv.name || "").toLowerCase();
+            const offIdLower = (inv.offline_id || "").toLowerCase();
+            const searchLower = filterId.toLowerCase();
 
-            const paymentModes = (inv.payments || [])
-                .map((p) => p.mode_of_payment || "")
-                .filter(Boolean)
-                .join(", ")
-                .toLowerCase();
+            const matchId = idLower.includes(searchLower) || offIdLower.includes(searchLower);
+            const matchDate = filterDate ? (inv.posting_date === filterDate) : true;
+            const matchTime = filterTime ? (inv.posting_time?.startsWith(filterTime)) : true;
+            const matchMobile = filterMobile ? (inv.contact_mobile || "").includes(filterMobile) : true;
 
-            const modeMatch = filterMode
-                ? paymentModes.includes(filterMode.toLowerCase())
-                : true;
+            const pModes = (inv.payments || []).map(p => p.mode_of_payment || "").join(",").toLowerCase();
+            const matchMode = filterMode ? pModes.includes(filterMode.toLowerCase()) : true;
 
-            // Source filter
-            let sourceMatch = true;
-            if (filterSource === 'pending') sourceMatch = inv._source === 'pending';
-            else if (filterSource === 'synced') sourceMatch = inv._source === 'server' || inv._source === 'synced_local';
+            let matchSource = true;
+            if (filterSource === 'pending') matchSource = inv._source === 'pending';
+            else if (filterSource === 'synced') matchSource = inv._source === 'server' || inv._source === 'synced_local';
 
-            return idMatch && dateMatch && timeMatch && mobileMatch && modeMatch && sourceMatch;
+            return matchId && matchDate && matchTime && matchMobile && matchMode && matchSource;
         });
+    }, [invoices, offlineInvoices, filterId, filterDate, filterTime, filterMobile, filterMode, filterSource]);
+
+    const clearFilters = () => {
+        setFilterId(""); setFilterDate(""); setFilterTime("");
+        setFilterMobile(""); setFilterMode(""); setFilterSource("");
     };
 
-    const getSyncBadge = (inv) => {
+    const getStatusBadge = (inv) => {
         if (inv._source === 'pending') {
-            if ((inv.retry_count || 0) >= 5) {
-                return <span style={{
-                    background: '#fee2e2', color: '#991b1b', padding: '2px 8px',
-                    borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
-                }}>❌ Failed (Max Retries)</span>;
-            }
-            return <span style={{
-                background: '#fef3c7', color: '#92400e', padding: '2px 8px',
-                borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
-            }}>⏳ Pending Sync {inv.retry_count > 0 ? `(Retry ${inv.retry_count}/5)` : ''}</span>;
+            return <span className="status-badge status-pending"><RefreshCw size={12} className="animate-spin" /> Pending</span>;
         }
         if (inv._source === 'sync_failed') {
-            return <span style={{
-                background: '#fee2e2', color: '#991b1b', padding: '2px 8px',
-                borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
-            }}>⚠️ Sync Failed - Invalid ERP ID</span>;
+            return <span className="status-badge status-failed"><XCircle size={12} /> Sync Error</span>;
         }
         if (inv._source === 'synced_local') {
-            return <span style={{
-                background: '#d1fae5', color: '#065f46', padding: '2px 8px',
-                borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
-            }}>✅ Synced {inv._synced_at ? new Date(inv._synced_at).toLocaleTimeString() : ''}</span>;
+            return <span className="status-badge status-synced"><CheckCircle size={12} /> Synced</span>;
         }
-        return <span style={{
-            background: '#dbeafe', color: '#1e40af', padding: '2px 8px',
-            borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700
-        }}>☁️ Server</span>;
+        return <span className="status-badge status-server"><Cloud size={12} /> Server</span>;
     };
 
-    const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "N/A");
-    const formatTime = (t) => {
-        if (!t) return "N/A";
-        try {
-            const [h, m, s] = t.split(":").map(Number);
-            const dt = new Date();
-            dt.setHours(h, m, s);
-            return dt.toLocaleTimeString("en-GB", { hour12: false });
-        } catch {
-            return "N/A";
-        }
-    };
+    const handlePrint = (invoice) => {
+        const cashier = userData?.user?.split('@')[0].toUpperCase() || 'CASHIER';
+        const companyName = userData?.company || 'KYLE RETAIL';
+        const address = userData?.warehouse || 'Main Store Address';
+        const tel = '+971 00 000 0000';
 
-    const formatDiscount = (inv) => {
-        const pct = parseFloat(inv.additional_discount_percentage) || 0;
-        const amt = parseFloat(inv.discount_amount) || 0;
-        if (amt) return `AED ${amt.toFixed(2)}`;
-        if (pct) return `${pct}%`;
-        return "N/A";
-    };
+        const invoiceItems = (invoice.pos_invoice_items || invoice.items || []);
+        const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoice.name}&scale=2&height=10`;
 
-    const getPaymentDisplay = (payments) => {
-        if (!payments || !payments.length) return "N/A";
-        return payments
-            .map((p) => `${p.mode_of_payment} (AED ${p.amount || 0})`)
-            .join(" + ");
-    };
-
-    const generateInvoiceHTML = (invoice) => {
-        return `
-      <html>
-        <head>
-          <title>Invoice ${invoice.name}</title>
-          <style>
-            @page { margin:0; }
-            body {font-family:Arial,sans-serif;padding:20px;font-size:12px;}
-            .invoice-container {max-width:800px;margin:auto;}
-            .invoice-details,.customer-details,.footer .totals,.offers-details {margin-bottom:15px;}
-            .invoice-details p,.customer-details p,.footer .totals p,.offers-details p {margin:5px 0;display:flex;justify-content:space-between;}
-            .invoice-details p strong,.customer-details p strong,.footer .totals p strong,.offers-details p strong {flex:0 0 40%;}
-            .invoice-details p .value,.customer-details p .value,.footer .totals p .value,.offers-details p .value {flex:0 0 60%;text-align:right;}
-            .customer-details {border-bottom:1px solid #000;padding-bottom:10px;}
-            .offers-details {border-top:1px solid #000;padding-top:10px;}
-            table {width:100%;border-collapse:collapse;margin-bottom:15px;}
-            th,td {border:1px solid #000;padding:8px;text-align:right;}
-            th {font-weight:bold;}
-            .footer {display:flex;justify-content:flex-end;margin-top:15px;}
-            .footer .totals {width:100%;max-width:300px;}
-            .invoice-logo {display:flex;align-items:center;margin-bottom:10px;}
-            .invoice-logo img {width:80px;height:80px;margin-right:10px;}
-            .invoice-logo p {font-size:16px;font-weight:bold;margin:0;}
-            @media print { @page{margin:0;} body{padding-top:0;} }
-          </style>
-        </head>
-        <body>
-          <div class="invoice-container">
-              <div class="invoice-logo">
-                <img src="/perfume-logo.png" alt="Logo"/>
-              </div>
-              <p><strong>Invoice ID (ERPNext):</strong> <span class="value">${invoice.server_name || "Pending Sync"}</span></p>
-              <p><strong>Reference No:</strong> <span class="value">${invoice.offline_id || "N/A"}</span></p>
-              <p><strong>Posting Date:</strong> <span class="value">${formatDate(invoice.posting_date)}</span></p>
-              <p><strong>Posting Time:</strong> <span class="value">${formatTime(invoice.posting_time)}</span></p>
-            </div>
-
-            <div class="customer-details">
-              <p><strong>Customer Name:</strong> <span class="value">${invoice.customer_details?.customer_name || "N/A"}</span></p>
-              ${invoice.customer_details?.address ? `<p><strong>Address:</strong> <span class="value">${invoice.customer_details.address}</span></p>` : ""}
-              <p><strong>Phone Number:</strong> <span class="value">${invoice.customer_details?.mobile_no || "N/A"}</span></p>
-            </div>
-
-            <table>
-              <thead>
-                <tr><th>Item Name</th><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr>
-              </thead>
-              <tbody>
-                ${invoice.pos_invoice_items?.length
-                ? invoice.pos_invoice_items
-                    .map(
-                        (i) => `<tr>
-                          <td>${i.item_name || "N/A"}</td>
-                          <td>${i.description || "N/A"}</td>
-                          <td>${i.qty || 0}</td>
-                          <td>AED ${i.rate || 0}</td>
-                          <td>AED ${i.amount || 0}</td>
-                        </tr>`
-                    )
-                    .join("")
-                : `<tr><td colspan="5" style="text-align:center;">No items</td></tr>`
-            }
-              </tbody>
-            </table>
-
-            ${offers.length
-                ? `<div class="offers-details">
-                  <p><strong>Special Offers:</strong></p>
-                  ${offers
-                    .map(
-                        (o) => `<p><span class="value">${o.messages || "N/A"} (Valid: ${formatDate(o.start_date)} to ${formatDate(o.end_date)})</span></p>`
-                    )
-                    .join("")}
-                </div>`
-                : ""
-            }
-
-            <div class="footer">
-              <div class="totals">
-                <p><strong>Total Taxes:</strong> <span class="value">AED ${invoice.total_taxes_and_charges || 0}</span></p>
-                <p><strong>Discount:</strong> <span class="value">${formatDiscount(invoice)} (${invoice.apply_discount_on || "Grand Total"})</span></p>
-                <p><strong>Currency:</strong> <span class="value">${invoice.currency || "AED"}</span></p>
-                <p><strong>Paid Amount:</strong> <span class="value">AED ${invoice.paid_amount || 0}</span></p>
-                <p><strong>Grand Total:</strong> <span class="value">AED ${invoice.grand_total || 0}</span></p>
-                <p><strong>In Words:</strong> <span class="value">${invoice.in_words || "N/A"}</span></p>
-                <p><strong>Mode of Payment:</strong> <span class="value">${getPaymentDisplay(invoice.payments)}</span></p>
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>`;
-    };
-
-    const handlePrintInvoice = (invoice) => {
-        const win = window.open("", "_blank");
-        win.document.write(generateInvoiceHTML(invoice));
-        win.document.write(`
-      <script>
-        window.print();
-        window.onafterprint = () => window.close();
-      </script>
-    `);
-        win.document.close();
-    };
-
-    const handleViewDetails = (inv) => setSelectedInvoice(inv);
-    const closePopup = () => setSelectedInvoice(null);
-
-    const renderInvoiceTable = (list, title) => {
-        if (!list.length)
-            return (
-                <div className="mb-4">
-                    <h5 className="text-center mb-3">{title}</h5>
-                    <p className="text-center">No invoices</p>
-                </div>
-            );
-
-        return (
-            <div className="mb-4">
-                <h5 className="text-center mb-3">{title}</h5>
-                <div className="table-responsive" style={{ maxHeight: "600px", overflowY: "auto" }}>
-                    <table className="table table-bordered table-hover" style={{ fontSize: "14px" }}>
-                        <thead className="thead-dark">
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Print Receipt - ${invoice.name}</title>
+                    <style>
+                        @page { size: 80mm auto; margin: 0; }
+                        body { 
+                            width: 72mm; margin: 0 auto; padding: 10px 0; 
+                            font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.2; color: #000;
+                        }
+                        .center { text-align: center; }
+                        .bold { font-weight: bold; }
+                        .divider { border-top: 1px dashed #000; margin: 8px 0; }
+                        .header h2 { margin: 0; font-size: 18px; text-transform: uppercase; }
+                        .header p { margin: 2px 0; font-size: 11px; }
+                        .info { margin: 10px 0; font-size: 11px; }
+                        .info-row { display: flex; justify-content: space-between; }
+                        .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                        .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; font-size: 11px; }
+                        .items-table td { padding: 4px 0; vertical-align: top; font-size: 11px; }
+                        .text-right { text-align: right; }
+                        .totals { margin: 8px 0; }
+                        .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 12px; }
+                        .grand-total { font-size: 16px; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
+                        .barcode { display: block; margin: 15px auto; width: 100%; max-height: 40px; }
+                        .footer { font-size: 10px; margin-top: 15px; }
+                        @media print { body { width: 72mm; margin: 0 auto; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header center">
+                        <h2 class="bold">${companyName}</h2>
+                        <p>${address}</p>
+                        <p>Tel: ${tel}</p>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="info">
+                        <div class="info-row"><span>CASHIER:</span> <span class="bold">#${cashier}</span></div>
+                        <div class="info-row"><span>DATE:</span> <span>${invoice.posting_date}</span></div>
+                        <div class="info-row"><span>TIME:</span> <span>${invoice.posting_time || '--:--'}</span></div>
+                        <div class="info-row"><span>INV NO:</span> <span class="bold">${invoice.name}</span></div>
+                    </div>
+                    <table class="items-table">
+                        <thead>
                             <tr>
-                                <th>Invoice Details</th>
-                                <th>Cashier</th>
-                                <th>Customer</th>
-                                <th>Payment</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Action</th>
+                                <th style="width: 50%;">ITEM</th>
+                                <th class="text-right" style="width: 15%;">QTY</th>
+                                <th class="text-right" style="width: 35%;">PRICE</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {list.map((inv, idx) => (
-                                <tr key={inv.name + '-' + idx} style={{
-                                    background: inv._source === 'pending' ? '#fffbeb' : 'inherit'
-                                }}>
-                                    <td style={{ fontSize: '0.75rem' }}>
-                                        <div style={{ fontWeight: 800, color: '#1e293b' }}>
-                                            {inv.server_name || (inv._source === 'pending' ? 'UNSYNCED' : 'SYNCING...')}
-                                        </div>
-                                        <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Ref No: {inv.offline_id}</div>
-                                    </td>
-                                    <td style={{ fontSize: '0.8rem', color: '#475569' }}>
-                                        {inv.owner || 'Local User'}
-                                    </td>
-                                    <td>{inv.customer_details?.customer_name || "N/A"}</td>
-                                    <td style={{ fontSize: '0.75rem' }}>
-                                        {(inv.payments || [])
-                                            .map((p) => p.mode_of_payment)
-                                            .filter(Boolean)
-                                            .join(", ") || "N/A"}
-                                    </td>
-                                    <td style={{ fontWeight: 700 }}>AED {parseFloat(inv.grand_total || 0).toFixed(2)}</td>
-                                    <td>{getSyncBadge(inv)}</td>
-                                    <td>
-                                        <button className="btn btn-sm btn-info" style={{ fontSize: '0.75rem', fontWeight: 600 }} onClick={() => handleViewDetails(inv)}>
-                                            View
-                                        </button>
-                                    </td>
+                            ${invoiceItems.map(it => `
+                                <tr>
+                                    <td>${String(it.item_name || it.item_code || it.name || 'ITEM').substring(0, 20)}</td>
+                                    <td class="text-right">${it.qty || 1}</td>
+                                    <td class="text-right">${parseFloat(it.rate || it.basePrice || 0).toFixed(2)}</td>
                                 </tr>
-                            ))}
+                            `).join('')}
                         </tbody>
                     </table>
-                </div>
-            </div>
-        );
+                    <div class="divider"></div>
+                    <div class="totals">
+                        <div class="total-row bold">
+                            <span>SUB TOTAL</span>
+                            <span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span>
+                        </div>
+                        <div class="total-row grand-total bold">
+                            <span>TOTAL</span>
+                            <span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span>
+                        </div>
+                        <div class="total-row" style="margin-top: 10px;">
+                            <span>CASH</span>
+                            <span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span>
+                        </div>
+                        <div class="total-row">
+                            <span>CHANGE</span>
+                            <span>AED 0.00</span>
+                        </div>
+                    </div>
+                    <div class="center">
+                        <img class="barcode" src="${barCodeUrl}" />
+                        <div class="footer">
+                            <p class="bold" style="font-size: 12px;">THANK YOU!</p>
+                            <p>GLAD TO SEE YOU AGAIN!</p>
+                            <p style="margin-top: 5px; opacity: 0.7;">Powered by KYLE RETAIL</p>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
     };
 
-    const renderInvoicePopup = () => {
-        if (!selectedInvoice) return null;
+    return (
+        <div className="invoice-list-container">
+            <div className="invoice-list-header">
+                <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem' }}>
+                    POS Invoice Management
+                </h2>
+                <p style={{ color: '#64748b' }}>View, filter, and track all your sales transactions in one place.</p>
+            </div>
 
-        return (
-            <div className="modal" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
-                <div className="modal-dialog modal-lg">
-                    <div className="modal-content">
-                        <div className="modal-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', borderBottom: '2px solid #f1f5f9' }}>
-                            <h5 className="modal-title" style={{ margin: 0, fontWeight: 800, color: '#0f172a' }}>
-                                {selectedInvoice.server_name || 'Pending Sync'}
-                            </h5>
-                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
-                                <strong>Reference No:</strong> {selectedInvoice.offline_id}
-                            </div>
-                            <button type="button" className="btn-close" onClick={closePopup} style={{ position: 'absolute', right: '1rem', top: '1.5rem' }}></button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="d-flex align-items-center mb-2">
-                                <img
-                                    src="/perfume-logo.png"
-                                    alt="logo"
-                                    style={{ width: "80px", height: "80px", marginRight: "10px" }}
-                                />
-                            </div>
-                            <p><strong>Posting Date:</strong> {formatDate(selectedInvoice.posting_date)}</p>
-                            <p><strong>Posting Time:</strong> {formatTime(selectedInvoice.posting_time)}</p>
-                            <p><strong>Customer:</strong> {selectedInvoice.customer_details?.customer_name || "N/A"}</p>
-                            {selectedInvoice.customer_details?.address && (
-                                <p><strong>Address:</strong> {selectedInvoice.customer_details.address}</p>
-                            )}
-                            <p><strong>Phone:</strong> {selectedInvoice.customer_details?.mobile_no || "N/A"}</p>
-
-                            {/* Sync Conflict Alerts */}
-                            {(selectedInvoice.conflicts || []).length > 0 && (
-                                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                    <h6 className="text-red-800 font-bold mb-2 flex items-center gap-2">
-                                        <AlertCircle size={16} /> Sync Conflicts Detected
-                                    </h6>
-                                    <ul className="mb-0 ps-3">
-                                        {selectedInvoice.conflicts.map((c, i) => (
-                                            <li key={i} className="text-red-700 text-sm font-medium">
-                                                {c.type === 'price_mismatch' ? `Price Mismatch: ${c.details || c.message}` :
-                                                    c.type === 'stock_low' ? `Low Stock Warning: ${c.details || c.message}` :
-                                                        c.message || 'Unknown Conflict'}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {selectedInvoice.retry_count > 0 && selectedInvoice._source === 'pending' && (
-                                <div className="mt-2 text-xs text-amber-600 font-bold">
-                                    ⚠️ Sync retry attempt: {selectedInvoice.retry_count}/5
-                                </div>
-                            )}
-
-                            <h6 className="mt-3">Items</h6>
-                            {selectedInvoice.pos_invoice_items?.length ? (
-                                <div className="table-responsive">
-                                    <table className="table table-bordered">
-                                        <thead>
-                                            <tr>
-                                                <th>Item</th>
-                                                <th>Description</th>
-                                                <th className="text-end">Qty</th>
-                                                <th className="text-end">Rate</th>
-                                                <th className="text-end">Amount</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedInvoice.pos_invoice_items.map((it, i) => (
-                                                <tr key={i}>
-                                                    <td>{it.item_name}</td>
-                                                    <td>{it.description}</td>
-                                                    <td className="text-end">{it.qty}</td>
-                                                    <td className="text-end">AED {it.rate}</td>
-                                                    <td className="text-end">AED {it.amount}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <p>No items</p>
-                            )}
-
-                            {offers.length > 0 && (
-                                <div className="mt-3">
-                                    <h6>Special Offers</h6>
-                                    {offers.map((o, i) => (
-                                        <p key={i}>
-                                            {o.messages} (Valid: {formatDate(o.start_date)} – {formatDate(o.end_date)})
-                                        </p>
+            {/* Premium Filter Card */}
+            <div className="filter-card">
+                <div className="filter-grid">
+                    <div className="filter-item" style={{ position: 'relative' }}>
+                        <label><Search size={14} /> ID / Offline ID</label>
+                        <div className="filter-input-wrapper">
+                            <input
+                                type="text"
+                                className="filter-input"
+                                placeholder="Search IDs..."
+                                value={filterId}
+                                onChange={(e) => { setFilterId(e.target.value); setShowIdSuggestions(true); }}
+                                onFocus={() => setShowIdSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowIdSuggestions(false), 200)}
+                            />
+                            {showIdSuggestions && idSuggestions.length > 0 && (
+                                <div className="suggestion-dropdown">
+                                    {idSuggestions.map((id, i) => (
+                                        <div
+                                            key={i}
+                                            className="suggestion-item"
+                                            onClick={() => { setFilterId(id); setShowIdSuggestions(false); }}
+                                        >
+                                            {id}
+                                        </div>
                                     ))}
                                 </div>
                             )}
-
-                            <div className="mt-3">
-                                <p><strong>Total Taxes:</strong> AED {selectedInvoice.total_taxes_and_charges || 0}</p>
-                                <p>
-                                    <strong>Discount:</strong> {formatDiscount(selectedInvoice)} (
-                                    {selectedInvoice.apply_discount_on || "Grand Total"})
-                                </p>
-                                <p><strong>Currency:</strong> {selectedInvoice.currency || "AED"}</p>
-                                <p><strong>Paid Amount:</strong> AED {selectedInvoice.paid_amount || 0}</p>
-                                <p><strong>Grand Total:</strong> AED {selectedInvoice.grand_total || 0}</p>
-                                <p><strong>In Words:</strong> {selectedInvoice.in_words || "N/A"}</p>
-                                <p><strong>Mode of Payment:</strong> {getPaymentDisplay(selectedInvoice.payments)}</p>
-                            </div>
-                        </div>
-
-                        <div className="modal-footer">
-                            <button className="btn btn-success" onClick={() => handlePrintInvoice(selectedInvoice)}>
-                                Print
-                            </button>
-                            <button className="btn btn-secondary" onClick={closePopup}>
-                                Close
-                            </button>
                         </div>
                     </div>
-                </div>
-            </div>
-        );
-    };
 
-    const splitInvoicesIntoThree = () => {
-        const merged = getMergedInvoices();
-        const filtered = filterInvoices(merged);
-        const third = Math.ceil(filtered.length / 3);
-        return {
-            part1: filtered.slice(0, third),
-            part2: filtered.slice(third, third * 2),
-            part3: filtered.slice(third * 2),
-            total: filtered.length,
-        };
-    };
-
-    const renderContent = () => {
-        if (loading) return <p className="text-center">Loading invoices…</p>;
-        if (error) return <div className="alert alert-danger">{error}</div>;
-
-        const merged = getMergedInvoices();
-        if (!merged.length) return <p className="text-center">No POS Invoices found.</p>;
-
-        const { part1, part2, part3 } = splitInvoicesIntoThree();
-
-        return (
-            <>
-                <div className="row mb-4 justify-content-center">
-                    <div className="col-md-3">
-                        <label className="form-label fw-bold">Invoice / Offline ID</label>
+                    <div className="filter-item">
+                        <label><Calendar size={14} /> Date</label>
                         <input
-                            type="text"
-                            className="form-control"
-                            placeholder="e.g. POSINV or Off-ID"
-                            value={filterId}
-                            onChange={(e) => setFilterId(e.target.value)}
-                        />
-                    </div>
-                    <div className="col-md-3">
-                        <label className="form-label fw-bold">Date</label>
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder="YYYY-MM-DD"
+                            type="date"
+                            className="filter-input"
+                            style={{ paddingLeft: '1rem' }}
                             value={filterDate}
                             onChange={(e) => setFilterDate(e.target.value)}
                         />
                     </div>
-                    <div className="col-md-3">
-                        <label className="form-label fw-bold">Time</label>
+
+                    <div className="filter-item">
+                        <label><Clock size={14} /> Time</label>
                         <input
-                            type="text"
-                            className="form-control"
-                            placeholder="HH:MM"
+                            type="time"
+                            className="filter-input"
+                            style={{ paddingLeft: '1rem' }}
                             value={filterTime}
                             onChange={(e) => setFilterTime(e.target.value)}
                         />
                     </div>
-                    <div className="col-md-3">
-                        <label className="form-label fw-bold">Mobile</label>
+
+                    <div className="filter-item">
+                        <label><CreditCard size={14} /> Payment Mode</label>
+                        <select
+                            className="filter-input filter-select"
+                            style={{ paddingLeft: '1rem' }}
+                            value={filterMode}
+                            onChange={(e) => setFilterMode(e.target.value)}
+                        >
+                            <option value="">All Modes</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Bank">Bank</option>
+                            <option value="Store Credit">Store Credit</option>
+                        </select>
+                    </div>
+
+                    <div className="filter-item">
+                        <label><Smartphone size={14} /> Mobile</label>
                         <input
                             type="text"
-                            className="form-control"
-                            placeholder="e.g. 9876543210"
+                            className="filter-input"
+                            style={{ paddingLeft: '1rem' }}
+                            placeholder="Customer mobile..."
                             value={filterMobile}
                             onChange={(e) => setFilterMobile(e.target.value)}
                         />
                     </div>
-                    <div className="col-md-2 mt-2">
-                        <label className="form-label fw-bold">Mode of Payment</label>
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder="e.g. Cash, Card"
-                            value={filterMode}
-                            onChange={(e) => setFilterMode(e.target.value)}
-                        />
-                    </div>
-                    <div className="col-md-2 mt-2">
-                        <label className="form-label fw-bold">Sync Status</label>
+
+                    <div className="filter-item">
+                        <label><Filter size={14} /> Sync Status</label>
                         <select
-                            className="form-control"
+                            className="filter-input filter-select"
+                            style={{ paddingLeft: '1rem' }}
                             value={filterSource}
                             onChange={(e) => setFilterSource(e.target.value)}
                         >
-                            <option value="">All</option>
-                            <option value="synced">Synced</option>
-                            <option value="pending">Pending</option>
+                            <option value="">All Statuses</option>
+                            <option value="synced">Synced (Live)</option>
+                            <option value="pending">Pending Sync</option>
                         </select>
                     </div>
+
+                    <div className="filter-item" style={{ justifyContent: 'flex-end' }}>
+                        <button className="action-btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={clearFilters}>
+                            <Trash2 size={16} /> Clear All
+                        </button>
+                    </div>
                 </div>
+            </div>
 
-                <div className="row">
-                    <div className="col-md-4 px-2">{renderInvoiceTable(part1, "")}</div>
-                    <div className="col-md-4 px-2">{renderInvoiceTable(part2, "")}</div>
-                    <div className="col-md-4 px-2">{renderInvoiceTable(part3, "")}</div>
-                </div>
-
-                {renderInvoicePopup()}
-            </>
-        );
-    };
-
-    const pendingCount = offlineInvoices.filter(i => i._source === 'pending').length;
-
-    return (
-        <div className="container-fluid mt-4">
-            <div className="d-flex justify-content-center align-items-center gap-3 mb-4">
-                <h3 className="mb-0">POS Invoices</h3>
-                {isOffline && (
-                    <span style={{
-                        background: '#fef2f2', color: '#991b1b', padding: '4px 12px',
-                        borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #fecaca'
-                    }}>🔴 Offline Mode</span>
+            {/* Invoice List Table */}
+            <div className="invoice-table-card">
+                {loading && (
+                    <div className="empty-state">
+                        <RefreshCw size={32} className="animate-spin mb-3" />
+                        <p>Synchronizing sales data...</p>
+                    </div>
                 )}
-                {pendingCount > 0 && (
-                    <span style={{
-                        background: '#fffbeb', color: '#92400e', padding: '4px 12px',
-                        borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #fde68a'
-                    }}>⏳ {pendingCount} pending sync</span>
+
+                {!loading && filteredInvoices.length === 0 && (
+                    <div className="empty-state">
+                        <FileText size={48} className="empty-state-icon" />
+                        <h3>No Invoices Found</h3>
+                        <p>No transactions match your current filter criteria.</p>
+                        <button className="btn-view action-btn mt-3" onClick={clearFilters}>Reset Filters</button>
+                    </div>
+                )}
+
+                {!loading && filteredInvoices.length > 0 && (
+                    <div className="table-responsive">
+                        <table className="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Invoice ID / Reference</th>
+                                    <th>Posting Info</th>
+                                    <th>Customer</th>
+                                    <th>Grand Total</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredInvoices.map((inv, idx) => (
+                                    <tr key={inv.name + idx}>
+                                        <td>
+                                            <div style={{ fontWeight: 800, color: '#0f172a' }}>{inv.name}</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                                                Ref: {inv.offline_id || inv.name}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569' }}>
+                                                <Calendar size={12} /> {inv.posting_date}
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px' }}>
+                                                <Clock size={12} /> {inv.posting_time || '--:--'}
+                                            </div>
+                                        </td>
+                                        <td style={{ fontWeight: 500 }}>{inv.customer_name}</td>
+                                        <td style={{ fontWeight: 800, color: '#16a34a' }}>
+                                            AED {parseFloat(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td>{getStatusBadge(inv)}</td>
+                                        <td>
+                                            <button className="action-btn btn-view" onClick={() => setSelectedInvoice(inv)}>
+                                                <Eye size={14} /> View
+                                            </button>
+                                            <button className="action-btn btn-print" onClick={() => handlePrint(inv)}>
+                                                <Printer size={14} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
-            {renderContent()}
+
+            {/* Detailed Invoice Popup */}
+            {selectedInvoice && (
+                <div className="modal-overlay" onClick={() => setSelectedInvoice(null)}>
+                    <div className="modern-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div>
+                                <h3>{selectedInvoice.name}</h3>
+                                <p>Reference: {selectedInvoice.offline_id || selectedInvoice.name}</p>
+                            </div>
+                            <button className="close-btn" onClick={() => setSelectedInvoice(null)}><XCircle size={24} /></button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="details-grid">
+                                <div className="detail-item">
+                                    <label>Customer</label>
+                                    <p>{selectedInvoice.customer_name}</p>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Date & Time</label>
+                                    <p>{selectedInvoice.posting_date} {selectedInvoice.posting_time}</p>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Grand Total</label>
+                                    <p style={{ color: '#16a34a', fontWeight: 800 }}>AED {parseFloat(selectedInvoice.grand_total || 0).toFixed(2)}</p>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Mode of Payment</label>
+                                    <p>{(selectedInvoice.payments || []).map(p => p.mode_of_payment).join(', ') || 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            <div className="items-section">
+                                <label>Invoice Items</label>
+                                <table className="items-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th className="text-right">Qty</th>
+                                            <th className="text-right">Rate</th>
+                                            <th className="text-right">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(selectedInvoice.pos_invoice_items || selectedInvoice.items || []).map((it, i) => (
+                                            <tr key={i}>
+                                                <td>{it.item_name || it.item_code}</td>
+                                                <td className="text-right">{it.qty || it.quantity}</td>
+                                                <td className="text-right">AED {(it.rate || it.basePrice || 0).toFixed(2)}</td>
+                                                <td className="text-right">AED {((it.qty || it.quantity || 1) * (it.rate || it.basePrice || 0)).toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="action-btn btn-print" onClick={() => handlePrint(selectedInvoice)} style={{ width: '100%', justifyContent: 'center' }}>
+                                <Printer size={18} /> Print Invoice
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
