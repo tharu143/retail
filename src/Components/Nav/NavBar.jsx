@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 import { db } from "../../db";
-import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon, Play } from "lucide-react";
+import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon } from "lucide-react";
 import Swal from 'sweetalert2';
 import { authFetchBase } from "../../utils/authFetch";
 
@@ -14,13 +14,14 @@ function NavBar() {
   const location = useLocation();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.user);
-  const session = useSelector((state) => state.user.session);
-  const warehouse = useSelector((state) => state.user.warehouse);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncInProgress, setIsSyncInProgress] = useState(false);
   const isSyncingRef = useRef(false);
+
+  // Sync Timer Ref to ensure interval stability
+  const syncTimerRef = useRef(null);
 
   const checkSyncCount = useCallback(async () => {
     try {
@@ -33,34 +34,47 @@ function NavBar() {
       setPendingCount(total);
       return total;
     } catch (e) {
+      console.error("[SyncCheck] Failed to count pending items:", e);
       return 0;
     }
   }, []);
 
   const syncPending = useCallback(async () => {
-    if (!navigator.onLine || isSyncingRef.current) return;
+    // 1. Initial Checks
+    if (!navigator.onLine) {
+      console.log("[AutoSync] Browser offline. Skipping.");
+      return;
+    }
+    if (isSyncingRef.current) {
+      console.log("[AutoSync] Sync already in progress. Skipping.");
+      return;
+    }
 
-    // ATOMIC SYNC LOCK: Prevent multiple tabs from syncing simultaneously
+    // 2. Atomic Sync Lock (Avoid Multi-Tab Conflicts)
     const syncLock = localStorage.getItem('global_sync_lock');
-    if (syncLock && (Date.now() - parseInt(syncLock)) < 20000) return;
-    localStorage.setItem('global_sync_lock', Date.now().toString());
+    const now = Date.now();
+    if (syncLock && (now - parseInt(syncLock)) < 25000) {
+      console.log("[AutoSync] Skip: Sync lock is active.");
+      return;
+    }
+    localStorage.setItem('global_sync_lock', now.toString());
 
     isSyncingRef.current = true;
     setIsSyncInProgress(true);
-    console.log("[Sync] Global Sync Started...");
+    console.log(`[Sync Cycle Started at ${new Date().toLocaleTimeString()}]`);
 
     try {
-      // 0. Opening Entries
+      // 0. Sync Opening Entries (Order matters!)
       const pendingOpening = await db.opening_entries.where('is_synced').equals(0).toArray();
-      for (const entry of pendingOpening) {
-        try {
+      if (pendingOpening.length > 0) {
+        console.log(`[Sync] Opening Entries: Found ${pendingOpening.length}`);
+        for (const entry of pendingOpening) {
           const { id, is_synced, offline_id, timestamp, ...payload } = entry;
           const res = await authFetchBase('custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
             method: 'POST', body: JSON.stringify(payload)
           });
           const result = await res.json();
           const data = result.message || result;
-
           if (data.status === 'success' || data.name) {
             const serverName = data.name;
             await db.opening_entries.update(entry.id, { is_synced: 1 });
@@ -69,18 +83,16 @@ function NavBar() {
               window.dispatchEvent(new CustomEvent('shift-synced', { detail: { name: serverName } }));
             }
             await db.invoices.where('pos_opening_entry').equals(entry.offline_id).modify({ pos_opening_entry: serverName });
-          } else {
-            console.error("Opening Sync Error Message:", data.message || data);
           }
-        } catch (e) {
-          console.error("Opening Sync HTTP Error:", e);
         }
+        await checkSyncCount();
       }
 
       // 1. Sync Customers
       const pendingCust = await db.customers.where('is_synced').equals(0).toArray();
-      for (const cust of pendingCust) {
-        try {
+      if (pendingCust.length > 0) {
+        console.log(`[Sync] Customers: Found ${pendingCust.length}`);
+        for (const cust of pendingCust) {
           const res = await authFetchBase('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
             method: 'POST', body: JSON.stringify({ name: cust.customer_name, mobile_no: cust.mobile_no })
           });
@@ -91,15 +103,17 @@ function NavBar() {
             await db.customers.update(cust.name, { is_synced: 1, name: sId });
             await db.invoices.where('customer').equals(cust.name).modify({ customer: sId });
           }
-        } catch (e) { console.error("Customer Sync Error:", e); }
+        }
+        await checkSyncCount();
       }
 
       // 2. Bulk Sync Invoices
-      const pendingInv = await db.invoices.where('is_synced').equals(0)
-        .filter(inv => !inv.customer.startsWith('OFFLINE-CUST') && !inv.pos_opening_entry.startsWith('OFFLINE-SHIFT'))
-        .toArray();
+      const allPendingInv = await db.invoices.where('is_synced').equals(0).toArray();
+      // Filter out invoices where dependencies aren't synced yet (safety)
+      const pendingInv = allPendingInv.filter(inv => !inv.customer.startsWith('OFFLINE-CUST') && !inv.pos_opening_entry.startsWith('OFFLINE-SHIFT'));
 
       if (pendingInv.length > 0) {
+        console.log(`[Sync] Invoices: Found ${pendingInv.length} ready to sync.`);
         const payload = pendingInv.map(({ id, is_synced, synced_at, server_name, retry_count, conflicts, ...rest }) => rest);
         const res = await authFetchBase('custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices', {
           method: 'POST', body: JSON.stringify({ invoices: payload })
@@ -120,26 +134,25 @@ function NavBar() {
         window.dispatchEvent(new CustomEvent('invoices-synced'));
       }
     } catch (error) {
-      console.error("Master Sync Error:", error);
+      console.error("[Master Sync Error]:", error);
     } finally {
       localStorage.removeItem('global_sync_lock');
       isSyncingRef.current = false;
       setIsSyncInProgress(false);
-      await checkSyncCount();
+      checkSyncCount();
+      console.log(`[Sync Cycle Finished at ${new Date().toLocaleTimeString()}]`);
     }
   }, [checkSyncCount]);
 
   const handleManualSync = async () => {
     if (!isOnline) {
-      Swal.fire({ icon: 'warning', title: 'Offline', text: 'Please connect to internet to sync.' });
+      Swal.fire({ icon: 'warning', title: 'Offline', text: 'Connect to internet to sync.' });
       return;
     }
     if (isSyncingRef.current) return;
-
-    // Clear lock to allow immediate manual sync
-    localStorage.removeItem('global_sync_lock');
+    localStorage.removeItem('global_sync_lock'); // Force clear lock
+    console.log("[ManualSync] Triggered by user.");
     await syncPending();
-
     const count = await checkSyncCount();
     if (count === 0) {
       Swal.fire({ icon: 'success', title: 'Synced', text: 'All data is up to date!', timer: 1500, showConfirmButton: false });
@@ -147,27 +160,40 @@ function NavBar() {
   };
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    const countCheckInterval = setInterval(checkSyncCount, 10000);
-    const syncInterval = setInterval(syncPending, 60000);
+    const clockTimer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const countCheck = setInterval(checkSyncCount, 8000);
+
+    // Use a more robust sync timer
+    const startSyncTimer = () => {
+      if (syncTimerRef.current) clearInterval(syncTimerRef.current);
+      syncTimerRef.current = setInterval(() => {
+        console.log("[AutoSync] Interval Fired.");
+        syncPending();
+      }, 30000); // 30 seconds interval for faster updates
+    };
+
+    startSyncTimer();
 
     const handleOnline = () => {
       setIsOnline(true);
+      console.log("[Network] Online event - triggering sync.");
       syncPending();
     };
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log("[Network] Offline event.");
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Initial checks
     checkSyncCount();
     syncPending();
 
     return () => {
-      clearInterval(timer);
-      clearInterval(countCheckInterval);
-      clearInterval(syncInterval);
+      clearInterval(clockTimer);
+      clearInterval(countCheck);
+      if (syncTimerRef.current) clearInterval(syncTimerRef.current);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -180,7 +206,7 @@ function NavBar() {
         dispatch(logout()); await persistor.purge(); localStorage.clear();
         navigate("/"); return;
       }
-      const response = await fetch("/api/method/logout", { method: "POST", credentials: "include" });
+      await fetch("/api/method/logout", { method: "POST", credentials: "include" });
       dispatch(logout()); await persistor.purge(); localStorage.clear();
       Swal.fire({ icon: 'success', title: 'Logout successful!', timer: 1500, showConfirmButton: false });
       navigate("/");
@@ -214,7 +240,6 @@ function NavBar() {
             <div
               onClick={handleManualSync}
               className={`pending-badge cursor-pointer ${isSyncInProgress ? 'syncing' : ''}`}
-              title="Click to Sync Now"
             >
               <RefreshCw size={12} className={isSyncInProgress ? "animate-spin" : ""} />
               {isSyncInProgress ? "Syncing..." : `${pendingCount} Pending`}

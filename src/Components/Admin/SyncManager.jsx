@@ -425,9 +425,7 @@ const SyncManager = () => {
                             </button>
                         )}
                     </div>
-                    <button onClick={fetchData} className="btn-refresh" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b' }}>
-                        <RefreshCw size={18} />
-                    </button>
+                    <div></div>
                 </div>
 
                 <div style={{ padding: '0' }}>
