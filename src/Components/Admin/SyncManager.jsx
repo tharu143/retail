@@ -247,6 +247,64 @@ const SyncManager = () => {
         }
     };
 
+    const syncOpeningEntry = async (entry) => {
+        if (!isOnline) { Swal.fire('Offline', 'Connect to internet', 'warning'); return; }
+        setSyncingId(`open-${entry.id}`);
+        try {
+            const { id, is_synced, offline_id, timestamp, ...payload } = entry;
+            const res = await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload),
+            });
+            const result = await res.json();
+            const data = result.message || result;
+            if (res.ok && (data.status === 'success' || data.name)) {
+                const serverName = data.name;
+                await db.opening_entries.update(entry.id, { is_synced: 1 });
+                if (localStorage.getItem('posOpeningEntry') === entry.offline_id) {
+                    localStorage.setItem('posOpeningEntry', serverName);
+                    window.dispatchEvent(new CustomEvent('shift-synced', { detail: { name: serverName } }));
+                }
+                await db.invoices.where('pos_opening_entry').equals(entry.offline_id).modify({ pos_opening_entry: serverName });
+                await db.sync_log.add({ offline_id: entry.offline_id, action: 'opening_sync_success', timestamp: new Date().toISOString(), status: 'success', server_name: serverName });
+                Swal.fire('Success', 'Opening Entry Synced', 'success');
+                fetchData();
+            } else {
+                throw new Error(data.message || "Server error 500");
+            }
+        } catch (err) {
+            Swal.fire('Sync Failed', err.message, 'error');
+        } finally { setSyncingId(null); }
+    };
+
+    const syncClosingEntry = async (entry) => {
+        if (!isOnline) { Swal.fire('Offline', 'Connect to internet', 'warning'); return; }
+        setSyncingId(`close-${entry.id}`);
+        try {
+            const { id, is_synced, offline_id, timestamp, ...payload } = entry;
+            const res = await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_closing_entry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload),
+            });
+            const result = await res.json();
+            const data = result.message || result;
+            if (res.ok && (data.status === 'success' || data.name)) {
+                await db.closing_entries.update(entry.id, { is_synced: 1 });
+                await db.sync_log.add({ offline_id: entry.offline_id, action: 'closing_sync_success', timestamp: new Date().toISOString(), status: 'success' });
+                Swal.fire('Success', 'Closing Entry Synced', 'success');
+                fetchData();
+            } else {
+                throw new Error(data.message || "Server error 500");
+            }
+        } catch (err) {
+            Swal.fire('Sync Failed', err.message, 'error');
+        } finally { setSyncingId(null); }
+    };
+
     if (loading) return <div className="p-4 text-center"><Loader2 className="animate-spin inline mr-2" /> Loading sync details...</div>;
 
     return (
@@ -285,7 +343,25 @@ const SyncManager = () => {
                                         <div style={{ fontWeight: 'bold' }}>{entry.offline_id}</div>
                                         <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{entry.company} | {entry.pos_profile}</div>
                                     </div>
-                                    <div style={{ fontSize: '0.8rem', color: '#6366f1' }}>Sync via Home Page Auto-Sync</div>
+                                    <button
+                                        onClick={() => syncOpeningEntry(entry)}
+                                        disabled={syncingId === `open-${entry.id}`}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            backgroundColor: syncingId === `open-${entry.id}` ? '#94a3b8' : '#6366f1',
+                                            color: 'white',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '0.75rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px'
+                                        }}
+                                    >
+                                        {syncingId === `open-${entry.id}` ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                                        Sync Opening
+                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -294,12 +370,30 @@ const SyncManager = () => {
                         <div style={{ padding: '15px', backgroundColor: '#fff' }}>
                             <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>Pending Closing Entries ({pendingClosing.length})</h4>
                             {pendingClosing.map(entry => (
-                                <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#f8fafc', borderRadius: '8px' }}>
+                                <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#f8fafc', borderRadius: '8px', marginBottom: '8px' }}>
                                     <div>
                                         <div style={{ fontWeight: 'bold' }}>{entry.offline_id}</div>
                                         <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{entry.company} | Total: AED {entry.grand_total?.toFixed(2)}</div>
                                     </div>
-                                    <div style={{ fontSize: '0.8rem', color: '#6366f1' }}>Sync via Home Page Auto-Sync</div>
+                                    <button
+                                        onClick={() => syncClosingEntry(entry)}
+                                        disabled={syncingId === `close-${entry.id}`}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            backgroundColor: syncingId === `close-${entry.id}` ? '#94a3b8' : '#6366f1',
+                                            color: 'white',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '0.75rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px'
+                                        }}
+                                    >
+                                        {syncingId === `close-${entry.id}` ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                                        Sync Closing
+                                    </button>
                                 </div>
                             ))}
                         </div>

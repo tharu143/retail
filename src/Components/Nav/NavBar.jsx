@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 import { db } from "../../db";
-import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon } from "lucide-react";
+import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon, Play } from "lucide-react";
 import Swal from 'sweetalert2';
 import { authFetchBase } from "../../utils/authFetch";
 
@@ -24,9 +24,14 @@ function NavBar() {
 
   const checkSyncCount = useCallback(async () => {
     try {
-      const count = await db.invoices.where('is_synced').equals(0).count();
-      setPendingCount(count);
-      return count;
+      const invCount = await db.invoices.where('is_synced').equals(0).count();
+      const openCount = await db.opening_entries.where('is_synced').equals(0).count();
+      const closeCount = await db.closing_entries.where('is_synced').equals(0).count();
+      const custCount = await db.customers.where('is_synced').equals(0).count();
+
+      const total = invCount + openCount + closeCount + custCount;
+      setPendingCount(total);
+      return total;
     } catch (e) {
       return 0;
     }
@@ -37,11 +42,12 @@ function NavBar() {
 
     // ATOMIC SYNC LOCK: Prevent multiple tabs from syncing simultaneously
     const syncLock = localStorage.getItem('global_sync_lock');
-    if (syncLock && (Date.now() - parseInt(syncLock)) < 30000) return;
+    if (syncLock && (Date.now() - parseInt(syncLock)) < 20000) return;
     localStorage.setItem('global_sync_lock', Date.now().toString());
 
     isSyncingRef.current = true;
     setIsSyncInProgress(true);
+    console.log("[Sync] Global Sync Started...");
 
     try {
       // 0. Opening Entries
@@ -54,6 +60,7 @@ function NavBar() {
           });
           const result = await res.json();
           const data = result.message || result;
+
           if (data.status === 'success' || data.name) {
             const serverName = data.name;
             await db.opening_entries.update(entry.id, { is_synced: 1 });
@@ -62,11 +69,32 @@ function NavBar() {
               window.dispatchEvent(new CustomEvent('shift-synced', { detail: { name: serverName } }));
             }
             await db.invoices.where('pos_opening_entry').equals(entry.offline_id).modify({ pos_opening_entry: serverName });
+          } else {
+            console.error("Opening Sync Error Message:", data.message || data);
           }
-        } catch (e) { console.error("Opening Sync Error:", e); }
+        } catch (e) {
+          console.error("Opening Sync HTTP Error:", e);
+        }
       }
 
-      // 1. Bulk Sync Invoices
+      // 1. Sync Customers
+      const pendingCust = await db.customers.where('is_synced').equals(0).toArray();
+      for (const cust of pendingCust) {
+        try {
+          const res = await authFetchBase('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
+            method: 'POST', body: JSON.stringify({ name: cust.customer_name, mobile_no: cust.mobile_no })
+          });
+          const result = await res.json();
+          const data = result.message || result;
+          if (data.status === 'success' || data.name) {
+            const sId = data.name || data.customer_id;
+            await db.customers.update(cust.name, { is_synced: 1, name: sId });
+            await db.invoices.where('customer').equals(cust.name).modify({ customer: sId });
+          }
+        } catch (e) { console.error("Customer Sync Error:", e); }
+      }
+
+      // 2. Bulk Sync Invoices
       const pendingInv = await db.invoices.where('is_synced').equals(0)
         .filter(inv => !inv.customer.startsWith('OFFLINE-CUST') && !inv.pos_opening_entry.startsWith('OFFLINE-SHIFT'))
         .toArray();
@@ -92,14 +120,31 @@ function NavBar() {
         window.dispatchEvent(new CustomEvent('invoices-synced'));
       }
     } catch (error) {
-      console.error("Global Auto Sync Error:", error);
+      console.error("Master Sync Error:", error);
     } finally {
       localStorage.removeItem('global_sync_lock');
       isSyncingRef.current = false;
       setIsSyncInProgress(false);
-      checkSyncCount();
+      await checkSyncCount();
     }
   }, [checkSyncCount]);
+
+  const handleManualSync = async () => {
+    if (!isOnline) {
+      Swal.fire({ icon: 'warning', title: 'Offline', text: 'Please connect to internet to sync.' });
+      return;
+    }
+    if (isSyncingRef.current) return;
+
+    // Clear lock to allow immediate manual sync
+    localStorage.removeItem('global_sync_lock');
+    await syncPending();
+
+    const count = await checkSyncCount();
+    if (count === 0) {
+      Swal.fire({ icon: 'success', title: 'Synced', text: 'All data is up to date!', timer: 1500, showConfirmButton: false });
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -166,7 +211,11 @@ function NavBar() {
           </div>
 
           {(pendingCount > 0 || isSyncInProgress) && (
-            <div onClick={() => navigate('/syncmanager')} className="pending-badge">
+            <div
+              onClick={handleManualSync}
+              className={`pending-badge cursor-pointer ${isSyncInProgress ? 'syncing' : ''}`}
+              title="Click to Sync Now"
+            >
               <RefreshCw size={12} className={isSyncInProgress ? "animate-spin" : ""} />
               {isSyncInProgress ? "Syncing..." : `${pendingCount} Pending`}
             </div>
