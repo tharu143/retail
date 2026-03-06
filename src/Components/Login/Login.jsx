@@ -143,6 +143,17 @@ function Login() {
       if (window.electronAPI?.setSession) {
         window.electronAPI.setSession(session);
       }
+
+      // CRITICAL FOR WEB: Fetch logged user to trigger CSRF/Security cookies from server
+      try {
+        await fetch(`/api/method/frappe.auth.get_logged_user?sid=${session}`, {
+          headers: { "X-Frappe-SID": session },
+          credentials: "include"
+        });
+      } catch (e) {
+        console.warn("Failed to ping server for CSRF token:", e);
+      }
+
       localStorage.setItem("user", user);
       localStorage.setItem("pos_profile", pos_profile);
       localStorage.setItem("company", company);

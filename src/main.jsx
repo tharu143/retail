@@ -119,10 +119,26 @@ window.fetch = async function (...args) {
       window.electronAPI.setSession(session);
     }
 
+    // Ensure headers object exists and handle both plain objects and Headers instances
     if (!config.headers) config.headers = {};
-    config.headers['X-Frappe-SID'] = session;
 
-    // Inject sid into URL for fetch as well
+    const setHeader = (name, value) => {
+      if (config.headers instanceof Headers) {
+        config.headers.set(name, value);
+      } else {
+        config.headers[name] = value;
+      }
+    };
+
+    setHeader('X-Frappe-SID', session);
+
+    // CRITICAL: Inject CSRF Token from cookies if present
+    const csrfToken = document.cookie.match(/X-Frappe-CSRF-Token=([^;]+)/)?.[1];
+    if (csrfToken) {
+      setHeader('X-Frappe-CSRF-Token', csrfToken);
+    }
+
+    // Inject sid into URL for fetch as well (Reliable bypass for many Frappe CSRF checks)
     if (typeof resource === 'string' && resource.includes('/api') && !resource.includes('sid=')) {
       const separator = resource.includes('?') ? '&' : '?';
       resource = `${resource}${separator}sid=${session}`;
@@ -131,8 +147,15 @@ window.fetch = async function (...args) {
 
   try {
     const response = await originalFetch(resource, config);
+
+    // Handle 403 but don't force logout immediately if we are on Web and might just have a CSRF issue
     if (response.status === 403 && typeof resource === 'string' && !resource.includes('user_login')) {
-      handleGlobalAuthError();
+      if (!IS_PROD) {
+        console.warn("403 detected - likely CSRF or Session expiry. Attempting to stay logged in.");
+        // If we have a session but get 403, we don't logout immediately to allow retries
+      } else {
+        handleGlobalAuthError();
+      }
     }
 
     // Safely wrap response.json() to prevent HTML/proxy errors from crashing the app
