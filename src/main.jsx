@@ -14,7 +14,8 @@ import { logout } from './Redux/Slices/userSlice';
 const BACKEND_URL = 'http://75.119.130.59';
 const IS_PROD = window.location.protocol === 'file:';
 
-axios.defaults.withCredentials = true;
+// Only use credentials (cookies) in Electron. For Web, we use X-Frappe-SID headers to bypass CSRF.
+axios.defaults.withCredentials = IS_PROD;
 
 const handleGlobalAuthError = () => {
   // In Production (Electron), we often hit 403 due to cookie restrictions.
@@ -36,12 +37,13 @@ const handleGlobalAuthError = () => {
 
 console.log(`[APP] Mode: ${IS_PROD ? 'Production (Electron)' : 'Development (Vite)'}`);
 
+// Route Axios requests through local Vite Proxy to bypass CORS/SameSite cookie failures
 axios.interceptors.request.use((config) => {
   if (!config.url) return config;
 
   const session = localStorage.getItem('session');
 
-  // Always inject Session Token if available to prevent CSRF errors in both Web and Electron
+  // Always inject Session Token if available for Token-based Auth (Bypasses CSRF)
   if (session) {
     if (config.url.startsWith('/api')) {
       // In Production (Electron/file:), we need context prefix
@@ -52,17 +54,7 @@ axios.interceptors.request.use((config) => {
       // Add standard session headers
       config.headers['X-Frappe-SID'] = session;
 
-      // CRITICAL: Inject CSRF Token from cookies if present (Required for Web POSTs)
-      const csrfToken = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('X-Frappe-CSRF-Token='))
-        ?.split('=')[1];
-
-      if (csrfToken) {
-        config.headers['X-Frappe-CSRF-Token'] = decodeURIComponent(csrfToken);
-      }
-
-      // Inject sid into URL query because Frappe is more likely to accept it
+      // Inject sid into URL query because it's a reliable fallback for Frappe
       const separator = config.url.includes('?') ? '&' : '?';
       if (!config.url.includes('sid=')) {
         config.url = `${config.url}${separator}sid=${session}`;
@@ -116,9 +108,9 @@ window.fetch = async function (...args) {
     config = {};
   }
 
-  // Force credentials inclusion for all standard fetch requests
+  // Use cookies in Electron, but omit them on Web to bypass CSRF
   if (config.credentials === undefined) {
-    config.credentials = 'include';
+    config.credentials = IS_PROD ? 'include' : 'omit';
   }
 
   // Handle Session Token for both Web and Electron
@@ -129,7 +121,7 @@ window.fetch = async function (...args) {
       window.electronAPI.setSession(session);
     }
 
-    // Ensure headers object exists and handle both plain objects and Headers instances
+    // Ensure headers object exists
     if (!config.headers) config.headers = {};
 
     const setHeader = (name, value) => {
@@ -142,17 +134,7 @@ window.fetch = async function (...args) {
 
     setHeader('X-Frappe-SID', session);
 
-    // CRITICAL: Inject CSRF Token from cookies if present
-    const csrfToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('X-Frappe-CSRF-Token='))
-      ?.split('=')[1];
-
-    if (csrfToken) {
-      setHeader('X-Frappe-CSRF-Token', decodeURIComponent(csrfToken));
-    }
-
-    // Inject sid into URL for fetch as well (Reliable bypass for many Frappe CSRF checks)
+    // Inject sid into URL for fetch as well
     if (typeof resource === 'string' && resource.includes('/api') && !resource.includes('sid=')) {
       const separator = resource.includes('?') ? '&' : '?';
       resource = `${resource}${separator}sid=${session}`;
