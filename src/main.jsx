@@ -52,6 +52,16 @@ axios.interceptors.request.use((config) => {
       // Add standard session headers
       config.headers['X-Frappe-SID'] = session;
 
+      // CRITICAL: Inject CSRF Token from cookies if present (Required for Web POSTs)
+      const csrfToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('X-Frappe-CSRF-Token='))
+        ?.split('=')[1];
+
+      if (csrfToken) {
+        config.headers['X-Frappe-CSRF-Token'] = decodeURIComponent(csrfToken);
+      }
+
       // Inject sid into URL query because Frappe is more likely to accept it
       const separator = config.url.includes('?') ? '&' : '?';
       if (!config.url.includes('sid=')) {
@@ -133,9 +143,13 @@ window.fetch = async function (...args) {
     setHeader('X-Frappe-SID', session);
 
     // CRITICAL: Inject CSRF Token from cookies if present
-    const csrfToken = document.cookie.match(/X-Frappe-CSRF-Token=([^;]+)/)?.[1];
+    const csrfToken = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('X-Frappe-CSRF-Token='))
+      ?.split('=')[1];
+
     if (csrfToken) {
-      setHeader('X-Frappe-CSRF-Token', csrfToken);
+      setHeader('X-Frappe-CSRF-Token', decodeURIComponent(csrfToken));
     }
 
     // Inject sid into URL for fetch as well (Reliable bypass for many Frappe CSRF checks)
