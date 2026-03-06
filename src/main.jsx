@@ -36,29 +36,30 @@ const handleGlobalAuthError = () => {
 
 console.log(`[APP] Mode: ${IS_PROD ? 'Production (Electron)' : 'Development (Vite)'}`);
 
-// Route Axios requests through local Vite Proxy to bypass CORS/SameSite cookie failures
 axios.interceptors.request.use((config) => {
   if (!config.url) return config;
 
   const session = localStorage.getItem('session');
 
-  // In Production (Electron), we need the full URL and Manual Sid Forwarding
-  if (IS_PROD) {
+  // Always inject Session Token if available to prevent CSRF errors in both Web and Electron
+  if (session) {
     if (config.url.startsWith('/api')) {
-      config.url = `${BACKEND_URL}${config.url}`;
-    }
-    // Force Session Token if available
-    if (session) {
+      // In Production (Electron/file:), we need context prefix
+      if (IS_PROD && !config.url.startsWith('http')) {
+        config.url = `${BACKEND_URL}${config.url}`;
+      }
+
+      // Add standard session headers
       config.headers['X-Frappe-SID'] = session;
 
-      // Also inject sid into URL query because Frappe is more likely to accept it
+      // Inject sid into URL query because Frappe is more likely to accept it
       const separator = config.url.includes('?') ? '&' : '?';
       if (!config.url.includes('sid=')) {
         config.url = `${config.url}${separator}sid=${session}`;
       }
     }
-  } else {
-    // In Development (Vite Proxy), we strip the URL
+  } else if (!IS_PROD) {
+    // In Development (Vite Proxy), we strip the URL if no session (e.g. login)
     if (config.url.includes(BACKEND_URL)) {
       config.url = config.url.replace(BACKEND_URL, '');
     }
@@ -110,11 +111,11 @@ window.fetch = async function (...args) {
     config.credentials = 'include';
   }
 
-  // Handle Production Session Token
+  // Handle Session Token for both Web and Electron
   const session = localStorage.getItem('session');
-  if (IS_PROD && session) {
-    // Notify Main Process for Cookie Injection
-    if (window.electronAPI?.setSession) {
+  if (session) {
+    // Notify Main Process for Cookie Injection (Electron only)
+    if (IS_PROD && window.electronAPI?.setSession) {
       window.electronAPI.setSession(session);
     }
 
@@ -122,7 +123,7 @@ window.fetch = async function (...args) {
     config.headers['X-Frappe-SID'] = session;
 
     // Inject sid into URL for fetch as well
-    if (typeof resource === 'string' && !resource.includes('sid=')) {
+    if (typeof resource === 'string' && resource.includes('/api') && !resource.includes('sid=')) {
       const separator = resource.includes('?') ? '&' : '?';
       resource = `${resource}${separator}sid=${session}`;
     }
