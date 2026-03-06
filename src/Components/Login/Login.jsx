@@ -22,7 +22,7 @@ function Login() {
         method: "POST",
         headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
-        credentials: "include"
+        credentials: window.location.protocol === 'file:' ? "include" : "omit"
       });
 
       if (!response.ok) {
@@ -74,8 +74,10 @@ function Login() {
 
       let { user, session, pos_profile, company, warehouse, branch_prefix } = resp;
 
-      // Force cookie onto browser immediately (in case proxy hasn't restarted)
-      document.cookie = `sid=${session}; path=/;`;
+      // Force cookie onto browser immediately for Electron (context isolation bypass)
+      if (window.location.protocol === 'file:') {
+        document.cookie = `sid=${session}; path=/;`;
+      }
 
       // === FETCH EMPLOYEE TO GET CORRECT COMPANY ===
       try {
@@ -83,7 +85,7 @@ function Login() {
         const fields = encodeURIComponent(JSON.stringify(["name", "company"]));
         const empRes = await fetch(`/api/resource/Employee?filters=${filters}&fields=${fields}&sid=${session}`, {
           headers: { "X-Frappe-SID": session },
-          credentials: "include"
+          credentials: window.location.protocol === 'file:' ? "include" : "omit"
         });
         if (empRes.ok) {
           const empData = await empRes.json();
@@ -100,7 +102,7 @@ function Login() {
       try {
         const openRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries?sid=${session}`, {
           headers: { "X-Frappe-SID": session },
-          credentials: "include"
+          credentials: window.location.protocol === 'file:' ? "include" : "omit"
         });
         if (openRes.ok) {
           const openData = await openRes.json();
@@ -117,7 +119,7 @@ function Login() {
       try {
         const healthRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_health_data?sid=${session}`, {
           headers: { "X-Frappe-SID": session },
-          credentials: "include"
+          credentials: window.location.protocol === 'file:' ? "include" : "omit"
         });
         if (healthRes.ok) {
           const healthData = await healthRes.ok ? await healthRes.json() : {};
@@ -144,15 +146,7 @@ function Login() {
         window.electronAPI.setSession(session);
       }
 
-      // CRITICAL FOR WEB: Fetch logged user to trigger CSRF/Security cookies from server
-      try {
-        await fetch(`/api/method/frappe.auth.get_logged_user?sid=${session}`, {
-          headers: { "X-Frappe-SID": session },
-          credentials: "include"
-        });
-      } catch (e) {
-        console.warn("Failed to ping server for CSRF token:", e);
-      }
+      // We no longer need the CSRF/Security cookie ping for Web because we use omit credentials
 
       localStorage.setItem("user", user);
       localStorage.setItem("pos_profile", pos_profile);
