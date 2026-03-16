@@ -2043,9 +2043,9 @@ function Home() {
                       ))}
                       
                       {/* INTEGRATED SEARCH ROW INSIDE THE BOX - ALWAYS VISIBLE */}
-                      <li className="home-bill-item-row legacy-inline-search-row" style={{ backgroundColor: '#fffbe6', border: '2px solid #ffe58f' }}>
+                      <li className="home-bill-item-row legacy-inline-search-row" style={{ backgroundColor: '#fffbe6', border: '2px solid #ffe58f', overflow: 'visible' }}>
                         <span className="box-cell text-[#8c8c8c] font-bold">NEXT</span>
-                        <div className="box-cell name-cell" style={{ position: 'relative', padding: 0 }}>
+                        <div className="box-cell name-cell" style={{ position: 'relative', padding: 0, overflow: 'visible' }}>
                            <input 
                              type="text"
                              id="legacy-inline-search"

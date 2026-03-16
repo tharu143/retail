@@ -225,7 +225,7 @@
 }
 
 .theme-legacy .home-bill-item-list {
-  padding: 5px 10px !important;
+  padding: 5px 10px 150px 10px !important;
   list-style: none !important;
   margin: 0 !important;
 }
