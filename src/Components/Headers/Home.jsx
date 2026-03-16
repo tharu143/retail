@@ -1688,14 +1688,15 @@ function Home() {
           <div className="legacy-search-panel">
             <div className="legacy-search-row">
               <span className="legacy-search-label">Product :</span>
-              <input 
-                type="text" 
-                className="legacy-search-input" 
-                value={barcodeInput} 
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                onKeyDown={onBarcodeKeyDown}
-                placeholder="Scan or type..."
-              />
+                <input 
+                  type="text" 
+                  className="legacy-search-input" 
+                  value={barcodeInput} 
+                  onChange={(e) => setBarcodeInput(e.target.value)}
+                  onKeyDown={onBarcodeKeyDown}
+                  placeholder="Scan or type..."
+                  id="legacy-header-search"
+                />
             </div>
             <div className="legacy-search-row">
               <span className="legacy-search-label">Customer :</span>
@@ -2008,6 +2009,46 @@ function Home() {
                           </div>
                         </li>
                       ))}
+                      
+                      {/* INTEGRATED SEARCH ROW INSIDE THE BOX */}
+                      <li className="home-bill-item-row legacy-inline-search-row" style={{ backgroundColor: '#fffbe6', border: '2px solid #ffe58f' }}>
+                        <span className="box-cell text-[#8c8c8c] font-bold">NEXT</span>
+                        <div className="box-cell name-cell" style={{ position: 'relative', padding: 0 }}>
+                           <input 
+                             type="text"
+                             className="w-full h-full px-2 font-bold text-xs outline-none border-none bg-transparent"
+                             placeholder="SEARCH ITEM HERE..."
+                             value={barcodeInput}
+                             onChange={(e) => setBarcodeInput(e.target.value)}
+                             onKeyDown={onBarcodeKeyDown}
+                             autoFocus
+                           />
+                           {showItemDropdown && (
+                              <div 
+                                className="legacy-customer-dropdown" 
+                                style={{ top: '100%', left: 0, width: '100%', minWidth: '350px', zIndex: 10000 }}
+                              >
+                                {itemSearchResults.map((it, idx) => (
+                                  <div 
+                                    key={it.id} 
+                                    className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
+                                    style={activeItemIndex === idx ? { backgroundColor: '#000080', color: '#fff' } : {}}
+                                    onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); }}
+                                  >
+                                    <div className="cust-name">{it.name}</div>
+                                    <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
+                                  </div>
+                                ))}
+                              </div>
+                           )}
+                        </div>
+                        <span className="box-cell qty-cell">-</span>
+                        <span className="box-cell uom-cell">-</span>
+                        <span className="box-cell amount-cell">-</span>
+                        <div className="box-cell action-cell">
+                           <Search size={14} className="text-[#bfbfbf]" />
+                        </div>
+                      </li>
                     </ul>
                   )}
                 </div>
