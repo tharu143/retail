@@ -895,13 +895,13 @@ function PurchaseOrder() {
                           </div>
                         </td>
                         <td className="purchase-td">
-                          <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0" />
+                          <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0" />
                         </td>
                         <td className="purchase-td">
-                          <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="1" />
+                          <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="1" />
                         </td>
                         <td className="purchase-td">
-                          <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0.00" />
+                          <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0.00" />
                         </td>
                         <td className="purchase-td">
                           <input 
@@ -909,6 +909,7 @@ function PurchaseOrder() {
                             name="custom_selling_price" 
                             value={item.custom_selling_price} 
                             onChange={(e) => handleInputChange(e, idx)} 
+                            onFocus={(e) => e.target.select()}
                             className="po-input !py-1 text-xs text-right font-bold text-emerald-600" 
                             placeholder="0.00"
                           />
@@ -920,7 +921,7 @@ function PurchaseOrder() {
                           <input type="date" value={item.schedule_date?.split('T')[0]} onChange={(e) => handleInputChange(e, idx)} name="schedule_date" className="po-input !py-1 text-xs" />
                         </td>
                         <td className="purchase-td text-right">
-                          <input type="number" name="qty" value={item.qty} onChange={(e) => handleInputChange(e, idx)} className="w-full text-right font-bold text-xs bg-transparent border-none outline-none focus:ring-0" />
+                          <input type="number" name="qty" value={item.qty} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-right font-bold text-xs bg-transparent border-none outline-none focus:ring-0" />
                         </td>
                         <td className="purchase-td">
                           <span className="text-[10px] font-black text-slate-400 uppercase">{item.uom || 'Unit'}</span>
@@ -931,6 +932,7 @@ function PurchaseOrder() {
                             name="rate" 
                             value={item.rate} 
                             onChange={(e) => handleInputChange(e, idx)} 
+                            onFocus={(e) => e.target.select()}
                             className={`w-full text-right font-black text-xs bg-transparent border-none outline-none focus:ring-0 ${item.rate > item.last_buying_rate && item.last_buying_rate > 0 ? 'text-red-500' : ''}`} 
                           />
                           {item.last_buying_rate > 0 && (
