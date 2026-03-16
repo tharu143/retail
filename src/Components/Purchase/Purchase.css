@@ -60,7 +60,7 @@ input[type=number] {
   border-radius: 1rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--slate-200);
-  overflow: hidden;
+  /* Remove overflow: hidden to allow dropdowns to show */
 }
 
 .po-card-header {
@@ -279,12 +279,17 @@ input[type=number] {
   padding: 5px !important;
 }
 
-.theme-legacy .po-card, 
-.theme-legacy .bg-white {
+.theme-legacy .po-card {
   background: #d4d0c8 !important; /* Classic Gray */
   border: 2px outset #ffffff !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.theme-legacy .bg-white {
+  background: white !important; /* Keep dropdowns white for contrast */
+  color: #000 !important;
 }
 
 .theme-legacy .po-card-header,
