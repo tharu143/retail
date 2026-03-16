@@ -2,10 +2,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import './NavBar.css';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../../Redux/Slices/userSlice";
+import { logout, toggleTheme } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 import { db } from "../../db";
-import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon } from "lucide-react";
+import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon, Palette } from "lucide-react";
 import Swal from 'sweetalert2';
 import { authFetchBase } from "../../utils/authFetch";
 
@@ -14,7 +14,9 @@ function NavBar() {
   const location = useLocation();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.user);
+  const theme = useSelector((state) => state.user.theme);
   const [currentTime, setCurrentTime] = useState(new Date());
+// ... (rest of the component state/logic stays same until return)
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncInProgress, setIsSyncInProgress] = useState(false);
@@ -245,6 +247,15 @@ function NavBar() {
               {isSyncInProgress ? "Syncing..." : `${pendingCount} Pending`}
             </div>
           )}
+
+          <div
+            onClick={() => dispatch(toggleTheme())}
+            className={`cursor-pointer nav-icon flex items-center gap-1 ${theme === 'legacy' ? 'text-indigo-600' : ''}`}
+            title={`Switch to ${theme === 'modern' ? 'Legacy' : 'Modern'} Theme`}
+          >
+            <Palette size={20} />
+            <span style={{ fontSize: '10px', fontWeight: 800 }}>THEME: {(theme || 'modern').toUpperCase()}</span>
+          </div>
 
           <SettingsIcon className="cursor-pointer nav-icon" onClick={() => navigate('/dashboard')} title="Dashboard" />
           <LayoutDashboard className="cursor-pointer nav-icon" onClick={() => navigate('/syncmanager')} title="Sync Manager" />

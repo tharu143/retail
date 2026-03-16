@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package,
-  DollarSign, ShoppingCart, Save, Send
+  DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History
 } from 'lucide-react';
 import CustomSearchDropdown from './CustomSearchDropdown';
+import './Purchase.css';
+import '../Headers/LegacyPOS.css';
 
 const POItemModel = {
   item_code: null,
@@ -15,10 +18,16 @@ const POItemModel = {
   stock_uom: '',
   uom: '',
   rate: 0,
-  amount: 0
+  amount: 0,
+  custom_supplier_sl_num: '',
+  custom_box_qty: 0,
+  custom_pieces_per_box: 1,
+  custom_box_price: 0,
+  use_box_entry: false
 };
 
 function PurchaseOrder() {
+  const theme = useSelector((state) => state.user.theme);
   const [formData, setFormData] = useState({
     name: '', // For draft name
     supplier: null,
@@ -52,8 +61,9 @@ function PurchaseOrder() {
   const [isEditMode, setIsEditMode] = useState(false); // Shows if we are editing a draft
 
   const getSession = () => localStorage.getItem('session') || '';
-  const API_PATH = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
-  const RESOURCE_API = '/api/resource/Purchase Order';
+  const BASE_URL = 'http://75.119.130.59';
+  const API_PATH = `${BASE_URL}/api/method/kyle_retail.retail_api.api`;
+  const RESOURCE_API = `${BASE_URL}/api/resource/Purchase Order`;
 
   const [scanningRow, setScanningRow] = useState(null); // Track which row is scanning
 
@@ -90,15 +100,17 @@ function PurchaseOrder() {
 
       // Auto-fill the row with item data
       const items = [...formData.items];
+      const rate = item.last_buying_rate || item.rate || 0;
       items[rowIndex] = {
         ...items[rowIndex],
         item_code: item.item_code,
         item_name: item.item_name,
         stock_uom: item.stock_uom || '',
         uom: item.stock_uom || '',
-        rate: item.rate || 0,
+        rate: rate,
         qty: items[rowIndex].qty || 1,
-        amount: (item.rate || 0) * (items[rowIndex].qty || 1),
+        custom_pieces_per_box: item.custom_pieces_per_box || 1,
+        amount: rate * (items[rowIndex].qty || 1),
         temp_barcode: '' // Clear barcode field
       };
 
@@ -117,7 +129,15 @@ function PurchaseOrder() {
       }, 100);
 
     } catch (err) {
-      setError(`Item not found for barcode: ${barcode}`);
+      Swal.fire({
+          icon: 'error',
+          title: 'Barcode Not Found',
+          text: `"${barcode}" does not exist in the catalog.`,
+          toast: true,
+          position: 'top-end',
+          timer: 3000,
+          showConfirmButton: false
+      });
     } finally {
       setScanningRow(null);
     }
@@ -128,12 +148,15 @@ function PurchaseOrder() {
 
   useEffect(() => {
     fetchWarehouses();
-    fetchTaxTemplates();
-  }, []);
+    if (formData.company) {
+      fetchTaxTemplates();
+    }
+  }, [formData.company]);
 
   const fetchWarehouses = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_warehouses?is_group=0`, {
+      const OLD_API = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const res = await fetch(`${OLD_API}.get_warehouses?is_group=0`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -147,13 +170,16 @@ function PurchaseOrder() {
 
   const fetchTaxTemplates = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_purchase_taxes_templates_po`, {
+      const res = await fetch(`${API_PATH}.get_purchase_taxes_templates_po?company=${encodeURIComponent(formData.company)}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
-      setTaxTemplates(data.message || data || []);
+      const allT = data.message || data || [];
+      // Prioritize KSPL templates for this company
+      const filtered = allT.filter(t => t.name.includes("KSPL"));
+      setTaxTemplates(filtered.length > 0 ? filtered : allT);
     } catch (err) {
       console.error('Tax templates error:', err);
     }
@@ -184,14 +210,17 @@ function PurchaseOrder() {
       const data = await res.json();
       const rawTaxes = Array.isArray(data) ? data : Array.isArray(data.message) ? data.message : [];
 
-      const formattedTaxes = rawTaxes.map(t => ({
-        charge_type: t.charge_type || "On Net Total",
-        account_head: t.account_head || '',
-        rate: parseFloat(t.rate) || 0,
-        tax_amount: 0,
-        description: t.description || t.account_head || 'Tax',
-        add_deduct_tax: t.add_deduct_tax || "Add"
-      }));
+      // Filter out only completely empty rows (must have an account OR a rate)
+      const formattedTaxes = rawTaxes
+        .filter(t => t.account_head || (parseFloat(t.rate) > 0)) 
+        .map(t => ({
+          charge_type: t.charge_type || "On Net Total",
+          account_head: t.account_head || 'Purchase Tax',
+          rate: parseFloat(t.rate) || 0,
+          tax_amount: 0,
+          description: t.description || (t.account_head ? t.account_head.split(' - ')[0] : 'VAT'),
+          add_deduct_tax: t.add_deduct_tax || "Add"
+        }));
 
       setFormData(prev => {
         const netTotal = prev.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -229,6 +258,15 @@ function PurchaseOrder() {
       if (name === 'qty' || name === 'rate') {
         items[rowIndex][name] = parseFloat(value) || 0;
         items[rowIndex].amount = (items[rowIndex].qty || 0) * (items[rowIndex].rate || 0);
+      } else if (['custom_box_qty', 'custom_pieces_per_box', 'custom_box_price'].includes(name)) {
+        items[rowIndex][name] = parseFloat(value) || 0;
+        const bQty = items[rowIndex].custom_box_qty || 0;
+        const pPerB = items[rowIndex].custom_pieces_per_box || 1;
+        const bPrice = items[rowIndex].custom_box_price || 0;
+        
+        items[rowIndex].qty = bQty * pPerB;
+        items[rowIndex].rate = pPerB > 0 ? bPrice / pPerB : 0;
+        items[rowIndex].amount = items[rowIndex].qty * items[rowIndex].rate;
       } else if (name === 'schedule_date') {
         if (value < formData.transaction_date) {
           setError('Schedule date cannot be before transaction date');
@@ -238,32 +276,46 @@ function PurchaseOrder() {
       } else {
         items[rowIndex][name] = value;
       }
-      setFormData({ ...formData, items });
+      setFormData(prev => {
+        const newState = { ...prev, items };
+        calculateTotals(newState.items, newState.taxes);
+        return newState;
+      });
     } else {
       if (name === 'transaction_date') {
         const items = formData.items.map(item => ({
           ...item,
           schedule_date: item.schedule_date < value ? value : item.schedule_date
         }));
-        setFormData({ ...formData, [name]: value, items });
+        setFormData(prev => {
+          const newState = { ...prev, [name]: value, items };
+          calculateTotals(newState.items, newState.taxes);
+          return newState;
+        });
       } else {
-        setFormData({ ...formData, [name]: value });
+        setFormData(prev => {
+          const newState = { ...prev, [name]: value };
+          calculateTotals(newState.items, newState.taxes);
+          return newState;
+        });
       }
     }
-    calculateTotals();
   };
 
-  const calculateTotals = () => {
-    const totalQty = formData.items.reduce((sum, item) => sum + (item.qty || 0), 0);
-    const netTotal = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const calculateTotals = (overrideItems = null, overrideTaxes = null) => {
+    const items = overrideItems || formData.items;
+    const taxes = overrideTaxes || formData.taxes;
+    
+    const totalQty = items.reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+    const netTotal = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
     let taxesTotal = 0;
-    const updatedTaxes = (formData.taxes || []).map(tax => {
+    const updatedTaxes = (taxes || []).map(tax => {
       let taxAmt = 0;
       if (tax.charge_type === "On Net Total") {
-        taxAmt = netTotal * (tax.rate || 0) / 100;
+        taxAmt = netTotal * (parseFloat(tax.rate) || 0) / 100;
       } else if (tax.charge_type === "Actual") {
-        taxAmt = tax.rate || 0;
+        taxAmt = parseFloat(tax.rate) || 0;
       }
       if (tax.add_deduct_tax === "Deduct") taxAmt = -taxAmt;
       taxesTotal += taxAmt;
@@ -299,7 +351,8 @@ function PurchaseOrder() {
       return;
     }
     try {
-      const res = await fetch(`${API_PATH}.get_po_history?item_codes_json=${JSON.stringify(itemCodes)}`, {
+      const OLD_API = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const res = await fetch(`${OLD_API}.get_po_history?item_codes_json=${JSON.stringify(itemCodes)}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -337,6 +390,10 @@ function PurchaseOrder() {
         ...formData,
         supplier: formData.supplier.name,
         taxes_and_charges: formData.taxes_and_charges,
+        items: formData.items.map(item => {
+          const { use_box_entry, temp_barcode, ...rest } = item;
+          return rest;
+        }),
         taxes: formData.taxes.map(t => ({
           charge_type: t.charge_type,
           account_head: t.account_head,
@@ -448,7 +505,8 @@ function PurchaseOrder() {
     const supplier_type = typeSelect ? typeSelect.value : "Company";
 
     try {
-      const res = await fetch(`${API_PATH}.create_supplier`, {
+      const OLD_API = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const res = await fetch(`${OLD_API}.create_supplier`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
         credentials: 'include',
@@ -491,14 +549,16 @@ function PurchaseOrder() {
 
   const handleItemSelect = (item, rowIndex) => {
     const items = [...formData.items];
+    const rate = item.last_buying_rate || item.rate || 0;
     items[rowIndex] = {
       ...items[rowIndex],
       item_code: item.item_code,
       item_name: item.item_name,
       stock_uom: item.stock_uom || '',
       uom: item.stock_uom || '',
-      rate: item.rate || 0,
-      amount: (item.rate || 0) * (items[rowIndex].qty || 1),
+      rate: rate,
+      custom_pieces_per_box: item.custom_pieces_per_box || 1,
+      amount: rate * (items[rowIndex].qty || 1),
       schedule_date: items[rowIndex].schedule_date || formData.transaction_date
     };
     setFormData({ ...formData, items });
@@ -513,373 +573,421 @@ function PurchaseOrder() {
       });
       if (!res.ok) return [];
       const data = await res.json();
-
-      const itemsWithRate = await Promise.all(
-        (data.message || []).map(async (item) => {
-          if (!item.rate) {
-            try {
-              const rateRes = await fetch(`${API_PATH}.get_item_buying_rate_po?item_code=${item.item_code}`, {
-                headers: { 'X-Frappe-SID': getSession() },
-                credentials: 'include'
-              });
-              const rateData = await rateRes.json();
-              item.rate = rateData.message?.rate || 0;
-            } catch (err) {
-              item.rate = 0;
-            }
-          }
-          return item;
-        })
-      );
-
-      setAllItems(itemsWithRate);
-      return itemsWithRate;
+      const results = (data.message || []).map(it => ({
+        ...it,
+        rate: it.last_buying_rate || it.rate || 0
+      }));
+      setAllItems(results);
+      return results;
     } catch (err) {
       return [];
     }
   };
 
   if (!formData.company) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-xl">Company missing. Login again.</div>;
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+        <p className="text-slate-600 font-medium font-sans">Restoring Session...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <FileText className="w-8 h-8 text-slate-700" />
-            Purchase Order {isEditMode && formData.name ? `(Draft: ${formData.name})` : ''}
-          </h1>
-          <p className="text-slate-600 mt-2">
-            {isEditMode ? 'Editing draft Purchase Order' : 'Create a new Purchase Order'}
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-            <p className="text-red-700 text-sm">{error}</p>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
-            <p className="text-green-700 text-sm">{success}</p>
-          </div>
-        )}
-
-        <form className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-          {/* Header fields unchanged */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <div className={`min-h-screen bg-[#f1f5f9] font-sans pb-10 purchase-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
+      <div className="max-w-[1700px] mx-auto px-4 py-6">
+        
+        {/* Top Floating Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-sky-600 p-2 rounded-xl shadow-lg shadow-sky-100">
+              <FileText className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Supplier *</label>
-              <CustomSearchDropdown
-                placeholder="Search or create supplier..."
-                value={formData.supplier}
-                onSelect={handleSupplierSelect}
-                fetchData={fetchSuppliers}
-                createOption={handleSupplierCreate}
-                optionsLabel="supplier_name"
-                extraCreateFields={() => (
-                  <div className="mt-2 p-3 bg-slate-50 rounded-lg border">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Supplier Type</label>
-                    <select id="new-supplier-type" className="w-full px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-slate-500" defaultValue="Company">
-                      <option value="Company">Company</option>
-                      <option value="Individual">Individual</option>
-                      <option value="Partnership">Partnership</option>
-                    </select>
-                  </div>
+              <h1 className="text-xl font-black text-slate-900 leading-tight flex items-center gap-2">
+                Purchase Order
+                {isEditMode && formData.name && (
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded uppercase tracking-wider">
+                    Draft: {formData.name}
+                  </span>
                 )}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Transaction Date *</label>
-              <input
-                type="datetime-local"
-                name="transaction_date"
-                value={formData.transaction_date}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Company *</label>
-              <input type="text" value={formData.company} readOnly className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Warehouse</label>
-              <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500">
-                <option value="">Select Warehouse</option>
-                {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
-              </select>
+              </h1>
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-tighter">
+                {isEditMode ? 'Editing existing draft' : 'New Procurement Entry'}
+              </p>
             </div>
           </div>
-
-          {/* Items Table */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold flex items-center gap-2"><Package className="w-5 h-5" /> Items</h2>
-              <button type="button" onClick={addItemRow} className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800">Add Item</button>
-            </div>
-
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b">
-                  <tr>
-                    <th className="text-left py-3 px-4">Barcode</th>
-                    <th className="text-left py-3 px-4">Item</th>
-                    <th className="text-left py-3 px-4">Schedule Date</th>
-                    <th className="text-right py-3 px-4">Qty</th>
-                    <th className="text-left py-3 px-4">UOM</th>
-                    <th className="text-right py-3 px-4">Rate</th>
-                    <th className="text-right py-3 px-4">Amount</th>
-                    <th className="w-10"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {formData.items.map((item, idx) => (
-                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                      <td className="py-3 px-4">
-                        <input
-                          type="text"
-                          placeholder="Scan barcode..."
-                          value={item.temp_barcode || ''}
-                          onChange={(e) => handleBarcodeScan(e, idx)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleBarcodeEnter(e, idx)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                          autoFocus={idx === formData.items.length - 1} // Optional: auto focus last row
-                        />
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={item.item_name || ''}
-                            onChange={async (e) => {
-                              const q = e.target.value;
-                              const items = [...formData.items];
-                              items[idx].item_name = q;
-                              setFormData({ ...formData, items });
-
-                              if (q.length < 2) {
-                                setAllItems([]);
-                                setActiveDropdownRow(null);
-                                return;
-                              }
-
-                              try {
-                                const res = await axios.get(`${API_PATH}.get_items_for_po`, {
-                                  params: { query: q },
-                                  withCredentials: true,
-                                  headers: { 'X-Frappe-SID': getSession() }
-                                });
-                                const fetched = res.data.message || [];
-                                setAllItems(fetched);
-                                setActiveDropdownRow(idx);
-
-                                const rect = e.target.getBoundingClientRect();
-                                setDropdownPosition({
-                                  top: rect.bottom + window.scrollY + 8,
-                                  left: rect.left + window.scrollX,
-                                  width: rect.width
-                                });
-                              } catch (err) {
-                                console.error(err);
-                              }
-                            }}
-                            onFocus={(e) => {
-                              if (item.item_name && allItems.length === 0) {
-                                const rect = e.target.getBoundingClientRect();
-                                setDropdownPosition({
-                                  top: rect.bottom + window.scrollY + 8,
-                                  left: rect.left + window.scrollX,
-                                  width: rect.width
-                                });
-                                setActiveDropdownRow(idx);
-                              }
-                            }}
-                            placeholder="Search item..."
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                          />
-
-                          {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
-                            <div
-                              className="fixed bg-white border border-gray-300 rounded-lg shadow-2xl z-[9999] max-h-64 overflow-y-auto"
-                              style={{
-                                top: `${dropdownPosition.top}px`,
-                                left: `${dropdownPosition.left}px`,
-                                width: `${dropdownPosition.width}px`
-                              }}
-                            >
-                              {allItems.map((it) => (
-                                <div
-                                  key={it.item_code}
-                                  onClick={() => {
-                                    handleItemSelect(it, idx);
-                                    setActiveDropdownRow(null);
-                                    setDropdownPosition(null);
-                                  }}
-                                  className="px-5 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition-colors"
-                                >
-                                  <div className="font-medium text-gray-900">{it.item_name}</div>
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    {it.item_code} • Rate: AED {(it.rate || 0).toFixed(2)}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>,
-                            document.body
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <input type="datetime-local" value={item.schedule_date} min={formData.transaction_date} onChange={(e) => handleInputChange(e, idx)} name="schedule_date" className="w-full px-2 py-1 border rounded text-sm" />
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <input type="number" value={item.qty} onChange={(e) => handleInputChange(e, idx)} name="qty" min="0.01" step="0.01" className="w-20 text-right border rounded px-2 py-1" />
-                      </td>
-                      <td className="py-3 px-4">
-                        <input type="text" value={item.uom} readOnly className="w-full px-2 py-1 bg-slate-100 rounded text-sm" placeholder="Auto" />
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <input type="number" value={item.rate} onChange={(e) => handleInputChange(e, idx)} name="rate" min="0" step="0.01" className="w-24 text-right border rounded px-2 py-1" />
-                      </td>
-                      <td className="py-3 px-4 text-right font-semibold">AED {item.amount.toFixed(2)}</td>
-                      <td className="py-3 px-4 text-center">
-                        <button type="button" onClick={() => removeItemRow(idx)} className="text-red-600 text-xl">×</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* NEW TAX SECTION */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Taxes & Charges</h2>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Tax Template</label>
-              <select
-                value={formData.taxes_and_charges || ''}
-                onChange={(e) => fetchTaxRows(e.target.value || null)}
-                className="w-full md:w-96 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-              >
-                <option value="">-- No Template --</option>
-                {taxTemplates.map(t => (
-                  <option key={t.name} value={t.name}>{t.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {formData.taxes.length > 0 && (
-              <div className="overflow-x-auto border rounded-lg">
-                <table className="w-full">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="text-left py-3 px-4">Description</th>
-                      <th className="text-left py-3 px-4">Type</th>
-                      <th className="text-right py-3 px-4">Rate (%)</th>
-                      <th className="text-right py-3 px-4">Amount (AED)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {formData.taxes.map((tax, i) => (
-                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                        <td className="py-3 px-4">{tax.description || tax.account_head}</td>
-                        <td className="py-3 px-4 text-sm">{tax.charge_type}</td>
-                        <td className="py-3 px-4 text-right">{(tax.rate || 0).toFixed(2)}</td>
-                        <td className="py-3 px-4 text-right font-medium">
-                          {tax.tax_amount.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="bg-slate-100 font-bold">
-                      <td colSpan={3} className="py-3 px-4 text-right">Total Tax</td>
-                      <td className="py-3 px-4 text-right">
-                        {(formData.grand_total - formData.total).toFixed(2)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* UPDATED SUMMARY */}
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-6 text-white mb-6">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><DollarSign className="w-6 h-6" /> Summary</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white/10 rounded-lg p-4">
-                <p className="text-slate-300">Total Quantity</p>
-                <p className="text-2xl font-bold">{formData.total_qty.toFixed(2)}</p>
-              </div>
-              <div className="bg-white/10 rounded-lg p-4">
-                <p className="text-slate-300">Net Total</p>
-                <p className="text-2xl font-bold">AED {formData.total.toFixed(2)}</p>
-              </div>
-              <div className="bg-white/10 rounded-lg p-4">
-                <p className="text-slate-300">Grand Total</p>
-                <p className="text-3xl font-bold">AED {formData.grand_total.toFixed(2)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-4 justify-end mt-8">
+          
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleSaveDraft}
               disabled={saving || loading}
-              className="px-8 py-4 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-lg flex items-center gap-3 disabled:opacity-50"
+              className="po-btn-secondary"
             >
-              {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
-              {saving ? 'Saving Draft...' : 'Save as Draft'}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Draft
             </button>
-
             <button
               type="button"
               onClick={handleSubmit}
               disabled={loading || saving || !formData.name}
-              className="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg flex items-center gap-3 disabled:opacity-50"
+              className="po-btn-primary !bg-sky-600 hover:!bg-sky-700 !py-2.5 !w-auto !px-6"
             >
-              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
-              {loading ? 'Submitting...' : 'Submit Purchase Order'}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Process Order
             </button>
           </div>
-        </form>
+        </div>
 
-        {/* History section unchanged */}
-        {Object.keys(history).length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><ShoppingCart className="w-6 h-6" /> Recent PO History</h2>
-            {Object.entries(history).map(([code, entries]) => (
-              <div key={code} className="mb-4 p-4 bg-slate-50 rounded">
-                <p className="font-medium">Item: {code}</p>
-                <table className="w-full mt-2 text-sm">
-                  {entries.slice(0, 3).map((e, i) => (
-                    <tr key={i}>
-                      <td className="py-1">{e.parent}</td>
-                      <td className="text-right">{e.qty}</td>
-                      <td className="text-right">AED {parseFloat(e.rate).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </table>
-              </div>
-            ))}
+        {error && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 rounded-r-xl p-4 flex items-start gap-4">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+            <div className="text-sm font-bold text-red-800">{error}</div>
           </div>
         )}
+
+        {success && (
+          <div className="mb-6 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl p-4 flex items-start gap-4">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" />
+            <div className="text-sm font-bold text-emerald-800">{success}</div>
+          </div>
+        )}
+
+        <div className="po-layout">
+          {/* MAIN AREA - Left */}
+          <div className="po-main-section">
+            
+            {/* Global Scanner Card */}
+            <div className="po-card !border-sky-200 !bg-sky-50/30">
+              <div className="p-4 flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <Scan className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-sky-500" />
+                  <input
+                    type="text"
+                    placeholder="SCAN ITEM BARCODE FOR QUICK ADD..."
+                    className="w-full pl-12 pr-4 py-4 bg-white border-2 border-sky-100 rounded-xl text-sm font-black text-sky-900 placeholder:text-sky-300 focus:border-sky-500 outline-none shadow-sm transition-all"
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter') {
+                        const barcode = e.target.value;
+                        if (!barcode) return;
+                        const emptyIdx = formData.items.findIndex(i => !i.item_code);
+                        const targetIdx = emptyIdx !== -1 ? emptyIdx : formData.items.length;
+                        if (emptyIdx === -1) addItemRow();
+                        handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, targetIdx);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest leading-none">Press Enter to Add</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Items Table Card */}
+            <div className="po-card">
+              <div className="po-card-header">
+                <h3 className="po-card-title flex items-center gap-2">
+                  <Package className="w-4 h-4 text-sky-500" />
+                  Items in Basket
+                  <span className="ml-2 bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full">
+                    {formData.items.length} Lines
+                  </span>
+                </h3>
+                <button 
+                  type="button" 
+                  onClick={addItemRow} 
+                  className="bg-sky-50 text-sky-600 hover:bg-sky-100 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add New
+                </button>
+              </div>
+              
+              <div className="purchase-table-container">
+                <table className="purchase-table">
+                  <thead>
+                    <tr>
+                      <th className="purchase-th w-[130px]">Scanner</th>
+                      <th className="purchase-th min-w-[280px]">Item Description</th>
+                      <th className="purchase-th w-[140px]">Ref / SL #</th>
+                      <th className="purchase-th w-[140px]">Sch. Date</th>
+                      <th className="purchase-th w-[90px] text-right">Qty</th>
+                      <th className="purchase-th w-[70px]">UOM</th>
+                      <th className="purchase-th w-[110px] text-right">Rate</th>
+                      <th className="purchase-th w-[120px] text-right">Subtotal</th>
+                      <th className="purchase-th w-[40px]"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formData.items.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="purchase-td">
+                          <div className="relative">
+                            <Scan className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                            <input
+                              type="text"
+                              value={item.temp_barcode || ''}
+                              placeholder="Barcode..."
+                              onChange={(e) => handleBarcodeScan(e, idx)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleBarcodeEnter(e, idx)}
+                              className="w-full pl-8 pr-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                            {scanningRow === idx && (
+                              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-sky-500" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="purchase-td">
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={item.item_name || ''}
+                              placeholder="Type item..."
+                                onChange={async (e) => {
+                                 const q = e.target.value;
+                                 const items = [...formData.items];
+                                 items[idx].item_name = q;
+                                 setFormData({ ...formData, items });
+                                 if (q.length < 2) return;
+                                 try {
+                                   const results = await fetchItems(q);
+                                   setActiveDropdownRow(idx);
+                                   const rect = e.target.getBoundingClientRect();
+                                   setDropdownPosition({ top: rect.bottom + window.scrollY + 5, left: rect.left + window.scrollX, width: rect.width });
+                                 } catch (err) {}
+                               }}
+                               className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-black text-slate-800 focus:border-sky-500 outline-none"
+                             />
+                            {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
+                              <div className="fixed bg-white border border-slate-200 rounded-xl shadow-2xl z-[9999] max-h-60 overflow-y-auto w-fit min-w-[300px]" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
+                                  {allItems.map((it) => (
+                                    <div key={it.item_code} onClick={() => { handleItemSelect(it, idx); setActiveDropdownRow(null); }} className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-b-0">
+                                      <div className="flex justify-between items-start gap-3">
+                                        <div className="text-xs font-bold text-slate-800">{it.item_name}</div>
+                                        <div className="text-[10px] font-black text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded uppercase">{it.item_code}</div>
+                                      </div>
+                                      <div className="text-[9px] text-slate-400 font-bold uppercase mt-1">Last Rate: AED {parseFloat(it.last_buying_rate || 0).toFixed(2)}</div>
+                                    </div>
+                                  ))}
+                              </div>, document.body
+                            )}
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const updated = [...formData.items];
+                              updated[idx].use_box_entry = !updated[idx].use_box_entry;
+                              setFormData({ ...formData, items: updated });
+                            }}
+                            className={`mt-1.5 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded flex items-center gap-1 transition-colors ${item.use_box_entry ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-500 hover:text-sky-600'}`}
+                          >
+                            <Box className="w-2.5 h-2.5" />
+                            Box Entry
+                          </button>
+                          {item.use_box_entry && (
+                            <div className="box-entry-panel !grid-cols-3 !gap-2 !mt-2 !p-2">
+                              <div className="box-entry-field">
+                                <label className="box-entry-label">Box Qty</label>
+                                <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} className="!py-1.5 po-input" />
+                              </div>
+                              <div className="box-entry-field">
+                                <label className="box-entry-label">Pcs/Box</label>
+                                <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} className="!py-1.5 po-input" />
+                              </div>
+                              <div className="box-entry-field">
+                                <label className="box-entry-label">Box Price</label>
+                                <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} className="!py-1.5 po-input" />
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                        <td className="purchase-td">
+                          <input type="text" name="custom_supplier_sl_num" value={item.custom_supplier_sl_num} onChange={(e) => handleInputChange(e, idx)} className="po-input !py-1 text-xs" placeholder="Serial..." />
+                        </td>
+                        <td className="purchase-td">
+                          <input type="date" value={item.schedule_date?.split('T')[0]} onChange={(e) => handleInputChange(e, idx)} name="schedule_date" className="po-input !py-1 text-xs" />
+                        </td>
+                        <td className="purchase-td text-right">
+                          <input type="number" name="qty" value={item.qty} onChange={(e) => handleInputChange(e, idx)} className="w-full text-right font-bold text-xs bg-transparent border-none outline-none focus:ring-0" readOnly={item.use_box_entry} />
+                        </td>
+                        <td className="purchase-td">
+                          <span className="text-[10px] font-black text-slate-400 uppercase">{item.uom || 'Unit'}</span>
+                        </td>
+                        <td className="purchase-td text-right">
+                          <input type="number" name="rate" value={item.rate} onChange={(e) => handleInputChange(e, idx)} className="w-full text-right font-black text-xs bg-transparent border-none outline-none focus:ring-0" readOnly={item.use_box_entry} />
+                        </td>
+                        <td className="purchase-td text-right">
+                          <span className="text-xs font-black text-slate-900 leading-none">
+                            {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                        </td>
+                        <td className="purchase-td text-center">
+                          <button type="button" onClick={() => removeItemRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors p-1">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* History Section - Compact Mini Cards */}
+            {Object.keys(history).length > 0 && (
+              <div className="po-card">
+                <div className="po-card-header !bg-white">
+                  <h3 className="po-card-title flex items-center gap-2">
+                    <History className="w-4 h-4 text-sky-500" />
+                    Last Purchased Prices
+                  </h3>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {Object.entries(history).map(([code, entries]) => (
+                    <div key={code} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{code}</div>
+                      <div className="mt-2 space-y-1.5">
+                        {entries.slice(0, 2).map((e, i) => (
+                          <div key={i} className="flex justify-between text-[11px] font-bold">
+                            <span className="text-sky-600 truncate mr-2">{e.parent}</span>
+                            <span className="text-slate-900 whitespace-nowrap">AED {parseFloat(e.rate).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SIDEBAR - Right */}
+          <div className="po-sidebar">
+            
+            {/* General Info Card */}
+            <div className="po-card">
+              <div className="po-card-header">
+                <h3 className="po-card-title">Order Settings</h3>
+              </div>
+              <div className="po-card-body space-y-4">
+                <div>
+                  <label className="po-label">Supplier *</label>
+                  <CustomSearchDropdown
+                    placeholder="Search supplier..."
+                    value={formData.supplier}
+                    onSelect={handleSupplierSelect}
+                    fetchData={fetchSuppliers}
+                    createOption={handleSupplierCreate}
+                    optionsLabel="supplier_name"
+                    extraCreateFields={() => (
+                      <div className="mt-2 p-3 bg-slate-50 rounded-lg">
+                        <label className="text-[10px] font-bold uppercase mb-1 block">Type</label>
+                        <select id="new-supplier-type" className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs outline-none" defaultValue="Company">
+                          <option value="Company">Company</option>
+                          <option value="Individual">Individual</option>
+                        </select>
+                      </div>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="po-label">Date</label>
+                    <input type="datetime-local" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="po-input text-xs" />
+                  </div>
+                  <div>
+                    <label className="po-label">Warehouse</label>
+                    <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} className="po-input text-xs">
+                      <option value="">Select...</option>
+                      {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="po-label">Company</label>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[11px] font-bold text-slate-600 uppercase">
+                    {formData.company}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Taxes Card */}
+            <div className="po-card">
+              <div className="po-card-header">
+                <h3 className="po-card-title">Taxes & Charges</h3>
+              </div>
+              <div className="po-card-body">
+                <select
+                  value={formData.taxes_and_charges || ''}
+                  onChange={(e) => fetchTaxRows(e.target.value || null)}
+                  className="po-input text-xs mb-4"
+                >
+                  <option value="">No Tax Applied</option>
+                  {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                </select>
+
+                {formData.taxes.length > 0 && (
+                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                    {formData.taxes.map((tax, i) => (
+                      <div key={i} className="flex justify-between text-[11px] font-bold">
+                        <span className="text-slate-500 uppercase">{tax.description || 'Tax'}</span>
+                        <span className="text-slate-900">AED {tax.tax_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Final Summary Card */}
+            <div className="po-summary shadow-2xl shadow-slate-400">
+              <div className="po-summary-row">
+                <span>Total Items</span>
+                <span>{formData.items.length}</span>
+              </div>
+              <div className="po-summary-row">
+                <span>Total Quantity</span>
+                <span className="text-white font-bold">{formData.total_qty.toFixed(2)}</span>
+              </div>
+              <div className="po-summary-row">
+                <span>Net Amount</span>
+                <span className="text-white font-bold">AED {formData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              
+              <div className="po-summary-total">
+                <div className="text-[10px] uppercase font-black tracking-widest opacity-60 mb-1">Grand Total Payable</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black">AED {formData.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+              
+              <div className="mt-6 flex flex-col gap-2">
+                {!formData.name && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg text-amber-400 text-[10px] font-bold uppercase text-center mb-2">
+                    Please save draft to enable submission
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading || saving || !formData.name}
+                  className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${!formData.name ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-xl shadow-sky-500/20 active:scale-95'}`}
+                >
+                  {loading ? 'Submitting...' : 'Finalize Purchase'}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default PurchaseOrder;

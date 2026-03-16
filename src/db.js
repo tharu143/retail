@@ -9,9 +9,9 @@ db.version(1).stores({
     invoices: '++id, offline_id, customer, grand_total, is_synced, posting_date'
 });
 
-// Version 5: Offline Opening/Closing Entries support
-db.version(5).stores({
-    items: 'id, name, group, price, actual_qty, local_qty',
+// Version 6: Expanded for Pieces per Box and better offline IDs
+db.version(6).stores({
+    items: 'id, name, group, price, actual_qty, local_qty, custom_pieces_per_box',
     customers: 'name, customer_name, mobile_no, is_synced',
     invoices: '++id, offline_id, customer, grand_total, is_synced, posting_date, synced_at, server_name, retry_count, conflicts',
     tax_templates: 'name',

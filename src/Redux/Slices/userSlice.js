@@ -9,6 +9,7 @@ const userSlice = createSlice({
     company: null,
     warehouse: null,
     branchPrefix: null,
+    theme: 'modern', // 'modern' or 'legacy'
     message: {
       allowed_item_groups: [],
       allowed_customer_groups: [],
@@ -33,6 +34,7 @@ const userSlice = createSlice({
       state.company = null;
       state.warehouse = null;
       state.branchPrefix = null;
+      state.theme = 'modern';
       state.message = {
         allowed_item_groups: [],
         allowed_customer_groups: [],
@@ -43,8 +45,11 @@ const userSlice = createSlice({
     setWarehouse: (state, action) => {
       state.warehouse = action.payload;
     },
+    toggleTheme: (state) => {
+      state.theme = state.theme === 'modern' ? 'legacy' : 'modern';
+    },
   },
 });
 
-export const { loginSuccess, logout, setWarehouse } = userSlice.actions;
+export const { loginSuccess, logout, setWarehouse, toggleTheme } = userSlice.actions;
 export default userSlice.reducer;

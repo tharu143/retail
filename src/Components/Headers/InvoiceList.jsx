@@ -47,6 +47,7 @@ function InvoiceList() {
     }, [filterId, offlineInvoices, invoices]);
 
     const userData = useSelector((state) => state.user);
+    const theme = useSelector((state) => state.user.theme);
     const getSession = () => userData?.session || localStorage.getItem("session") || "";
 
     // Load local and server data
@@ -226,19 +227,35 @@ function InvoiceList() {
                     </table>
                     <div class="divider"></div>
                     <div class="totals">
-                        <div class="total-row bold">
+                        <div class="total-row">
                             <span>SUB TOTAL</span>
-                            <span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span>
+                            <span>AED ${parseFloat(invoice.total || invoice.subtotal || invoice.grand_total || 0).toFixed(2)}</span>
                         </div>
+                        ${(invoice.discount_amount || invoice.discount_amount || 0) > 0 ? `
+                            <div class="total-row">
+                                <span>DISCOUNT</span>
+                                <span>-AED ${parseFloat(invoice.discount_amount || invoice.discount_amount).toFixed(2)}</span>
+                            </div>
+                        ` : ''}
+                        ${(invoice.tax_amount || invoice.total_taxes_and_charges || 0) > 0 ? `
+                            <div class="total-row">
+                                <span>TAX</span>
+                                <span>AED ${parseFloat(invoice.tax_amount || invoice.total_taxes_and_charges).toFixed(2)}</span>
+                            </div>
+                        ` : ''}
                         <div class="total-row grand-total bold">
                             <span>TOTAL</span>
                             <span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span>
                         </div>
-                        <div class="total-row" style="margin-top: 10px;">
-                            <span>CASH</span>
-                            <span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span>
+                        <div style="margin-top: 10px;">
+                            ${(invoice.payments || [{ mode_of_payment: 'CASH', amount: invoice.grand_total }]).map(p => `
+                                <div class="total-row">
+                                    <span>${(p.mode_of_payment || 'PAYMENT').toUpperCase()}</span>
+                                    <span>AED ${parseFloat(p.amount || 0).toFixed(2)}</span>
+                                </div>
+                            `).join('')}
                         </div>
-                        <div class="total-row">
+                        <div class="total-row" style="margin-top: 5px; opacity: 0.8;">
                             <span>CHANGE</span>
                             <span>AED 0.00</span>
                         </div>
@@ -261,7 +278,7 @@ function InvoiceList() {
     };
 
     return (
-        <div className="invoice-list-container">
+        <div className={`invoice-list-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
             <div className="invoice-list-header">
                 <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem' }}>
                     POS Invoice Management

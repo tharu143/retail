@@ -8,6 +8,8 @@ import {
 import { logout } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
+import { db } from './src/db'; // Correct path to src/db from root Home_master.jsx
+import { v4 as uuidv4 } from 'uuid'; // Standard for offline_id
 
 function Home() {
   const navigate = useNavigate();
@@ -93,6 +95,12 @@ function Home() {
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
   const [tenderedAmount, setTenderedAmount] = useState(0);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  
+  // Nearest Stock
+  const [nearestStock, setNearestStock] = useState([]);
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [selectedItemForStock, setSelectedItemForStock] = useState(null);
 
   const dropdownRef = useRef(null);
   const nameInputRef = useRef(null);
@@ -106,7 +114,10 @@ function Home() {
 
   // ---------- CALCULATIONS ----------
   const subtotal = useMemo(() =>
-    billItems.reduce((sum, item) => sum + flt(item.price * item.qty), 0)
+    billItems.reduce((sum, item) => {
+      const itemPrice = item.uom_type === 'Box' ? (item.price * item.pieces_per_box) : item.price;
+      return sum + flt(itemPrice * item.qty);
+    }, 0)
     , [billItems]);
 
   const discountAmount = useMemo(() => {
@@ -142,7 +153,7 @@ function Home() {
   useEffect(() => {
     const fetchTaxTemplates = async () => {
       try {
-        const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_details');
+        const res = await authFetch('kyle_retail.retail_api.api.get_sales_taxes_details');
         const data = await res.json();
         const templates = data.message || data || [];
         setTaxTemplates(templates);
@@ -161,7 +172,7 @@ function Home() {
       setSearchLoading(true);
       try {
         const res = await authFetch(
-          `custom_retailpos.custom_retailpos.retail_api.retail.get_customers?search=${encodeURIComponent(customerName.trim())}`
+          `kyle_retail.retail_api.api.get_customers?search=${encodeURIComponent(customerName.trim())}`
         );
         const data = await res.json();
         setSearchResults(Array.isArray(data.message) ? data.message : []);
@@ -202,28 +213,27 @@ function Home() {
     setCreatingCustomer(true);  // ??? Loading starts
 
     try {
-      const formData = new FormData();
-      formData.append("customer_name", createForm.name.trim());
-      if (createForm.phone) formData.append("phone", createForm.phone);
-      if (createForm.address) formData.append("address", createForm.address);
-      if (createForm.email) formData.append("email", createForm.email);
+      // Using kyle_retail fast customer endpoint as per requirement
+      const payload = {
+        mobile_no: createForm.phone,
+        customer_name: createForm.name.trim()
+      };
 
-      const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
+      const res = await authFetch('kyle_retail.retail_api.api.get_or_create_customer_by_mobile', {
         method: 'POST',
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       });
 
       const result = await res.json();
       const inner = result.message || result;
 
-      if (inner.status === "success") {
-        alert("Customer created successfully!");
+      if (inner.status === "success" || inner.name) {
+        alert("Customer successfully identified/created!");
         pickCustomer({
-          name: inner.customer_id,
-          customer_name: createForm.name.trim(),
-          mobile_no: createForm.phone || "",
-          primary_address: createForm.address || "",
-          email_id: createForm.email || "",
+          name: inner.name || inner.customer_id,
+          customer_name: inner.customer_name || createForm.name.trim(),
+          mobile_no: inner.mobile_no || createForm.phone || "",
         });
         setShowCreateModal(false);
         setCreateForm({ name: '', phone: '', address: '', email: '' });
@@ -234,7 +244,7 @@ function Home() {
       console.error(err);
       alert("Network error or server issue");
     } finally {
-      setCreatingCustomer(false);  // ??? Loading ends (always!)
+      setCreatingCustomer(false);
     }
   };
   // ---------- FETCH ALL ITEMS ----------
@@ -244,7 +254,8 @@ function Home() {
       if (!session) return;
       try {
         setLoadingItems(true); setError("");
-        const response = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.get_item_details');
+        // Using Enhanced kyle_retail items endpoint as per recommendation
+        const response = await authFetch('kyle_retail.retail_api.api.get_retail_item_details');
         const data = await response.json();
         const apiItems = data.message || data;
         const baseUrl = 'http://75.119.130.59';
@@ -254,7 +265,9 @@ function Home() {
           image: item.image ? `${baseUrl}${item.image}` : 'https://via.placeholder.com/300?text=No+Image',
           group: (item.item_group || "others").toLowerCase(),
           price: item.price_list_rate || 0,
-          barcodes: item.barcodes || []  // This contains [{barcode: "12345"}, ...]
+          barcodes: item.barcodes || [],
+          pieces_per_box: item.custom_pieces_per_box || 1,
+          stock: item.actual_qty || 0
         }));
         const groups = [...new Set(transformed.map(i => i.group))];
         setCategories(["all", ...groups.sort()]);
@@ -286,23 +299,8 @@ function Home() {
     );
 
     if (foundItem) {
-      setBillItems(prev => {
-        const existing = prev.find(i => i.id === foundItem.id);
-        return existing
-          ? prev.map(i => i.id === foundItem.id ? { ...i, qty: i.qty + 1 } : i)
-          : [...prev, { ...foundItem, qty: 1 }];
-      });
-
+      handleAddToBill(foundItem); // Reuse the add logic
       setBarcodeInput('');
-      barcodeInputRef.current?.focus();
-
-      // Green flash
-      if (barcodeInputRef.current) {
-        barcodeInputRef.current.style.backgroundColor = '#d1fae5';
-        setTimeout(() => {
-          if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
-        }, 200);
-      }
     } else {
       // Red flash if not found
       if (barcodeInputRef.current) {
@@ -312,7 +310,7 @@ function Home() {
         }, 400);
       }
     }
-  }, [Items]);
+  }, [Items, handleAddToBill]);
 
   const onBarcodeKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -320,15 +318,42 @@ function Home() {
     }
   };
 
+  // ---------- NEAREST STOCK ----------
+  const fetchNearestStock = async (itemCode, itemName) => {
+    setStockLoading(true);
+    setSelectedItemForStock(itemName);
+    setShowStockModal(true);
+    try {
+      const warehouse = localStorage.getItem('warehouse');
+      const res = await authFetch(`kyle_retail.retail_api.api.find_nearest_stock?item_code=${itemCode}&current_warehouse=${warehouse}`);
+      const data = await res.json();
+      setNearestStock(data.message || []);
+    } catch (err) {
+      console.error(err);
+      setNearestStock([]);
+    } finally {
+      setStockLoading(false);
+    }
+  };
+
   // ---------- ITEM HANDLERS ----------
   const handleFilter = (cat) => setSelectedCategory(cat);
   const handleAddToBill = (item) => {
     setBillItems(prev => {
-      const existing = prev.find(i => i.id === item.id);
+      const existing = prev.find(i => i.id === item.id && i.uom_type === 'Piece');
       return existing
-        ? prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i)
-        : [...prev, { ...item, qty: 1 }];
+        ? prev.map(i => (i.id === item.id && i.uom_type === 'Piece') ? { ...i, qty: i.qty + 1 } : i)
+        : [...prev, { ...item, qty: 1, uom_type: 'Piece' }]; // Default to Piece
     });
+  };
+
+  const toggleUOM = (id, currentUOM) => {
+    setBillItems(prev => prev.map(item => {
+      if (item.id === id) {
+        return { ...item, uom_type: currentUOM === 'Piece' ? 'Box' : 'Piece' };
+      }
+      return item;
+    }));
   };
   const removeFromBill = (id) => setBillItems(prev => prev.filter(i => i.id !== id));
   const updateQuantity = (id, delta) => {
@@ -367,60 +392,94 @@ function Home() {
 
   // ---------- COMPLETE PAYMENT ----------
   const completePayment = async () => {
-    if (!selectedPaymentMode) return;
-    if (selectedPaymentMode === 'Cash' && tenderedAmount < grandTotal) {
-      alert('Tendered amount insufficient'); return;
-    }
+    const offlineId = uuidv4();
+    const customer = selectedCustomer?.customer_name || customerName;
+    if (!customer.trim()) { alert('Enter customer name'); return; }
+
+    const invoiceItems = billItems.map(item => ({
+      item_code: item.id,
+      item_name: item.name,
+      // Rule: Convert to pieces if UOM is Box
+      quantity: item.uom_type === 'Box' ? (item.qty * item.pieces_per_box) : item.qty,
+      basePrice: item.price,
+      uom: item.uom_type, // Some backends use 'uom' field for display
+      uom_type: item.uom_type,
+      income_account: 'Sales of I/C - KSPL'
+    }));
+
+    const payload = {
+      customer,
+      contact_mobile: phoneNumber,
+      items: invoiceItems,
+      company,
+      pos_profile: posProfile,
+      pos_opening_entry: posOpeningEntry,
+      offline_id: offlineId,
+      payments: [{
+        mode_of_payment: selectedPaymentMode,
+        amount: parseFloat(grandTotal.toFixed(2))
+      }],
+      discount_amount: discountAmount,
+      apply_discount_on: "Net Total",
+      tax_template: selectedTaxTemplate,
+      posting_date: new Date().toISOString().slice(0, 10),
+      currency: 'AED',
+      due_date: new Date().toISOString().slice(0, 10),
+      is_synced: 0
+    };
 
     setPaymentLoading(true);
     try {
-      const customer = selectedCustomer?.customer_name || customerName;
-      if (!customer.trim()) { alert('Enter customer name'); return; }
+      if (!navigator.onLine) {
+        // Force offline save if network is known to be down
+        await db.invoices.add(payload);
+        finalizeOrder();
+        alert('Saved offline. Will sync when online.');
+        return;
+      }
 
-      const payload = {
-        customer,
-        contact_mobile: phoneNumber,
-        contact_email: '',
-        items: billItems.map(item => ({
-          item_code: item.id,
-          item_name: item.name,
-          quantity: item.qty,
-          basePrice: item.price,
-          income_account: 'Sales of I/C - KSPL'
-        })),
-        company,
-        pos_profile: posProfile,
-        pos_opening_entry: posOpeningEntry,
-        payments: [{
-          mode_of_payment: selectedPaymentMode,
-          amount: parseFloat(grandTotal.toFixed(2))
-        }],
-        discount_amount: discountAmount,
-        apply_discount_on: "Net Total",
-        tax_template: selectedTaxTemplate,
-        posting_date: new Date().toISOString().slice(0, 10),
-        currency: 'AED',
-        due_date: new Date().toISOString().slice(0, 10)
-      };
-
-      const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_pos_invoice', {
+      const res = await authFetch('kyle_retail.retail_api.api.create_retail_invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ data: payload }), // Wrapped in 'data' key as required
       });
+      
       const result = await res.json();
       const data = result.message || result;
 
-      if (data.status === 'success') {
-        alert(`Invoice: ${data.invoice_name}\nTotal: AED ${grandTotal.toFixed(2)}`);
-        setBillItems([]);
-        setDiscount({ type: 'amount', value: 0 });
-        setCustomerName(''); setSelectedCustomer(null); setPhoneNumber('');
-        setSelectedPaymentMode(''); setTenderedAmount(0);
-        setShowPaymentModal(false);
-      } else alert(data.message || 'Failed');
-    } catch (e) { alert('Payment failed: ' + e.message); }
-    finally { setPaymentLoading(false); }
+      if (data.status === 'success' || data.name) {
+        // Mark as synced if successful
+        await db.invoices.add({ 
+            ...payload, 
+            is_synced: 1, 
+            server_name: data.invoice_name || data.name,
+            synced_at: new Date().toISOString()
+        });
+        alert(`Invoice: ${data.invoice_name || data.name}\nTotal: AED ${grandTotal.toFixed(2)}`);
+        finalizeOrder();
+      } else {
+        // Save offline even on server rejection (non-network errors usually handled by user)
+        // But for truly persistent POS, we queue it
+        await db.invoices.add(payload);
+        finalizeOrder();
+        alert('Server returned error. Added to sync queue: ' + (data.message || 'Unknown Error'));
+      }
+    } catch (e) {
+      console.error("Payment error, saving offline...", e);
+      await db.invoices.add(payload);
+      finalizeOrder();
+      alert('Network Error. Saved to offline queue.');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const finalizeOrder = () => {
+    setBillItems([]);
+    setDiscount({ type: 'amount', value: 0 });
+    setCustomerName(''); setSelectedCustomer(null); setPhoneNumber('');
+    setSelectedPaymentMode(''); setTenderedAmount(0);
+    setShowPaymentModal(false);
   };
 
   const handleLogout = async () => {
@@ -487,10 +546,25 @@ function Home() {
                       <div className="home-item-card">
                         <div className="home-item-image-box">
                           <img src={item.image} alt={item.name} className="home-item-image" onError={e => e.target.src = "https://via.placeholder.com/300?text=No+Image"} />
+                          {item.stock <= 0 && (
+                            <div style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: '#ef4444', color: '#fff', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                              Out of Stock
+                            </div>
+                          )}
                         </div>
                         <div className="home-item-body">
                           <h4 className="home-item-title">{item.name}</h4>
-                          <p className="home-item-price"><strong>AED</strong> {item.price}</p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <p className="home-item-price"><strong>AED</strong> {item.price}</p>
+                            {item.stock <= 0 && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); fetchNearestStock(item.id, item.name); }}
+                                style={{ fontSize: '10px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                Find Stock
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -591,10 +665,31 @@ function Home() {
               ) : (
                 <ul className="home-bill-item-list">
                   {billItems.map(item => (
-                    <li key={item.id} className="home-bill-item-row">
+                    <li key={`${item.id}-${item.uom_type}`} className="home-bill-item-row">
                       <div className="home-bill-item-info">
                         <span className="home-bill-item-name">{item.name}</span>
-                        <span className="home-bill-item-price"><strong>AED</strong> {item.price} ?? {item.qty}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="home-bill-item-price">
+                            <strong>AED</strong> {item.uom_type === 'Box' ? (item.price * item.pieces_per_box).toFixed(2) : item.price}
+                          </span>
+                          {item.pieces_per_box > 1 && (
+                            <button
+                              onClick={() => toggleUOM(item.id, item.uom_type)}
+                              style={{
+                                fontSize: '10px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid #007bff',
+                                backgroundColor: item.uom_type === 'Box' ? '#007bff' : 'transparent',
+                                color: item.uom_type === 'Box' ? '#fff' : '#007bff',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              {item.uom_type}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="home-bill-item-actions">
                         <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, -1); }}>-</button>
@@ -760,6 +855,45 @@ function Home() {
                   {paymentLoading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
                   {paymentLoading ? 'Processing...' : 'Complete Payment'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showStockModal && (
+          <div className="home-modal-overlay" onClick={() => setShowStockModal(false)}>
+            <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <div className="home-modal-header">
+                <h3>Stock Availability: {selectedItemForStock}</h3>
+                <button className="home-modal-close" onClick={() => setShowStockModal(false)}><X size={20} /></button>
+              </div>
+              <div className="home-modal-body">
+                {stockLoading ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                    <Loader2 size={32} className="animate-spin" />
+                  </div>
+                ) : nearestStock.length === 0 ? (
+                  <p style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>No stock found in nearby branches.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {nearestStock.map((branch, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{branch.warehouse}</div>
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>{branch.distance_km ? `${branch.distance_km} km away` : 'Distance unknown'}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '18px', fontWeight: 'bold', color: branch.actual_qty > 0 ? '#10b981' : '#ef4444' }}>
+                            {branch.actual_qty} Qty
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="home-modal-footer">
+                <button className="home-modal-cancel" onClick={() => setShowStockModal(false)} style={{ width: '100%' }}>Close</button>
               </div>
             </div>
           </div>

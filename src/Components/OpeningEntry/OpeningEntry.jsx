@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Calendar, DollarSign, User, Building2, CreditCard, Plus, Trash2, Check, X } from 'lucide-react';
 import { db } from '../../db';
+import POSService from '../../utils/posService';
 
 function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: propUser, onOpeningEntrySuccess }) {
     const navigate = useNavigate();
@@ -107,33 +108,9 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                 return;
             }
 
-            const session = localStorage.getItem('session') || userData.session;
-            const response = await fetch('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_opening_entry', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(session ? { 'X-Frappe-SID': session } : {}),
-                },
-                credentials: 'include',
-                body: JSON.stringify(payload),
-            });
+            const responseData = await POSService.createOpeningEntry(payload);
 
-            if (!response.ok) {
-                throw new Error(`Server returned HTTP ${response.status}`);
-            }
-
-            let result;
-            try {
-                result = await response.json();
-            } catch (err) {
-                throw new Error("Unable to parse server response - it may be unreachable");
-            }
-
-            console.log('OpeningEntry API Response:', { status: response.status, result });
-
-            const responseData = result.message || result;
-
-            if (response.status >= 200 && response.status < 300 && responseData.status === 'success') {
+            if (responseData && (responseData.status === 'success' || responseData.name)) {
                 const posOpeningEntry = responseData.name;
                 if (onOpeningEntrySuccess) {
                     onOpeningEntrySuccess(posOpeningEntry, company, posProfile);
@@ -150,18 +127,8 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                         },
                     });
                 }
-            } else if (response.ok && responseData.status === 'success') {
-                const posOpeningEntry = responseData.name;
-
-                if (onOpeningEntrySuccess) {
-                    onOpeningEntrySuccess(posOpeningEntry);
-                } else {
-                    localStorage.setItem('posOpeningEntry', posOpeningEntry);
-                    alert(`POS Opening Entry created: ${posOpeningEntry}`);
-                    navigate('/homepage');
-                }
             } else {
-                const errorMessage = responseData.message || 'Unknown error occurred';
+                const errorMessage = responseData?.message || 'Unknown error occurred';
                 alert(`Failed to create POS Opening Entry: ${errorMessage}`);
             }
         } catch (error) {

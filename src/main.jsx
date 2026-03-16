@@ -52,11 +52,13 @@ axios.interceptors.request.use((config) => {
       }
 
       // Add standard session headers
-      config.headers['X-Frappe-SID'] = session;
+      if (!config.url.includes('user_login')) {
+        config.headers['X-Frappe-SID'] = session;
+      }
 
       // Inject sid into URL query because it's a reliable fallback for Frappe
       const separator = config.url.includes('?') ? '&' : '?';
-      if (!config.url.includes('sid=')) {
+      if (!config.url.includes('sid=') && !config.url.includes('user_login')) {
         config.url = `${config.url}${separator}sid=${session}`;
       }
     }
@@ -132,10 +134,12 @@ window.fetch = async function (...args) {
       }
     };
 
-    setHeader('X-Frappe-SID', session);
+    if (!resource.includes('user_login')) {
+      setHeader('X-Frappe-SID', session);
+    }
 
-    // Inject sid into URL for fetch as well
-    if (typeof resource === 'string' && resource.includes('/api') && !resource.includes('sid=')) {
+    // Inject sid into URL for fetch as well, but NOT for login
+    if (typeof resource === 'string' && resource.includes('/api') && !resource.includes('sid=') && !resource.includes('user_login')) {
       const separator = resource.includes('?') ? '&' : '?';
       resource = `${resource}${separator}sid=${session}`;
     }

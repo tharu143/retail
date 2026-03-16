@@ -498,9 +498,82 @@
 }
 
 .pi-pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
+  display: flex !important;
+  align-items: center !important;
+  gap: 2rem !important;
+}
+
+/* LEGACY THEME BOXED TABLE OVERRIDES */
+.theme-legacy .pi-table-container {
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.theme-legacy .pi-table {
+  border-collapse: collapse !important;
+  background: #fff !important;
+  width: 100% !important;
+}
+
+.theme-legacy .pi-th {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  padding: 12px 15px !important;
+  color: #1e293b !important;
+  font-weight: 800 !important;
+  text-align: center !important;
+}
+
+.theme-legacy .pi-th:first-child,
+.theme-legacy .pi-td:first-child {
+  text-align: left !important;
+}
+
+.theme-legacy .pi-td {
+  padding: 10px 15px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-top: none !important;
+  vertical-align: middle !important;
+}
+
+.theme-legacy .pi-tr:hover {
+  background-color: #f0f9ff !important;
+}
+
+.theme-legacy .pi-td-right {
+  text-align: right !important;
+  font-family: inherit !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.theme-legacy .pi-amount {
+  color: #16a34a !important;
+  font-weight: 800 !important;
+}
+
+.theme-legacy .pi-invoice-number {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+.theme-legacy .pi-btn-secondary,
+.theme-legacy .pi-btn-ghost {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+  border-radius: 4px !important;
+}
+
+.theme-legacy .pi-btn-primary {
+  background-color: #1e293b !important;
+  border-radius: 4px !important;
+}
+
+.theme-legacy .pi-header {
+  background: #f8fafc !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+  padding: 1rem 2rem !important;
 }
 
 .pi-page-size {

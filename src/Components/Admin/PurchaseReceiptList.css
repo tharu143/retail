@@ -1072,3 +1072,75 @@
   font-size: 0.875rem;
   color: #1e40af;
 }
+
+/* LEGACY THEME BOXED TABLE OVERRIDES */
+.theme-legacy .pr-table-container {
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.theme-legacy .pr-table {
+  border-collapse: collapse !important;
+  background: #fff !important;
+  width: 100% !important;
+}
+
+.theme-legacy .pr-th {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  padding: 12px 15px !important;
+  color: #1e293b !important;
+  font-weight: 800 !important;
+  text-align: center !important;
+}
+
+.theme-legacy .pr-th:first-child,
+.theme-legacy .pr-td:first-child {
+  text-align: left !important;
+}
+
+.theme-legacy .pr-td {
+  padding: 10px 15px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-top: none !important;
+  vertical-align: middle !important;
+}
+
+.theme-legacy .pr-tr:hover {
+  background-color: #f0f9ff !important;
+}
+
+.theme-legacy .pr-td-right {
+  text-align: right !important;
+  font-family: inherit !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.theme-legacy .pr-amount {
+  color: #16a34a !important;
+  font-weight: 800 !important;
+}
+
+.theme-legacy .pr-invoice-number {
+  color: #2563eb !important;
+  font-weight: 800 !important;
+}
+
+.theme-legacy .pr-btn-secondary {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+  border-radius: 4px !important;
+}
+
+.theme-legacy .pr-btn-primary {
+  background-color: #1e293b !important;
+  border-radius: 4px !important;
+}
+
+.theme-legacy .pr-header {
+  background: #f8fafc !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+  padding: 1rem 2rem !important;
+}

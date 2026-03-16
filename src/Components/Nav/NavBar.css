@@ -11,8 +11,8 @@
 }
 
 .nav-title {
-    color: #21a9ff;
-    text-shadow: 0 2px 4px rgba(33, 169, 255, 0.1);
+    color: #0ea5e9;
+    text-shadow: 0 2px 4px rgba(14, 165, 233, 0.1);
     font-size: 2rem;
     margin: 0;
     font-weight: 800;
@@ -76,7 +76,7 @@
 }
 
 .nav-icon:hover {
-    color: #21a9ff;
+    color: #0ea5e9;
     transform: scale(1.1);
 }
 

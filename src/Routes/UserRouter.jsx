@@ -26,6 +26,7 @@ import DeliveryNoteList from '../Components/Admin/DeliveryNoteList'
 import PurchaseOrderLists from '../Components/Admin/PurchaseOrderLists'
 import SyncManagerPage from '../Pages/SyncManagerPage'
 import SettingsPage from '../Pages/SettingsPage'
+import PurchaseToolsPage from '../Pages/PurchaseToolsPage'
 
 
 function UserRouter() {
@@ -58,6 +59,7 @@ function UserRouter() {
         <Route path='deliverynote' element={<DeliveryNoteList />} />
         <Route path='syncmanager' element={<SyncManagerPage />} />
         <Route path='settings' element={<SettingsPage />} />
+        <Route path='purchasetools' element={<PurchaseToolsPage />} />
       </Routes>
     </>
   )

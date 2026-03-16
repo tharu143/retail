@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../db';
 import { Loader2, RefreshCw, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, FastForward } from 'lucide-react';
 import Swal from 'sweetalert2';
+import POSService from '../../utils/posService';
 
 const SyncManager = () => {
     const [pendingInvoices, setPendingInvoices] = useState([]);
@@ -68,23 +69,7 @@ const SyncManager = () => {
                 return cleanInv;
             });
 
-            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    "Accept": "application/json"
-                },
-                credentials: 'include',
-                body: JSON.stringify({ invoices: payload }),
-            });
-
-            if (res.status === 403) {
-                Swal.fire('Session Expired', "Please Logout and Login again.", 'error');
-                return;
-            }
-
-            const data = await res.json();
-            const results = data.message || [];
+            const results = await POSService.bulkSyncInvoices(payload);
 
             let successCount = 0;
             let failCount = 0;
@@ -158,26 +143,20 @@ const SyncManager = () => {
 
         setSyncingId(invoice.id);
         try {
+            // DEEP CLEAN for Hard Proceed cases
             const { id, is_synced, synced_at, server_name, ...cleanInv } = invoice;
-            if (hardProceed) cleanInv.hard_proceed = 1;
-
-            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    "Accept": "application/json"
-                },
-                credentials: 'include',
-                body: JSON.stringify({ invoices: [cleanInv] }), // Use bulk even for signle
-            });
-
-            if (res.status === 403) {
-                Swal.fire('Session Expired', "Please Logout and Login again.", 'error');
-                return;
+            if (hardProceed) {
+                cleanInv.hard_proceed = 1;
+                // Force a valid generic customer to fix party-required errors
+                // If completely missing, use Cash
+                if (!cleanInv.customer || cleanInv.customer.trim() === '') {
+                    cleanInv.customer = 'Cash';
+                }
+                // Also ensure we remove any existing server_name in the inner payload if it exists
+                delete cleanInv.name; 
             }
 
-            const data = await res.json();
-            const results = data.message || [];
+            const results = await POSService.bulkSyncInvoices([cleanInv]);
             const result = results[0];
 
             if (!result) throw new Error("No response from server");

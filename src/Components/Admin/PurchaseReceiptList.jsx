@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Plus, X, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
   Trash2
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
@@ -19,6 +19,7 @@ function PurchaseReceiptList() {
   const [formErrors, setFormErrors] = useState({});
   const [rateLoading, setRateLoading] = useState({});
   const [docName, setDocName] = useState('');
+  const theme = useSelector(state => state.user.theme);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [formData, setFormData] = useState({
     series: 'MAT-PRE-.YYYY.-',
@@ -939,7 +940,7 @@ function PurchaseReceiptList() {
   return (
     <>
       <NavBar />
-      <div className="pr-container">
+      <div className={`pr-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
         <div className="pr-header">
           <div className="pr-header-left">
             <h1 className="pr-title">Purchase Receipts</h1>

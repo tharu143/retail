@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
   Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
@@ -25,6 +25,7 @@ function PurchaseInvoiceList() {
   const [formErrors, setFormErrors] = useState({});
   const [docName, setDocName] = useState('');
   const [docStatus, setDocStatus] = useState(null);
+  const theme = useSelector(state => state.user.theme);
 
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [loadingTaxTemplates, setLoadingTaxTemplates] = useState(false);
@@ -604,7 +605,7 @@ function PurchaseInvoiceList() {
   return (
     <>
       <NavBar />
-      <div className="pi-container">
+    <div className={`pi-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
         {/* Header */}
         <div className="pi-header">
           <div className="pi-header-left">

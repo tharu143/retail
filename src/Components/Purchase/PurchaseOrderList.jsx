@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, FileText, Plus, Receipt, FileText as InvoiceIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 // Reusable Model for PO Item (reuse across screens)
 const POItemModel = {
@@ -63,6 +64,7 @@ function PurchaseOrderList() {
   });
   const [itemData, setItemData] = useState([]);  // Editable items (qty, rejected_qty)
   const [createLoading, setCreateLoading] = useState(false);
+  const theme = useSelector(state => state.user.theme);
 
   const navigate = useNavigate()
 
@@ -267,7 +269,7 @@ function PurchaseOrderList() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className={`min-h-screen p-6 ${theme === 'legacy' ? 'theme-legacy' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
