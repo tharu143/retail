@@ -2,19 +2,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 .dashboard-modern-container {
-  min-height: 100vh;
-  background-color: #f8fafc;
+  min-height: 100vh !important;
+  background-color: #f8fafc !important;
   background-image: 
     radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
-  padding: 2.5rem;
-  font-family: 'Outfit', sans-serif;
-  color: #1e293b;
-}
-
-/* Legacy Theme specifics can still be modern! */
-.theme-legacy.dashboard-modern-container {
-  background-color: #f1f5f9;
+    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%) !important;
+  padding: 2.5rem !important;
+  font-family: 'Outfit', sans-serif !important;
+  color: #1e293b !important;
+  display: block !important; /* Force block to allow grid inside */
+  overflow-y: auto !important;
+  height: auto !important;
 }
 
 .dashboard-header {

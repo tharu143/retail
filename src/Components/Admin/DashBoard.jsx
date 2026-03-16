@@ -114,7 +114,7 @@ function Dashboard() {
   ];
 
   return (
-    <div className={`dashboard-modern-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
+    <div className="dashboard-modern-container">
       <div className="max-w-7xl mx-auto">
         
         <header className="dashboard-header">
@@ -123,25 +123,6 @@ function Dashboard() {
             <p>Your store command center is ready.</p>
           </div>
         </header>
-
-        <div className="stats-grid">
-          <div className="stat-card">
-            <span className="stat-label">Daily Sales</span>
-            <span className="stat-value">OMR 1,240.50</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-label">Active Orders</span>
-            <span className="stat-value">48</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-label">Net Margin</span>
-            <span className="stat-value">25.4%</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-label">New Customers</span>
-            <span className="stat-value">+12</span>
-          </div>
-        </div>
 
         <div className="sections-grid">
           {sections.map((section, index) => (
