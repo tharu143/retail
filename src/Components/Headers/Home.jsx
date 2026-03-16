@@ -401,13 +401,21 @@ function Home() {
 
   // NEW: Item search logic for barcode input
   useEffect(() => {
-    if (barcodeInput.trim().length >= 2) {
-      const query = barcodeInput.toLowerCase();
+    const query = barcodeInput.trim().toLowerCase();
+    if (query.length === 0 && (searchContext === 'inline' || searchContext === 'header')) {
+      // Show top 10 items if empty (only when active)
+      if (showItemDropdown) {
+        setItemSearchResults(Items.slice(0, 10));
+      } else {
+        setItemSearchResults([]);
+      }
+      setActiveItemIndex(-1);
+    } else if (query.length >= 1) {
       const results = Items.filter(it =>
         (it.name || "").toLowerCase().includes(query) ||
         (it.id || "").toLowerCase().includes(query) ||
         (it.barcodes || []).some(b => (b.barcode || "").toLowerCase().includes(query))
-      ).slice(0, 10);
+      ).slice(0, 12);
       setItemSearchResults(results);
       setShowItemDropdown(results.length > 0);
     } else {
@@ -415,7 +423,7 @@ function Home() {
       setShowItemDropdown(false);
       setActiveItemIndex(-1);
     }
-  }, [barcodeInput, Items]);
+  }, [barcodeInput, Items, searchContext, showItemDropdown]);
 
   // ---------- CUSTOMER HANDLERS ----------
   const openCreate = () => {
@@ -1702,7 +1710,7 @@ function Home() {
                   value={barcodeInput} 
                   onChange={(e) => { setBarcodeInput(e.target.value); setSearchContext('header'); }}
                   onKeyDown={onBarcodeKeyDown}
-                  onFocus={() => setSearchContext('header')}
+                  onFocus={() => { setSearchContext('header'); setShowItemDropdown(true); }}
                   placeholder="Scan or type..."
                   id="legacy-header-search"
                 />
@@ -2047,8 +2055,8 @@ function Home() {
                              className="w-full h-full px-2 font-bold text-xs outline-none border-none bg-transparent"
                              placeholder="TYPE ITEM NAME OR BARCODE TO ADD..."
                              value={barcodeInput}
-                             onChange={(e) => { setBarcodeInput(e.target.value); setSearchContext('inline'); }}
-                             onFocus={() => setSearchContext('inline')}
+                             onChange={(e) => { setBarcodeInput(e.target.value); setSearchContext('inline'); setShowItemDropdown(true); }}
+                             onFocus={() => { setSearchContext('inline'); setShowItemDropdown(true); }}
                              onKeyDown={onBarcodeKeyDown}
                            />
                            {showItemDropdown && searchContext === 'inline' && (
