@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
   Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode

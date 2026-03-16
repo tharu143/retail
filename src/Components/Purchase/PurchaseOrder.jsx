@@ -477,23 +477,9 @@ function PurchaseOrder() {
       }
 
       setSuccess(`Purchase Order ${formData.name} submitted successfully!`);
-      // Reset form
-      setFormData({
-        name: '',
-        supplier: null,
-        transaction_date: new Date().toISOString().slice(0, 16),
-        company: localStorage.getItem('company') || '',
-        currency: 'AED',
-        conversion_rate: 1.0,
-        set_warehouse: '',
-        items: [{ ...POItemModel, schedule_date: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0, 16) }],
-        total_qty: 0,
-        total: 0,
-        taxes_and_charges: null,
-        taxes: [],
-        grand_total: 0,
-        docstatus: 0
-      });
+      // Update local state to reflect submission so buttons show
+      setFormData(prev => ({ ...prev, docstatus: 1 }));
+      setCreatedDocName(null); // Clear previous created doc state
       setIsEditMode(false);
     } catch (err) {
       setError(`Submit failed: ${err.message}`);
