@@ -73,36 +73,42 @@ function Dashboard() {
       title: 'Procurement',
       icon: ShoppingCart,
       colorClass: 'icon-purchase',
+      cardClass: 'card-purchase',
       items: ['Supplier', 'New Purchase Order', 'Purchase Order List', 'Purchase Receipt', 'Purchase Invoice'],
     },
     {
       title: 'Sales & Returns',
       icon: TrendingUp,
       colorClass: 'icon-sales',
+      cardClass: 'card-sales',
       items: ['Customer', 'Sales Order', 'Sales Invoice', 'Delivery Note'],
     },
     {
       title: 'Stock Management',
       icon: Boxes,
       colorClass: 'icon-items',
+      cardClass: 'card-items',
       items: ['Item List', 'Item Group', 'Price List', 'Purchase Tools'],
     },
     {
       title: 'POS Operations',
       icon: Monitor,
       colorClass: 'icon-pos',
+      cardClass: 'card-pos',
       items: ['POS Screen', 'POS Profile', 'Opening Entry', 'New Closing Entry', 'Closing Entry List', 'POS Invoices', 'Sync Manager'],
     },
     {
       title: 'Analytics',
       icon: BarChart3,
       colorClass: 'icon-reports',
+      cardClass: 'card-reports',
       items: ['Sales Report', 'Purchase Report', 'Item Wise Report'],
     },
     {
       title: 'Administration',
       icon: Settings,
-      colorClass: 'icon-pos', // Reusing purple or add a new color
+      colorClass: 'icon-pos',
+      cardClass: 'card-pos',
       items: ['POS Health', 'Settings'],
     },
   ];
@@ -114,22 +120,22 @@ function Dashboard() {
         <header className="dashboard-header">
           <div className="welcome-text">
             <h1>Welcome back, {typeof user === 'object' ? (user?.full_name || user?.name) : 'Admin'}! 👋</h1>
-            <p>Here is what is happening with your store today.</p>
+            <p>Your store command center is ready.</p>
           </div>
         </header>
 
         <div className="stats-grid">
           <div className="stat-card">
-            <span className="stat-label">Total Sales (Today)</span>
+            <span className="stat-label">Daily Sales</span>
             <span className="stat-value">OMR 1,240.50</span>
           </div>
           <div className="stat-card">
-            <span className="stat-label">Total Orders</span>
+            <span className="stat-label">Active Orders</span>
             <span className="stat-value">48</span>
           </div>
           <div className="stat-card">
-            <span className="stat-label">Net Profit</span>
-            <span className="stat-value">OMR 312.20</span>
+            <span className="stat-label">Net Margin</span>
+            <span className="stat-value">25.4%</span>
           </div>
           <div className="stat-card">
             <span className="stat-label">New Customers</span>
@@ -139,10 +145,10 @@ function Dashboard() {
 
         <div className="sections-grid">
           {sections.map((section, index) => (
-            <div key={index} className="nav-card">
+            <div key={index} className={`nav-card ${section.cardClass}`}>
               <div className="card-title">
                 <div className={`card-icon-box ${section.colorClass}`}>
-                  <section.icon size={20} />
+                  <section.icon size={22} />
                 </div>
                 {section.title}
               </div>
@@ -158,10 +164,10 @@ function Dashboard() {
                       className="nav-link-item"
                     >
                       <div className="link-name-box">
-                        <Icon size={16} className="text-gray-400" />
+                        <Icon size={18} className="link-icon" />
                         <span>{itemName}</span>
                       </div>
-                      <ChevronRight size={14} className="chevron-icon" />
+                      <ChevronRight size={16} className="chevron-icon" />
                     </Link>
                   );
                 })}
