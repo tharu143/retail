@@ -167,10 +167,10 @@
 
 /* 2. CENTER - CART (Bill Section) */
 .theme-legacy .home-bill-section {
-  order: 2 !important;
-  flex: 1.2 !important; /* Increased flex to make it the main center focus */
-  min-width: 500px !important;
-  height: 100% !important;
+  order: 1 !important;
+  flex: 1 !important; 
+  width: 100% !important;
+  height: calc(100vh - 120px) !important;
   background: #ffffff !important;
   border-radius: 12px !important;
   box-shadow: 0 8px 16px rgba(0,0,0,0.1) !important;
@@ -179,6 +179,7 @@
   flex-direction: column !important;
   margin: 0 !important;
   overflow: hidden !important;
+  position: static !important;
 }
 
 .theme-legacy .home-bill-items {

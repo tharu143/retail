@@ -23,7 +23,8 @@ const POItemModel = {
   custom_box_qty: 0,
   custom_pieces_per_box: 1,
   custom_box_price: 0,
-  use_box_entry: false
+  use_box_entry: false,
+  last_buying_rate: 0
 };
 
 function PurchaseOrder() {
@@ -108,6 +109,7 @@ function PurchaseOrder() {
         stock_uom: item.stock_uom || '',
         uom: item.stock_uom || '',
         rate: rate,
+        last_buying_rate: item.last_buying_rate || 0,
         qty: items[rowIndex].qty || 1,
         custom_pieces_per_box: item.custom_pieces_per_box || 1,
         amount: rate * (items[rowIndex].qty || 1),
@@ -557,6 +559,7 @@ function PurchaseOrder() {
       stock_uom: item.stock_uom || '',
       uom: item.stock_uom || '',
       rate: rate,
+      last_buying_rate: item.last_buying_rate || 0,
       custom_pieces_per_box: item.custom_pieces_per_box || 1,
       amount: rate * (items[rowIndex].qty || 1),
       schedule_date: items[rowIndex].schedule_date || formData.transaction_date
@@ -816,7 +819,19 @@ function PurchaseOrder() {
                           <span className="text-[10px] font-black text-slate-400 uppercase">{item.uom || 'Unit'}</span>
                         </td>
                         <td className="purchase-td text-right">
-                          <input type="number" name="rate" value={item.rate} onChange={(e) => handleInputChange(e, idx)} className="w-full text-right font-black text-xs bg-transparent border-none outline-none focus:ring-0" readOnly={item.use_box_entry} />
+                          <input 
+                            type="number" 
+                            name="rate" 
+                            value={item.rate} 
+                            onChange={(e) => handleInputChange(e, idx)} 
+                            className={`w-full text-right font-black text-xs bg-transparent border-none outline-none focus:ring-0 ${item.rate > item.last_buying_rate && item.last_buying_rate > 0 ? 'text-red-500' : ''}`} 
+                            readOnly={item.use_box_entry} 
+                          />
+                          {item.last_buying_rate > 0 && (
+                            <div className={`text-[9px] font-bold uppercase mt-1 ${item.rate > item.last_buying_rate ? 'text-amber-600' : 'text-slate-400'}`}>
+                              Prev: {item.last_buying_rate.toFixed(2)}
+                            </div>
+                          )}
                         </td>
                         <td className="purchase-td text-right">
                           <span className="text-xs font-black text-slate-900 leading-none">

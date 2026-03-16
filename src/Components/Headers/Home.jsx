@@ -84,6 +84,7 @@ function Home() {
   const barcodeInputRef = useRef(null);
   const [itemSearchResults, setItemSearchResults] = useState([]);
   const [showItemDropdown, setShowItemDropdown] = useState(false);
+  const [activeItemIndex, setActiveItemIndex] = useState(-1);
   const itemDropdownRef = useRef(null);
 
   // Speed Checkout
@@ -411,6 +412,7 @@ function Home() {
     } else {
       setItemSearchResults([]);
       setShowItemDropdown(false);
+      setActiveItemIndex(-1);
     }
   }, [barcodeInput, Items]);
 
@@ -817,8 +819,25 @@ function Home() {
   }, [Items, warehouse, authFetch]);
 
   const onBarcodeKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      handleBarcodeScan(barcodeInput);
+    if (e.key === 'ArrowDown' && showItemDropdown) {
+      e.preventDefault();
+      setActiveItemIndex(prev => Math.min(prev + 1, itemSearchResults.length - 1));
+    } else if (e.key === 'ArrowUp' && showItemDropdown) {
+      e.preventDefault();
+      setActiveItemIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (activeItemIndex >= 0 && itemSearchResults[activeItemIndex]) {
+        handleAddToBill(itemSearchResults[activeItemIndex]);
+        setBarcodeInput('');
+        setShowItemDropdown(false);
+        setActiveItemIndex(-1);
+        barcodeInputRef.current?.focus();
+      } else {
+        handleBarcodeScan(barcodeInput);
+      }
+    } else if (e.key === 'Escape') {
+      setShowItemDropdown(false);
+      setActiveItemIndex(-1);
     }
   };
 
@@ -1739,6 +1758,27 @@ function Home() {
                 Search
               </button>
             </div>
+
+            {/* PRODUCT DROPDOWN FOR LEGACY */}
+            {showItemDropdown && theme === 'legacy' && (
+              <div 
+                ref={itemDropdownRef} 
+                className="legacy-customer-dropdown" 
+                style={{ top: '85px', left: '100px', width: '300px', zIndex: 9999 }}
+              >
+                {itemSearchResults.map((it, idx) => (
+                  <div 
+                    key={it.id} 
+                    className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
+                    style={activeItemIndex === idx ? { backgroundColor: '#000080', color: '#fff' } : {}}
+                    onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); barcodeInputRef.current?.focus(); }}
+                  >
+                    <div className="cust-name">{it.name}</div>
+                    <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="legacy-total-panel">
@@ -1787,80 +1827,51 @@ function Home() {
               </div>
             )}
                 {/* Removed pending sync text from Home as per request */}
-            {/* Category Slider */}
-            <div className="home-category-sidebar">
-              <div className="home-carousel-container">
-                {groupedCategories.length > 1 && theme !== 'legacy' && (
-                  <button className="home-carousel-arrow home-carousel-arrow-left" onClick={handlePrevSlide}>
-                    <ChevronLeft size={20} />
-                  </button>
-                )}
-                <div className="home-carousel-slides" style={theme === 'legacy' ? { overflow: 'visible' } : {}}>
-                  <div className="home-carousel-track" style={theme === 'legacy' ? { transform: 'none', display: 'block' } : { transform: `translateX(-${currentSlide * 100}%)` }}>
-                    {theme === 'legacy' ? (
-                       <div className="home-category-grid">
-                         {categories.map(cat => (
-                           <button key={cat} className={`home-category-btn ${selectedCategory === cat ? "home-category-btn-active" : ""}`} onClick={() => handleFilter(cat)}>
-                             <span className="home-category-text" data-index={categories.indexOf(cat) + 1}>
-                               {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                             </span>
-                           </button>
-                         ))}
-                       </div>
-                    ) : (
-                      groupedCategories.map((group, i) => (
-                        <div key={i} className="home-category-slide">
-                           <div className="home-category-grid">
-                             {group.map(cat => (
-                               <button key={cat} className={`home-category-btn ${selectedCategory === cat ? "home-category-btn-active" : ""}`} onClick={() => handleFilter(cat)}>
-                                 <span className="home-category-text" data-index={categories.indexOf(cat) + 1}>
-                                   {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                                 </span>
-                               </button>
-                             ))}
-                           </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-                {groupedCategories.length > 1 && theme !== 'legacy' && (
-                  <button className="home-carousel-arrow home-carousel-arrow-right" onClick={handleNextSlide}>
-                    <ChevronRight size={20} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-          {/* Products Grid */}
-            <div className="home-items-container">
-              <div className="home-items-grid">
-                {filteredItems.length === 0 ? (
-                  <p className="home-no-items">No items in this category</p>
-                ) : (
-                  filteredItems.map(item => (
-                    <div key={item.id} className="home-item-wrapper" onClick={() => { setLastInteractedItem(item); item.local_qty > 0 && handleAddToBill(item); }}>
-                      <div className="home-item-card" style={{ opacity: item.local_qty > 0 ? 1 : 0.6, cursor: item.local_qty > 0 ? 'pointer' : 'not-allowed' }}>
-                        {theme === 'legacy' ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                              <span className="home-item-title">{item.name}</span>
-                              <span className="home-item-price">AED {item.price}</span>
-                            </div>
-                            <div style={{ borderTop: '1px solid #eee', paddingTop: '4px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
-                              <span style={{ color: item.local_qty > 0 ? '#16a34a' : '#ef4444', fontWeight: '800' }}>
-                                Stock: {item.local_qty}
-                              </span>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
-                                style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '1px 4px', color: '#2563eb' }}
-                              >
-                                Info
-                              </button>
+            {/* Category Slider - HIDDEN IN LEGACY */}
+            {theme !== 'legacy' && (
+              <div className="home-category-sidebar">
+                <div className="home-carousel-container">
+                  {groupedCategories.length > 1 && (
+                    <button className="home-carousel-arrow home-carousel-arrow-left" onClick={handlePrevSlide}>
+                      <ChevronLeft size={20} />
+                    </button>
+                  )}
+                  <div className="home-carousel-slides">
+                    <div className="home-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+                      {groupedCategories.map((group, i) => (
+                          <div key={i} className="home-category-slide">
+                            <div className="home-category-grid">
+                              {group.map(cat => (
+                                <button key={cat} className={`home-category-btn ${selectedCategory === cat ? "home-category-btn-active" : ""}`} onClick={() => handleFilter(cat)}>
+                                  <span className="home-category-text" data-index={categories.indexOf(cat) + 1}>
+                                    {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                                  </span>
+                                </button>
+                              ))}
                             </div>
                           </div>
-                        ) : (
-                          <>
+                      ))}
+                    </div>
+                  </div>
+                  {groupedCategories.length > 1 && (
+                    <button className="home-carousel-arrow home-carousel-arrow-right" onClick={handleNextSlide}>
+                      <ChevronRight size={20} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+          {/* Products Grid - HIDDEN IN LEGACY */}
+            {theme !== 'legacy' && (
+              <div className="home-items-container">
+                <div className="home-items-grid">
+                  {filteredItems.length === 0 ? (
+                    <p className="home-no-items">No items in this category</p>
+                  ) : (
+                    filteredItems.map(item => (
+                      <div key={item.id} className="home-item-wrapper" onClick={() => { setLastInteractedItem(item); item.local_qty > 0 && handleAddToBill(item); }}>
+                        <div className="home-item-card" style={{ opacity: item.local_qty > 0 ? 1 : 0.6, cursor: item.local_qty > 0 ? 'pointer' : 'not-allowed' }}>
                             <div className="home-item-image-box">
                               {item.image ? (
                                 <img
@@ -1939,14 +1950,13 @@ function Home() {
                                 )}
                               </div>
                             </div>
-                          </>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* HORIZONTAL BILL SECTION (Legacy: Below Items) */}
             {theme === 'legacy' && (
