@@ -1724,7 +1724,14 @@ function Home() {
                       <div 
                         key={it.id} 
                         className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
-                        onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); document.getElementById('legacy-header-search')?.focus(); }}
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent input blur
+                          e.stopPropagation();
+                          handleAddToBill(it);
+                          setBarcodeInput('');
+                          setShowItemDropdown(false);
+                          document.getElementById('legacy-header-search')?.focus();
+                        }}
                       >
                         <div className="cust-name">{it.name}</div>
                         <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
@@ -2065,7 +2072,14 @@ function Home() {
                                   <div 
                                     key={it.id} 
                                     className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
-                                    onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); document.getElementById('legacy-inline-search')?.focus(); }}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault(); // Prevent input blur
+                                      e.stopPropagation();
+                                      handleAddToBill(it);
+                                      setBarcodeInput('');
+                                      setShowItemDropdown(false);
+                                      document.getElementById('legacy-inline-search')?.focus();
+                                    }}
                                   >
                                     <div className="cust-name" style={{ color: activeItemIndex === idx ? '#fff' : '#000080' }}>{it.name}</div>
                                     <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
