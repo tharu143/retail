@@ -904,17 +904,14 @@ function PurchaseOrder() {
                           <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0.00" />
                         </td>
                         <td className="purchase-td">
-                          <div className="relative">
-                            <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-emerald-500" />
-                            <input 
-                              type="number" 
-                              name="custom_selling_price" 
-                              value={item.custom_selling_price} 
-                              onChange={(e) => handleInputChange(e, idx)} 
-                              className="po-input !py-1 !pl-6 text-xs text-right font-bold text-emerald-600" 
-                              placeholder="0.00"
-                            />
-                          </div>
+                          <input 
+                            type="number" 
+                            name="custom_selling_price" 
+                            value={item.custom_selling_price} 
+                            onChange={(e) => handleInputChange(e, idx)} 
+                            className="po-input !py-1 text-xs text-right font-bold text-emerald-600" 
+                            placeholder="0.00"
+                          />
                         </td>
                         <td className="purchase-td">
                           <input type="text" name="custom_supplier_sl_num" value={item.custom_supplier_sl_num} onChange={(e) => handleInputChange(e, idx)} className="po-input !py-1 text-xs" placeholder="Serial..." />
