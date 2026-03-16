@@ -825,13 +825,16 @@ function PurchaseOrder() {
                   <thead>
                     <tr>
                       <th className="purchase-th w-[130px]">Scanner</th>
-                      <th className="purchase-th min-w-[280px]">Item Description</th>
-                      <th className="purchase-th w-[110px] text-right">Selling Price</th>
-                      <th className="purchase-th w-[130px]">Ref / SL #</th>
-                      <th className="purchase-th w-[140px]">Sch. Date</th>
-                      <th className="purchase-th w-[90px] text-right">Qty</th>
-                      <th className="purchase-th w-[70px]">UOM</th>
-                      <th className="purchase-th w-[110px] text-right">Rate</th>
+                      <th className="purchase-th min-w-[200px]">Item Description</th>
+                      <th className="purchase-th w-[80px] text-center">Box Qty</th>
+                      <th className="purchase-th w-[80px] text-center">Pcs/Box</th>
+                      <th className="purchase-th w-[100px] text-center">Box Price</th>
+                      <th className="purchase-th w-[100px] text-right">Selling Price</th>
+                      <th className="purchase-th w-[110px]">Ref / SL #</th>
+                      <th className="purchase-th w-[130px]">Sch. Date</th>
+                      <th className="purchase-th w-[80px] text-right">Qty</th>
+                      <th className="purchase-th w-[60px]">UOM</th>
+                      <th className="purchase-th w-[100px] text-right">Rate</th>
                       <th className="purchase-th w-[120px] text-right">Subtotal</th>
                       <th className="purchase-th w-[40px]"></th>
                     </tr>
@@ -890,34 +893,15 @@ function PurchaseOrder() {
                               </div>, document.body
                             )}
                           </div>
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              const updated = [...formData.items];
-                              updated[idx].use_box_entry = !updated[idx].use_box_entry;
-                              setFormData({ ...formData, items: updated });
-                            }}
-                            className={`mt-1.5 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded flex items-center gap-1 transition-colors ${item.use_box_entry ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-500 hover:text-sky-600'}`}
-                          >
-                            <Box className="w-2.5 h-2.5" />
-                            Box Entry
-                          </button>
-                          {item.use_box_entry && (
-                            <div className="box-entry-panel flex flex-row !gap-2 !mt-2 !p-1.5 !items-center">
-                              <div className="flex-1">
-                                <label className="text-[8px] font-bold text-sky-600 block mb-0.5">Box Qty</label>
-                                <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} className="!py-1 !px-2 po-input text-[10px]" />
-                              </div>
-                              <div className="flex-1">
-                                <label className="text-[8px] font-bold text-sky-600 block mb-0.5">Pcs/Box</label>
-                                <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} className="!py-1 !px-2 po-input text-[10px]" />
-                              </div>
-                              <div className="flex-1">
-                                <label className="text-[8px] font-bold text-sky-600 block mb-0.5">Box Price</label>
-                                <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} className="!py-1 !px-2 po-input text-[10px]" />
-                              </div>
-                            </div>
-                          )}
+                        </td>
+                        <td className="purchase-td">
+                          <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0" />
+                        </td>
+                        <td className="purchase-td">
+                          <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="1" />
+                        </td>
+                        <td className="purchase-td">
+                          <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0.00" />
                         </td>
                         <td className="purchase-td">
                           <div className="relative">
@@ -939,7 +923,7 @@ function PurchaseOrder() {
                           <input type="date" value={item.schedule_date?.split('T')[0]} onChange={(e) => handleInputChange(e, idx)} name="schedule_date" className="po-input !py-1 text-xs" />
                         </td>
                         <td className="purchase-td text-right">
-                          <input type="number" name="qty" value={item.qty} onChange={(e) => handleInputChange(e, idx)} className="w-full text-right font-bold text-xs bg-transparent border-none outline-none focus:ring-0" readOnly={item.use_box_entry} />
+                          <input type="number" name="qty" value={item.qty} onChange={(e) => handleInputChange(e, idx)} className="w-full text-right font-bold text-xs bg-transparent border-none outline-none focus:ring-0" />
                         </td>
                         <td className="purchase-td">
                           <span className="text-[10px] font-black text-slate-400 uppercase">{item.uom || 'Unit'}</span>
@@ -951,7 +935,6 @@ function PurchaseOrder() {
                             value={item.rate} 
                             onChange={(e) => handleInputChange(e, idx)} 
                             className={`w-full text-right font-black text-xs bg-transparent border-none outline-none focus:ring-0 ${item.rate > item.last_buying_rate && item.last_buying_rate > 0 ? 'text-red-500' : ''}`} 
-                            readOnly={item.use_box_entry} 
                           />
                           {item.last_buying_rate > 0 && (
                             <div className="relative">
