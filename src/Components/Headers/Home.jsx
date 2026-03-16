@@ -2006,9 +2006,6 @@ function Home() {
                   <span>Action</span>
                 </div>
                 <div className="home-bill-items">
-                  {billItems.length === 0 ? (
-                    <p className="home-bill-empty">No items added</p>
-                  ) : (
                     <ul className="home-bill-item-list">
                       {billItems.map((item, idx) => (
                         <li key={item.id} className="home-bill-item-row">
@@ -2045,7 +2042,7 @@ function Home() {
                         </li>
                       ))}
                       
-                      {/* INTEGRATED SEARCH ROW INSIDE THE BOX */}
+                      {/* INTEGRATED SEARCH ROW INSIDE THE BOX - ALWAYS VISIBLE */}
                       <li className="home-bill-item-row legacy-inline-search-row" style={{ backgroundColor: '#fffbe6', border: '2px solid #ffe58f' }}>
                         <span className="box-cell text-[#8c8c8c] font-bold">NEXT</span>
                         <div className="box-cell name-cell" style={{ position: 'relative', padding: 0 }}>
@@ -2085,7 +2082,6 @@ function Home() {
                         </div>
                       </li>
                     </ul>
-                  )}
                 </div>
                 <div className="legacy-numpad-area">
                   <div className="legacy-details-panel">
