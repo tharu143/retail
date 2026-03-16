@@ -24,7 +24,8 @@ const POItemModel = {
   custom_pieces_per_box: 1,
   custom_box_price: 0,
   use_box_entry: false,
-  last_buying_rate: 0
+  last_buying_rate: 0,
+  custom_selling_price: 0
 };
 
 function PurchaseOrder() {
@@ -60,6 +61,8 @@ function PurchaseOrder() {
   const [activeDropdownRow, setActiveDropdownRow] = useState(null);
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false); // Shows if we are editing a draft
+  const [createdDocName, setCreatedDocName] = useState(''); // Store created PR/PI name
+  const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
 
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = 'http://75.119.130.59';
@@ -499,6 +502,49 @@ function PurchaseOrder() {
     }
   };
 
+  const handleCreateFlow = async (type) => {
+    if (!formData.name) return;
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const endpoint = type === 'receipt' ? 'create_purchase_receipt_from_po' : 'create_purchase_invoice_from_po';
+      const body = {
+        po_name: formData.name,
+        posting_date: new Date().toISOString().slice(0, 10),
+        set_warehouse: formData.set_warehouse,
+        items: formData.items.map(item => ({
+          item_code: item.item_code,
+          qty: item.qty,
+          uom: item.uom,
+          rate: item.rate,
+          amount: item.amount,
+          purchase_order: formData.name
+        }))
+      };
+      
+      const res = await fetch(`${API_PATH.replace('kyle_retail.retail_api.api', 'custom_retailpos.custom_retailpos.retail_api.retail')}.${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
+        credentials: 'include',
+        body: JSON.stringify(body)
+      });
+      
+      const data = await res.json();
+      const apiResp = data.message || data;
+      if (apiResp.status === 'success') {
+        setSuccess(`${type === 'receipt' ? 'Receipt' : 'Invoice'} ${apiResp.name} created successfully!`);
+        setCreatedDocName(apiResp.name);
+      } else {
+        throw new Error(apiResp.message || 'Failed to create');
+      }
+    } catch (err) {
+      setError(`Transition failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Supplier & Item handlers remain unchanged
   const handleSupplierSelect = (supplier) => setFormData(prev => ({ ...prev, supplier }));
 
@@ -562,7 +608,8 @@ function PurchaseOrder() {
       last_buying_rate: item.last_buying_rate || 0,
       custom_pieces_per_box: item.custom_pieces_per_box || 1,
       amount: rate * (items[rowIndex].qty || 1),
-      schedule_date: items[rowIndex].schedule_date || formData.transaction_date
+      schedule_date: items[rowIndex].schedule_date || formData.transaction_date,
+      custom_selling_price: item.selling_price || 0
     };
     setFormData({ ...formData, items });
     calculateTotals();
@@ -651,14 +698,79 @@ function PurchaseOrder() {
         )}
 
         {success && (
-          <div className="mb-6 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl p-4 flex items-start gap-4">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" />
-            <div className="text-sm font-bold text-emerald-800">{success}</div>
+          <div className="mb-6 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl p-6 flex flex-col gap-4 shadow-sm">
+            <div className="flex items-start gap-4">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 mt-0.5" />
+              <div>
+                <div className="text-lg font-black text-emerald-900">{success}</div>
+                {!createdDocName && formData.docstatus === 1 && (
+                  <p className="text-emerald-700 text-sm font-bold mt-1 uppercase tracking-tighter">What would you like to do next?</p>
+                )}
+              </div>
+            </div>
+            {!createdDocName && formData.docstatus === 1 && (
+              <div className="flex gap-3 ml-10">
+                <button onClick={() => handleCreateFlow('receipt')} className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95">
+                  Create Purchase Receipt
+                </button>
+                <button onClick={() => handleCreateFlow('invoice')} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-slate-200 hover:bg-slate-900 transition-all active:scale-95">
+                  Create Purchase Invoice
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="po-layout">
-          {/* MAIN AREA - Left */}
+        <div className="po-layout-full">
+          {/* TOP AREA: Order Settings */}
+          <div className="po-card mb-6">
+            <div className="po-card-header !bg-slate-800 !text-white">
+              <h3 className="po-card-title text-white">Order Settings</h3>
+            </div>
+            <div className="po-card-body grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+              <div>
+                <label className="po-label">Supplier *</label>
+                <CustomSearchDropdown
+                  placeholder="Search supplier..."
+                  value={formData.supplier}
+                  onSelect={handleSupplierSelect}
+                  fetchData={fetchSuppliers}
+                  createOption={handleSupplierCreate}
+                  optionsLabel="supplier_name"
+                  extraCreateFields={() => (
+                    <div className="mt-2 p-3 bg-slate-50 rounded-lg">
+                      <label className="text-[10px] font-bold uppercase mb-1 block">Type</label>
+                      <select id="new-supplier-type" className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs outline-none" defaultValue="Company">
+                        <option value="Company">Company</option>
+                        <option value="Individual">Individual</option>
+                      </select>
+                    </div>
+                  )}
+                />
+              </div>
+
+              <div>
+                <label className="po-label">Warehouse (Target)</label>
+                <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} className="po-input text-xs">
+                  <option value="">Select...</option>
+                  {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="po-label">Purchase Date</label>
+                <input type="datetime-local" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="po-input text-xs" />
+              </div>
+
+              <div>
+                <label className="po-label">Company</label>
+                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[11px] font-bold text-slate-600 uppercase">
+                  {formData.company}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="po-main-section">
             
             {/* Global Scanner Card */}
@@ -714,7 +826,8 @@ function PurchaseOrder() {
                     <tr>
                       <th className="purchase-th w-[130px]">Scanner</th>
                       <th className="purchase-th min-w-[280px]">Item Description</th>
-                      <th className="purchase-th w-[140px]">Ref / SL #</th>
+                      <th className="purchase-th w-[110px] text-right">Selling Price</th>
+                      <th className="purchase-th w-[130px]">Ref / SL #</th>
                       <th className="purchase-th w-[140px]">Sch. Date</th>
                       <th className="purchase-th w-[90px] text-right">Qty</th>
                       <th className="purchase-th w-[70px]">UOM</th>
@@ -790,21 +903,34 @@ function PurchaseOrder() {
                             Box Entry
                           </button>
                           {item.use_box_entry && (
-                            <div className="box-entry-panel !grid-cols-3 !gap-2 !mt-2 !p-2">
-                              <div className="box-entry-field">
-                                <label className="box-entry-label">Box Qty</label>
-                                <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} className="!py-1.5 po-input" />
+                            <div className="box-entry-panel flex flex-row !gap-2 !mt-2 !p-1.5 !items-center">
+                              <div className="flex-1">
+                                <label className="text-[8px] font-bold text-sky-600 block mb-0.5">Box Qty</label>
+                                <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} className="!py-1 !px-2 po-input text-[10px]" />
                               </div>
-                              <div className="box-entry-field">
-                                <label className="box-entry-label">Pcs/Box</label>
-                                <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} className="!py-1.5 po-input" />
+                              <div className="flex-1">
+                                <label className="text-[8px] font-bold text-sky-600 block mb-0.5">Pcs/Box</label>
+                                <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} className="!py-1 !px-2 po-input text-[10px]" />
                               </div>
-                              <div className="box-entry-field">
-                                <label className="box-entry-label">Box Price</label>
-                                <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} className="!py-1.5 po-input" />
+                              <div className="flex-1">
+                                <label className="text-[8px] font-bold text-sky-600 block mb-0.5">Box Price</label>
+                                <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} className="!py-1 !px-2 po-input text-[10px]" />
                               </div>
                             </div>
                           )}
+                        </td>
+                        <td className="purchase-td">
+                          <div className="relative">
+                            <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-emerald-500" />
+                            <input 
+                              type="number" 
+                              name="custom_selling_price" 
+                              value={item.custom_selling_price} 
+                              onChange={(e) => handleInputChange(e, idx)} 
+                              className="po-input !py-1 !pl-6 text-xs text-right font-bold text-emerald-600" 
+                              placeholder="0.00"
+                            />
+                          </div>
                         </td>
                         <td className="purchase-td">
                           <input type="text" name="custom_supplier_sl_num" value={item.custom_supplier_sl_num} onChange={(e) => handleInputChange(e, idx)} className="po-input !py-1 text-xs" placeholder="Serial..." />
@@ -828,8 +954,29 @@ function PurchaseOrder() {
                             readOnly={item.use_box_entry} 
                           />
                           {item.last_buying_rate > 0 && (
-                            <div className={`text-[9px] font-bold uppercase mt-1 ${item.rate > item.last_buying_rate ? 'text-amber-600' : 'text-slate-400'}`}>
-                              Prev: {item.last_buying_rate.toFixed(2)}
+                            <div className="relative">
+                              <button 
+                                type="button"
+                                onClick={() => setShowHistoryOverlay(showHistoryOverlay === idx ? null : idx)}
+                                className={`text-[9px] font-bold uppercase mt-1 px-1 rounded flex items-center gap-1 transition-colors ${item.rate > item.last_buying_rate ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400 hover:bg-sky-100 hover:text-sky-600'}`}
+                              >
+                                Prev: {item.last_buying_rate.toFixed(2)}
+                                <History size={8} />
+                              </button>
+                              
+                              {showHistoryOverlay === idx && history[item.item_code] && (
+                                <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-[50] p-2 animate-fadeIn">
+                                  <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-50 pb-1">Last 5 Transactions</div>
+                                  <div className="space-y-1.5">
+                                    {history[item.item_code].slice(0, 5).map((e, i) => (
+                                      <div key={i} className="flex justify-between text-[10px] items-center">
+                                        <span className="text-slate-500 font-medium truncate max-w-[80px]">{e.parent}</span>
+                                        <span className="text-slate-900 font-black">AED {parseFloat(e.rate).toFixed(2)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </td>
@@ -878,126 +1025,76 @@ function PurchaseOrder() {
             )}
           </div>
 
-          {/* SIDEBAR - Right */}
-          <div className="po-sidebar">
-            
-            {/* General Info Card */}
-            <div className="po-card">
-              <div className="po-card-header">
-                <h3 className="po-card-title">Order Settings</h3>
-              </div>
-              <div className="po-card-body space-y-4">
-                <div>
-                  <label className="po-label">Supplier *</label>
-                  <CustomSearchDropdown
-                    placeholder="Search supplier..."
-                    value={formData.supplier}
-                    onSelect={handleSupplierSelect}
-                    fetchData={fetchSuppliers}
-                    createOption={handleSupplierCreate}
-                    optionsLabel="supplier_name"
-                    extraCreateFields={() => (
-                      <div className="mt-2 p-3 bg-slate-50 rounded-lg">
-                        <label className="text-[10px] font-bold uppercase mb-1 block">Type</label>
-                        <select id="new-supplier-type" className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs outline-none" defaultValue="Company">
-                          <option value="Company">Company</option>
-                          <option value="Individual">Individual</option>
-                        </select>
-                      </div>
-                    )}
-                  />
+            {/* FOOTER AREA: Taxes & Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              {/* Taxes Card */}
+              <div className="po-card h-fit">
+                <div className="po-card-header">
+                  <h3 className="po-card-title">Taxes & Charges</h3>
                 </div>
+                <div className="po-card-body">
+                  <select
+                    value={formData.taxes_and_charges || ''}
+                    onChange={(e) => fetchTaxRows(e.target.value || null)}
+                    className="po-input text-xs mb-4"
+                  >
+                    <option value="">No Tax Applied</option>
+                    {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                  </select>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="po-label">Date</label>
-                    <input type="datetime-local" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="po-input text-xs" />
-                  </div>
-                  <div>
-                    <label className="po-label">Warehouse</label>
-                    <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} className="po-input text-xs">
-                      <option value="">Select...</option>
-                      {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="po-label">Company</label>
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[11px] font-bold text-slate-600 uppercase">
-                    {formData.company}
-                  </div>
+                  {formData.taxes.length > 0 && (
+                    <div className="space-y-2 border-t border-slate-100 pt-3">
+                      {formData.taxes.map((tax, i) => (
+                        <div key={i} className="flex justify-between text-[11px] font-bold">
+                          <span className="text-slate-500 uppercase">{tax.description || 'Tax'}</span>
+                          <span className="text-slate-900">AED {tax.tax_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Final Summary Card */}
+              <div className="po-summary shadow-2xl shadow-slate-400">
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="po-summary-row flex-col items-start !mb-0">
+                    <span className="text-[10px] uppercase opacity-60">Total Items</span>
+                    <span className="text-lg font-black">{formData.items.length}</span>
+                  </div>
+                  <div className="po-summary-row flex-col items-start !mb-0">
+                    <span className="text-[10px] uppercase opacity-60">Total Quantity</span>
+                    <span className="text-lg font-black">{formData.total_qty.toFixed(2)}</span>
+                  </div>
+                  <div className="po-summary-row flex-col items-start !mb-0">
+                    <span className="text-[10px] uppercase opacity-60">Net Amount</span>
+                    <span className="text-lg font-black">AED {formData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+                
+                <div className="po-summary-total">
+                  <div className="text-[10px] uppercase font-black tracking-widest opacity-60 mb-1">Grand Total Payable</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-amber-400">AED {formData.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+                
+                <div className="mt-6">
+                  {!formData.name && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg text-amber-400 text-[10px] font-bold uppercase text-center mb-4">
+                      Please save draft to enable submission
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading || saving || !formData.name}
+                    className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${!formData.name ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-xl shadow-sky-500/20 active:scale-95'}`}
+                  >
+                    {loading ? 'Submitting...' : 'Finalize Purchase Order'}
+                  </button>
+                </div>
             </div>
-
-            {/* Taxes Card */}
-            <div className="po-card">
-              <div className="po-card-header">
-                <h3 className="po-card-title">Taxes & Charges</h3>
-              </div>
-              <div className="po-card-body">
-                <select
-                  value={formData.taxes_and_charges || ''}
-                  onChange={(e) => fetchTaxRows(e.target.value || null)}
-                  className="po-input text-xs mb-4"
-                >
-                  <option value="">No Tax Applied</option>
-                  {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                </select>
-
-                {formData.taxes.length > 0 && (
-                  <div className="space-y-2 border-t border-slate-100 pt-3">
-                    {formData.taxes.map((tax, i) => (
-                      <div key={i} className="flex justify-between text-[11px] font-bold">
-                        <span className="text-slate-500 uppercase">{tax.description || 'Tax'}</span>
-                        <span className="text-slate-900">AED {tax.tax_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Final Summary Card */}
-            <div className="po-summary shadow-2xl shadow-slate-400">
-              <div className="po-summary-row">
-                <span>Total Items</span>
-                <span>{formData.items.length}</span>
-              </div>
-              <div className="po-summary-row">
-                <span>Total Quantity</span>
-                <span className="text-white font-bold">{formData.total_qty.toFixed(2)}</span>
-              </div>
-              <div className="po-summary-row">
-                <span>Net Amount</span>
-                <span className="text-white font-bold">AED {formData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-              </div>
-              
-              <div className="po-summary-total">
-                <div className="text-[10px] uppercase font-black tracking-widest opacity-60 mb-1">Grand Total Payable</div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black">AED {formData.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex flex-col gap-2">
-                {!formData.name && (
-                  <div className="bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg text-amber-400 text-[10px] font-bold uppercase text-center mb-2">
-                    Please save draft to enable submission
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={loading || saving || !formData.name}
-                  className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${!formData.name ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-xl shadow-sky-500/20 active:scale-95'}`}
-                >
-                  {loading ? 'Submitting...' : 'Finalize Purchase'}
-                </button>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>
