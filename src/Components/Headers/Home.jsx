@@ -85,6 +85,7 @@ function Home() {
   const [itemSearchResults, setItemSearchResults] = useState([]);
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [activeItemIndex, setActiveItemIndex] = useState(-1);
+  const [searchContext, setSearchContext] = useState('header'); // 'header' or 'inline'
   const itemDropdownRef = useRef(null);
 
   // Speed Checkout
@@ -831,7 +832,14 @@ function Home() {
         setBarcodeInput('');
         setShowItemDropdown(false);
         setActiveItemIndex(-1);
-        barcodeInputRef.current?.focus();
+        if (theme === 'legacy') {
+          setTimeout(() => {
+            const targetId = searchContext === 'header' ? 'legacy-header-search' : 'legacy-inline-search';
+            document.getElementById(targetId)?.focus();
+          }, 10);
+        } else {
+          barcodeInputRef.current?.focus();
+        }
       } else {
         handleBarcodeScan(barcodeInput);
       }
@@ -1692,11 +1700,30 @@ function Home() {
                   type="text" 
                   className="legacy-search-input" 
                   value={barcodeInput} 
-                  onChange={(e) => setBarcodeInput(e.target.value)}
+                  onChange={(e) => { setBarcodeInput(e.target.value); setSearchContext('header'); }}
                   onKeyDown={onBarcodeKeyDown}
+                  onFocus={() => setSearchContext('header')}
                   placeholder="Scan or type..."
                   id="legacy-header-search"
                 />
+                {showItemDropdown && theme === 'legacy' && searchContext === 'header' && (
+                  <div 
+                    ref={itemDropdownRef} 
+                    className="legacy-customer-dropdown" 
+                    style={{ top: '85px', left: '100px', width: '300px', zIndex: 9999 }}
+                  >
+                    {itemSearchResults.map((it, idx) => (
+                      <div 
+                        key={it.id} 
+                        className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
+                        onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); document.getElementById('legacy-header-search')?.focus(); }}
+                      >
+                        <div className="cust-name">{it.name}</div>
+                        <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
             <div className="legacy-search-row">
               <span className="legacy-search-label">Customer :</span>
@@ -2016,26 +2043,26 @@ function Home() {
                         <div className="box-cell name-cell" style={{ position: 'relative', padding: 0 }}>
                            <input 
                              type="text"
+                             id="legacy-inline-search"
                              className="w-full h-full px-2 font-bold text-xs outline-none border-none bg-transparent"
-                             placeholder="SEARCH ITEM HERE..."
+                             placeholder="TYPE ITEM NAME OR BARCODE TO ADD..."
                              value={barcodeInput}
-                             onChange={(e) => setBarcodeInput(e.target.value)}
+                             onChange={(e) => { setBarcodeInput(e.target.value); setSearchContext('inline'); }}
+                             onFocus={() => setSearchContext('inline')}
                              onKeyDown={onBarcodeKeyDown}
-                             autoFocus
                            />
-                           {showItemDropdown && (
+                           {showItemDropdown && searchContext === 'inline' && (
                               <div 
                                 className="legacy-customer-dropdown" 
-                                style={{ top: '100%', left: 0, width: '100%', minWidth: '350px', zIndex: 10000 }}
+                                style={{ top: '100%', left: 0, width: '100%', minWidth: '400px', zIndex: 10000, border: '2px solid #000080' }}
                               >
                                 {itemSearchResults.map((it, idx) => (
                                   <div 
                                     key={it.id} 
                                     className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
-                                    style={activeItemIndex === idx ? { backgroundColor: '#000080', color: '#fff' } : {}}
-                                    onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); }}
+                                    onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); document.getElementById('legacy-inline-search')?.focus(); }}
                                   >
-                                    <div className="cust-name">{it.name}</div>
+                                    <div className="cust-name" style={{ color: activeItemIndex === idx ? '#fff' : '#000080' }}>{it.name}</div>
                                     <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
                                   </div>
                                 ))}

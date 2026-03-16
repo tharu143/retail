@@ -579,6 +579,15 @@
   font-style: italic !important;
 }
 
+.legacy-dropdown-item.active {
+  background-color: #000080 !important;
+  color: #fff !important;
+}
+
+.legacy-dropdown-item.active .cust-name {
+  color: #fff !important;
+}
+
 .legacy-dropdown-item.loading {
   display: flex !important;
   align-items: center !important;
