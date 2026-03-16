@@ -28,9 +28,10 @@ import './DashBoard.css';
 const routeMap = {
   // Purchase
   'Supplier': { path: '/supplierlist', icon: Users },
-  'Purchase Order': { path: '/purchaseorderlist', icon: ClipboardList },
+  'New Purchase Order': { path: '/purchaseorder', icon: ClipboardList },
+  'Purchase Order List': { path: '/purchaseorderlist', icon: FileText },
   'Purchase Receipt': { path: '/purchasereceiptlist', icon: Truck },
-  'Purchase Invoice': { path: '/purchaseinvoicelist', icon: FileText },
+  'Purchase Invoice': { path: '/purchaseinvoicelist', icon: Receipt },
 
   // Sales
   'Customer': { path: '/customerlist', icon: UserCheck },
@@ -38,21 +39,27 @@ const routeMap = {
   'Sales Invoice': { path: '/salesinvoice', icon: Receipt },
   'Delivery Note': { path: '/deliverynote', icon: Truck },
 
+  // Stock
+  'Item List': { path: '/itemlist', icon: Boxes },
+  'Price List': { path: '/itempricelist', icon: Tag },
+  'Item Group': { path: '/itemgrouplist', icon: Layers },
+  'Purchase Tools': { path: '/purchasetools', icon: Settings },
+
+  // POS
+  'POS Screen': { path: '/homepage', icon: Monitor },
+  'POS Profile': { path: '/posprofilelist', icon: LayoutDashboard },
+  'Opening Entry': { path: '/posopeningentrylist', icon: Lock },
+  'Closing Entry List': { path: '/posclosingentrylist', icon: FileText },
+  'New Closing Entry': { path: '/closingentry', icon: Monitor },
+  'POS Invoices': { path: '/invoicelist', icon: Receipt },
+  'Sync Manager': { path: '/syncmanager', icon: ClipboardList },
+
   // Reports
   'Sales Report': { path: '/salesreport', icon: BarChart3 },
   'Purchase Report': { path: '/purchasereport', icon: TrendingUp },
-  'Item Wise Sales Report': { path: '/itemwisereport', icon: PieChart },
+  'Item Wise Report': { path: '/itemwisereport', icon: PieChart },
 
-  // Items Management
-  'Item': { path: '/itemlist', icon: Boxes },
-  'Price List': { path: '/itempricelist', icon: Tag },
-  'Item Group': { path: '/itemgrouplist', icon: Layers },
-
-  // POS Management
-  'POS Profile': { path: '/posprofilelist', icon: LayoutDashboard },
-  'POS Opening Entry': { path: '/posopeningentrylist', icon: Lock },
-  'POS Closing Entry': { path: '/posclosingentrylist', icon: Monitor },
-  'POS Invoice': { path: '/invoicelist', icon: Receipt },
+  // System
   'POS Health': { path: '/poshealth', icon: TrendingUp },
   'Settings': { path: '/settings', icon: Settings },
 };
@@ -63,34 +70,40 @@ function Dashboard() {
 
   const sections = [
     {
-      title: 'Purchase',
+      title: 'Procurement',
       icon: ShoppingCart,
       colorClass: 'icon-purchase',
-      items: ['Supplier', 'Purchase Order', 'Purchase Receipt', 'Purchase Invoice'],
+      items: ['Supplier', 'New Purchase Order', 'Purchase Order List', 'Purchase Receipt', 'Purchase Invoice'],
     },
     {
-      title: 'Sales',
+      title: 'Sales & Returns',
       icon: TrendingUp,
       colorClass: 'icon-sales',
       items: ['Customer', 'Sales Order', 'Sales Invoice', 'Delivery Note'],
     },
     {
-      title: 'Reports',
-      icon: BarChart3,
-      colorClass: 'icon-reports',
-      items: ['Sales Report', 'Purchase Report', 'Item Wise Sales Report'],
-    },
-    {
-      title: 'Items Management',
+      title: 'Stock Management',
       icon: Boxes,
       colorClass: 'icon-items',
-      items: ['Item', 'Price List', 'Item Group'],
+      items: ['Item List', 'Item Group', 'Price List', 'Purchase Tools'],
     },
     {
-      title: 'POS Management',
+      title: 'POS Operations',
       icon: Monitor,
       colorClass: 'icon-pos',
-      items: ['POS Profile', 'POS Opening Entry', 'POS Closing Entry', 'POS Invoice', 'POS Health', 'Settings'],
+      items: ['POS Screen', 'POS Profile', 'Opening Entry', 'New Closing Entry', 'Closing Entry List', 'POS Invoices', 'Sync Manager'],
+    },
+    {
+      title: 'Analytics',
+      icon: BarChart3,
+      colorClass: 'icon-reports',
+      items: ['Sales Report', 'Purchase Report', 'Item Wise Report'],
+    },
+    {
+      title: 'Administration',
+      icon: Settings,
+      colorClass: 'icon-pos', // Reusing purple or add a new color
+      items: ['POS Health', 'Settings'],
     },
   ];
 
