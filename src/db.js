@@ -9,11 +9,11 @@ db.version(1).stores({
     invoices: '++id, offline_id, customer, grand_total, is_synced, posting_date'
 });
 
-// Version 6: Expanded for Pieces per Box and better offline IDs
-db.version(6).stores({
+// Version 7: Added pos_opening_entry to invoices store
+db.version(7).stores({
     items: 'id, name, group, price, actual_qty, local_qty, custom_pieces_per_box',
     customers: 'name, customer_name, mobile_no, is_synced',
-    invoices: '++id, offline_id, customer, grand_total, is_synced, posting_date, synced_at, server_name, retry_count, conflicts',
+    invoices: '++id, offline_id, customer, grand_total, is_synced, posting_date, synced_at, server_name, retry_count, conflicts, pos_opening_entry',
     tax_templates: 'name',
     payment_modes: 'name',
     sync_log: '++id, offline_id, action, timestamp, status, server_name',
