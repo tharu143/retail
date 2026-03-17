@@ -504,15 +504,25 @@ function PurchaseOrder() {
           po_name: formData.name,
           posting_date: new Date().toISOString().slice(0, 10),
           set_warehouse: formData.set_warehouse,
-          items: formData.items.map(item => ({
+          // Pass tax template name and full tax rows so PR/PI inherits tax amounts correctly
+          taxes_and_charges: formData.taxes_and_charges || null,
+          taxes: (formData.taxes || []).map(t => ({
+            charge_type: t.charge_type,
+            account_head: t.account_head,
+            rate: t.rate,
+            description: t.description || t.account_head,
+            add_deduct_tax: t.add_deduct_tax || 'Add',
+            tax_amount: t.tax_amount || 0,
+          })),
+          items: formData.items.filter(i => i.item_code).map(item => ({
             item_code: item.item_code,
             qty: item.qty,
             uom: item.uom,
             rate: item.rate,
             amount: item.amount,
-            new_selling_price: item.custom_selling_price || item.rate || 0, // Auto-update selling price from PO
+            new_selling_price: item.custom_selling_price || item.rate || 0,
             purchase_order: formData.name,
-            purchase_receipt: createdPR || undefined // Pass PR if converting from PR
+            purchase_receipt: createdPR || undefined
           }))
         };
         
