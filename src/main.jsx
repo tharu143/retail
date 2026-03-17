@@ -27,20 +27,14 @@ const handleGlobalAuthError = () => {
     return;
   }
 
-  // If we are on the web, 403 might be a CSRF issue. We only force logout if the session is clearly missing.
-  if (!localStorage.getItem('session')) {
-    console.error("No session found. Forcing logout.");
-    store.dispatch(logout());
-    localStorage.clear();
-    window.location.hash = '#/';
-    return;
-  }
-
   if (window.location.hash === '#/' || window.location.hash === '') {
     return; // Already on login page
   }
 
-  console.warn("403 Forbidden detected on Web. Likely CSRF or Session expiry. Not forcing logout yet to allow retries.");
+  console.error("Session expired or missing credentials (403). Forcing logout.");
+  store.dispatch(logout());
+  localStorage.clear();
+  window.location.hash = '#/';
 };
 
 console.log(`[APP] Mode: ${IS_PROD ? 'Production (Electron)' : (IS_LOCAL ? 'Development (Local)' : 'Web (Server)')}`);
