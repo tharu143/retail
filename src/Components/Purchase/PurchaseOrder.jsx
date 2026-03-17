@@ -61,7 +61,8 @@ function PurchaseOrder() {
   const [activeDropdownRow, setActiveDropdownRow] = useState(null);
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false); // Shows if we are editing a draft
-  const [createdDocName, setCreatedDocName] = useState(''); // Store created PR/PI name
+  const [createdPR, setCreatedPR] = useState(null); // Store created PR name
+  const [createdPI, setCreatedPI] = useState(null); // Store created PI name
   const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
 
   const getSession = () => localStorage.getItem('session') || '';
@@ -479,7 +480,8 @@ function PurchaseOrder() {
       setSuccess(`Purchase Order ${formData.name} submitted successfully!`);
       // Update local state to reflect submission so buttons show
       setFormData(prev => ({ ...prev, docstatus: 1 }));
-      setCreatedDocName(null); // Clear previous created doc state
+      setCreatedPR(null);
+      setCreatedPI(null);
       setIsEditMode(false);
     } catch (err) {
       setError(`Submit failed: ${err.message}`);
@@ -495,33 +497,37 @@ function PurchaseOrder() {
     setSuccess('');
     try {
       const endpoint = type === 'receipt' ? 'create_purchase_receipt_from_po' : 'create_purchase_invoice_from_po';
-      const body = {
-        po_name: formData.name,
-        posting_date: new Date().toISOString().slice(0, 10),
-        set_warehouse: formData.set_warehouse,
-        items: formData.items.map(item => ({
-          item_code: item.item_code,
-          qty: item.qty,
-          uom: item.uom,
-          rate: item.rate,
-          amount: item.amount,
-          purchase_order: formData.name
-        }))
-      };
-      
-      const res = await fetch(`${API_PATH.replace('kyle_retail.retail_api.api', 'custom_retailpos.custom_retailpos.retail_api.retail')}.${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
-        credentials: 'include',
-        body: JSON.stringify(body)
-      });
-      
-      const data = await res.json();
-      const apiResp = data.message || data;
-      if (apiResp.status === 'success') {
-        setSuccess(`${type === 'receipt' ? 'Receipt' : 'Invoice'} ${apiResp.name} created successfully!`);
-        setCreatedDocName(apiResp.name);
-      } else {
+        const body = {
+          po_name: formData.name,
+          posting_date: new Date().toISOString().slice(0, 10),
+          set_warehouse: formData.set_warehouse,
+          items: formData.items.map(item => ({
+            item_code: item.item_code,
+            qty: item.qty,
+            uom: item.uom,
+            rate: item.rate,
+            amount: item.amount,
+            new_selling_price: item.custom_selling_price || item.rate || 0, // Auto-update selling price from PO
+            purchase_order: formData.name,
+            purchase_receipt: createdPR || undefined // Pass PR if converting from PR
+          }))
+        };
+        
+        const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+        const res = await fetch(`${OLD_API}.${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
+          credentials: 'include',
+          body: JSON.stringify(body)
+        });
+        
+        const data = await res.json();
+        const apiResp = data.message || data;
+        if (apiResp.status === 'success') {
+          setSuccess(`${type === 'receipt' ? 'Receipt' : 'Invoice'} ${apiResp.name} created successfully!`);
+          if (type === 'receipt') setCreatedPR(apiResp.name);
+          if (type === 'invoice') setCreatedPI(apiResp.name);
+        } else {
         throw new Error(apiResp.message || 'Failed to create');
       }
     } catch (err) {
@@ -689,21 +695,34 @@ function PurchaseOrder() {
               <CheckCircle2 className="w-6 h-6 text-emerald-600 mt-0.5" />
               <div>
                 <div className="text-lg font-black text-emerald-900">{success}</div>
-                {!createdDocName && formData.docstatus === 1 && (
-                  <p className="text-emerald-700 text-sm font-bold mt-1 uppercase tracking-tighter">What would you like to do next?</p>
+                {/* Step 1: PO Submitted, Needs PR */}
+                {!createdPR && !createdPI && formData.docstatus === 1 && (
+                  <p className="text-emerald-700 text-sm font-bold mt-1 uppercase tracking-tighter">Next Step: Receive Items into Stock</p>
+                )}
+                {/* Step 2: PR Created, Needs PI */}
+                {createdPR && !createdPI && (
+                  <p className="text-emerald-700 text-sm font-bold mt-1 uppercase tracking-tighter">Next Step: Post Supplier Invoice & Update Prices</p>
                 )}
               </div>
             </div>
-            {!createdDocName && formData.docstatus === 1 && (
-              <div className="flex gap-3 ml-10">
+            
+            <div className="flex gap-3 ml-10">
+              {!createdPR && formData.docstatus === 1 && (
                 <button onClick={() => handleCreateFlow('receipt')} className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95">
                   Create Purchase Receipt
                 </button>
+              )}
+              {createdPR && !createdPI && (
                 <button onClick={() => handleCreateFlow('invoice')} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-slate-200 hover:bg-slate-900 transition-all active:scale-95">
                   Create Purchase Invoice
                 </button>
-              </div>
-            )}
+              )}
+              {createdPR && createdPI && (
+                <div className="px-4 py-2 bg-green-100 text-green-800 font-bold rounded-lg text-xs uppercase">
+                  ✓ Full Procurement Flow Complete
+                </div>
+              )}
+            </div>
           </div>
         )}
 
