@@ -160,7 +160,7 @@ function PurchaseOrder() {
 
   const fetchWarehouses = async () => {
     try {
-      const OLD_API = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
       const res = await fetch(`${OLD_API}.get_warehouses?is_group=0`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
@@ -356,7 +356,7 @@ function PurchaseOrder() {
       return;
     }
     try {
-      const OLD_API = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
       const res = await fetch(`${OLD_API}.get_po_history?item_codes_json=${JSON.stringify(itemCodes)}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
@@ -539,7 +539,7 @@ function PurchaseOrder() {
     const supplier_type = typeSelect ? typeSelect.value : "Company";
 
     try {
-      const OLD_API = 'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
       const res = await fetch(`${OLD_API}.create_supplier`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
@@ -1011,13 +1011,36 @@ function PurchaseOrder() {
                   </select>
 
                   {formData.taxes.length > 0 && (
-                    <div className="space-y-2 border-t border-slate-100 pt-3">
-                      {formData.taxes.map((tax, i) => (
-                        <div key={i} className="flex justify-between text-[11px] font-bold">
-                          <span className="text-slate-500 uppercase">{tax.description || 'Tax'}</span>
-                          <span className="text-slate-900">AED {tax.tax_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      ))}
+                    <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[500px]">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 w-8 text-center">No.</th>
+                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500">Type *</th>
+                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500">Account Head *</th>
+                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 text-right">Tax Rate</th>
+                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 text-right">Amount</th>
+                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 text-right">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {formData.taxes.map((tax, i) => {
+                            const cumulativeTax = formData.taxes.slice(0, i + 1).reduce((sum, t) => sum + (t.tax_amount || 0), 0);
+                            const currentTotal = formData.total + cumulativeTax;
+                            
+                            return (
+                              <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-3 py-3 text-xs text-slate-400 text-center font-medium">{i + 1}</td>
+                                <td className="px-3 py-3 text-xs font-semibold text-slate-700 whitespace-nowrap">{tax.charge_type || 'On Net Total'}</td>
+                                <td className="px-3 py-3 text-xs font-bold text-slate-900">{tax.account_head || tax.description || 'Tax'}</td>
+                                <td className="px-3 py-3 text-xs font-semibold text-slate-700 text-right">{parseFloat(tax.rate || 0).toFixed(3)}</td>
+                                <td className="px-3 py-3 text-xs font-bold text-slate-900 text-right">{tax.tax_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td className="px-3 py-3 text-xs font-black text-slate-900 text-right">{currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
