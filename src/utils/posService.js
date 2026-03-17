@@ -43,6 +43,30 @@ const POSService = {
         });
     },
 
+    getWarehouses: async (args = {}) => {
+        return await frappeCall({
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_warehouses',
+            args: { is_group: 0, ...args },
+            type: 'GET'
+        });
+    },
+
+    getItemPricingHistory: async (itemCode) => {
+        return await frappeCall({
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_po_history',
+            args: { item_codes_json: JSON.stringify([itemCode]) },
+            type: 'GET'
+        });
+    },
+
+    getSuppliers: async (args = {}) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_suppliers_po',
+            args: { query: '', ...args },
+            type: 'GET'
+        });
+    },
+
     // 3. CHECKOUT & DUPLICATE SAFETY
     createInvoice: async (payload) => {
         if (!payload.customer || payload.customer.trim() === '') {
@@ -81,6 +105,20 @@ const POSService = {
         return await frappeCall({
             method: 'kyle_retail.retail_api.api.submit_purchase_entry',
             args: payload
+        });
+    },
+
+    findItemGlobal: async (searchTerm) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.find_item_global',
+            args: { search_term: searchTerm }
+        });
+    },
+
+    getPurchaseTaxTemplates: async () => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_purchase_tax_templates',
+            type: 'GET'
         });
     }
 };

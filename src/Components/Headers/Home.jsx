@@ -4,10 +4,11 @@ import { format } from 'date-fns';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, ChevronRight, X, Search, UserPlus,
-  Loader2, CreditCard, Phone, DollarSign, Trash2, Info, Package
+  RefreshCw, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
+  Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
+  DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone
 } from 'lucide-react';
-import { logout } from '../../Redux/Slices/userSlice';
+import { logout, toggleTheme } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import './LegacyPOS.css';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
@@ -15,7 +16,7 @@ import { db } from '../../db';
 import Swal from 'sweetalert2';
 import { frappeCall } from '../../utils/frappe';
 import POSService from '../../utils/posService';
-import QuickStockIn from '../Admin/QuickStockIn';
+// QuickStockIn removed - using route /quickstockin
 
 // ---------- Frappe-style rounding Utilities (Outside for stability) ----------
 const flt = (num, prec = 6) => {
@@ -41,6 +42,138 @@ function Home() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [sessionOrderCount, setSessionOrderCount] = useState(1);
+
+  // New: Legacy Classic Themes
+  const [legacySubTheme, setLegacySubTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', legacySubTheme);
+  }, [legacySubTheme]);
+
+  const classicStyles = useMemo(() => {
+    const isGreen = legacySubTheme === 'green';
+    const mainColor = isGreen ? '#1a6b52' : '#4a90d9';
+    const darkColor = isGreen ? '#0d4a35' : '#0d3050';
+    const lightColor = isGreen ? '#c8e8d4' : '#c5d8ed';
+    const accentColor = '#e8c84a';
+    const borderColor = isGreen ? '#4a9a72' : '#4a7aaa';
+    const statusBarColor = isGreen ? '#8ac8a8' : '#8ab4d8';
+
+    return `
+      .classic-root {
+        display: flex; flex-direction: column; height: 100vh; max-height: 100vh;
+        background: ${mainColor}; color: ${isGreen ? '#0a2e1e' : '#0a1a30'};
+        font-family: 'Share Tech Mono', 'Courier New', monospace;
+        overflow: hidden;
+      }
+      .classic-titlebar {
+        background: ${darkColor}; color: #d0ede0;
+        padding: 4px 12px; display: flex;
+        align-items: center; justify-content: space-between;
+        border-bottom: 2px solid ${borderColor}; font-size: 12px; flex-shrink: 0;
+      }
+      .classic-nav {
+        background: ${darkColor}; border-bottom: 2px solid ${borderColor};
+        height: 42px; display: flex; align-items: center;
+        justify-content: space-between; padding: 0 14px;
+        flex-shrink: 0; position: relative; z-index: 100;
+      }
+      .classic-header-form {
+        background: ${darkColor}; padding: 8px 16px;
+        border-bottom: 2px solid ${borderColor};
+        display: flex; flex-wrap: nowrap; gap: 20px; align-items: center;
+        flex-shrink: 0; position: relative; z-index: 110;
+      }
+      .classic-field label { color: ${statusBarColor}; font-size: 10px; white-space: nowrap; font-weight: 900; letter-spacing: 0.5px; }
+      .classic-field input, .classic-field select {
+        background: #ffffff; border: 2px solid #000;
+        padding: 4px 8px; font-size: 12px;
+        font-family: inherit; color: #000; outline: none;
+        box-shadow: inset 1px 1px 2px rgba(0,0,0,0.2);
+      }
+      .classic-entry-area { flex: 1; display: flex; flex-direction: column; background: ${lightColor}; position: relative; }
+      .classic-entry-header {
+        background: ${mainColor}; padding: 4px 10px;
+        display: flex; align-items: center; justify-content: space-between;
+        border-bottom: 1px solid ${borderColor}; flex-shrink: 0; gap: 10px;
+      }
+      table.classic-table {
+        width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed;
+      }
+      table.classic-table thead tr {
+        background: ${darkColor}; color: ${accentColor};
+        position: sticky; top: 0; z-index: 5;
+      }
+      table.classic-table thead th {
+        padding: 5px 5px; text-align: left; font-weight: bold;
+        border-right: 1px solid ${borderColor};
+      }
+      table.classic-table tbody td {
+        padding: 0; border-right: 1px solid ${isGreen ? '#b0d8c0' : '#a8c4e0'};
+        height: 32px; vertical-align: middle;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .classic-cell-text {
+        padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        display: block; width: 100%;
+      }
+      .classic-bottom-bar {
+        background: ${darkColor}; border-top: 2px solid ${borderColor};
+        display: flex; align-items: center; justify-content: center; padding: 4px 10px; flex-shrink: 0;
+      }
+      .classic-action-bar {
+        background: ${isGreen ? '#156047' : '#154070'}; padding: 5px 10px;
+        display: flex; align-items: center; justify-content: center;
+        border-top: 2px solid ${borderColor}; gap: 8px; flex-shrink: 0;
+      }
+      .classic-statusbar {
+        background: ${darkColor}; color: ${statusBarColor}; font-size: 10px;
+        padding: 2px 10px; display: flex; gap: 20px;
+        border-top: 1px solid ${borderColor}; flex-shrink: 0;
+      }
+      .classic-btn {
+        padding: 4px 16px; font-size: 11px; font-family: inherit;
+        font-weight: bold; cursor: pointer; border: 2px outset;
+        text-transform: uppercase; letter-spacing: 0.5px;
+      }
+      .classic-btn.gold { background: ${accentColor}; color: ${darkColor}; border-color: #f8e070 #907820 #907820 #f8e070; }
+      
+      /* New Discount Toggle Styles */
+      .home-discount-toggle {
+        display: flex;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 2px solid #e2e8f0;
+      }
+      .home-discount-type-btn {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-weight: 800;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .home-discount-type-btn.active {
+        background: #ffffff;
+        color: #2563eb;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      .home-discount-type-btn:hover:not(.active) {
+        background: rgba(0,0,0,0.05);
+      }
+    `;
+  }, [legacySubTheme]);
 
   // Connectivity monitoring
   useEffect(() => {
@@ -94,7 +227,6 @@ function Home() {
   const [customerLoading, setCustomerLoading] = useState(false);
   const mobileInputRef = useRef(null);
   const [lastInteractedItem, setLastInteractedItem] = useState(null);
-  const [showQuickStock, setShowQuickStock] = useState(false);
 
   // ---------- Auth ----------
   useEffect(() => {
@@ -199,7 +331,7 @@ function Home() {
 
   const discountAmount = useMemo(() => {
     if (discount.value <= 0) return 0;
-    const amt = discount.type === 'percent'
+    const amt = (discount.type === 'percentage' || discount.type === 'percent')
       ? (subtotal * discount.value) / 100
       : discount.value;
     return flt(amt);
@@ -333,8 +465,8 @@ function Home() {
   useEffect(() => {
     const timer = setTimeout(async () => {
       const searchTerm = (customerMobile || customerName).trim();
-      if (searchTerm.length < 2 || searchTerm === 'Cash') {
-        setSearchResults([]); setShowDropdown(false); return;
+      if (searchTerm.length < 1 || searchTerm === 'Cash') {
+        setSearchResults([]); return;
       }
 
       // Determine search type based on input pattern
@@ -1397,17 +1529,184 @@ function Home() {
             const Toast = Swal.mixin({
               toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
             });
-            Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name}` });
+            Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name || res.name}` });
+            return;
           }
         } catch (err) {
+          if (err.message && err.message.includes("409")) {
+             // 409 means conflict - usually customer already exists
+             try {
+                // Try searching one more time or use a simpler detail call
+                const searchRes = await frappeCall({
+                    method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_customer_details',
+                    args: { customer: searchTerm }
+                });
+                if (searchRes && searchRes.name) {
+                   pickCustomer(searchRes);
+                   return;
+                }
+             } catch (e2) {}
+          }
           console.error("Customer lookup failed", err);
-          Swal.fire('Error', 'Customer lookup failed or offline.', 'error');
+          Swal.fire('Error', 'Customer lookup failed or exists with different details (409). Check if mobile is correct.', 'error');
         } finally {
           setCustomerLoading(false);
         }
       }
     }
   };
+
+  // ---------- MODAL RENDERERS (REUSABLE) ----------
+  const renderDiscountModal = () => (
+    <div className="home-modal-overlay" onClick={() => setShowDiscountModal(false)}>
+      <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+        <div className="home-modal-header">
+          <h3>Apply Discount</h3>
+          <button className="home-modal-close" onClick={() => setShowDiscountModal(false)}><X size={20} /></button>
+        </div>
+        <div className="home-modal-body">
+          <div className="home-discount-toggle">
+            <button 
+              className={`home-discount-type-btn ${discount.type === 'amount' ? 'active' : ''}`} 
+              onClick={() => setDiscount({ ...discount, type: 'amount' })}
+            >
+              <DollarSign size={16} /> AED (Fixed)
+            </button>
+            <button 
+              className={`home-discount-type-btn ${discount.type === 'percentage' ? 'active' : ''}`} 
+              onClick={() => setDiscount({ ...discount, type: 'percentage' })}
+            >
+              <Layers size={16} /> % (Percent)
+            </button>
+          </div>
+          <div style={{ position: 'relative' }}>
+             <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, color: '#2563eb', fontSize: '1.2rem' }}>
+                {discount.type === 'amount' ? 'AED' : '%'}
+             </span>
+             <input 
+               type="number" 
+               placeholder="0.00" 
+               className="home-customer-input" 
+               style={{ paddingLeft: '3.5rem', fontSize: '1.5rem', fontWeight: 900, textAlign: 'right' }}
+               value={discountInput}
+               onChange={e => setDiscountInput(e.target.value)}
+               onKeyDown={(e) => e.key === 'Enter' && (setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }), setShowDiscountModal(false))}
+               autoFocus
+             />
+          </div>
+        </div>
+        <div className="home-modal-footer">
+          <button className="home-modal-cancel" onClick={clearDiscount}>Clear</button>
+          <button className="home-modal-apply" onClick={() => { setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }); setShowDiscountModal(false); }}>Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPaymentModal = () => (
+    <div className="home-modal-overlay" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}>
+      <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="home-modal-header">
+          <h3>Payment Details</h3>
+          <button className="home-modal-close" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}><X size={20} /></button>
+        </div>
+        
+        <div className="home-modal-body">
+          <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#64748b' }}>
+              <span>Grand Total:</span>
+              <span style={{ fontWeight: 700, color: '#1e293b' }}>AED {grandTotal.toFixed(2)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#10b981' }}>
+              <span>Paid So Far:</span>
+              <span style={{ fontWeight: 700 }}>AED {totalPaid.toFixed(2)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem', borderTop: '2px dashed #cbd5e1' }}>
+              <span style={{ fontWeight: 800, color: balanceRemaining > 0 ? '#ef4444' : '#10b981' }}>
+                {balanceRemaining > 0 ? 'Remaining Balance:' : 'Fully Paid / Change:'}
+              </span>
+              <span style={{ fontWeight: 900, fontSize: '1.2rem', color: balanceRemaining > 0 ? '#ef4444' : '#10b981' }}>
+                AED {Math.abs(balanceRemaining).toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {payments.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.5px' }}>Added Payments</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {payments.map((p, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '0.75rem 1rem', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      {p.mode_of_payment === 'Cash' ? <DollarSign size={16} color="#10b981" /> : <CreditCard size={16} color="#3b82f6" />}
+                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{p.mode_of_payment}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <span style={{ fontWeight: 700 }}>AED {p.amount.toFixed(2)}</span>
+                      <button onClick={() => removePayment(idx)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }}>
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {balanceRemaining > 0 && (
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
+              <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.75rem' }}>Add Payment</h4>
+              
+              {!selectedPaymentMode ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <button className="payment-mode-btn cash" onClick={() => setSelectedPaymentMode('Cash')} style={{ padding: '0.75rem', height: 'auto', flexDirection: 'row', gap: '0.5rem', fontSize: '0.9rem' }}>
+                    <DollarSign size={20} /> Cash
+                  </button>
+                  <button className="payment-mode-btn card" onClick={() => setSelectedPaymentMode('Credit Card')} style={{ padding: '0.75rem', height: 'auto', flexDirection: 'row', gap: '0.5rem', fontSize: '0.9rem' }}>
+                    <CreditCard size={20} /> Card
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, color: '#1e293b' }}>{selectedPaymentMode} Amount:</span>
+                    <button onClick={() => setSelectedPaymentMode('')} style={{ fontSize: '0.75rem', color: '#3b82f6', border: 'none', background: 'none', cursor: 'pointer' }}>Change Mode</button>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: '#94a3b8' }}>AED</span>
+                    <input 
+                      type="number" 
+                      value={tenderedAmount} 
+                      onChange={e => setTenderedAmount(parseFloat(e.target.value) || 0)} 
+                      style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 3rem', borderRadius: '8px', border: '2px solid #3b82f6', fontSize: '1.1rem', fontWeight: 700 }}
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && addPayment()}
+                    />
+                  </div>
+                  <button onClick={addPayment} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+                    Add {selectedPaymentMode} Payment
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="home-modal-footer" style={{ borderTop: '1px solid #e2e8f0', marginTop: '1rem' }}>
+          <button className="home-modal-cancel" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}>Cancel</button>
+          <button 
+            className="home-modal-apply" 
+            onClick={completePayment} 
+            disabled={paymentLoading || balanceRemaining > 0}
+            style={{ background: balanceRemaining <= 0 ? '#10b981' : '#94a3b8', minWidth: '180px' }}
+          >
+            {paymentLoading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
+            {paymentLoading ? 'Processing...' : 'Complete Payment'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
 
   const handlePrint = (invoiceData) => {
@@ -1690,148 +1989,336 @@ function Home() {
     </div>
   );
 
-  const changeDue = tenderedAmount - grandTotal;
+  const changeBack = Math.max(0, totalPaid - grandTotal);
 
   // ---------- RENDER ----------
-  return (
-    <div className={`home-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
-      {theme === 'legacy' && (
-        <div className="legacy-grid-header">
-          <div className="legacy-info-panel">
-            <div style={{ color: '#000' }}>Staff: <span style={{ color: '#0000cd' }}>{typeof user === 'object' ? (user?.full_name || user?.name) : (user || 'User')}</span></div>
-            <div>Order No.: <span style={{ color: '#0000cd' }}>{sessionOrderCount}</span></div>
-            <div>Date: <span style={{ color: '#0000cd' }}>{format(new Date(), 'dd/MM/yyyy HH:mm')}</span></div>
+  // NEW CLASSIC RENDERER (Embedded logic for Green/Blue themes)
+  if (theme === 'legacy') {
+    const isGreen = legacySubTheme === 'green';
+    const accentColor = '#e8c84a';
+
+    return (
+      <div className="classic-root">
+        <style>{classicStyles}</style>
+
+        {/* CLASSIC NAVBAR */}
+        <nav className="classic-nav">
+          <div className="flex items-center gap-4">
+            <button className="flex items-center gap-2 text-white/60 hover:text-white transition-colors" onClick={() => navigate('/homepage')}>
+               <ChevronLeft size={16} /> BACK
+            </button>
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate('/dashboard')}>
+              <div className="w-7 h-7 bg-white/10 border border-white/20 flex items-center justify-center text-amber-400 group-hover:bg-amber-400 group-hover:text-black transition-all">
+                <LayoutDashboard size={14} />
+              </div>
+              <span className="text-[13px] font-black text-amber-400 tracking-widest uppercase">RETAIL<span className="text-emerald-400">POS</span></span>
+            </div>
           </div>
 
-          <div className="legacy-search-panel">
-            <div className="legacy-search-row">
-              <span className="legacy-search-label">Product :</span>
-                <input 
-                  type="text" 
-                  className="legacy-search-input" 
-                  value={barcodeInput} 
-                  onChange={(e) => { setBarcodeInput(e.target.value); setSearchContext('header'); }}
-                  onKeyDown={onBarcodeKeyDown}
-                  onFocus={() => { setSearchContext('header'); setShowItemDropdown(true); }}
-                  placeholder="Scan or type..."
-                  id="legacy-header-search"
-                />
-                {showItemDropdown && theme === 'legacy' && searchContext === 'header' && (
-                  <div 
-                    ref={itemDropdownRef} 
-                    className="legacy-customer-dropdown" 
-                    style={{ top: '85px', left: '100px', width: '300px', zIndex: 9999 }}
-                  >
-                    {itemSearchResults.map((it, idx) => (
-                      <div 
-                        key={it.id} 
-                        className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
-                        onMouseDown={(e) => {
-                          e.preventDefault(); // Prevent input blur
-                          e.stopPropagation();
-                          handleAddToBill(it);
-                          setBarcodeInput('');
-                          setShowItemDropdown(false);
-                          document.getElementById('legacy-header-search')?.focus();
-                        }}
-                      >
-                        <div className="cust-name">{it.name}</div>
-                        <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+          <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-2 px-3 py-1 rounded bg-black/20 border border-white/10 text-[10px] font-black tracking-widest ${isOffline ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {isOffline ? <WifiOff size={11} /> : <Wifi size={11} />}
+              {isOffline ? 'OFFLINE' : 'ONLINE'}
             </div>
-            <div className="legacy-search-row">
-              <span className="legacy-search-label">Customer :</span>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <input 
-                  ref={mobileInputRef}
-                  type="text" 
-                  className="legacy-search-input" 
-                  value={customerMobile || customerName}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (/^\d*$/.test(val)) {
-                      setCustomerMobile(val);
-                      setCustomerName(''); // Clear name when searching by mobile
-                    } else {
-                      setCustomerName(val);
-                      setCustomerMobile(''); // Clear mobile when searching by name
-                    }
-                  }}
-                   onFocus={() => {
-                    const term = (customerMobile || customerName).trim();
-                    if (term.length >= 2 && term !== 'Cash') {
-                      setShowDropdown(true);
-                    }
-                  }}
-                  onKeyDown={handleMobileEnter}
-                  autoComplete="off"
-                  placeholder="Mobile or Name..."
-                  style={{ paddingRight: '25px' }}
-                />
-                <Phone size={12} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: '#3b82f6' }} />
-                
-                {showDropdown && theme === 'legacy' && (
-                  <div className="legacy-customer-dropdown">
-                    {searchLoading ? (
-                      <div className="legacy-dropdown-item loading">
-                        <Loader2 size={14} className="animate-spin" /> Searching...
-                      </div>
-                    ) : searchResults.length === 0 ? (
-                      <div className="legacy-dropdown-item empty">No customers found</div>
-                    ) : (
-                      searchResults.map(c => (
-                        <div key={c.name} className="legacy-dropdown-item" onClick={() => pickCustomer(c)}>
-                          <div className="cust-name">{c.customer_name}</div>
-                          {c.mobile_no && <div className="cust-phone">{c.mobile_no}</div>}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-              <button 
-                onClick={() => {
-                  if ((customerMobile || customerName).length >= 2) {
-                    setShowDropdown(!showDropdown);
-                  }
-                }} 
-                className="legacy-search-btn"
-              >
-                Search
-              </button>
-            </div>
-
-            {/* PRODUCT DROPDOWN FOR LEGACY */}
-            {showItemDropdown && theme === 'legacy' && (
-              <div 
-                ref={itemDropdownRef} 
-                className="legacy-customer-dropdown" 
-                style={{ top: '85px', left: '100px', width: '300px', zIndex: 9999 }}
-              >
-                {itemSearchResults.map((it, idx) => (
-                  <div 
-                    key={it.id} 
-                    className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
-                    style={activeItemIndex === idx ? { backgroundColor: '#000080', color: '#fff' } : {}}
-                    onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); barcodeInputRef.current?.focus(); }}
-                  >
-                    <div className="cust-name">{it.name}</div>
-                    <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
-                  </div>
-                ))}
+            {pendingSyncCount > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded bg-sky-900/40 border border-sky-400/30 text-sky-400 text-[10px] font-black tracking-widest cursor-pointer" onClick={() => navigate('/syncmanager')}>
+                <RefreshCw size={11} className="animate-spin" /> {pendingSyncCount} PENDING
               </div>
             )}
+            <div className="h-5 w-[1px] bg-white/10" />
+            <button 
+                onClick={() => setLegacySubTheme(isGreen ? 'blue' : 'green')}
+                className="flex items-center gap-2 px-3 py-1 bg-amber-400 text-black text-[10px] font-black tracking-widest hover:bg-white transition-all shadow-[2px_2px_0_rgba(0,0,0,0.2)]"
+                title="Toggle Legacy Color"
+            >
+                <Palette size={11} /> {legacySubTheme.toUpperCase()}
+            </button>
+            <div className="h-5 w-[1px] bg-white/10" />
+            <button 
+                onClick={() => dispatch(toggleTheme())}
+                className="flex items-center gap-2 px-3 py-1 bg-sky-500 text-white text-[10px] font-black tracking-widest hover:bg-sky-400 transition-all shadow-[2px_2px_0_rgba(0,0,0,0.2)]"
+                title="Switch to Modern UI"
+            >
+                <MonitorSmartphone size={11} /> MODERN UI
+            </button>
           </div>
 
-          <div className="legacy-total-panel">
-            <span className="legacy-total-label">Total :</span>
-            <span className="legacy-total-value">{grandTotal.toFixed(2)}</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 px-3 py-1 bg-black/20 border border-white/10">
+              <UserIcon size={12} className="text-amber-400" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-amber-400 uppercase leading-none">{user?.full_name || user || 'CASHIER'}</span>
+                <span className="text-[9px] text-white/40 font-bold uppercase tracking-tighter mt-0.5">{format(new Date(), 'dd MMM · HH:mm:ss')}</span>
+              </div>
+            </div>
+            <button onClick={handleLogout} className="w-8 h-8 flex items-center justify-center bg-rose-500/10 border border-rose-500/30 text-rose-500 hover:bg-rose-500 hover:text-white transition-all">
+              <Power size={14} />
+            </button>
+          </div>
+        </nav>
+
+        {/* CLASSIC HEADER FORM */}
+        <div className="classic-header-form">
+          <div className="classic-field flex items-center gap-2">
+            <label className="uppercase font-bold">INV NO</label>
+            <input value={sessionOrderCount + 1000} readOnly className="w-16 h-6 text-center" />
+          </div>
+
+          <div className="classic-field flex items-center gap-2 relative">
+            <label className="uppercase font-bold">CUSTOMER</label>
+            <div className="relative group" ref={dropdownRef}>
+              <input 
+                value={customerMobile || customerName}
+                onChange={e => {
+                    const val = e.target.value;
+                    if (/^\d*$/.test(val)) { setCustomerMobile(val); setCustomerName(''); }
+                    else { setCustomerName(val); setCustomerMobile(''); }
+                }}
+                onFocus={() => { setSearchContext('customer'); setShowDropdown(true); }}
+                onKeyDown={handleMobileEnter}
+                className="w-48 h-6 px-2"
+                placeholder="Mobile or Name..."
+              />
+              {showDropdown && (
+                <div className="absolute top-full left-0 w-64 bg-white border-2 border-slate-900 shadow-[4px_4px_0_rgba(0,0,0,0.1)] z-[200] max-h-48 overflow-y-auto">
+                    {searchResults.map(c => (
+                        <div key={c.name} className={`p-2 border-b border-slate-100 hover:bg-slate-50 cursor-pointer text-[11px] font-bold text-slate-900`} onClick={() => pickCustomer(c)}>
+                            {c.customer_name} — {c.mobile_no}
+                        </div>
+                    ))}
+                    <div className="p-2 bg-sky-50 text-sky-600 font-black text-[10px] cursor-pointer hover:bg-amber-400 hover:text-black" onClick={openCreate}>+ CREATE NEW CUSTOMER</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="classic-field flex items-center gap-2">
+            <label className="uppercase font-bold">BARCODE</label>
+            <input 
+              ref={barcodeInputRef}
+              value={barcodeInput}
+              onChange={e => { setBarcodeInput(e.target.value); setSearchContext('header'); }}
+              onKeyDown={onBarcodeKeyDown}
+              onFocus={() => setSearchContext('header')}
+              id="legacy-header-search"
+              className="w-32 h-6 px-2 bg-amber-50"
+              autoFocus
+            />
+          </div>
+
+          <div className="ml-auto flex items-center gap-4">
+             <div className="flex items-center gap-2 px-4 py-1 bg-black/30 border border-white/5">
+                <span className="text-[10px] font-black text-white/40 uppercase">Warehouse:</span>
+                <span className="text-[11px] font-black text-amber-400">{warehouse}</span>
+             </div>
           </div>
         </div>
-      )}
+
+        {/* CLASSIC MAIN BODY */}
+        <div className="flex-1 flex overflow-hidden">
+          <div className="classic-entry-area">
+            {/* GRID SECTION */}
+            <div className="flex-1 overflow-auto bg-white/40 pb-64" style={{ minHeight: '300px' }}>
+              <table className="classic-table">
+                <colgroup>
+                  <col style={{ width: 40 }} />
+                  <col style={{ width: 140 }} />
+                  <col style={{ width: 'auto' }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 100 }} />
+                  <col style={{ width: 150 }} />
+                  <col style={{ width: 40 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th className="text-center">#</th>
+                    <th>ITEM CODE</th>
+                    <th>DESCRIPTION</th>
+                    <th className="text-right">QTY</th>
+                    <th className="text-right">PRICE</th>
+                    <th className="text-right">TOTAL</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billItems.map((item, idx) => {
+                    const lineTotal = item.qty * item.price;
+                    return (
+                      <tr key={idx} className="bg-white hover:bg-amber-50 group border-b border-slate-100">
+                        <td className="text-center font-bold text-slate-400 text-[10px]">{idx + 1}</td>
+                        <td className="px-2 font-bold text-slate-900">
+                           <span className="classic-cell-text" title={item.item_code || item.id}>{item.item_code || item.id}</span>
+                        </td>
+                        <td className="px-2 font-black text-slate-700 uppercase">
+                           <span className="classic-cell-text" title={item.item_name || item.name}>{item.item_name || item.name}</span>
+                        </td>
+                        <td className="p-0">
+                           <input 
+                             type="number" 
+                             value={item.qty} 
+                             onChange={e => updateQuantity(item.id, parseInt(e.target.value) - item.qty)}
+                             className="w-full h-full text-right px-2 font-black text-sky-600 focus:bg-amber-100 outline-none border-none" 
+                           />
+                        </td>
+                        <td className="p-0">
+                           <input 
+                             type="number" 
+                             value={item.price} 
+                             onChange={e => {
+                                const newBill = [...billItems];
+                                newBill[idx].price = parseFloat(e.target.value);
+                                setBillItems(newBill);
+                             }}
+                             className="w-full h-full text-right px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none" 
+                           />
+                        </td>
+                        <td className="text-right px-2 font-black text-slate-900 bg-slate-50/50">AED {lineTotal.toFixed(2)}</td>
+                        <td className="text-center">
+                           <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* ADVANCED: Smart Inline Search Row (The "Active" Empty Row) */}
+                  <tr className={`${isGreen ? 'bg-emerald-50/50' : 'bg-sky-50/50'} border-y-2 border-amber-400 group relative`}>
+                    <td className="text-center font-bold text-amber-600">{billItems.length + 1}</td>
+                    <td colSpan={2} className="p-0 relative h-10">
+                       <input 
+                         type="text"
+                         id="legacy-inline-search"
+                         className="w-full h-full px-4 font-black italic text-slate-400 focus:text-slate-900 bg-transparent outline-none placeholder:text-slate-300"
+                         placeholder="TYPE ITEM NAME OR SCAN BARCODE HERE TO ADD..."
+                         value={barcodeInput}
+                         onChange={e => { setBarcodeInput(e.target.value); setSearchContext('inline'); setShowItemDropdown(true); }}
+                         onFocus={() => { setSearchContext('inline'); setShowItemDropdown(true); }}
+                         onKeyDown={onBarcodeKeyDown}
+                       />
+                       {showItemDropdown && itemSearchResults.length > 0 && (
+                          <div className="absolute top-full left-0 w-full bg-white border-2 border-slate-900 shadow-[8px_8px_0_rgba(0,0,0,0.1)] z-[300] max-h-64 overflow-y-auto">
+                              {itemSearchResults.map((it, idx) => (
+                                  <div 
+                                    key={it.id} 
+                                    className={`p-3 border-b border-slate-100 group cursor-pointer ${activeItemIndex === idx ? 'bg-amber-400' : 'hover:bg-amber-100'}`} 
+                                    onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); }}
+                                    onMouseEnter={() => setActiveItemIndex(idx)}
+                                  >
+                                      <div className="flex justify-between items-center">
+                                          <div>
+                                              <div className={`font-black text-[12px] ${activeItemIndex === idx ? 'text-black' : 'group-hover:text-black'}`}>{it.name}</div>
+                                              <div className={`text-[10px] font-bold ${activeItemIndex === idx ? 'text-black/60' : 'text-slate-400 group-hover:text-black/60'}`}>{it.id} · Stock: {it.local_qty}</div>
+                                          </div>
+                                          <div className={`font-black ${activeItemIndex === idx ? 'text-black' : 'text-emerald-600 group-hover:text-black'}`}>AED {it.price}</div>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                       )}
+                    </td>
+                    <td className="bg-black/5">-</td>
+                    <td className="bg-black/5">-</td>
+                    <td className="text-right px-2 font-black text-amber-600 bg-black/5">NEXT ITEM</td>
+                    <td className="text-center group-hover:bg-amber-400 transition-colors">
+                       <Search size={14} className="mx-auto text-amber-400 group-hover:text-black" />
+                    </td>
+                  </tr>
+
+                  {/* Aesthetic placeholder rows */}
+                  {Array.from({ length: Math.max(8, 12 - billItems.length) }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="bg-white/30 border-b border-white/10 opacity-30">
+                      <td className="text-center text-slate-300 font-bold">{billItems.length + i + 2}</td>
+                      <td className="border-r border-white/10"></td>
+                      <td className="border-r border-white/10"></td>
+                      <td className="border-r border-white/10"></td>
+                      <td className="border-r border-white/10"></td>
+                      <td className="border-r border-white/10"></td>
+                      <td></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* BOTTOM TOTALS */}
+            <div className="classic-bottom-bar">
+                <div className="flex items-center gap-8 px-8 py-2 bg-black/10 border border-white/5 shadow-inner">
+                    <div className="flex flex-col items-center">
+                        <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">SUBTOTAL</label>
+                        <span className="text-amber-400 font-black text-lg">AED {displaySubtotal.toFixed(2)}</span>
+                    </div>
+                    {displayDiscount > 0 && (
+                        <div className="flex flex-col items-center">
+                            <label className="text-[9px] font-black text-rose-400/50 uppercase tracking-widest">
+                                DISCOUNT {(discount.type === 'percentage' || discount.type === 'percent') ? `(${discount.value}%)` : ''}
+                            </label>
+                            <span className="text-rose-400 font-black text-lg">-AED {displayDiscount.toFixed(2)}</span>
+                        </div>
+                    )}
+                    <div className="flex flex-col items-center">
+                        <label className="text-[9px] font-black text-emerald-400/50 uppercase tracking-widest">VAT ({taxRate}%)</label>
+                        <span className="text-emerald-400 font-black text-lg">AED {displayTax.toFixed(2)}</span>
+                    </div>
+                    <div className="h-10 w-[2px] bg-white/5" />
+                    <div className="flex flex-col items-center min-w-[140px]">
+                        <label className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-1">TOTAL AMOUNT</label>
+                        <span className="text-amber-400 font-black text-3xl tracking-tighter shadow-sm">AED {grandTotal.toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* ACTION BAR */}
+            <div className="classic-action-bar">
+                <button className="classic-btn border-2 border-sky-400 bg-sky-600 text-white hover:bg-sky-500 transition-all font-black text-[12px] px-8 py-3" onClick={() => setShowDiscountModal(true)}>
+                   % DISCOUNT
+                </button>
+                <button className="classic-btn border-2 border-rose-400 bg-rose-600 text-white hover:bg-rose-500 transition-all font-black text-[12px] px-8 py-3" onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}>
+                    ↺ CLEAR BILL
+                </button>
+                <div className="flex-1" />
+                <button className="classic-btn border-2 border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-500 transition-all font-black text-[14px] px-12 py-3 shadow-[0_4px_20px_rgba(16,185,129,0.3)] active:translate-y-1" onClick={handleCheckout} disabled={grandTotal <= 0}>
+                    💳 PROCESS PAYMENT [F12]
+                </button>
+                <button className="classic-btn gold text-black font-black text-[12px] px-8 py-3" onClick={closingEntry}>
+                    [F10] CLOSING
+                </button>
+            </div>
+
+            {/* STATUS BAR */}
+            <div className="classic-statusbar">
+                <div className="flex items-center gap-2">
+                    <span className="text-white/20 font-bold uppercase">Items:</span>
+                    <span className="font-black text-amber-400">{billItems.length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-white/20 font-bold uppercase">Customer:</span>
+                    <span className="font-black text-amber-400">{customerName}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-white/20 font-bold uppercase">Session:</span>
+                    <span className="font-black text-emerald-400">{posOpeningEntry}</span>
+                </div>
+                <div className="ml-auto opacity-50 font-bold">READY · SYSTEM OK</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Reuse Modals from existing Home.jsx logic */}
+        {showDiscountModal && renderDiscountModal()}
+        {showPaymentModal && renderPaymentModal()}
+        {showOpeningModal && (
+            <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[2000] flex items-center justify-center p-8">
+                <div className="w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl">
+                    <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} />
+                </div>
+            </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---------- MODERN RENDER (UNCHANGED) ----------
+  return (
+    <div className={`home-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
+      {/* Removed Redundant Legacy Header for Modern View */}
 
       <div className="home-content">
         <div className="home-layout">
@@ -1856,7 +2343,7 @@ function Home() {
                     <span className="text-[10px] font-black text-amber-900 uppercase tracking-tight">Clear</span>
                   </div>
                   <button 
-                    onClick={() => setShowQuickStock(true)}
+                    onClick={() => navigate('/quickstockin')}
                     className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-xl border border-slate-800 hover:bg-slate-800 transition-all cursor-pointer shadow-lg active:scale-95"
                   >
                     <Package size={14} className="text-white" />
@@ -2011,133 +2498,7 @@ function Home() {
             )}
 
             {/* HORIZONTAL BILL SECTION (Legacy: Below Items) */}
-            {theme === 'legacy' && (
-              <div className="home-bill-section">
-                <div className="legacy-bill-header">
-                  <span>SI No</span>
-                  <span>Description</span>
-                  <span>Qty</span>
-                  <span>UOM</span>
-                  <span>Amount</span>
-                  <span>Action</span>
-                </div>
-                <div className="home-bill-items">
-                    <ul className="home-bill-item-list">
-                      {billItems.map((item, idx) => (
-                        <li key={item.id} className="home-bill-item-row">
-                          <span className="box-cell">{idx + 1}</span>
-                          <span className="box-cell name-cell" title={item.name}>{item.name}</span>
-                          <div className="box-cell qty-cell">
-                            <button className="legacy-qty-btn" onClick={() => updateQuantity(item.id, -1)}>-</button>
-                            <input 
-                              type="number"
-                              className="legacy-qty-input"
-                              value={item.qty}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value);
-                                if (!isNaN(val)) {
-                                  updateQuantity(item.id, val - item.qty);
-                                }
-                              }}
-                              onFocus={(e) => e.target.select()}
-                            />
-                            <button className="legacy-qty-btn" onClick={() => updateQuantity(item.id, 1)}>+</button>
-                          </div>
-                          <span className="box-cell uom-cell" onClick={() => toggleUom(item.id, item.uom === 'Piece' ? 'Box' : 'Piece')} style={{ cursor: 'pointer', color: '#2563eb', fontWeight: '800' }}>
-                            {item.uom || 'Piece'}
-                          </span>
-                          <span className="box-cell amount-cell">{(item.qty * item.price).toFixed(2)}</span>
-                          <div className="box-cell action-cell">
-                            <button 
-                              className="legacy-remove-btn" 
-                              onClick={(e) => { e.stopPropagation(); removeFromBill(item.id); }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                      
-                      {/* INTEGRATED SEARCH ROW INSIDE THE BOX - ALWAYS VISIBLE */}
-                      <li className="home-bill-item-row legacy-inline-search-row" style={{ backgroundColor: '#fffbe6', border: '2px solid #ffe58f', overflow: 'visible' }}>
-                        <span className="box-cell text-[#8c8c8c] font-bold">NEXT</span>
-                        <div className="box-cell name-cell" style={{ position: 'relative', padding: 0, overflow: 'visible' }}>
-                           <input 
-                             type="text"
-                             id="legacy-inline-search"
-                             className="w-full h-full px-2 font-bold text-xs outline-none border-none bg-transparent"
-                             placeholder="TYPE ITEM NAME OR BARCODE TO ADD..."
-                             value={barcodeInput}
-                             onChange={(e) => { setBarcodeInput(e.target.value); setSearchContext('inline'); setShowItemDropdown(true); }}
-                             onFocus={() => { setSearchContext('inline'); setShowItemDropdown(true); }}
-                             onKeyDown={onBarcodeKeyDown}
-                           />
-                           {showItemDropdown && searchContext === 'inline' && (
-                              <div 
-                                className="legacy-customer-dropdown" 
-                                style={{ top: '100%', left: 0, width: '100%', minWidth: '400px', zIndex: 10000, border: '2px solid #000080' }}
-                              >
-                                {itemSearchResults.map((it, idx) => (
-                                  <div 
-                                    key={it.id} 
-                                    className={`legacy-dropdown-item ${activeItemIndex === idx ? 'active' : ''}`}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault(); // Prevent input blur
-                                      e.stopPropagation();
-                                      handleAddToBill(it);
-                                      setBarcodeInput('');
-                                      setShowItemDropdown(false);
-                                      document.getElementById('legacy-inline-search')?.focus();
-                                    }}
-                                  >
-                                    <div className="cust-name" style={{ color: activeItemIndex === idx ? '#fff' : '#000080' }}>{it.name}</div>
-                                    <div className="cust-phone">Code: {it.id} | Price: {it.price} | Stock: {it.local_qty}</div>
-                                  </div>
-                                ))}
-                              </div>
-                           )}
-                        </div>
-                        <span className="box-cell qty-cell">-</span>
-                        <span className="box-cell uom-cell">-</span>
-                        <span className="box-cell amount-cell">-</span>
-                        <div className="box-cell action-cell">
-                           <Search size={14} className="text-[#bfbfbf]" />
-                        </div>
-                      </li>
-                    </ul>
-                </div>
-                <div className="legacy-numpad-area">
-                  <div className="legacy-details-panel">
-                    <div className="legacy-detail-row"><span>Subtotal:</span><span>{displaySubtotal.toFixed(2)}</span></div>
-                    <div className="legacy-detail-row" style={{ alignItems: 'center' }}>
-                      <span>Discount:</span>
-                      <button 
-                        onClick={() => setShowDiscountModal(true)}
-                        style={{
-                          backgroundColor: '#eff6ff',
-                          border: '1px solid #bfdbfe',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          color: '#2563eb'
-                        }}
-                      >
-                        {discount.value > 0 ? `${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`} ` : 'Add'} ({discountAmount.toFixed(2)})
-                      </button>
-                    </div>
-                    <div className="legacy-detail-row"><span>VAT ({taxRate}%):</span><span>{displayTax.toFixed(2)}</span></div>
-                    <div className="legacy-detail-row total"><span>To Pay:</span><span>{grandTotal.toFixed(2)}</span></div>
-                  </div>
-                  <div className="legacy-pay-group">
-                    <button className="legacy-mode-btn pay" onClick={handleCheckout} style={{ gridColumn: 'span 2' }}>PAY</button>
-                    <button className="legacy-mode-btn discount" onClick={() => setShowDiscountModal(true)} style={{ backgroundColor: '#8b5cf6' }}>DISCOUNT</button>
-                    <button className="legacy-mode-btn clear" onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }} style={{ backgroundColor: '#64748b' }}>CLEAR BILL</button>
-                    <button className="legacy-mode-btn close" onClick={closingEntry} style={{ gridColumn: 'span 2' }}>CLOSE</button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Removed Redundant Legacy Bill section for Modern View */}
 
           {/* RIGHT: MODERN BILL SECTION (Hidden in Legacy) */}
           {theme !== 'legacy' && (
@@ -2368,113 +2729,7 @@ function Home() {
           </div>
         )}
 
-        {showPaymentModal && (
-          <div className="home-modal-overlay" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}>
-            <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto' }}>
-              <div className="home-modal-header">
-                <h3>Payment Details</h3>
-                <button className="home-modal-close" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}><X size={20} /></button>
-              </div>
-              
-              <div className="home-modal-body">
-                {/* Order Summary Summary */}
-                <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#64748b' }}>
-                    <span>Grand Total:</span>
-                    <span style={{ fontWeight: 700, color: '#1e293b' }}>AED {grandTotal.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#10b981' }}>
-                    <span>Paid So Far:</span>
-                    <span style={{ fontWeight: 700 }}>AED {totalPaid.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem', borderTop: '2px dashed #cbd5e1' }}>
-                    <span style={{ fontWeight: 800, color: balanceRemaining > 0 ? '#ef4444' : '#10b981' }}>
-                      {balanceRemaining > 0 ? 'Remaining Balance:' : 'Fully Paid / Change:'}
-                    </span>
-                    <span style={{ fontWeight: 900, fontSize: '1.2rem', color: balanceRemaining > 0 ? '#ef4444' : '#10b981' }}>
-                      AED {Math.abs(balanceRemaining).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* List of Payments */}
-                {payments.length > 0 && (
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.5px' }}>Added Payments</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {payments.map((p, idx) => (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '0.75rem 1rem', borderRadius: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            {p.mode_of_payment === 'Cash' ? <DollarSign size={16} color="#10b981" /> : <CreditCard size={16} color="#3b82f6" />}
-                            <span style={{ fontWeight: 600, color: '#1e293b' }}>{p.mode_of_payment}</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <span style={{ fontWeight: 700 }}>AED {p.amount.toFixed(2)}</span>
-                            <button onClick={() => removePayment(idx)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }}>
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Add New Payment Mode */}
-                {balanceRemaining > 0 && (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
-                    <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.75rem' }}>Add Payment</h4>
-                    
-                    {!selectedPaymentMode ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                        <button className="payment-mode-btn cash" onClick={() => setSelectedPaymentMode('Cash')} style={{ padding: '0.75rem', height: 'auto', flexDirection: 'row', gap: '0.5rem', fontSize: '0.9rem' }}>
-                          <DollarSign size={20} /> Cash
-                        </button>
-                        <button className="payment-mode-btn card" onClick={() => setSelectedPaymentMode('Credit Card')} style={{ padding: '0.75rem', height: 'auto', flexDirection: 'row', gap: '0.5rem', fontSize: '0.9rem' }}>
-                          <CreditCard size={20} /> Card
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, color: '#1e293b' }}>{selectedPaymentMode} Amount:</span>
-                          <button onClick={() => setSelectedPaymentMode('')} style={{ fontSize: '0.75rem', color: '#3b82f6', border: 'none', background: 'none', cursor: 'pointer' }}>Change Mode</button>
-                        </div>
-                        <div style={{ position: 'relative' }}>
-                          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: '#94a3b8' }}>AED</span>
-                          <input 
-                            type="number" 
-                            value={tenderedAmount} 
-                            onChange={e => setTenderedAmount(parseFloat(e.target.value) || 0)} 
-                            style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 3rem', borderRadius: '8px', border: '2px solid #3b82f6', fontSize: '1.1rem', fontWeight: 700 }}
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && addPayment()}
-                          />
-                        </div>
-                        <button onClick={addPayment} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
-                          Add {selectedPaymentMode} Payment
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="home-modal-footer" style={{ borderTop: '1px solid #e2e8f0', marginTop: '1rem' }}>
-                <button className="home-modal-cancel" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}>Cancel</button>
-                <button 
-                  className="home-modal-apply" 
-                  onClick={completePayment} 
-                  disabled={paymentLoading || balanceRemaining > 0}
-                  style={{ background: balanceRemaining <= 0 ? '#10b981' : '#94a3b8', minWidth: '180px' }}
-                >
-                  {paymentLoading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
-                  {paymentLoading ? 'Processing...' : 'Complete Payment'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {showPaymentModal && renderPaymentModal()}
 
         {showOpeningModal && (
           <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
@@ -2540,7 +2795,7 @@ function Home() {
             </div>
           </div>
         )}
-        <QuickStockIn isOpen={showQuickStock} onClose={() => setShowQuickStock(false)} />
+        {/* QuickStockIn moved to full page */}
     </div>
   );
 }

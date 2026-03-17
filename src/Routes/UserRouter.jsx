@@ -27,6 +27,7 @@ import PurchaseOrderLists from '../Components/Admin/PurchaseOrderLists'
 import SyncManagerPage from '../Pages/SyncManagerPage'
 import SettingsPage from '../Pages/SettingsPage'
 import PurchaseToolsPage from '../Pages/PurchaseToolsPage'
+import QuickStockInPage from '../Pages/QuickStockInPage'
 
 
 function UserRouter() {
@@ -60,6 +61,7 @@ function UserRouter() {
         <Route path='syncmanager' element={<SyncManagerPage />} />
         <Route path='settings' element={<SettingsPage />} />
         <Route path='purchasetools' element={<PurchaseToolsPage />} />
+        <Route path='quickstockin' element={<QuickStockInPage />} />
       </Routes>
     </>
   )

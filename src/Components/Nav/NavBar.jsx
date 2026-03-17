@@ -220,6 +220,9 @@ function NavBar() {
   const formattedDate = currentTime.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
   const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+  // Do not render global NavBar when Legacy Theme is active (to avoid overflow/double header)
+  if (theme === 'legacy' && location.pathname === '/homepage') return null;
+
   return (
     <nav className="navbar navbar-expand-lg nav-div">
       <div className="container-fluid justify-content-between">

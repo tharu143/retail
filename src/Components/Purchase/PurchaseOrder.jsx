@@ -228,7 +228,11 @@ function PurchaseOrder() {
           rate: parseFloat(t.rate) || 0,
           tax_amount: 0,
           description: t.description || (t.account_head ? t.account_head.split(' - ')[0] : 'VAT'),
-          add_deduct_tax: t.add_deduct_tax || "Add"
+          add_deduct_tax: t.add_deduct_tax || "Add",
+          cost_center: t.cost_center || '',
+          category: t.category || 'Total',
+          included_in_print_rate: t.included_in_print_rate || 0,
+          is_tax_withholding_account: t.is_tax_withholding_account || 0
         }));
 
       setFormData(prev => {
@@ -319,6 +323,7 @@ function PurchaseOrder() {
     const netTotal = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
     let taxesTotal = 0;
+    let runningTotal = netTotal;
     const updatedTaxes = (taxes || []).map(tax => {
       let taxAmt = 0;
       if (tax.charge_type === "On Net Total") {
@@ -326,9 +331,17 @@ function PurchaseOrder() {
       } else if (tax.charge_type === "Actual") {
         taxAmt = parseFloat(tax.rate) || 0;
       }
+      
       if (tax.add_deduct_tax === "Deduct") taxAmt = -taxAmt;
+      
       taxesTotal += taxAmt;
-      return { ...tax, tax_amount: taxAmt };
+      runningTotal += taxAmt;
+      
+      return { 
+        ...tax, 
+        tax_amount: taxAmt,
+        total: runningTotal 
+      };
     });
 
     setFormData(prev => ({
@@ -408,7 +421,13 @@ function PurchaseOrder() {
           account_head: t.account_head,
           rate: t.rate,
           tax_amount: t.tax_amount,
-          description: t.description || t.account_head
+          total: t.total,
+          description: t.description || t.account_head,
+          add_deduct_tax: t.add_deduct_tax || "Add",
+          cost_center: t.cost_center || '',
+          category: t.category || 'Total',
+          included_in_print_rate: t.included_in_print_rate || 0,
+          is_tax_withholding_account: t.is_tax_withholding_account || 0
         }))
       };
       delete payload.total_qty;
@@ -513,6 +532,11 @@ function PurchaseOrder() {
             description: t.description || t.account_head,
             add_deduct_tax: t.add_deduct_tax || 'Add',
             tax_amount: t.tax_amount || 0,
+            total: t.total || 0,
+            cost_center: t.cost_center || '',
+            category: t.category || 'Total',
+            included_in_print_rate: t.included_in_print_rate || 0,
+            is_tax_withholding_account: t.is_tax_withholding_account || 0
           })),
           items: formData.items.filter(i => i.item_code).map(item => ({
             item_code: item.item_code,
@@ -520,7 +544,10 @@ function PurchaseOrder() {
             uom: item.uom,
             rate: item.rate,
             amount: item.amount,
-            new_selling_price: item.custom_selling_price || item.rate || 0,
+            selling_price: item.custom_selling_price || 0,
+            new_selling_price: item.custom_selling_price || 0,
+            box_qty: item.custom_box_qty || 0,
+            pieces_per_box: item.custom_pieces_per_box || 1,
             purchase_order: formData.name,
             purchase_receipt: createdPR || undefined
           }))

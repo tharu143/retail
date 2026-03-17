@@ -1,4 +1,5 @@
 
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowRight, 
@@ -20,9 +21,11 @@ import {
   Layers,
   Lock,
   Settings,
-  UserCheck
+  UserCheck,
+  PlusCircle
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import QuickStockInStandalone from './QuickStockInStandalone';
 import './DashBoard.css';
 
 const routeMap = {
@@ -44,6 +47,7 @@ const routeMap = {
   'Price List': { path: '/itempricelist', icon: Tag },
   'Item Group': { path: '/itemgrouplist', icon: Layers },
   'Purchase Tools': { path: '/purchasetools', icon: Settings },
+  'Quick Stock-In': { path: '/quickstockin', icon: PlusCircle },
 
   // POS
   'POS Screen': { path: '/homepage', icon: Monitor },
@@ -88,7 +92,7 @@ function Dashboard() {
       icon: Boxes,
       colorClass: 'icon-items',
       cardClass: 'card-items',
-      items: ['Item List', 'Item Group', 'Price List', 'Purchase Tools'],
+      items: ['Item List', 'Item Group', 'Price List', 'Purchase Tools', 'Quick Stock-In'],
     },
     {
       title: 'POS Operations',
