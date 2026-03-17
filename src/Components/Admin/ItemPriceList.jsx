@@ -52,7 +52,7 @@ function ItemPriceList() {
       try {
         setLoading(true);
         const res = await axios.get(
-          'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_price_list',
+          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_price_list',
           { withCredentials: true }
         );
         setPrices(res.data.message || []);
@@ -81,7 +81,7 @@ function ItemPriceList() {
     setItemLoading(true);
     try {
       const res = await axios.get(
-        'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items',
+        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items',
         { params: { q }, withCredentials: true }
       );
       setItems(res.data.message || []);
@@ -144,7 +144,7 @@ function ItemPriceList() {
       };
 
       const res = await axios.post(
-        'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item_price',
+        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item_price',
         payload,
         { withCredentials: true }
       );
@@ -155,7 +155,7 @@ function ItemPriceList() {
         resetForm();
         // Refresh list
         const refresh = await axios.get(
-          'http://75.119.130.59/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_price_list',
+          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_price_list',
           { withCredentials: true }
         );
         setPrices(refresh.data.message || []);

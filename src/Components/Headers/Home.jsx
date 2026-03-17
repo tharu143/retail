@@ -636,7 +636,7 @@ function Home() {
         }
       }
 
-      const baseUrl = window.location.protocol === 'file:' ? 'http://75.119.130.59' : '';
+      const baseUrl = window.location.protocol === 'file:' ? 'https://retail.kylesolutions.com' : '';
       const transformed = apiItems.map(item => {
         const hasImage = item.image && item.image.trim() !== "";
         let finalImage = null;
@@ -2191,7 +2191,7 @@ function Home() {
                   <div ref={itemDropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '300px', overflowY: 'auto', zIndex: 20, marginTop: '4px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
                     {itemSearchResults.map(it => (
                       <div key={it.id} onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); }} style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '0.75rem' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}>
-                        {it.image ? <img src={it.image.startsWith('http') ? it.image : `http://75.119.130.59${it.image}`} alt={it.name} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} /> : <div style={{ width: '32px', height: '32px', backgroundColor: '#f1f5f9', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#64748b' }}>No img</div>}
+                        {it.image ? <img src={it.image.startsWith('http') ? it.image : `https://retail.kylesolutions.com${it.image}`} alt={it.name} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} /> : <div style={{ width: '32px', height: '32px', backgroundColor: '#f1f5f9', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#64748b' }}>No img</div>}
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{it.name}</div>
                           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Code: {it.id} | Stock: {it.local_qty}</div>
