@@ -64,6 +64,9 @@ function PurchaseOrder() {
   const [createdPR, setCreatedPR] = useState(null); // Store created PR name
   const [createdPI, setCreatedPI] = useState(null); // Store created PI name
   const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
+  const [showPRSection, setShowPRSection] = useState(false);
+  const [showPISection, setShowPISection] = useState(false);
+  const [piBillNo, setPiBillNo] = useState('');
 
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = ''; // Relative path for browser compatibility
@@ -513,6 +516,15 @@ function PurchaseOrder() {
           }))
         };
         
+        if (type === 'invoice') {
+          body.bill_no = piBillNo;
+          if (!piBillNo.trim()) {
+            setError('Supplier Invoice Number is mandatory to create Purchase Invoice.');
+            setLoading(false);
+            return;
+          }
+        }
+        
         const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
         const res = await fetch(`${OLD_API}.${endpoint}`, {
           method: 'POST',
@@ -707,13 +719,13 @@ function PurchaseOrder() {
             </div>
             
             <div className="flex gap-3 ml-10">
-              {!createdPR && formData.docstatus === 1 && (
-                <button onClick={() => handleCreateFlow('receipt')} className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95">
+              {!createdPR && formData.docstatus === 1 && !showPRSection && (
+                <button onClick={() => setShowPRSection(true)} className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95">
                   Create Purchase Receipt
                 </button>
               )}
-              {createdPR && !createdPI && (
-                <button onClick={() => handleCreateFlow('invoice')} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-slate-200 hover:bg-slate-900 transition-all active:scale-95">
+              {createdPR && !createdPI && !showPISection && (
+                <button onClick={() => setShowPISection(true)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-slate-200 hover:bg-slate-900 transition-all active:scale-95">
                   Create Purchase Invoice
                 </button>
               )}
@@ -723,6 +735,54 @@ function PurchaseOrder() {
                 </div>
               )}
             </div>
+            
+            {showPRSection && !createdPR && (
+              <div className="mt-4 p-5 ml-10 mr-4 border border-emerald-200 bg-white rounded-xl shadow-inner animate-fadeIn">
+                <h4 className="font-black text-slate-800 mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-emerald-500" /> New Purchase Receipt Form</h4>
+                <div className="text-xs text-slate-600 font-medium mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                   You are about to securely receive <strong className="text-slate-900">{formData.total_qty.toFixed(2)}</strong> total items from <strong className="text-slate-900">{formData.supplier}</strong> into <strong className="text-emerald-600">{formData.set_warehouse || 'Default Warehouse'}</strong>.
+                </div>
+                <div className="flex justify-start gap-3 items-center">
+                  <button onClick={() => { setShowPRSection(false); handleCreateFlow('receipt'); }} className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-emerald-500/20 hover:bg-emerald-500 transition-all active:scale-95">
+                    Save & Submit Receipt
+                  </button>
+                  <button onClick={() => setShowPRSection(false)} className="px-4 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition-colors rounded-lg font-bold text-xs uppercase">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {showPISection && !createdPI && (
+              <div className="mt-4 p-5 ml-10 mr-4 border border-sky-200 bg-white rounded-xl shadow-inner animate-fadeIn">
+                <h4 className="font-black text-slate-800 mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4 text-sky-500" /> New Purchase Invoice Form</h4>
+                
+                <div className="mb-5 bg-sky-50 rounded-xl p-4 border border-sky-100">
+                  <label className="text-[10px] uppercase tracking-widest font-black text-sky-800 mb-2 block">Supplier Invoice No (Bill No) <span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    value={piBillNo}
+                    onChange={(e) => setPiBillNo(e.target.value)}
+                    placeholder="Enter Invoice No Provided by Supplier"
+                    className="w-full sm:w-1/2 px-4 py-3 border border-sky-200 rounded-lg text-sm font-bold bg-white focus:ring-2 focus:ring-sky-500 outline-none shadow-sm transition-all"
+                    required
+                  />
+                  <p className="text-[10px] text-sky-600 font-bold tracking-tight mt-1.5 opacity-80">This is absolutely mandatory for creating a valid Financial Invoice.</p>
+                </div>
+
+                <div className="text-xs text-slate-600 font-medium mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                   You are about to bill <strong className="text-slate-900">AED {formData.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> for the received items. The new selling prices provided in the table above will be updated in the system immediately!
+                </div>
+                <div className="flex justify-start gap-3 items-center">
+                  <button onClick={() => { 
+                      if(!piBillNo.trim()) { setError("Supplier Bill No is required!"); return; };
+                      setShowPISection(false); 
+                      handleCreateFlow('invoice'); 
+                    }} className="px-6 py-3 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-slate-500/20 hover:bg-slate-700 transition-all active:scale-95">
+                    Save & Submit Invoice
+                  </button>
+                  <button onClick={() => setShowPISection(false)} className="px-4 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition-colors rounded-lg font-bold text-xs uppercase">Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
