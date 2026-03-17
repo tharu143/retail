@@ -740,7 +740,7 @@ function PurchaseOrder() {
               <div className="mt-4 p-5 ml-10 mr-4 border border-emerald-200 bg-white rounded-xl shadow-inner animate-fadeIn">
                 <h4 className="font-black text-slate-800 mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-emerald-500" /> New Purchase Receipt Form</h4>
                 <div className="text-xs text-slate-600 font-medium mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                   You are about to securely receive <strong className="text-slate-900">{formData.total_qty.toFixed(2)}</strong> total items from <strong className="text-slate-900">{formData.supplier}</strong> into <strong className="text-emerald-600">{formData.set_warehouse || 'Default Warehouse'}</strong>.
+                   You are about to securely receive <strong className="text-slate-900">{formData.total_qty.toFixed(2)}</strong> total items from <strong className="text-slate-900">{typeof formData.supplier === 'object' ? (formData.supplier?.supplier_name || formData.supplier?.name) : formData.supplier}</strong> into <strong className="text-emerald-600">{formData.set_warehouse || 'Default Warehouse'}</strong>.
                 </div>
                 <div className="flex justify-start gap-3 items-center">
                   <button onClick={() => { setShowPRSection(false); handleCreateFlow('receipt'); }} className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-emerald-500/20 hover:bg-emerald-500 transition-all active:scale-95">
