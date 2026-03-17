@@ -74,6 +74,14 @@ const POSService = {
             method: 'custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices',
             args: { invoices: normalizedInvoices }
         });
+    },
+
+    // 5. MANAGER TOOLS
+    submitPurchaseEntry: async (payload) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.submit_purchase_entry',
+            args: payload
+        });
     }
 };
 

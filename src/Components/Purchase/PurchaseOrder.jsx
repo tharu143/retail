@@ -919,7 +919,7 @@ function PurchaseOrder() {
                             value={item.rate} 
                             onChange={(e) => handleInputChange(e, idx)} 
                             onFocus={(e) => e.target.select()}
-                            className={`w-full text-right font-black text-xs bg-transparent border-none outline-none focus:ring-0 ${item.rate > item.last_buying_rate && item.last_buying_rate > 0 ? 'text-red-500' : ''}`} 
+                            className={`w-full text-right font-black text-xs bg-transparent border-none outline-none focus:ring-0 ${item.rate > item.last_buying_rate && item.last_buying_rate > 0 ? 'text-orange-500' : ''}`} 
                           />
                           {item.last_buying_rate > 0 && (
                             <div className="relative">

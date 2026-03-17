@@ -31,6 +31,13 @@ const handleGlobalAuthError = () => {
     return; // Already on login page
   }
 
+  // If we have a session but get a 403, it might be a CSRF issue or a guest-access fallback needed.
+  // We warn but don't force logout immediately.
+  if (localStorage.getItem('session')) {
+    console.warn("403 Detected. Attempting to maintain session (Guest Access may be active).");
+    return;
+  }
+
   console.error("Session expired or missing credentials (403). Forcing logout.");
   store.dispatch(logout());
   localStorage.clear();

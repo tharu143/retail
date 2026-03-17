@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, X, Search, UserPlus,
-  Loader2, CreditCard, Phone, DollarSign, Trash2, Info
+  Loader2, CreditCard, Phone, DollarSign, Trash2, Info, Package
 } from 'lucide-react';
 import { logout } from '../../Redux/Slices/userSlice';
 import './Home.css';
@@ -15,6 +15,7 @@ import { db } from '../../db';
 import Swal from 'sweetalert2';
 import { frappeCall } from '../../utils/frappe';
 import POSService from '../../utils/posService';
+import QuickStockIn from '../Admin/QuickStockIn';
 
 // ---------- Frappe-style rounding Utilities (Outside for stability) ----------
 const flt = (num, prec = 6) => {
@@ -93,6 +94,7 @@ function Home() {
   const [customerLoading, setCustomerLoading] = useState(false);
   const mobileInputRef = useRef(null);
   const [lastInteractedItem, setLastInteractedItem] = useState(null);
+  const [showQuickStock, setShowQuickStock] = useState(false);
 
   // ---------- Auth ----------
   useEffect(() => {
@@ -1853,6 +1855,13 @@ function Home() {
                     <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-amber-600 border border-amber-200">Esc</kbd>
                     <span className="text-[10px] font-black text-amber-900 uppercase tracking-tight">Clear</span>
                   </div>
+                  <button 
+                    onClick={() => setShowQuickStock(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-xl border border-slate-800 hover:bg-slate-800 transition-all cursor-pointer shadow-lg active:scale-95"
+                  >
+                    <Package size={14} className="text-white" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-tight">Quick Stock-In</span>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
@@ -2531,7 +2540,8 @@ function Home() {
             </div>
           </div>
         )}
-      </div>
+        <QuickStockIn isOpen={showQuickStock} onClose={() => setShowQuickStock(false)} />
+    </div>
   );
 }
 
