@@ -12,7 +12,9 @@ import { logout } from './Redux/Slices/userSlice';
 
 // 1. Global Axios Configuration
 const BACKEND_URL = 'http://75.119.130.59';
-const IS_PROD = window.location.protocol === 'file:';
+const IS_ELECTRON = window.location.protocol === 'file:';
+const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const IS_PROD = IS_ELECTRON; 
 
 // Only use credentials (cookies) in Electron. For Web, we use X-Frappe-SID headers to bypass CSRF.
 axios.defaults.withCredentials = IS_PROD;
@@ -21,7 +23,16 @@ const handleGlobalAuthError = () => {
   // In Production (Electron), we often hit 403 due to cookie restrictions.
   // We MUST NOT force logout if we are already logged in locally, as we use X-Frappe-SID headers.
   if (IS_PROD) {
-    console.warn("403 Forbidden skipped in production to prevent logout loops.");
+    console.warn("403 Forbidden skipped in production/electron to prevent logout loops.");
+    return;
+  }
+
+  // If we are on the web, 403 might be a CSRF issue. We only force logout if the session is clearly missing.
+  if (!localStorage.getItem('session')) {
+    console.error("No session found. Forcing logout.");
+    store.dispatch(logout());
+    localStorage.clear();
+    window.location.hash = '#/';
     return;
   }
 
@@ -29,13 +40,10 @@ const handleGlobalAuthError = () => {
     return; // Already on login page
   }
 
-  console.error("Session expired or missing credentials (403). Forcing logout.");
-  store.dispatch(logout());
-  localStorage.clear();
-  window.location.hash = '#/';
+  console.warn("403 Forbidden detected on Web. Likely CSRF or Session expiry. Not forcing logout yet to allow retries.");
 };
 
-console.log(`[APP] Mode: ${IS_PROD ? 'Production (Electron)' : 'Development (Vite)'}`);
+console.log(`[APP] Mode: ${IS_PROD ? 'Production (Electron)' : (IS_LOCAL ? 'Development (Local)' : 'Web (Server)')}`);
 
 // Route Axios requests through local Vite Proxy to bypass CORS/SameSite cookie failures
 axios.interceptors.request.use((config) => {

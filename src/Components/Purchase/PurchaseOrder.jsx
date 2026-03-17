@@ -65,9 +65,9 @@ function PurchaseOrder() {
   const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
 
   const getSession = () => localStorage.getItem('session') || '';
-  const BASE_URL = 'http://75.119.130.59';
-  const API_PATH = `${BASE_URL}/api/method/kyle_retail.retail_api.api`;
-  const RESOURCE_API = `${BASE_URL}/api/resource/Purchase Order`;
+  const BASE_URL = ''; // Relative path for browser compatibility
+  const API_PATH = `/api/method/kyle_retail.retail_api.api`;
+  const RESOURCE_API = `/api/resource/Purchase Order`;
 
   const [scanningRow, setScanningRow] = useState(null); // Track which row is scanning
 
