@@ -523,6 +523,13 @@ function PurchaseOrder() {
             setLoading(false);
             return;
           }
+          // Pass selling_prices as a dict {item_code: selling_price} for backend to update POS prices
+          body.selling_prices = {};
+          formData.items.filter(i => i.item_code).forEach(item => {
+            if (item.custom_selling_price > 0) {
+              body.selling_prices[item.item_code] = item.custom_selling_price;
+            }
+          });
         }
         
         const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -736,50 +743,153 @@ function PurchaseOrder() {
               )}
             </div>
             
+            {/* PR FULL FORM */}
             {showPRSection && !createdPR && (
-              <div className="mt-4 p-5 ml-10 mr-4 border border-emerald-200 bg-white rounded-xl shadow-inner animate-fadeIn">
-                <h4 className="font-black text-slate-800 mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-emerald-500" /> New Purchase Receipt Form</h4>
-                <div className="text-xs text-slate-600 font-medium mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                   You are about to securely receive <strong className="text-slate-900">{formData.total_qty.toFixed(2)}</strong> total items from <strong className="text-slate-900">{typeof formData.supplier === 'object' ? (formData.supplier?.supplier_name || formData.supplier?.name) : formData.supplier}</strong> into <strong className="text-emerald-600">{formData.set_warehouse || 'Default Warehouse'}</strong>.
+              <div className="mt-4 ml-2 mr-2 border border-emerald-200 bg-white rounded-xl shadow-inner overflow-hidden">
+                <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3">
+                  <Package className="w-5 h-5 text-white" />
+                  <div>
+                    <h4 className="font-black text-white text-base">Purchase Receipt</h4>
+                    <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest">From PO: {formData.name}</p>
+                  </div>
                 </div>
-                <div className="flex justify-start gap-3 items-center">
-                  <button onClick={() => { setShowPRSection(false); handleCreateFlow('receipt'); }} className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-emerald-500/20 hover:bg-emerald-500 transition-all active:scale-95">
-                    Save & Submit Receipt
-                  </button>
-                  <button onClick={() => setShowPRSection(false)} className="px-4 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition-colors rounded-lg font-bold text-xs uppercase">Cancel</button>
+                <div className="p-5">
+                  {/* Summary row */}
+                  <div className="grid grid-cols-3 gap-4 mb-5 bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <div>
+                      <span className="text-[9px] uppercase font-black text-emerald-700 tracking-widest block">Supplier</span>
+                      <span className="text-sm font-black text-slate-800">{typeof formData.supplier === 'object' ? (formData.supplier?.supplier_name || formData.supplier?.name) : formData.supplier}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase font-black text-emerald-700 tracking-widest block">Warehouse</span>
+                      <span className="text-sm font-black text-slate-800">{formData.set_warehouse || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase font-black text-emerald-700 tracking-widest block">Posting Date</span>
+                      <span className="text-sm font-black text-slate-800">{new Date().toISOString().slice(0, 10)}</span>
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl mb-5">
+                    <table className="w-full text-left border-collapse min-w-[500px]">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500">Item Code</th>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500">Item Name</th>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Qty to Receive</th>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500">UOM</th>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Rate (AED)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {formData.items.filter(i => i.item_code).map((item, i) => (
+                          <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-3 text-xs font-bold text-slate-700">{item.item_code}</td>
+                            <td className="px-4 py-3 text-xs text-slate-600">{item.item_name}</td>
+                            <td className="px-4 py-3 text-sm font-black text-emerald-700 text-right">{parseFloat(item.qty).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-xs text-slate-500">{item.uom}</td>
+                            <td className="px-4 py-3 text-xs font-bold text-slate-900 text-right">{parseFloat(item.rate).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button onClick={() => { setShowPRSection(false); handleCreateFlow('receipt'); }} disabled={loading} className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-emerald-500/20 hover:bg-emerald-500 transition-all active:scale-95 flex items-center gap-2">
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                      Save & Submit Receipt
+                    </button>
+                    <button onClick={() => setShowPRSection(false)} className="px-5 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-lg font-bold text-xs uppercase">Cancel</button>
+                  </div>
                 </div>
               </div>
             )}
 
+            {/* PI FULL FORM */}
             {showPISection && !createdPI && (
-              <div className="mt-4 p-5 ml-10 mr-4 border border-sky-200 bg-white rounded-xl shadow-inner animate-fadeIn">
-                <h4 className="font-black text-slate-800 mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4 text-sky-500" /> New Purchase Invoice Form</h4>
-                
-                <div className="mb-5 bg-sky-50 rounded-xl p-4 border border-sky-100">
-                  <label className="text-[10px] uppercase tracking-widest font-black text-sky-800 mb-2 block">Supplier Invoice No (Bill No) <span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
-                    value={piBillNo}
-                    onChange={(e) => setPiBillNo(e.target.value)}
-                    placeholder="Enter Invoice No Provided by Supplier"
-                    className="w-full sm:w-1/2 px-4 py-3 border border-sky-200 rounded-lg text-sm font-bold bg-white focus:ring-2 focus:ring-sky-500 outline-none shadow-sm transition-all"
-                    required
-                  />
-                  <p className="text-[10px] text-sky-600 font-bold tracking-tight mt-1.5 opacity-80">This is absolutely mandatory for creating a valid Financial Invoice.</p>
+              <div className="mt-4 ml-2 mr-2 border border-sky-200 bg-white rounded-xl shadow-inner overflow-hidden">
+                <div className="bg-slate-800 px-6 py-4 flex items-center gap-3">
+                  <DollarSign className="w-5 h-5 text-sky-400" />
+                  <div>
+                    <h4 className="font-black text-white text-base">Purchase Invoice</h4>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">From PR: {createdPR}</p>
+                  </div>
                 </div>
+                <div className="p-5">
+                  {/* Bill No */}
+                  <div className="mb-5 bg-sky-50 rounded-xl p-4 border border-sky-100">
+                    <label className="text-[10px] uppercase tracking-widest font-black text-sky-800 mb-2 block">Supplier Bill / Invoice No <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={piBillNo}
+                      onChange={(e) => setPiBillNo(e.target.value)}
+                      placeholder="e.g. INV-2024-001"
+                      className="w-full sm:w-1/2 px-4 py-3 border border-sky-200 rounded-lg text-sm font-bold bg-white focus:ring-2 focus:ring-sky-500 outline-none shadow-sm"
+                    />
+                    <p className="text-[10px] text-sky-600 font-bold mt-1.5">Required for financial record keeping.</p>
+                  </div>
 
-                <div className="text-xs text-slate-600 font-medium mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                   You are about to bill <strong className="text-slate-900">AED {formData.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong> for the received items. The new selling prices provided in the table above will be updated in the system immediately!
-                </div>
-                <div className="flex justify-start gap-3 items-center">
-                  <button onClick={() => { 
-                      if(!piBillNo.trim()) { setError("Supplier Bill No is required!"); return; };
-                      setShowPISection(false); 
-                      handleCreateFlow('invoice'); 
-                    }} className="px-6 py-3 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-slate-500/20 hover:bg-slate-700 transition-all active:scale-95">
-                    Save & Submit Invoice
-                  </button>
-                  <button onClick={() => setShowPISection(false)} className="px-4 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition-colors rounded-lg font-bold text-xs uppercase">Cancel</button>
+                  {/* Items Table with Selling Price */}
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl mb-5">
+                    <table className="w-full text-left border-collapse min-w-[600px]">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500">Item</th>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Qty</th>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Purchase Rate</th>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Amount</th>
+                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-amber-600 text-right">New Selling Price ✦</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {formData.items.filter(i => i.item_code).map((item, i) => (
+                          <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="text-xs font-black text-slate-800">{item.item_code}</div>
+                              <div className="text-[10px] text-slate-500">{item.item_name}</div>
+                            </td>
+                            <td className="px-4 py-3 text-xs font-bold text-slate-700 text-right">{parseFloat(item.qty).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-xs font-bold text-slate-700 text-right">{parseFloat(item.rate).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-xs font-bold text-slate-900 text-right">{parseFloat(item.amount).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.custom_selling_price || ''}
+                                onChange={(e) => {
+                                  const items = [...formData.items];
+                                  items[i] = { ...items[i], custom_selling_price: parseFloat(e.target.value) || 0 };
+                                  setFormData(prev => ({ ...prev, items }));
+                                }}
+                                placeholder="0.00"
+                                className="w-24 px-2 py-2 border border-amber-300 rounded-lg text-sm font-black text-right bg-amber-50 focus:ring-2 focus:ring-amber-400 outline-none"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-5 flex justify-between text-xs font-bold">
+                    <span className="text-slate-600">Grand Total (inc. tax)</span>
+                    <span className="text-slate-900 font-black text-base">AED {formData.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button onClick={() => {
+                        if (!piBillNo.trim()) { setError('Supplier Bill No is required!'); return; }
+                        setShowPISection(false);
+                        handleCreateFlow('invoice');
+                      }} disabled={loading} className="px-6 py-3 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-slate-500/20 hover:bg-slate-700 transition-all active:scale-95 flex items-center gap-2">
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Save & Submit Invoice
+                    </button>
+                    <button onClick={() => setShowPISection(false)} className="px-5 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-lg font-bold text-xs uppercase">Cancel</button>
+                  </div>
                 </div>
               </div>
             )}
