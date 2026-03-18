@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import {
-  AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package,
-  DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History
+  AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, Users,
+  DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
+  Search, File
 } from 'lucide-react';
 import CustomSearchDropdown from './CustomSearchDropdown';
 import './Purchase.css';
@@ -13,13 +15,10 @@ import '../Headers/LegacyPOS.css';
 const POItemModel = {
   item_code: null,
   item_name: '',
-  schedule_date: '',
-  qty: 1,
-  stock_uom: '',
-  uom: '',
   rate: 0,
   amount: 0,
-  custom_supplier_sl_num: '',
+  custom_supplier_sl_num: '', // Legacy/Internal
+  custom_ref_sl_no: '',       // NEW: REF / SL #
   custom_box_qty: 0,
   custom_pieces_per_box: 1,
   custom_box_price: 0,
@@ -46,6 +45,7 @@ function PurchaseOrder() {
     total: 0,
     taxes_and_charges: null,
     taxes: [],
+    tax_total: 0,
     grand_total: 0,
     docstatus: 0 // 0 = Draft, 1 = Submitted
   });
@@ -61,15 +61,13 @@ function PurchaseOrder() {
   const [activeDropdownRow, setActiveDropdownRow] = useState(null);
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false); // Shows if we are editing a draft
-  const [createdPR, setCreatedPR] = useState(null); // Store created PR name
-  const [createdPI, setCreatedPI] = useState(null); // Store created PI name
+  const [createdDocName, setCreatedDocName] = useState(''); // Store created PR/PI name
   const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
-  const [showPRSection, setShowPRSection] = useState(false);
-  const [showPISection, setShowPISection] = useState(false);
-  const [piBillNo, setPiBillNo] = useState('');
+  const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
+  const dropdownRef = useRef(null);
 
   const getSession = () => localStorage.getItem('session') || '';
-  const BASE_URL = ''; // Relative path for browser compatibility
+  const BASE_URL = '';
   const API_PATH = `/api/method/kyle_retail.retail_api.api`;
   const RESOURCE_API = `/api/resource/Purchase Order`;
 
@@ -84,75 +82,96 @@ function PurchaseOrder() {
 
   const handleBarcodeEnter = async (e, rowIndex) => {
     if (e.key !== 'Enter') return;
-
     const barcode = e.target.value.trim();
     if (!barcode) return;
 
     setScanningRow(rowIndex);
-
     try {
       const res = await fetch(`${API_PATH}.get_item_by_barcode_po?barcode=${encodeURIComponent(barcode)}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
-
       if (!res.ok) throw new Error('Item not found');
-
       const data = await res.json();
       const item = data.message;
-
       if (!item || !item.item_code) {
-        setError(`No item found for barcode: ${barcode}`);
-        return;
+        throw new Error(`No item found for barcode: ${barcode}`);
       }
 
-      // Auto-fill the row with item data
-      const items = [...formData.items];
-      const rate = item.last_buying_rate || item.rate || 0;
-      items[rowIndex] = {
-        ...items[rowIndex],
-        item_code: item.item_code,
-        item_name: item.item_name,
-        stock_uom: item.stock_uom || '',
-        uom: item.stock_uom || '',
-        rate: rate,
-        last_buying_rate: item.last_buying_rate || 0,
-        qty: items[rowIndex].qty || 1,
-        custom_pieces_per_box: item.custom_pieces_per_box || 1,
-        amount: rate * (items[rowIndex].qty || 1),
-        temp_barcode: '' // Clear barcode field
-      };
+      setFormData(prev => {
+        const items = [...prev.items];
+        const existingIdx = items.findIndex(i => i.item_code === item.item_code);
+        const rate = parseFloat(item.last_buying_rate || item.rate || 0);
 
-      setFormData({ ...formData, items });
-      calculateTotals();
+        if (existingIdx !== -1) {
+          // Item already exists, merge by incrementing quantity
+          const updatedQty = (items[existingIdx].qty || 0) + 1;
+          items[existingIdx] = {
+            ...items[existingIdx],
+            qty: updatedQty,
+            amount: updatedQty * items[existingIdx].rate,
+            custom_box_qty: (items[existingIdx].custom_pieces_per_box > 0) ? (updatedQty / items[existingIdx].custom_pieces_per_box) : 0
+          };
+          // If the current row was a blank row, clear its barcode input
+          if (rowIndex !== existingIdx && items[rowIndex] && !items[rowIndex].item_code) {
+            items[rowIndex].temp_barcode = '';
+          }
+        } else {
+          // Item does not exist, add it to the current row
+          const piecesPerBox = parseFloat(item.custom_pieces_per_box || 1);
+          items[rowIndex] = {
+            ...items[rowIndex],
+            item_code: item.item_code,
+            item_name: item.item_name,
+            stock_uom: item.stock_uom || '',
+            uom: item.stock_uom || '',
+            rate: rate,
+            last_buying_rate: rate,
+            qty: 1,
+            amount: rate,
+            custom_pieces_per_box: piecesPerBox,
+            custom_box_price: rate * piecesPerBox,
+            custom_box_qty: (piecesPerBox > 0) ? (1 / piecesPerBox) : 0,
+            temp_barcode: ''
+          };
+        }
 
-      // Optional: Add new empty row if this was the last one
-      if (rowIndex === formData.items.length - 1) {
-        addItemRow();
-      }
+        // Add new empty row if all existing rows are filled
+        if (items.every(i => i.item_code)) {
+          items.push({ ...POItemModel, schedule_date: prev.transaction_date });
+        }
 
-      // Focus next barcode field
+        const totals = calculateTotals(items, prev.taxes);
+        return { ...prev, items, ...totals };
+      });
+
+      // Clear the barcode input field
+      e.target.value = '';
+      // Focus back to the current barcode input or the next one if a new row was added
       setTimeout(() => {
-        const nextInput = document.querySelector(`tr:nth-child(${rowIndex + 2}) input[placeholder="Scan barcode..."]`);
-        nextInput?.focus();
-      }, 100);
+        const nextInput = document.querySelector(`tr:nth-child(${rowIndex + 1}) input[placeholder="Barcode"]`);
+        if (nextInput) {
+          nextInput.focus();
+        } else {
+          // If no next input, focus on the last one (which might be the newly added row)
+          const lastInput = document.querySelector(`tr:last-child input[placeholder="Barcode"]`);
+          lastInput?.focus();
+        }
+      }, 10);
 
     } catch (err) {
       Swal.fire({
-          icon: 'error',
-          title: 'Barcode Not Found',
-          text: `"${barcode}" does not exist in the catalog.`,
-          toast: true,
-          position: 'top-end',
-          timer: 3000,
-          showConfirmButton: false
+        icon: 'error',
+        title: 'Scan Error',
+        text: err.message,
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false
       });
     } finally {
       setScanningRow(null);
     }
-
-    // Clear the barcode input
-    e.target.value = '';
   };
 
   useEffect(() => {
@@ -194,163 +213,117 @@ function PurchaseOrder() {
     }
   };
 
-  const fetchTaxRows = async (template) => {
-    if (!template) {
-      setFormData(prev => ({
-        ...prev,
-        taxes: [],
-        taxes_and_charges: null,
-        grand_total: prev.total
-      }));
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_PATH}.get_purchase_taxes_templates_po?template=${encodeURIComponent(template)}`, {
-        headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include'
-      });
-
-      if (!res.ok) {
-        setError('Failed to load tax template');
-        return;
+  const onTaxChange = (template) => {
+    setFormData(prev => {
+      if (!template) {
+        const totals = calculateTotals(prev.items, []);
+        return { 
+          ...prev, 
+          taxes_and_charges: null, 
+          taxes: [], 
+          ...totals 
+        };
       }
 
-      const data = await res.json();
-      const rawTaxes = Array.isArray(data) ? data : Array.isArray(data.message) ? data.message : [];
+      // Extract numeric percentage from string (e.g. "UAE VAT 5%" -> 5)
+      const match = template.match(/(\d+(?:\.\d+)?)%/);
+      const taxPercentage = match ? parseFloat(match[1]) : 0;
 
-      // Filter out only completely empty rows (must have an account OR a rate)
-      const formattedTaxes = rawTaxes
-        .filter(t => t.account_head || (parseFloat(t.rate) > 0)) 
-        .map(t => ({
-          charge_type: t.charge_type || "On Net Total",
-          account_head: t.account_head || 'Purchase Tax',
-          rate: parseFloat(t.rate) || 0,
-          tax_amount: 0,
-          description: t.description || (t.account_head ? t.account_head.split(' - ')[0] : 'VAT'),
-          add_deduct_tax: t.add_deduct_tax || "Add",
-          cost_center: t.cost_center || '',
-          category: t.category || 'Total',
-          included_in_print_rate: t.included_in_print_rate || 0,
-          is_tax_withholding_account: t.is_tax_withholding_account || 0
-        }));
+      // Create a virtual tax row for calculation
+      const formattedTaxes = [{
+        charge_type: "On Net Total",
+        account_head: 'Tax - KSPL',
+        rate: taxPercentage,
+        tax_amount: 0, 
+        description: template,
+        add_deduct_tax: "Add"
+      }];
 
-      setFormData(prev => {
-        const netTotal = prev.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-
-        let taxesTotal = 0;
-        const updatedTaxes = formattedTaxes.map(tax => {
-          let taxAmt = 0;
-          if (tax.charge_type === "On Net Total") {
-            taxAmt = netTotal * (tax.rate || 0) / 100;
-          } else if (tax.charge_type === "Actual") {
-            taxAmt = tax.rate || 0;
-          }
-          if (tax.add_deduct_tax === "Deduct") taxAmt = -taxAmt;
-          taxesTotal += taxAmt;
-          return { ...tax, tax_amount: taxAmt };
-        });
-
-        return {
-          ...prev,
-          taxes: updatedTaxes,
-          taxes_and_charges: template,
-          total: netTotal,
-          grand_total: netTotal + taxesTotal
-        };
-      });
-    } catch (err) {
-      setError('Failed to load tax details');
-    }
+      // Unified Recalculation
+      const totals = calculateTotals(prev.items, formattedTaxes);
+      
+      return { 
+        ...prev, 
+        ...totals, 
+        taxes_and_charges: template 
+      };
+    });
   };
 
   const handleInputChange = (e, rowIndex = null) => {
     const { name, value } = e.target;
-    if (rowIndex !== null) {
-      const items = [...formData.items];
-      if (name === 'qty' || name === 'rate') {
-        items[rowIndex][name] = parseFloat(value) || 0;
-        items[rowIndex].amount = (items[rowIndex].qty || 0) * (items[rowIndex].rate || 0);
-      } else if (['custom_box_qty', 'custom_pieces_per_box', 'custom_box_price'].includes(name)) {
-        items[rowIndex][name] = parseFloat(value) || 0;
-        const bQty = items[rowIndex].custom_box_qty || 0;
-        const pPerB = items[rowIndex].custom_pieces_per_box || 1;
-        const bPrice = items[rowIndex].custom_box_price || 0;
-        
-        items[rowIndex].qty = bQty * pPerB;
-        items[rowIndex].rate = pPerB > 0 ? bPrice / pPerB : 0;
-        items[rowIndex].amount = items[rowIndex].qty * items[rowIndex].rate;
-      } else if (name === 'schedule_date') {
-        if (value < formData.transaction_date) {
-          setError('Schedule date cannot be before transaction date');
-          return;
+    const val = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+
+    setFormData(prev => {
+      const newState = { ...prev };
+      if (rowIndex !== null) {
+        const items = [...prev.items];
+        const item = { ...items[rowIndex] };
+
+        if (name === 'qty' || name === 'rate') {
+          item[name] = val === '' ? 0 : val;
+          item.amount = (item.qty || 0) * (item.rate || 0);
+
+          // Sync box fields if relevant
+          if (name === 'rate') {
+            item.custom_box_price = item.rate * (item.custom_pieces_per_box || 1);
+          } else {
+            item.custom_box_qty = (item.custom_pieces_per_box > 0) ? (item.qty / item.custom_pieces_per_box) : 0;
+          }
+        } else if (['custom_box_qty', 'custom_pieces_per_box', 'custom_box_price', 'custom_selling_price'].includes(name)) {
+          item[name] = val === '' ? 0 : val;
+          if (name === 'custom_box_price') {
+            item.rate = item.custom_box_price / (item.custom_pieces_per_box || 1);
+          } else if (name === 'custom_box_qty') {
+            item.qty = item.custom_box_qty * (item.custom_pieces_per_box || 1);
+          } else if (name === 'custom_pieces_per_box') {
+            item.qty = (item.custom_box_qty || 0) * item.custom_pieces_per_box;
+            item.custom_box_price = item.rate * item.custom_pieces_per_box; // Recalculate box price if pieces per box changes
+          }
+          item.amount = (item.qty || 0) * (item.rate || 0);
+        } else if (name === 'schedule_date') {
+          item[name] = value;
+        } else {
+          item[name] = value;
         }
-        items[rowIndex][name] = value;
+        items[rowIndex] = item;
+        newState.items = items;
       } else {
-        items[rowIndex][name] = value;
+        newState[name] = value;
       }
-      setFormData(prev => {
-        const newState = { ...prev, items };
-        calculateTotals(newState.items, newState.taxes);
-        return newState;
-      });
-    } else {
-      if (name === 'transaction_date') {
-        const items = formData.items.map(item => ({
-          ...item,
-          schedule_date: item.schedule_date < value ? value : item.schedule_date
-        }));
-        setFormData(prev => {
-          const newState = { ...prev, [name]: value, items };
-          calculateTotals(newState.items, newState.taxes);
-          return newState;
-        });
-      } else {
-        setFormData(prev => {
-          const newState = { ...prev, [name]: value };
-          calculateTotals(newState.items, newState.taxes);
-          return newState;
-        });
-      }
-    }
+
+      const totals = calculateTotals(newState.items, newState.taxes);
+      return { ...newState, ...totals };
+    });
   };
 
-  const calculateTotals = (overrideItems = null, overrideTaxes = null) => {
-    const items = overrideItems || formData.items;
-    const taxes = overrideTaxes || formData.taxes;
-    
-    const totalQty = items.reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
-    const netTotal = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const calculateTotals = (items = formData.items, taxes = formData.taxes) => {
+    if (!items) return {};
+    const validItems = items.filter(i => i.item_code);
+    const totalQty = validItems.reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+    const netTotal = validItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
     let taxesTotal = 0;
-    let runningTotal = netTotal;
     const updatedTaxes = (taxes || []).map(tax => {
       let taxAmt = 0;
+      const rate = parseFloat(tax.rate) || 0;
       if (tax.charge_type === "On Net Total") {
-        taxAmt = netTotal * (parseFloat(tax.rate) || 0) / 100;
+        taxAmt = (netTotal * rate) / 100;
       } else if (tax.charge_type === "Actual") {
-        taxAmt = parseFloat(tax.rate) || 0;
+        taxAmt = rate;
       }
-      
       if (tax.add_deduct_tax === "Deduct") taxAmt = -taxAmt;
-      
       taxesTotal += taxAmt;
-      runningTotal += taxAmt;
-      
-      return { 
-        ...tax, 
-        tax_amount: taxAmt,
-        total: runningTotal 
-      };
+      return { ...tax, tax_amount: parseFloat(taxAmt.toFixed(4)) };
     });
 
-    setFormData(prev => ({
-      ...prev,
-      total_qty: totalQty,
-      total: netTotal,
+    return {
+      total_qty: parseFloat(totalQty.toFixed(4)),
+      total: parseFloat(netTotal.toFixed(4)),
+      tax_total: parseFloat(taxesTotal.toFixed(4)),
       taxes: updatedTaxes,
-      grand_total: netTotal + taxesTotal
-    }));
+      grand_total: parseFloat((netTotal + taxesTotal).toFixed(4))
+    };
   };
 
   const addItemRow = () => {
@@ -361,9 +334,11 @@ function PurchaseOrder() {
   };
 
   const removeItemRow = (index) => {
-    const items = formData.items.filter((_, i) => i !== index);
-    setFormData(prev => ({ ...prev, items }));
-    calculateTotals();
+    setFormData(prev => {
+      const items = prev.items.filter((_, i) => i !== index);
+      const totals = calculateTotals(items, prev.taxes);
+      return { ...prev, items, ...totals };
+    });
   };
 
   const fetchHistory = async () => {
@@ -388,57 +363,95 @@ function PurchaseOrder() {
 
   useEffect(() => {
     fetchHistory();
-    calculateTotals();
   }, [formData.items]);
 
-  // ======================= SAVE DRAFT =======================
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.product-search-container') && !e.target.closest('.product-dropdown-portal')) {
+        setActiveDropdownRow(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (selectedProductIndex >= 0 && dropdownRef.current) {
+      const activeItem = dropdownRef.current.childNodes[selectedProductIndex];
+      if (activeItem) {
+        activeItem.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }
+    }
+  }, [selectedProductIndex]);
+
+  const validateForm = (isSubmitting = false) => {
+    if (!formData.supplier?.name) {
+      setError('Please select a Supplier / Vendor');
+      return false;
+    }
+    if (!formData.set_warehouse) {
+      setError('Please select a Target Warehouse');
+      return false;
+    }
+    const validItems = formData.items.filter(i => i.item_code);
+    if (validItems.length === 0) {
+      setError('Please add at least one valid item');
+      return false;
+    }
+    if (validItems.some(i => i.qty <= 0)) {
+      setError('All items must have a quantity greater than zero');
+      return false;
+    }
+    if (isSubmitting && !formData.name) {
+      setError('Please Save as Draft before processing the order');
+      return false;
+    }
+    return true;
+  };
+
   const handleSaveDraft = async (e) => {
-    e.preventDefault();
-    if (!formData.supplier?.name || !formData.company) {
-      setError('Please select supplier and company');
-      return;
-    }
-    if (formData.items.some(i => !i.item_code || i.qty <= 0)) {
-      setError('All items must have item and valid qty');
-      return;
-    }
+    if (e) e.preventDefault();
+    if (!validateForm(false)) return;
 
     setSaving(true);
     setError('');
     setSuccess('');
 
     try {
+      const validItems = formData.items.filter(i => i.item_code);
       const payload = {
-        ...formData,
         supplier: formData.supplier.name,
+        company: formData.company,
+        transaction_date: formData.transaction_date,
+        set_warehouse: formData.set_warehouse,
+        currency: formData.currency || 'AED',
+        conversion_rate: 1.0,
         taxes_and_charges: formData.taxes_and_charges,
-        items: formData.items.map(item => {
-          const { use_box_entry, temp_barcode, ...rest } = item;
-          return rest;
-        }),
-        taxes: formData.taxes.map(t => ({
+        items: validItems.map(item => ({
+          item_code: item.item_code,
+          item_name: item.item_name,
+          qty: parseFloat(item.qty),
+          uom: item.uom,
+          rate: parseFloat(item.rate),
+          schedule_date: item.schedule_date || formData.transaction_date,
+          custom_pieces_per_box: parseFloat(item.custom_pieces_per_box || 1),
+          custom_box_qty: parseFloat(item.custom_box_qty || 0),
+          custom_box_price: parseFloat(item.custom_box_price || 0)
+        })),
+        taxes: (formData.taxes || []).map(t => ({
           charge_type: t.charge_type,
           account_head: t.account_head,
-          rate: t.rate,
-          tax_amount: t.tax_amount,
-          total: t.total,
-          description: t.description || t.account_head,
-          add_deduct_tax: t.add_deduct_tax || "Add",
-          cost_center: t.cost_center || '',
-          category: t.category || 'Total',
-          included_in_print_rate: t.included_in_print_rate || 0,
-          is_tax_withholding_account: t.is_tax_withholding_account || 0
+          rate: parseFloat(t.rate),
+          tax_amount: parseFloat(t.tax_amount),
+          description: t.description || t.account_head
         }))
       };
-      delete payload.total_qty;
-      delete payload.total;
-      delete payload.grand_total;
-      delete payload.docstatus;
-      delete payload.name; // name will be auto-generated or updated
 
       let response;
       if (formData.name) {
-        // Update existing draft
         response = await fetch(`${RESOURCE_API}/${formData.name}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
@@ -446,7 +459,6 @@ function PurchaseOrder() {
           body: JSON.stringify(payload)
         });
       } else {
-        // Create new draft
         response = await fetch(RESOURCE_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
@@ -473,20 +485,17 @@ function PurchaseOrder() {
     }
   };
 
-  // ======================= SUBMIT =======================
   const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!formData.name) {
-      setError('Please Save as Draft first before submitting');
-      return;
-    }
+    if (e) e.preventDefault();
+    if (!validateForm(true)) return;
 
     setLoading(true);
     setError('');
     setSuccess('');
 
     try {
+      await handleSaveDraft();
+
       const response = await fetch(`${RESOURCE_API}/${formData.name}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
@@ -500,10 +509,8 @@ function PurchaseOrder() {
       }
 
       setSuccess(`Purchase Order ${formData.name} submitted successfully!`);
-      // Update local state to reflect submission so buttons show
       setFormData(prev => ({ ...prev, docstatus: 1 }));
-      setCreatedPR(null);
-      setCreatedPI(null);
+      setCreatedDocName(null);
       setIsEditMode(false);
     } catch (err) {
       setError(`Submit failed: ${err.message}`);
@@ -519,71 +526,34 @@ function PurchaseOrder() {
     setSuccess('');
     try {
       const endpoint = type === 'receipt' ? 'create_purchase_receipt_from_po' : 'create_purchase_invoice_from_po';
-        const body = {
-          po_name: formData.name,
-          posting_date: new Date().toISOString().slice(0, 10),
-          set_warehouse: formData.set_warehouse,
-          // Pass tax template name and full tax rows so PR/PI inherits tax amounts correctly
-          taxes_and_charges: formData.taxes_and_charges || null,
-          taxes: (formData.taxes || []).map(t => ({
-            charge_type: t.charge_type,
-            account_head: t.account_head,
-            rate: t.rate,
-            description: t.description || t.account_head,
-            add_deduct_tax: t.add_deduct_tax || 'Add',
-            tax_amount: t.tax_amount || 0,
-            total: t.total || 0,
-            cost_center: t.cost_center || '',
-            category: t.category || 'Total',
-            included_in_print_rate: t.included_in_print_rate || 0,
-            is_tax_withholding_account: t.is_tax_withholding_account || 0
-          })),
-          items: formData.items.filter(i => i.item_code).map(item => ({
-            item_code: item.item_code,
-            qty: item.qty,
-            uom: item.uom,
-            rate: item.rate,
-            amount: item.amount,
-            selling_price: item.custom_selling_price || 0,
-            new_selling_price: item.custom_selling_price || 0,
-            box_qty: item.custom_box_qty || 0,
-            pieces_per_box: item.custom_pieces_per_box || 1,
-            purchase_order: formData.name,
-            purchase_receipt: createdPR || undefined
-          }))
-        };
-        
-        if (type === 'invoice') {
-          body.bill_no = piBillNo;
-          if (!piBillNo.trim()) {
-            setError('Supplier Invoice Number is mandatory to create Purchase Invoice.');
-            setLoading(false);
-            return;
-          }
-          // Pass selling_prices as a dict {item_code: selling_price} for backend to update POS prices
-          body.selling_prices = {};
-          formData.items.filter(i => i.item_code).forEach(item => {
-            if (item.custom_selling_price > 0) {
-              body.selling_prices[item.item_code] = item.custom_selling_price;
-            }
-          });
-        }
-        
-        const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
-        const res = await fetch(`${OLD_API}.${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
-          credentials: 'include',
-          body: JSON.stringify(body)
-        });
-        
-        const data = await res.json();
-        const apiResp = data.message || data;
-        if (apiResp.status === 'success') {
-          setSuccess(`${type === 'receipt' ? 'Receipt' : 'Invoice'} ${apiResp.name} created successfully!`);
-          if (type === 'receipt') setCreatedPR(apiResp.name);
-          if (type === 'invoice') setCreatedPI(apiResp.name);
-        } else {
+      const body = {
+        po_name: formData.name,
+        posting_date: new Date().toISOString().slice(0, 10),
+        set_warehouse: formData.set_warehouse,
+        items: formData.items.filter(i => i.item_code).map(item => ({
+          item_code: item.item_code,
+          qty: item.qty,
+          uom: item.uom,
+          rate: item.rate,
+          amount: item.amount,
+          purchase_order: formData.name
+        }))
+      };
+
+      const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const res = await fetch(`${OLD_API}.${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
+        credentials: 'include',
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+      const apiResp = data.message || data;
+      if (apiResp.status === 'success') {
+        setSuccess(`${type === 'receipt' ? 'Receipt' : 'Invoice'} ${apiResp.name} created successfully!`);
+        setCreatedDocName(apiResp.name);
+      } else {
         throw new Error(apiResp.message || 'Failed to create');
       }
     } catch (err) {
@@ -593,7 +563,6 @@ function PurchaseOrder() {
     }
   };
 
-  // Supplier & Item handlers remain unchanged
   const handleSupplierSelect = (supplier) => setFormData(prev => ({ ...prev, supplier }));
 
   const handleSupplierCreate = async (name) => {
@@ -612,14 +581,6 @@ function PurchaseOrder() {
 
       if (result.message?.status === 'success' && result.message?.message) {
         const s = result.message.message;
-        return { name: s.name, supplier_name: s.supplier_name || s.name, supplier_type: s.supplier_type || supplier_type };
-      }
-      if (result.status === 'success' && result.message) {
-        const s = result.message;
-        return { name: s.name, supplier_name: s.supplier_name || s.name, supplier_type: s.supplier_type || supplier_type };
-      }
-      if (Array.isArray(result.message) && result.message[0]) {
-        const s = result.message[0];
         return { name: s.name, supplier_name: s.supplier_name || s.name, supplier_type: s.supplier_type || supplier_type };
       }
       throw new Error('Invalid response');
@@ -644,23 +605,50 @@ function PurchaseOrder() {
   };
 
   const handleItemSelect = (item, rowIndex) => {
-    const items = [...formData.items];
-    const rate = item.last_buying_rate || item.rate || 0;
-    items[rowIndex] = {
-      ...items[rowIndex],
-      item_code: item.item_code,
-      item_name: item.item_name,
-      stock_uom: item.stock_uom || '',
-      uom: item.stock_uom || '',
-      rate: rate,
-      last_buying_rate: item.last_buying_rate || 0,
-      custom_pieces_per_box: item.custom_pieces_per_box || 1,
-      amount: rate * (items[rowIndex].qty || 1),
-      schedule_date: items[rowIndex].schedule_date || formData.transaction_date,
-      custom_selling_price: item.selling_price || 0
-    };
-    setFormData({ ...formData, items });
-    calculateTotals();
+    setFormData(prev => {
+      const items = [...prev.items];
+      const existingIdx = items.findIndex((i, idx) => i.item_code === item.item_code && idx !== rowIndex);
+      const rate = parseFloat(item.last_buying_rate || item.rate || 0);
+
+      if (existingIdx !== -1) {
+        const newQty = items[existingIdx].qty + 1;
+        items[existingIdx] = {
+          ...items[existingIdx],
+          qty: newQty,
+          amount: newQty * items[existingIdx].rate
+        };
+        if (items.length > 1) {
+          items.splice(rowIndex, 1);
+        } else {
+          items[rowIndex] = { ...POItemModel, schedule_date: prev.transaction_date };
+        }
+      } else {
+        const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
+        items[rowIndex] = {
+          ...items[rowIndex],
+          item_code: item.item_code,
+          item_name: item.item_name,
+          stock_uom: item.stock_uom || '',
+          uom: item.stock_uom || '',
+          rate: rate,
+          last_buying_rate: rate,
+          custom_pieces_per_box: pPerBox,
+          qty: 1,
+          amount: rate,
+          custom_box_price: rate * pPerBox,
+          custom_box_qty: 1 / pPerBox,
+          schedule_date: items[rowIndex].schedule_date || prev.transaction_date,
+          custom_selling_price: parseFloat(item.selling_price || 0)
+        };
+      }
+
+      if (items.every(i => i.item_code)) {
+        items.push({ ...POItemModel, schedule_date: prev.transaction_date });
+      }
+
+      const totals = calculateTotals(items, prev.taxes);
+      return { ...prev, items, ...totals };
+    });
   };
 
   const fetchItems = async (query) => {
@@ -692,497 +680,259 @@ function PurchaseOrder() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#f1f5f9] font-sans pb-10 purchase-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
-      <div className="max-w-[1700px] mx-auto px-4 py-6">
-        
-        {/* Top Floating Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="bg-sky-600 p-2 rounded-xl shadow-lg shadow-sky-100">
-              <FileText className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-900 leading-tight flex items-center gap-2">
-                Purchase Order
-                {isEditMode && formData.name && (
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded uppercase tracking-wider">
-                    Draft: {formData.name}
-                  </span>
-                )}
-              </h1>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-tighter">
-                {isEditMode ? 'Editing existing draft' : 'New Procurement Entry'}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={saving || loading}
-              className="po-btn-secondary"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save Draft
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading || saving || !formData.name}
-              className="po-btn-primary !bg-sky-600 hover:!bg-sky-700 !py-2.5 !w-auto !px-6"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Process Order
-            </button>
-          </div>
+    <div className={`font-sans purchase-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
+      {/* 1. Professional Minimal Header */}
+      <div className="bg-white px-6 py-2 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex flex-col text-left">
+          <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
+            {formData.name ? `Edit PO: ${formData.name}` : 'New Purchase Order'}
+          </h1>
+          <p className="text-[11px] font-normal text-slate-400 mt-0.5">
+            Procurement & Inventory
+          </p>
         </div>
 
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={saving || loading}
+            className="po-btn-secondary"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || saving || !formData.supplier || formData.items.filter(i => i.item_code).length === 0 || formData.docstatus === 1}
+            className="po-btn-primary px-6"
+          >
+            {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            {formData.docstatus === 1 ? 'Submitted' : 'Process Order'}
+          </button>
+        </div>
+      </div>
+
+      <div className="po-layout-container !pt-4 pb-20">
         {error && (
-          <div className="mb-6 bg-red-50 border-l-4 border-red-500 rounded-r-xl p-4 flex items-start gap-4">
-            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-            <div className="text-sm font-bold text-red-800">{error}</div>
+          <div className="mb-6 bg-red-50 border border-red-100 rounded-lg p-4 flex items-center gap-3 animate-fadeIn">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <span className="text-sm font-semibold text-red-800">{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="mb-6 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl p-6 flex flex-col gap-4 shadow-sm">
-            <div className="flex items-start gap-4">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600 mt-0.5" />
-              <div>
-                <div className="text-lg font-black text-emerald-900">{success}</div>
-                {/* Step 1: PO Submitted, Needs PR */}
-                {!createdPR && !createdPI && formData.docstatus === 1 && (
-                  <p className="text-emerald-700 text-sm font-bold mt-1 uppercase tracking-tighter">Next Step: Receive Items into Stock</p>
-                )}
-                {/* Step 2: PR Created, Needs PI */}
-                {createdPR && !createdPI && (
-                  <p className="text-emerald-700 text-sm font-bold mt-1 uppercase tracking-tighter">Next Step: Post Supplier Invoice & Update Prices</p>
-                )}
+          <div className="mb-8 border-l-4 border-emerald-500 bg-white shadow-sm p-6 animate-fadeIn">
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                <div>
+                  <h4 className="text-base font-bold text-slate-900 leading-tight">{success}</h4>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Transaction processed successfully</p>
+                </div>
               </div>
-            </div>
-            
-            <div className="flex gap-3 ml-10">
-              {!createdPR && formData.docstatus === 1 && !showPRSection && (
-                <button onClick={() => setShowPRSection(true)} className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95">
-                  Create Purchase Receipt
-                </button>
-              )}
-              {createdPR && !createdPI && !showPISection && (
-                <button onClick={() => setShowPISection(true)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-slate-200 hover:bg-slate-900 transition-all active:scale-95">
-                  Create Purchase Invoice
-                </button>
-              )}
-              {createdPR && createdPI && (
-                <div className="px-4 py-2 bg-green-100 text-green-800 font-bold rounded-lg text-xs uppercase">
-                  ✓ Full Procurement Flow Complete
+
+              {!createdDocName && formData.docstatus === 1 && (
+                <div className="flex gap-3">
+                  <button onClick={() => handleCreateFlow('receipt')} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-emerald-700 transition-all shadow-sm">
+                    Create Receipt
+                  </button>
+                  <button onClick={() => handleCreateFlow('invoice')} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold uppercase hover:bg-slate-900 transition-all shadow-sm">
+                    Create Invoice
+                  </button>
                 </div>
               )}
             </div>
-            
-            {/* PR FULL FORM */}
-            {showPRSection && !createdPR && (
-              <div className="mt-4 ml-2 mr-2 border border-emerald-200 bg-white rounded-xl shadow-inner overflow-hidden">
-                <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3">
-                  <Package className="w-5 h-5 text-white" />
-                  <div>
-                    <h4 className="font-black text-white text-base">Purchase Receipt</h4>
-                    <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest">From PO: {formData.name}</p>
-                  </div>
-                </div>
-                <div className="p-5">
-                  {/* Summary row */}
-                  <div className="grid grid-cols-3 gap-4 mb-5 bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                    <div>
-                      <span className="text-[9px] uppercase font-black text-emerald-700 tracking-widest block">Supplier</span>
-                      <span className="text-sm font-black text-slate-800">{typeof formData.supplier === 'object' ? (formData.supplier?.supplier_name || formData.supplier?.name) : formData.supplier}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] uppercase font-black text-emerald-700 tracking-widest block">Warehouse</span>
-                      <span className="text-sm font-black text-slate-800">{formData.set_warehouse || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] uppercase font-black text-emerald-700 tracking-widest block">Posting Date</span>
-                      <span className="text-sm font-black text-slate-800">{new Date().toISOString().slice(0, 10)}</span>
-                    </div>
-                  </div>
-
-                  {/* Items Table */}
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl mb-5">
-                    <table className="w-full text-left border-collapse min-w-[500px]">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500">Item Code</th>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500">Item Name</th>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Qty to Receive</th>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500">UOM</th>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Rate (AED)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {formData.items.filter(i => i.item_code).map((item, i) => (
-                          <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-3 text-xs font-bold text-slate-700">{item.item_code}</td>
-                            <td className="px-4 py-3 text-xs text-slate-600">{item.item_name}</td>
-                            <td className="px-4 py-3 text-sm font-black text-emerald-700 text-right">{parseFloat(item.qty).toFixed(2)}</td>
-                            <td className="px-4 py-3 text-xs text-slate-500">{item.uom}</td>
-                            <td className="px-4 py-3 text-xs font-bold text-slate-900 text-right">{parseFloat(item.rate).toFixed(2)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button onClick={() => { setShowPRSection(false); handleCreateFlow('receipt'); }} disabled={loading} className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-emerald-500/20 hover:bg-emerald-500 transition-all active:scale-95 flex items-center gap-2">
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                      Save & Submit Receipt
-                    </button>
-                    <button onClick={() => setShowPRSection(false)} className="px-5 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-lg font-bold text-xs uppercase">Cancel</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PI FULL FORM */}
-            {showPISection && !createdPI && (
-              <div className="mt-4 ml-2 mr-2 border border-sky-200 bg-white rounded-xl shadow-inner overflow-hidden">
-                <div className="bg-slate-800 px-6 py-4 flex items-center gap-3">
-                  <DollarSign className="w-5 h-5 text-sky-400" />
-                  <div>
-                    <h4 className="font-black text-white text-base">Purchase Invoice</h4>
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">From PR: {createdPR}</p>
-                  </div>
-                </div>
-                <div className="p-5">
-                  {/* Bill No */}
-                  <div className="mb-5 bg-sky-50 rounded-xl p-4 border border-sky-100">
-                    <label className="text-[10px] uppercase tracking-widest font-black text-sky-800 mb-2 block">Supplier Bill / Invoice No <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={piBillNo}
-                      onChange={(e) => setPiBillNo(e.target.value)}
-                      placeholder="e.g. INV-2024-001"
-                      className="w-full sm:w-1/2 px-4 py-3 border border-sky-200 rounded-lg text-sm font-bold bg-white focus:ring-2 focus:ring-sky-500 outline-none shadow-sm"
-                    />
-                    <p className="text-[10px] text-sky-600 font-bold mt-1.5">Required for financial record keeping.</p>
-                  </div>
-
-                  {/* Items Table with Selling Price */}
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl mb-5">
-                    <table className="w-full text-left border-collapse min-w-[600px]">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500">Item</th>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Qty</th>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Purchase Rate</th>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-slate-500 text-right">Amount</th>
-                          <th className="px-4 py-2.5 text-[10px] uppercase font-black text-amber-600 text-right">New Selling Price ✦</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {formData.items.filter(i => i.item_code).map((item, i) => (
-                          <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="text-xs font-black text-slate-800">{item.item_code}</div>
-                              <div className="text-[10px] text-slate-500">{item.item_name}</div>
-                            </td>
-                            <td className="px-4 py-3 text-xs font-bold text-slate-700 text-right">{parseFloat(item.qty).toFixed(2)}</td>
-                            <td className="px-4 py-3 text-xs font-bold text-slate-700 text-right">{parseFloat(item.rate).toFixed(2)}</td>
-                            <td className="px-4 py-3 text-xs font-bold text-slate-900 text-right">{parseFloat(item.amount).toFixed(2)}</td>
-                            <td className="px-4 py-3 text-right">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={item.custom_selling_price || ''}
-                                onChange={(e) => {
-                                  const items = [...formData.items];
-                                  items[i] = { ...items[i], custom_selling_price: parseFloat(e.target.value) || 0 };
-                                  setFormData(prev => ({ ...prev, items }));
-                                }}
-                                placeholder="0.00"
-                                className="w-24 px-2 py-2 border border-amber-300 rounded-lg text-sm font-black text-right bg-amber-50 focus:ring-2 focus:ring-amber-400 outline-none"
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-5 flex justify-between text-xs font-bold">
-                    <span className="text-slate-600">Grand Total (inc. tax)</span>
-                    <span className="text-slate-900 font-black text-base">AED {formData.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button onClick={() => {
-                        if (!piBillNo.trim()) { setError('Supplier Bill No is required!'); return; }
-                        setShowPISection(false);
-                        handleCreateFlow('invoice');
-                      }} disabled={loading} className="px-6 py-3 bg-slate-800 text-white rounded-lg font-black text-xs uppercase shadow-xl shadow-slate-500/20 hover:bg-slate-700 transition-all active:scale-95 flex items-center gap-2">
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      Save & Submit Invoice
-                    </button>
-                    <button onClick={() => setShowPISection(false)} className="px-5 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-lg font-bold text-xs uppercase">Cancel</button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        <div className="po-layout-full">
-          {/* TOP AREA: Order Settings */}
-          <div className="po-card mb-6">
-            <div className="po-card-header !bg-slate-800 !text-white">
-              <h3 className="po-card-title text-white">Order Settings</h3>
-            </div>
-            <div className="po-card-body grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-              <div>
-                <label className="po-label">Supplier *</label>
-                <CustomSearchDropdown
-                  placeholder="Search supplier..."
-                  value={formData.supplier}
-                  onSelect={handleSupplierSelect}
-                  fetchData={fetchSuppliers}
-                  createOption={handleSupplierCreate}
-                  optionsLabel="supplier_name"
-                  extraCreateFields={() => (
-                    <div className="mt-2 p-3 bg-slate-50 rounded-lg">
-                      <label className="text-[10px] font-bold uppercase mb-1 block">Type</label>
-                      <select id="new-supplier-type" className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs outline-none" defaultValue="Company">
-                        <option value="Company">Company</option>
-                        <option value="Individual">Individual</option>
-                      </select>
-                    </div>
-                  )}
-                />
+        <div className="flex flex-col gap-6">
+          <div className="space-y-6">
+            <div className="po-card">
+              <div className="po-card-header">
+                <h3 className="po-card-title">Order Core Details</h3>
               </div>
-
-              <div>
-                <label className="po-label">Warehouse (Target)</label>
-                <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} className="po-input text-xs">
-                  <option value="">Select...</option>
-                  {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="po-label">Purchase Date</label>
-                <input type="datetime-local" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="po-input text-xs" />
-              </div>
-
-              <div>
-                <label className="po-label">Company</label>
-                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[11px] font-bold text-slate-600 uppercase">
-                  {formData.company}
+              <div className="po-card-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div>
+                  <label className="po-label">Supplier / Vendor</label>
+                  <CustomSearchDropdown
+                    placeholder="Search supplier..."
+                    value={formData.supplier}
+                    onSelect={handleSupplierSelect}
+                    fetchData={fetchSuppliers}
+                    createOption={handleSupplierCreate}
+                    optionsLabel="supplier_name"
+                  />
+                </div>
+                <div>
+                  <label className="po-label">Warehouse (Target)</label>
+                  <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} className="po-input font-bold">
+                    <option value="">Choose warehouse...</option>
+                    {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="po-label">Transaction Date</label>
+                  <div className="po-input bg-slate-50/50 border-slate-100 flex items-center justify-between text-slate-500 cursor-not-allowed h-[42px]">
+                    <span className="font-bold text-[13px]">
+                      {new Date(formData.transaction_date).toLocaleString('en-GB', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                      }).toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className="po-label">Entity / Company</label>
+                  <div className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-500 uppercase">
+                    {formData.company}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="po-main-section">
-            
-            {/* Global Scanner Card */}
-            <div className="po-card !border-sky-200 !bg-sky-50/30">
-              <div className="p-4 flex items-center gap-4">
-                <div className="flex-1 relative">
-                  <Scan className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-sky-500" />
+            <div className="po-card">
+              <div className="po-card-header">
+                <h3 className="po-card-title">Product Inventory Basket</h3>
+              </div>
+
+              <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-4 bg-white">
+                <div className="relative flex-1">
                   <input
                     type="text"
-                    placeholder="SCAN ITEM BARCODE FOR QUICK ADD..."
-                    className="w-full pl-12 pr-4 py-4 bg-white border-2 border-sky-100 rounded-xl text-sm font-black text-sky-900 placeholder:text-sky-300 focus:border-sky-500 outline-none shadow-sm transition-all"
+                    placeholder="Enter Barcode / Scan here..."
+                    className="w-full px-4 h-[38px] bg-slate-50 border border-slate-200 rounded text-xs font-bold outline-none focus:border-[#10b981] focus:bg-white transition-all"
                     onKeyDown={async (e) => {
                       if (e.key === 'Enter') {
-                        const barcode = e.target.value;
-                        if (!barcode) return;
-                        const emptyIdx = formData.items.findIndex(i => !i.item_code);
-                        const targetIdx = emptyIdx !== -1 ? emptyIdx : formData.items.length;
-                        if (emptyIdx === -1) addItemRow();
-                        handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, targetIdx);
-                        e.target.value = '';
+                        const barcode = e.target.value.trim();
+                        if (barcode) {
+                          await handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
+                          e.target.value = '';
+                        }
                       }
                     }}
                   />
                 </div>
-                <div className="hidden md:block">
-                  <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest leading-none">Press Enter to Add</span>
-                </div>
+                <button type="button" onClick={addItemRow} className="po-btn-secondary h-[38px] px-8">Add Row</button>
               </div>
-            </div>
 
-            {/* Items Table Card */}
-            <div className="po-card">
-              <div className="po-card-header">
-                <h3 className="po-card-title flex items-center gap-2">
-                  <Package className="w-4 h-4 text-sky-500" />
-                  Items in Basket
-                  <span className="ml-2 bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full">
-                    {formData.items.length} Lines
-                  </span>
-                </h3>
-                <button 
-                  type="button" 
-                  onClick={addItemRow} 
-                  className="bg-sky-50 text-sky-600 hover:bg-sky-100 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add New
-                </button>
-              </div>
-              
               <div className="purchase-table-container">
                 <table className="purchase-table">
                   <thead>
                     <tr>
-                      <th className="purchase-th w-[130px]">Scanner</th>
-                      <th className="purchase-th min-w-[200px]">Item Description</th>
-                      <th className="purchase-th w-[80px] text-center">Box Qty</th>
-                      <th className="purchase-th w-[80px] text-center">Pcs/Box</th>
-                      <th className="purchase-th w-[100px] text-center">Box Price</th>
+                      <th className="purchase-th !pl-5 w-[140px]">Scanner</th>
+                      <th className="purchase-th min-w-[180px]">Item Description</th>
+                      <th className="purchase-th w-[70px] text-center">Box Qty</th>
+                      <th className="purchase-th w-[70px] text-center">Pcs/Box</th>
+                      <th className="purchase-th w-[90px] text-right">Box Price</th>
                       <th className="purchase-th w-[100px] text-right">Selling Price</th>
-                      <th className="purchase-th w-[110px]">Ref / SL #</th>
-                      <th className="purchase-th w-[130px]">Sch. Date</th>
-                      <th className="purchase-th w-[80px] text-right">Qty</th>
-                      <th className="purchase-th w-[60px]">UOM</th>
+                      <th className="purchase-th w-[120px] text-center">Ref / SL #</th>
+                      <th className="purchase-th w-[70px] text-center">Qty</th>
+                      <th className="purchase-th w-[60px] text-center">UOM</th>
                       <th className="purchase-th w-[100px] text-right">Rate</th>
-                      <th className="purchase-th w-[120px] text-right">Subtotal</th>
+                      <th className="purchase-th w-[120px] text-right !pr-5">Subtotal</th>
                       <th className="purchase-th w-[40px]"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {formData.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
-                        <td className="purchase-td">
-                          <div className="relative">
-                            <Scan className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input
-                              type="text"
-                              value={item.temp_barcode || ''}
-                              placeholder="Barcode..."
-                              onChange={(e) => handleBarcodeScan(e, idx)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleBarcodeEnter(e, idx)}
-                              className="w-full pl-8 pr-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
-                            />
-                            {scanningRow === idx && (
-                              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-sky-500" />
-                            )}
-                          </div>
+                      <tr key={idx} className="group hover:bg-slate-50 transition-colors">
+                        <td className="purchase-td !pl-5">
+                          <input
+                            type="text"
+                            value={item.temp_barcode || ''}
+                            placeholder="Barcode"
+                            onChange={(e) => handleBarcodeScan(e, idx)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleBarcodeEnter(e, idx)}
+                            className="w-full text-[11px] font-bold outline-none"
+                          />
                         </td>
                         <td className="purchase-td">
-                          <div className="relative">
+                          <div className="relative product-search-container">
                             <input
                               type="text"
                               value={item.item_name || ''}
-                              placeholder="Type item..."
-                                onChange={async (e) => {
-                                 const q = e.target.value;
-                                 const items = [...formData.items];
-                                 items[idx].item_name = q;
-                                 setFormData({ ...formData, items });
-                                 if (q.length < 2) return;
-                                 try {
-                                   const results = await fetchItems(q);
-                                   setActiveDropdownRow(idx);
-                                   const rect = e.target.getBoundingClientRect();
-                                   setDropdownPosition({ top: rect.bottom + window.scrollY + 5, left: rect.left + window.scrollX, width: rect.width });
-                                 } catch (err) {}
-                               }}
-                               className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-black text-slate-800 focus:border-sky-500 outline-none"
-                             />
+                              placeholder="Search product..."
+                              onChange={async (e) => {
+                                const q = e.target.value;
+                                const items = [...formData.items];
+                                items[idx].item_name = q;
+                                setFormData({ ...formData, items });
+                                try {
+                                  await fetchItems(q);
+                                  setActiveDropdownRow(idx);
+                                  setSelectedProductIndex(-1);
+                                  const rect = e.target.getBoundingClientRect();
+                                  setDropdownPosition({ top: rect.bottom + window.scrollY + 5, left: rect.left + window.scrollX, width: rect.width });
+                                } catch (err) { }
+                              }}
+                              onKeyDown={(e) => {
+                                if (activeDropdownRow !== idx) return;
+                                if (e.key === 'ArrowDown') {
+                                  e.preventDefault();
+                                  setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev));
+                                } else if (e.key === 'ArrowUp') {
+                                  e.preventDefault();
+                                  setSelectedProductIndex(prev => (prev > 0 ? prev - 1 : 0));
+                                } else if (e.key === 'Enter') {
+                                  if (selectedProductIndex >= 0 && allItems[selectedProductIndex]) {
+                                    e.preventDefault();
+                                    handleItemSelect(allItems[selectedProductIndex], idx);
+                                    setActiveDropdownRow(null);
+                                  }
+                                } else if (e.key === 'Escape') {
+                                  setActiveDropdownRow(null);
+                                }
+                              }}
+                              className="w-full bg-transparent border-none text-[11px] font-bold text-slate-700 outline-none"
+                            />
                             {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
-                              <div className="fixed bg-white border border-slate-200 rounded-xl shadow-2xl z-[9999] max-h-60 overflow-y-auto w-fit min-w-[300px]" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
-                                  {allItems.map((it) => (
-                                    <div key={it.item_code} onClick={() => { handleItemSelect(it, idx); setActiveDropdownRow(null); }} className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-b-0">
-                                      <div className="flex justify-between items-start gap-3">
-                                        <div className="text-xs font-bold text-slate-800">{it.item_name}</div>
-                                        <div className="text-[10px] font-black text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded uppercase">{it.item_code}</div>
-                                      </div>
-                                      <div className="text-[9px] text-slate-400 font-bold uppercase mt-1">Last Rate: AED {parseFloat(it.last_buying_rate || 0).toFixed(2)}</div>
+                              <div ref={dropdownRef} className="fixed bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
+                                {allItems.map((it, i) => (
+                                  <div key={it.item_code} onClick={() => { handleItemSelect(it, idx); setActiveDropdownRow(null); }} onMouseEnter={() => setSelectedProductIndex(i)} className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}>
+                                    <div className="flex justify-between items-center gap-3">
+                                      <div className={`text-[11px] font-bold ${selectedProductIndex === i ? 'text-emerald-600' : 'text-slate-800'}`}>{it.item_name}</div>
+                                      <div className="text-[9px] font-bold text-[#003d7c] bg-slate-100 px-1.5 py-0.5 rounded">{it.item_code}</div>
                                     </div>
-                                  ))}
+                                    <div className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">Rate: {parseFloat(it.last_buying_rate || 0).toFixed(2)}</div>
+                                  </div>
+                                ))}
                               </div>, document.body
                             )}
                           </div>
                         </td>
                         <td className="purchase-td">
-                          <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0" />
+                          <input type="number" name="custom_box_qty" value={item.custom_box_qty} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-center" />
                         </td>
                         <td className="purchase-td">
-                          <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="1" />
-                        </td>
-                        <td className="purchase-td">
-                          <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-center font-bold text-xs bg-transparent border-b border-slate-100 outline-none focus:border-sky-500" placeholder="0.00" />
-                        </td>
-                        <td className="purchase-td">
-                          <input 
-                            type="number" 
-                            name="custom_selling_price" 
-                            value={item.custom_selling_price} 
-                            onChange={(e) => handleInputChange(e, idx)} 
-                            onFocus={(e) => e.target.select()}
-                            className="po-input !py-1 text-xs text-right font-bold text-emerald-600" 
-                            placeholder="0.00"
-                          />
-                        </td>
-                        <td className="purchase-td">
-                          <input type="text" name="custom_supplier_sl_num" value={item.custom_supplier_sl_num} onChange={(e) => handleInputChange(e, idx)} className="po-input !py-1 text-xs" placeholder="Serial..." />
-                        </td>
-                        <td className="purchase-td">
-                          <input type="date" value={item.schedule_date?.split('T')[0]} onChange={(e) => handleInputChange(e, idx)} name="schedule_date" className="po-input !py-1 text-xs" />
+                          <input type="number" name="custom_pieces_per_box" value={item.custom_pieces_per_box} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-center" />
                         </td>
                         <td className="purchase-td text-right">
-                          <input type="number" name="qty" value={item.qty} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-right font-bold text-xs bg-transparent border-none outline-none focus:ring-0" />
+                          <input type="number" name="custom_box_price" value={item.custom_box_price} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-right" />
+                        </td>
+                        <td className="purchase-td text-right">
+                          <input type="number" name="custom_selling_price" value={item.custom_selling_price} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-right !text-[#10b981]" />
                         </td>
                         <td className="purchase-td">
-                          <span className="text-[10px] font-black text-slate-400 uppercase">{item.uom || 'Unit'}</span>
+                          <input type="text" name="custom_ref_sl_no" value={item.custom_ref_sl_no || ''} onChange={(e) => handleInputChange(e, idx)} placeholder="Serial..." className="w-full text-center text-[10px]" />
+                        </td>
+                        <td className="purchase-td text-center">
+                          <input type="number" name="qty" value={item.qty} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-right" />
+                        </td>
+                        <td className="purchase-td text-center">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">{item.uom || 'UNIT'}</span>
                         </td>
                         <td className="purchase-td text-right">
-                          <input 
-                            type="number" 
-                            name="rate" 
-                            value={item.rate} 
-                            onChange={(e) => handleInputChange(e, idx)} 
-                            onFocus={(e) => e.target.select()}
-                            className={`w-full text-right font-black text-xs bg-transparent border-none outline-none focus:ring-0 ${item.rate > item.last_buying_rate && item.last_buying_rate > 0 ? 'text-orange-500' : ''}`} 
-                          />
-                          {item.last_buying_rate > 0 && (
-                            <div className="relative">
-                              <button 
-                                type="button"
-                                onClick={() => setShowHistoryOverlay(showHistoryOverlay === idx ? null : idx)}
-                                className={`text-[9px] font-bold uppercase mt-1 px-1 rounded flex items-center gap-1 transition-colors ${item.rate > item.last_buying_rate ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400 hover:bg-sky-100 hover:text-sky-600'}`}
-                              >
-                                Prev: {item.last_buying_rate.toFixed(2)}
-                                <History size={8} />
-                              </button>
-                              
-                              {showHistoryOverlay === idx && history[item.item_code] && (
-                                <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-[50] p-2 animate-fadeIn">
-                                  <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-50 pb-1">Last 5 Transactions</div>
-                                  <div className="space-y-1.5">
-                                    {history[item.item_code].slice(0, 5).map((e, i) => (
-                                      <div key={i} className="flex justify-between text-[10px] items-center">
-                                        <span className="text-slate-500 font-medium truncate max-w-[80px]">{e.parent}</span>
-                                        <span className="text-slate-900 font-black">AED {parseFloat(e.rate).toFixed(2)}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <input type="number" name="rate" value={item.rate} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} className="w-full text-right" />
                         </td>
-                        <td className="purchase-td text-right">
-                          <span className="text-xs font-black text-slate-900 leading-none">
+                        <td className="purchase-td text-right !pr-5">
+                          <span className="text-xs font-bold text-slate-900 tabular-nums">
                             {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </span>
                         </td>
                         <td className="purchase-td text-center">
-                          <button type="button" onClick={() => removeItemRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors p-1">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <button type="button" onClick={() => removeItemRow(idx)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -1190,127 +940,44 @@ function PurchaseOrder() {
                 </table>
               </div>
             </div>
-
-            {/* History Section - Compact Mini Cards */}
-            {Object.keys(history).length > 0 && (
-              <div className="po-card">
-                <div className="po-card-header !bg-white">
-                  <h3 className="po-card-title flex items-center gap-2">
-                    <History className="w-4 h-4 text-sky-500" />
-                    Last Purchased Prices
-                  </h3>
-                </div>
-                <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {Object.entries(history).map(([code, entries]) => (
-                    <div key={code} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{code}</div>
-                      <div className="mt-2 space-y-1.5">
-                        {entries.slice(0, 2).map((e, i) => (
-                          <div key={i} className="flex justify-between text-[11px] font-bold">
-                            <span className="text-sky-600 truncate mr-2">{e.parent}</span>
-                            <span className="text-slate-900 whitespace-nowrap">AED {parseFloat(e.rate).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-            {/* FOOTER AREA: Taxes & Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              {/* Taxes Card */}
-              <div className="po-card h-fit">
-                <div className="po-card-header">
-                  <h3 className="po-card-title">Taxes & Charges</h3>
-                </div>
-                <div className="po-card-body">
-                  <select
-                    value={formData.taxes_and_charges || ''}
-                    onChange={(e) => fetchTaxRows(e.target.value || null)}
-                    className="po-input text-xs mb-4"
-                  >
-                    <option value="">No Tax Applied</option>
-                    {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+          <div className="po-summary-row-container">
+            <div className="po-summary-card-horizontal">
+              <div className="summary-section tax-section">
+                <span className="summary-label">Tax Schedule</span>
+                <div className="relative mt-2">
+                  <select value={formData.taxes_and_charges || ''} onChange={(e) => onTaxChange(e.target.value)} className="summary-select focus:border-[#10b981]">
+                    <option value="">No Tax Schedule...</option>
+                    {taxTemplates.map((t) => <option key={t.name} value={t.name}>{t.title || t.name}</option>)}
                   </select>
-
-                  {formData.taxes.length > 0 && (
-                    <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden overflow-x-auto">
-                      <table className="w-full text-left border-collapse min-w-[500px]">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 w-8 text-center">No.</th>
-                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500">Type *</th>
-                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500">Account Head *</th>
-                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 text-right">Tax Rate</th>
-                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 text-right">Amount</th>
-                            <th className="px-3 py-2 text-[10px] uppercase font-bold text-slate-500 text-right">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {formData.taxes.map((tax, i) => {
-                            const cumulativeTax = formData.taxes.slice(0, i + 1).reduce((sum, t) => sum + (t.tax_amount || 0), 0);
-                            const currentTotal = formData.total + cumulativeTax;
-                            
-                            return (
-                              <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-3 py-3 text-xs text-slate-400 text-center font-medium">{i + 1}</td>
-                                <td className="px-3 py-3 text-xs font-semibold text-slate-700 whitespace-nowrap">{tax.charge_type || 'On Net Total'}</td>
-                                <td className="px-3 py-3 text-xs font-bold text-slate-900">{tax.account_head || tax.description || 'Tax'}</td>
-                                <td className="px-3 py-3 text-xs font-semibold text-slate-700 text-right">{parseFloat(tax.rate || 0).toFixed(3)}</td>
-                                <td className="px-3 py-3 text-xs font-bold text-slate-900 text-right">{tax.tax_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                <td className="px-3 py-3 text-xs font-black text-slate-900 text-right">{currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
               </div>
 
-              {/* Final Summary Card */}
-              <div className="po-summary shadow-2xl shadow-slate-400">
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="po-summary-row flex-col items-start !mb-0">
-                    <span className="text-[10px] uppercase opacity-60">Total Items</span>
-                    <span className="text-lg font-black">{formData.items.length}</span>
+              <div className="flex items-center gap-12">
+                <div className="flex gap-10">
+                  <div className="text-right">
+                    <span className="summary-label">Gross Total</span>
+                    <p className="detail-value text-slate-400">{formData.total.toFixed(2)}</p>
                   </div>
-                  <div className="po-summary-row flex-col items-start !mb-0">
-                    <span className="text-[10px] uppercase opacity-60">Total Quantity</span>
-                    <span className="text-lg font-black">{formData.total_qty.toFixed(2)}</span>
+                  <div className="text-right">
+                    <span className="summary-label">Tax</span>
+                    <p className="detail-value text-slate-400">{formData.tax_total.toFixed(2)}</p>
                   </div>
-                  <div className="po-summary-row flex-col items-start !mb-0">
-                    <span className="text-[10px] uppercase opacity-60">Net Amount</span>
-                    <span className="text-lg font-black">AED {formData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-                
-                <div className="po-summary-total">
-                  <div className="text-[10px] uppercase font-black tracking-widest opacity-60 mb-1">Grand Total Payable</div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-amber-400">AED {formData.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  <div className="text-right">
+                    <span className="summary-label">Total Qty</span>
+                    <p className="detail-value">{formData.total_qty.toFixed(2)}</p>
                   </div>
                 </div>
-                
-                <div className="mt-6">
-                  {!formData.name && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg text-amber-400 text-[10px] font-bold uppercase text-center mb-4">
-                      Please save draft to enable submission
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={loading || saving || !formData.name}
-                    className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${!formData.name ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-xl shadow-sky-500/20 active:scale-95'}`}
-                  >
-                    {loading ? 'Submitting...' : 'Finalize Purchase Order'}
-                  </button>
+
+                <div className="summary-section grand-total-section border-l border-slate-200 pl-12">
+                  <div className="text-right">
+                    <span className="summary-label block">Grand Total</span>
+                    <p className="grand-total-value"><span className="currency-label-large">AED</span> {formData.grand_total.toFixed(2)}</p>
+                  </div>
                 </div>
+              </div>
             </div>
           </div>
         </div>
