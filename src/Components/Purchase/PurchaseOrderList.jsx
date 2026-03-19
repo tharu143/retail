@@ -32,7 +32,7 @@ const PurchaseOrderList = ({ onNew }) => {
 
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = '';
-  const API_PATH = `/api/method/kyle_retail.retail_api.api`;
+  const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
   const fetchOrders = async () => {
     setLoading(true);

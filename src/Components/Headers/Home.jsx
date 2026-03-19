@@ -521,7 +521,7 @@ function Home() {
         } else {
           // Call updated API with search_type
           const results = await frappeCall({
-            method: 'kyle_retail.retail_api.api.get_customers',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_customers',
             args: {
               search: searchTerm,
               search_type: searchType
@@ -909,7 +909,7 @@ function Home() {
     try {
       setSearchLoading(true);
       const results = await frappeCall({
-        method: 'kyle_retail.retail_api.api.get_retail_item_details',
+        method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_retail_item_details',
         args: { search_term: barcode.trim(), warehouse: warehouse }
       });
       const apiItem = (results || [])[0];
@@ -940,7 +940,7 @@ function Home() {
           try {
             Swal.fire({ title: 'Checking Nearby Stock...', didOpen: () => Swal.showLoading() });
             const nearest = await frappeCall({
-              method: 'kyle_retail.retail_api.api.find_nearest_stock',
+              method: 'custom_retailpos.custom_retailpos.retail_api.retail.find_nearest_stock',
               args: { item_code: itemToBill.id, current_warehouse: warehouse }
             });
             // Update itemToBill with the latest proximity data
@@ -1085,7 +1085,7 @@ function Home() {
       try {
         Swal.showLoading();
         const res = await frappeCall({
-          method: 'kyle_retail.retail_api.api.create_draft_material_request',
+          method: 'custom_retailpos.custom_retailpos.retail_api.retail.create_draft_material_request',
           args: {
             item_code: item.id,
             qty: parseInt(quantity), // Renamed from quantity
@@ -1152,7 +1152,7 @@ function Home() {
         });
 
         await frappeCall({
-          method: 'kyle_retail.retail_api.api.create_draft_material_request',
+          method: 'custom_retailpos.custom_retailpos.retail_api.retail.create_draft_material_request',
           args: {
             item_code: itemCode,
             from_branch: fromWarehouse, // Renamed from from_warehouse
@@ -1251,7 +1251,7 @@ function Home() {
 
       Swal.fire({ title: 'Submitting Purchase...', didOpen: () => Swal.showLoading() });
       await frappeCall({
-        method: 'kyle_retail.retail_api.api.submit_purchase_entry',
+        method: 'custom_retailpos.custom_retailpos.retail_api.retail.submit_purchase_entry',
         args: {
           item_code: purchaseForm.item_code,
           supplier: purchaseForm.supplier,
@@ -1532,7 +1532,7 @@ function Home() {
       });
 
       const results = await frappeCall({
-        method: 'kyle_retail.retail_api.api.auto_handle_missing_stock',
+        method: 'custom_retailpos.custom_retailpos.retail_api.retail.auto_handle_missing_stock',
         args: { item_code: item.id, current_warehouse: warehouse }
       });
 
@@ -1559,7 +1559,7 @@ function Home() {
           Swal.fire({ title: 'Creating Material Request...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
           try {
             const res = await frappeCall({
-              method: 'kyle_retail.retail_api.api.create_draft_material_request',
+              method: 'custom_retailpos.custom_retailpos.retail_api.retail.create_draft_material_request',
               args: { item_code: itemCode, qty: 1, from_warehouse: fromWh, to_warehouse: toWh }
             });
             if (res.status === 'success') {
@@ -1615,7 +1615,7 @@ function Home() {
         setCustomerLoading(true);
         try {
           const res = await frappeCall({
-            method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_or_create_customer_by_mobile',
             args: { mobile_no: searchTerm }
           });
 

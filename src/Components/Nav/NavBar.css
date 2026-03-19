@@ -14,25 +14,25 @@
     font-size: 2.2rem;
     margin: 0;
     font-weight: 900;
-    letter-spacing: -0.5px;
     font-family: 'Outfit', 'Inter', sans-serif;
     text-transform: uppercase;
     color: #334155; /* Dark Slate for "POS" */
-    line-height: 0.8;
     display: flex;
     align-items: center;
     cursor: pointer;
+    letter-spacing: 0.5px;
 }
 
 .nav-title span {
-    color: #0ea5e9; /* Sky Blue for "8" as per image */
-    margin-left: 1px;
+    color: #0ea5e9; /* Sky Blue for "8" */
+    margin-left: 6px; /* Space between POS and 8 */
     transition: all 0.2s ease;
+    text-shadow: 0 4px 10px rgba(14, 165, 233, 0.2);
 }
 
 .nav-title:hover span {
     color: #0284c7;
-    transform: scale(1.05);
+    margin-left: 8px;
 }
 
 .status-dot {

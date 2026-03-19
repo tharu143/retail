@@ -68,7 +68,7 @@ function PurchaseOrder() {
 
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = '';
-  const API_PATH = `/api/method/kyle_retail.retail_api.api`;
+  const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
   const RESOURCE_API = `/api/resource/Purchase Order`;
 
   const [scanningRow, setScanningRow] = useState(null); // Track which row is scanning

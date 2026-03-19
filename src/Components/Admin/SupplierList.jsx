@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Plus, ChevronDown, Search, Save, X, Loader2, Filter, MoreVertical, Edit2, Trash2, Palette, Building2
+  Plus, ChevronDown, Search, Save, X, Loader2, Filter, MoreVertical, Edit2, Trash2, Palette, Building2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import NavBar from '../Nav/NavBar';
 import '../Admin/SalesOrder.css';

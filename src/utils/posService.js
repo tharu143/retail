@@ -24,21 +24,21 @@ const POSService = {
     // 2. MASTER CATALOG
     getRetailItems: async (args = {}) => {
         return await frappeCall({
-            method: 'kyle_retail.retail_api.api.get_retail_item_details',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_retail_item_details',
             args: args
         });
     },
 
     getSalesTaxes: async (args = {}) => {
         return await frappeCall({
-            method: 'kyle_retail.retail_api.api.get_sales_taxes_details',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_details',
             args: args
         });
     },
 
     getItemCategories: async (args = {}) => {
         return await frappeCall({
-            method: 'kyle_retail.retail_api.api.get_item_categories',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_item_categories',
             args: args
         });
     },
@@ -61,7 +61,7 @@ const POSService = {
 
     getSuppliers: async (args = {}) => {
         return await frappeCall({
-            method: 'kyle_retail.retail_api.api.get_suppliers_po',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_suppliers_po',
             args: { query: '', ...args },
             type: 'GET'
         });
@@ -79,7 +79,7 @@ const POSService = {
         }
 
         return await frappeCall({
-            method: 'kyle_retail.retail_api.api.create_retail_invoice',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.create_retail_invoice',
             args: { data: payload }
         });
     },
@@ -103,21 +103,21 @@ const POSService = {
     // 5. MANAGER TOOLS
     submitPurchaseEntry: async (payload) => {
         return await frappeCall({
-            method: 'kyle_retail.retail_api.api.submit_purchase_entry',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.submit_purchase_entry',
             args: payload
         });
     },
 
     findItemGlobal: async (searchTerm) => {
         return await frappeCall({
-            method: 'kyle_retail.retail_api.api.find_item_global',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.find_item_global',
             args: { search_term: searchTerm }
         });
     },
 
     getPurchaseTaxTemplates: async () => {
         return await frappeCall({
-            method: 'kyle_retail.retail_api.api.get_purchase_tax_templates',
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_purchase_tax_templates',
             type: 'GET'
         });
     }
