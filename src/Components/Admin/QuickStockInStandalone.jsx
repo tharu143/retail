@@ -261,13 +261,13 @@ const QuickStockInStandalone = () => {
                     <div className="h-6 w-px bg-slate-200"></div>
                     <div className="flex items-center gap-6">
                         <div className="flex flex-col">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Target WH</label>
+                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Target Branch</label>
                             <select value={selectedWarehouse} onChange={(e) => setSelectedWarehouse(e.target.value)} className="bg-transparent text-[13px] font-bold text-emerald-600 outline-none cursor-pointer">
                                 {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
                             </select>
                         </div>
                         <div className="flex flex-col">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{form.entry_type === 'Purchase' ? 'Supplier' : 'Source WH'}</label>
+                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{form.entry_type === 'Purchase' ? 'Supplier' : 'Source Branch'}</label>
                             {form.entry_type === 'Purchase' ? (
                                 <select value={selectedSupplier} onChange={(e) => setSelectedSupplier(e.target.value)} className="bg-transparent text-[13px] font-bold text-slate-700 outline-none cursor-pointer">
                                     <option value="">Select...</option>
@@ -275,7 +275,7 @@ const QuickStockInStandalone = () => {
                                 </select>
                             ) : (
                                 <select value={form.from_warehouse} onChange={(e) => setForm({...form, from_warehouse: e.target.value})} className="bg-transparent text-[13px] font-bold text-slate-700 outline-none cursor-pointer">
-                                    <option value="">Select WH...</option>
+                                    <option value="">Select Branch...</option>
                                     {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
                                 </select>
                             )}

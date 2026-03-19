@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { 
+import {
   Plus, Filter, MoreVertical, Search, Calendar, Building2,
-  Package, DollarSign, Loader2, Edit2, Trash2, Eye
+  Package, DollarSign, Loader2, Edit2, Trash2, Eye, Palette, ChevronDown, ChevronRight, X, ChevronLeft
 } from 'lucide-react';
 import { format } from 'date-fns';
+import '../Admin/SalesOrder.css';
+import NavBar from '../Nav/NavBar';
 
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const RESOURCE_API = '/api/resource/Purchase Order';
@@ -22,6 +24,20 @@ function PurchaseOrderLists() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+
+  // Theme toggle (synced across pages)
+  const [poTheme, setPoTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = poTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', poTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [poTheme, themeColor, themeColorHover, themeLight]);
 
   const getSession = () => localStorage.getItem('session') || '';
 
@@ -51,15 +67,12 @@ function PurchaseOrderLists() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter(po => {
-      const matchesSupplier = !filterSupplier || 
+      const matchesSupplier = !filterSupplier ||
         (po.supplier_name?.toLowerCase().includes(filterSupplier.toLowerCase()) ||
          po.supplier?.toLowerCase().includes(filterSupplier.toLowerCase()));
-      
       const matchesStatus = !filterStatus || po.status === filterStatus;
-      
       const matchesFrom = !filterDateFrom || new Date(po.transaction_date) >= new Date(filterDateFrom);
       const matchesTo = !filterDateTo || new Date(po.transaction_date) <= new Date(filterDateTo);
-
       return matchesSupplier && matchesStatus && matchesFrom && matchesTo;
     });
   }, [orders, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
@@ -113,282 +126,272 @@ function PurchaseOrderLists() {
     setFilterDateTo('');
   };
 
+  const hasFilters = filterSupplier || filterStatus || filterDateFrom || filterDateTo;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-              <Package className="w-8 h-8 text-slate-700" />
-              Purchase Orders
-            </h1>
-            <p className="text-slate-600 mt-2">{total} total</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="px-4 py-2 bg-white border border-slate-300 rounded-lg flex items-center gap-2 hover:bg-slate-50"
-            >
-              <Filter className="w-5 h-5" /> Filters
-            </button>
-            <a
-              href="/purchase-order"
-              className="px-6 py-3 bg-slate-900 text-white rounded-lg flex items-center gap-2 hover:bg-slate-800"
-            >
-              <Plus className="w-5 h-5" /> Add Purchase Order
-            </a>
-          </div>
+    <>
+      <NavBar />
+      <div className="so-page">
+      {/* Page Header */}
+      <div className="so-page-header">
+        <div>
+          <h1 className="so-page-title">
+            <Package size={20} /> Purchase Orders
+          </h1>
+          <p className="so-page-subtitle">{total} record(s) found</p>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setPoTheme(isGreen ? 'blue' : 'green')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.45rem 0.9rem', background: '#f8fafc',
+              border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+              fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+              cursor: 'pointer', transition: 'all 0.2s',
+              textTransform: 'uppercase', letterSpacing: '0.04em'
+            }}
+            title="Toggle Theme"
+          >
+            <Palette size={13} />
+            {poTheme.toUpperCase()}
+          </button>
 
-        {/* Filters */}
-        {showFilters && (
-          <div className="mb-6 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Supplier</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={filterSupplier}
-                    onChange={e => setFilterSupplier(e.target.value)}
-                    placeholder="Search supplier..."
-                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                  />
-                </div>
-              </div>
+          {/* Toggle Filters */}
+          <button
+            className="so-btn-secondary"
+            onClick={() => setShowFilters(f => !f)}
+            style={hasFilters ? { borderColor: themeColor, color: themeColor } : {}}
+          >
+            <Filter size={14} /> Filters {hasFilters ? '●' : ''}
+          </button>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
-                <select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="Draft">Draft</option>
-                  <option value="To Receive">To Receive</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
+          <a href="/purchase-order" className="so-btn-primary" style={{ textDecoration: 'none' }}>
+            <Plus size={16} /> Add Purchase Order
+          </a>
+        </div>
+      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">From Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-                  <input
-                    type="date"
-                    value={filterDateFrom}
-                    onChange={e => setFilterDateFrom(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                  />
-                </div>
-              </div>
+      {/* Top Filters Bar */}
+      <div className="so-filter-bar" style={{ 
+        background: 'white', 
+        padding: '1.25rem 2rem', 
+        borderBottom: '1px solid var(--so-border)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '1.25rem',
+        alignItems: 'flex-end'
+      }}>
+        <div style={{ flex: '1 1 180px' }}>
+          <label className="so-filter-label">Supplier</label>
+          <input
+            className="so-filter-input"
+            type="text"
+            value={filterSupplier}
+            onChange={e => setFilterSupplier(e.target.value)}
+            placeholder="Search supplier..."
+          />
+        </div>
+        <div style={{ flex: '1 1 140px' }}>
+          <label className="so-filter-label">Status</label>
+          <select
+            className="so-filter-input"
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            style={{ padding: '0.45rem' }}
+          >
+            <option value="">All Statuses</option>
+            <option value="Draft">Draft</option>
+            <option value="To Receive">To Receive</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div style={{ flex: '1 1 150px' }}>
+          <label className="so-filter-label">From Date</label>
+          <input
+            className="so-filter-input"
+            type="date"
+            value={filterDateFrom}
+            onChange={e => setFilterDateFrom(e.target.value)}
+          />
+        </div>
+        <div style={{ flex: '1 1 150px' }}>
+          <label className="so-filter-label">To Date</label>
+          <input
+            className="so-filter-input"
+            type="date"
+            value={filterDateTo}
+            onChange={e => setFilterDateTo(e.target.value)}
+          />
+        </div>
+        <div>
+          <button className="so-clear-btn" style={{ margin: 0, height: '38px' }} onClick={clearFilters}>
+            Clear
+          </button>
+        </div>
+      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">To Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-                  <input
-                    type="date"
-                    value={filterDateTo}
-                    onChange={e => setFilterDateTo(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2 text-slate-600 hover:text-slate-800"
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          {loading ? (
-            <div className="p-12 text-center">
-              <Loader2 className="w-12 h-12 animate-spin text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-600">Loading purchase orders...</p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="text-left py-4 px-6 font-medium text-slate-700">ID</th>
-                      <th className="text-left py-4 px-6 font-medium text-slate-700">Supplier</th>
-                      <th className="text-left py-4 px-6 font-medium text-slate-700">Status</th>
-                      <th className="text-left py-4 px-6 font-medium text-slate-700">Date</th>
-                      <th className="text-right py-4 px-6 font-medium text-slate-700">Grand Total</th>
-                      <th className="text-center py-4 px-6 font-medium text-slate-700">% Billed</th>
-                      <th className="text-center py-4 px-6 font-medium text-slate-700">% Received</th>
-                      <th className="text-right py-4 px-6 font-medium text-slate-700">Last Updated</th>
-                      <th className="w-12"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.length === 0 ? (
-                      <tr>
-                        <td colSpan="9" className="text-center py-12 text-slate-500">
-                          <Package className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                          <p className="text-lg">No purchase orders found</p>
-                          <a href="/purchase-order" className="mt-4 inline-block text-slate-900 underline">
-                            Create your first Purchase Order
-                          </a>
-                        </td>
-                      </tr>
-                    ) : (
-                      paginated.map((po, idx) => (
-                        <tr key={po.name} className={`border-b hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
-                          <td className="py-4 px-6">
-                            <a href={`/purchase-order?name=${po.name}`} className="text-slate-900 font-medium hover:underline">
-                              {po.name}
-                            </a>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div>
-                              <div className="font-medium text-slate-900">{po.supplier_name || po.supplier}</div>
-                              {po.supplier_name && <div className="text-sm text-slate-500">{po.supplier}</div>}
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(po.status)}`}>
-                              {po.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-slate-700">
-                            {format(new Date(po.transaction_date), 'dd-MM-yyyy')}
-                          </td>
-                          <td className="py-4 px-6 text-right font-semibold text-slate-900">
-                            AED {parseFloat(po.grand_total || 0).toFixed(2)}
-                          </td>
-                          <td className="py-4 px-6 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="w-20 bg-slate-200 rounded-full h-2">
-                                <div 
-                                  className="bg-blue-600 h-2 rounded-full"
-                                  style={{ width: `${po.per_billed || 0}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-slate-600">{po.per_billed || 0}%</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="w-20 bg-slate-200 rounded-full h-2">
-                                <div 
-                                  className="bg-green-600 h-2 rounded-full"
-                                  style={{ width: `${po.per_received || 0}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-slate-600">{po.per_received || 0}%</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6 text-right text-sm text-slate-500">
-                            {po.modified && format(new Date(po.modified), 'dd-MM-yyyy')}
-                          </td>
-                          <td className="py-4 px-6 text-center relative">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowActions(showActions === po.name ? null : po.name);
-                              }}
-                              className="p-2 hover:bg-slate-100 rounded-lg"
-                            >
-                              <MoreVertical className="w-5 h-5 text-slate-600" />
-                            </button>
-
-                            {showActions === po.name && (
-                              <div className="absolute right-8 top-12 bg-white border border-slate-200 rounded-lg shadow-lg py-2 z-10">
-                                <a
-                                  href={`/purchase-order?name=${po.name}`}
-                                  className="px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
-                                  onClick={() => setShowActions(null)}
-                                >
-                                  <Eye className="w-4 h-4" /> View / Edit
-                                </a>
-                                {po.status === 'Draft' && (
-                                  <button
-                                    onClick={() => handleDelete(po.name)}
-                                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
-                                  >
-                                    <Trash2 className="w-4 h-4" /> Delete
-                                  </button>
-                                )}
-                                {po.status !== 'Draft' && po.status !== 'Cancelled' && (
-                                  <button
-                                    onClick={() => handleCancel(po.name)}
-                                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
-                                  >
-                                    <Trash2 className="w-4 h-4" /> Cancel
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {total > 0 && (
-                <div className="px-6 py-4 border-t border-slate-200 flex justify-between items-center">
-                  <div className="text-sm text-slate-600">
-                    Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} orders
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-600">Rows per page:</span>
-                      {[20, 50, 100].map(size => (
-                        <button
-                          key={size}
-                          onClick={() => { setPageSize(size); setCurrentPage(1); }}
-                          className={`px-3 py-1 rounded ${pageSize === size ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
+      <div style={{ padding: '1.5rem 2rem' }}>
+        <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{total} record(s) found</p>
+        <div className="so-table-card">
+          <div className="so-table-wrapper">
+            <table className="so-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Supplier</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th style={{ textAlign: 'right' }}>Grand Total</th>
+                  <th>Progress</th>
+                  <th>Last Updated</th>
+                  <th style={{ width: '48px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="8" className="so-empty">
+                      <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
+                    </td>
+                  </tr>
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="so-empty">
+                      <Package size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
+                      No purchase orders found
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map((po) => (
+                    <tr key={po.name}>
+                      <td>
+                        <a
+                          href={`/purchase-order?name=${po.name}`}
+                          style={{ color: themeColor, fontWeight: 600, textDecoration: 'none', fontFamily: 'monospace', fontSize: '0.8rem' }}
                         >
-                          {size}
+                          {po.name}
+                        </a>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{po.supplier_name || po.supplier}</div>
+                        {po.supplier_name && <div style={{ fontSize: '0.72rem', color: 'var(--so-text-muted)' }}>{po.supplier}</div>}
+                      </td>
+                      <td>
+                        <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
+                          backgroundColor: (po.status === 'Completed' || po.status === 'To Receive') ? `${themeColor}20` : (po.status === 'Draft' ? '#f1f5f9' : '#fee2e2'),
+                          color: (po.status === 'Completed' || po.status === 'To Receive') ? themeColor : (po.status === 'Draft' ? '#64748b' : '#ef4444'),
+                          border: `1px solid ${(po.status === 'Completed' || po.status === 'To Receive') ? `${themeColor}40` : (po.status === 'Draft' ? '#e2e8f0' : '#fecaca')}`
+                        }}>
+                          {po.status}
+                        </span>
+                      </td>
+                      <td style={{ color: '#475569', fontSize: '0.85rem' }}>
+                        {po.transaction_date && format(new Date(po.transaction_date), 'dd-MM-yyyy')}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 700 }}>AED {parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ fontSize: '0.65rem', color: '#64748b', minWidth: '40px' }}>Billed:</span>
+                            <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                              <div style={{ width: `${po.per_billed || 0}%`, height: '100%', background: themeColor }} />
+                            </div>
+                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{po.per_billed || 0}%</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ fontSize: '0.65rem', color: '#64748b', minWidth: '40px' }}>Rcvd:</span>
+                            <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                              <div style={{ width: `${po.per_received || 0}%`, height: '100%', background: themeColor }} />
+                            </div>
+                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{po.per_received || 0}%</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                        {po.modified && format(new Date(po.modified), 'dd-MM-yyyy')}
+                      </td>
+                      <td style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowActions(showActions === po.name ? null : po.name); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', borderRadius: '0.25rem', color: '#64748b', display: 'flex' }}
+                        >
+                          <MoreVertical size={16} />
                         </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50"
-                      >
-                        Previous
-                      </button>
-                      <span className="text-sm text-slate-600">
-                        Page {currentPage} of {totalPages}
-                      </span>
-                      <button
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-4 py-2 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
+                        {showActions === po.name && (
+                          <div style={{
+                            position: 'absolute', right: '2.5rem', top: '50%', transform: 'translateY(-50%)',
+                            zIndex: 50, background: '#fff', border: '1px solid var(--so-border)',
+                            borderRadius: '0.5rem', boxShadow: 'var(--so-shadow)',
+                            minWidth: '130px', overflow: 'hidden'
+                          }}>
+                            <a
+                              href={`/purchase-order?name=${po.name}`}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', fontSize: '0.85rem', color: '#1e293b', textDecoration: 'none' }}
+                              onMouseEnter={e => e.currentTarget.style.background = 'var(--so-primary-light)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                              onClick={() => setShowActions(null)}
+                            >
+                              <Eye size={13} /> View / Edit
+                            </a>
+                            {po.status === 'Draft' && (
+                              <button
+                                onClick={() => handleDelete(po.name)}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: '#ef4444' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                              >
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            )}
+                            {po.status !== 'Draft' && po.status !== 'Cancelled' && (
+                              <button
+                                onClick={() => handleCancel(po.name)}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: '#ef4444' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                              >
+                                <X size={13} /> Cancel
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {!loading && total > 0 && (
+            <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
+                Showing {Math.min((currentPage - 1) * pageSize + 1, total)}–{Math.min(currentPage * pageSize, total)} of {total}
+              </span>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
+                  {[20, 50, 100].map(size => (
+                    <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); }} className={`so-page-btn ${pageSize === size ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{size}</button>
+                  ))}
                 </div>
-              )}
-            </>
+                
+                <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
+                  <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
+                  <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={14} /></button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

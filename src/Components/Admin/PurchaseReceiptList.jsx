@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, X, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
-  Trash2
+  Trash2, Palette, Loader2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
-import './PurchaseReceiptList.css';
+import '../Admin/SalesOrder.css';
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const RESOURCE_BASE = '/api/resource';
 function PurchaseReceiptList() {
@@ -22,6 +22,20 @@ function PurchaseReceiptList() {
   const [docName, setDocName] = useState('');
   const theme = useSelector(state => state.user.theme);
   const [barcodeInput, setBarcodeInput] = useState('');
+
+  // Theme toggle (synced across pages)
+  const [prTheme, setPrTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = prTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', prTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [prTheme, themeColor, themeColorHover, themeLight]);
   const [formData, setFormData] = useState({
     series: 'MAT-PRE-.YYYY.-',
     posting_date: new Date().toISOString().split('T')[0],
@@ -147,7 +161,7 @@ function PurchaseReceiptList() {
     fetchTaxesTemplates();
     fetchTaxTypes();
   }, []);
-    const handleBarcodeScan = async (e) => {
+  const handleBarcodeScan = async (e) => {
     if (e.key === 'Enter' && barcodeInput.trim()) {
       e.preventDefault();
       const barcode = barcodeInput.trim();
@@ -407,33 +421,33 @@ function PurchaseReceiptList() {
       };
     });
   };
- 
+
   const addItemRow = useCallback(() => {
-  setFormData(prev => {
-    const newItems = [...prev.items, {
-      item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0,
-      received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00'
-    }];
-    const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
-    const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
-    const totals = recalcTaxesAndTotals(newItems, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
-   
-    // Auto focus on new row after render
-    setTimeout(() => {
-      const inputs = document.querySelectorAll('.pr-items-input');
-      if (inputs[newItems.length - 1]) {
-        inputs[newItems.length - 1].focus();
-      }
-    }, 100);
-    return {
-      ...prev,
-      items: newItems,
-      total_qty,
-      net_total,
-      ...totals
-    };
-  });
-}, [recalcTaxesAndTotals]);
+    setFormData(prev => {
+      const newItems = [...prev.items, {
+        item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0,
+        received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00'
+      }];
+      const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
+      const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+      const totals = recalcTaxesAndTotals(newItems, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+
+      // Auto focus on new row after render
+      setTimeout(() => {
+        const inputs = document.querySelectorAll('.pr-items-input');
+        if (inputs[newItems.length - 1]) {
+          inputs[newItems.length - 1].focus();
+        }
+      }, 100);
+      return {
+        ...prev,
+        items: newItems,
+        total_qty,
+        net_total,
+        ...totals
+      };
+    });
+  }, [recalcTaxesAndTotals]);
   const removeItemRow = (index) => {
     setFormData(prev => {
       const newItems = prev.items.filter((_, i) => i !== index);
@@ -621,7 +635,7 @@ function PurchaseReceiptList() {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-    const fetchReceiptForEdit = async (docName) => {
+  const fetchReceiptForEdit = async (docName) => {
     try {
       setLoading(true);
       const res = await axios.get(`${RESOURCE_BASE}/Purchase Receipt/${docName}`, { withCredentials: true });
@@ -756,7 +770,7 @@ function PurchaseReceiptList() {
       discount_amount: parseFloat(formData.discount_amount || 0)
     };
   };
-    const handleSaveDraft = async () => {
+  const handleSaveDraft = async () => {
     if (!validateForm()) return;
     setSaving(true);
     const payload = await getPayload();
@@ -790,7 +804,7 @@ function PurchaseReceiptList() {
       setSaving(false);
     }
   };
-    const handleSubmit = async () => {
+  const handleSubmit = async () => {
     if (!validateForm()) return;
     setSaving(true);
     const payload = await getPayload();
@@ -941,238 +955,311 @@ function PurchaseReceiptList() {
   return (
     <>
       <NavBar />
-      <div className={`pr-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
-        <div className="pr-header">
-          <div className="pr-header-left">
-            <h1 className="pr-title">Purchase Receipts</h1>
-            <span className="pr-count">{total} total</span>
+      <div className="so-page">
+        {/* Header */}
+        <div className="so-page-header">
+          <div className="so-page-left">
+            <h1 className="so-page-title">
+              <Package size={20} /> Purchase Receipts
+            </h1>
+            <p className="so-page-subtitle">{total} total record(s) found</p>
           </div>
-          <div className="pr-header-actions">
-            <button onClick={() => setShowFilters(!showFilters)} className="pr-btn-secondary">
-              <Filter className="pr-icon" />
-              Filters
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setPrTheme(isGreen ? 'blue' : 'green')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.45rem 0.9rem', background: '#f8fafc',
+                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                cursor: 'pointer', transition: 'all 0.2s',
+                textTransform: 'uppercase', letterSpacing: '0.04em'
+              }}
+              title="Toggle Theme"
+            >
+              <Palette size={13} />
+              {prTheme.toUpperCase()}
             </button>
-            <button onClick={openCreateModal} className="pr-btn-primary">
-              <Plus className="pr-icon" />
-              Create Receipt
+
+            <button onClick={openCreateModal} className="so-btn-primary">
+              <Plus size={16} /> Create Receipt
             </button>
           </div>
         </div>
-        {showFilters && (
-          <div className="pr-filters">
-            <div className="pr-filters-grid">
-              <div className="pr-filter-item">
-                <label>Receipt Number</label>
-                <div className="pr-input-wrapper">
-                  <Search className="pr-input-icon" />
-                  <input
-                    type="text"
-                    placeholder="Search receipt..."
-                    value={filterName}
-                    onChange={e => setFilterName(e.target.value)}
-                    className="pr-input"
-                  />
-                </div>
-              </div>
-              <div className="pr-filter-item">
-                <label>Supplier</label>
-                <div className="pr-input-wrapper">
-                  <Building2 className="pr-input-icon" />
-                  <input
-                    type="text"
-                    placeholder="Search supplier..."
-                    value={filterSupplier}
-                    onChange={e => setFilterSupplier(e.target.value)}
-                    className="pr-input"
-                  />
-                </div>
-              </div>
-              <div className="pr-filter-item">
-                <label>Status</label>
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="pr-select">
-                  <option value="">All Statuses</option>
-                  <option value="Draft">Draft</option>
-                  <option value="To Bill">To Bill</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Return Issued">Return Issued</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
-              <div className="pr-filter-item">
-                <label>From Date</label>
-                <div className="pr-input-wrapper">
-                  <Calendar className="pr-input-icon" />
-                  <input
-                    type="date"
-                    value={filterDateFrom}
-                    onChange={e => setFilterDateFrom(e.target.value)}
-                    className="pr-input"
-                  />
-                </div>
-              </div>
-              <div className="pr-filter-item">
-                <label>To Date</label>
-                <div className="pr-input-wrapper">
-                  <Calendar className="pr-input-icon" />
-                  <input
-                    type="date"
-                    value={filterDateTo}
-                    onChange={e => setFilterDateTo(e.target.value)}
-                    className="pr-input"
-                  />
-                </div>
-              </div>
-              <div className="pr-filter-actions">
-                <button onClick={clearFilters} className="pr-btn-ghost">Clear</button>
-              </div>
+
+        <div className="so-layout" style={{ flexDirection: 'column' }}>
+          {/* Top Filters Bar */}
+          <div className="so-filter-bar" style={{
+            background: 'white',
+            padding: '1.25rem 1.5rem',
+            borderBottom: '1px solid var(--so-border)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '1.25rem',
+            alignItems: 'flex-end'
+          }}>
+            <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+              <label className="so-filter-label">Receipt Number</label>
+              <input
+                type="text"
+                placeholder="Search receipt..."
+                value={filterName}
+                onChange={e => setFilterName(e.target.value)}
+                className="so-filter-input"
+              />
             </div>
+
+            <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+              <label className="so-filter-label">Supplier</label>
+              <input
+                type="text"
+                placeholder="Search supplier..."
+                value={filterSupplier}
+                onChange={e => setFilterSupplier(e.target.value)}
+                className="so-filter-input"
+              />
+            </div>
+
+            <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+              <label className="so-filter-label">Status</label>
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className="so-filter-select"
+              >
+                <option value="">All Statuses</option>
+                <option value="Draft">Draft</option>
+                <option value="To Bill">To Bill</option>
+                <option value="Completed">Completed</option>
+                <option value="Return Issued">Return Issued</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            <div className="so-filter-group" style={{ minWidth: '130px', flex: 1 }}>
+              <label className="so-filter-label">From Date</label>
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={e => setFilterDateFrom(e.target.value)}
+                className="so-filter-input"
+              />
+            </div>
+
+            <div className="so-filter-group" style={{ minWidth: '130px', flex: 1 }}>
+              <label className="so-filter-label">To Date</label>
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={e => setFilterDateTo(e.target.value)}
+                className="so-filter-input"
+              />
+            </div>
+
+            <button onClick={clearFilters} className="so-clear-btn" style={{ margin: 0, width: 'auto', padding: '0.625rem 1rem' }}>
+              Clear Filters
+            </button>
           </div>
-        )}
-        <main className="pr-main">
-          {loading ? (
-            <div className="pr-loading">
-              <div className="pr-spinner"></div>
-              <p>Loading receipts...</p>
-            </div>
-          ) : (
-            <div className="pr-table-container">
-              <div className="pr-table-wrapper">
-                <table className="pr-table">
-                  <thead>
-                    <tr>
-                    
-                      <th className="pr-th">Receipt Number</th>
-                      <th className="pr-th">Supplier</th>
-                      <th className="pr-th">Date</th>
-                      <th className="pr-th">Status</th>
-                      <th className="pr-th-right">Amount</th>
-                      <th className="pr-th-actions"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.length === 0 ? (
-                      <tr>
-                        <td colSpan="7" className="pr-empty">
-                          <Package className="pr-empty-icon" />
-                          <p>No receipts found</p>
-                          <button onClick={openCreateModal} className="pr-btn-link">Create your first receipt</button>
-                        </td>
-                      </tr>
-                    ) : (
-                      paginated.map(rec => (
-                        <tr key={rec.name} className="pr-tr">
-    
-                          <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
-                            <span className="pr-receipt-number">{rec.name}</span>
-                          </td>
-                          <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
-                            <div className="pr-supplier">
-                              <span className="pr-supplier-name">{rec.supplier_name}</span>
-                              <span className="pr-supplier-code">{rec.supplier}</span>
-                            </div>
-                          </td>
-                          <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
-                            <span className="pr-date">{format(new Date(rec.posting_date), 'dd MMM yyyy')}</span>
-                          </td>
-                          <td className="pr-td" onClick={() => fetchReceiptForEdit(rec.name)}>
-                            <span className={`pr-status ${getStatusColor(rec.status)}`}>
-                              {rec.status}
-                            </span>
-                          </td>
-                          <td className="pr-td-right" onClick={() => window.location.href = `/purchase-receipt/${rec.name}`}>
-                            <span className="pr-amount">AED {rec.base_net_total?.toFixed(2)}</span>
-                          </td>
-                          <td className="pr-td-actions">
-                            <button className="pr-btn-icon" onClick={e => e.stopPropagation()}>
-                              <MoreVertical className="pr-icon" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {total > 0 && (
-                <div className="pr-pagination">
-                  <div className="pr-pagination-info">
-                    Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} receipts
-                  </div>
-                  <div className="pr-pagination-controls">
-                    <div className="pr-page-size">
-                      <span>Rows:</span>
-                      {[20, 50, 100].map(s => (
-                        <button
-                          key={s}
-                          onClick={() => { setPageSize(s); setCurrentPage(1); }}
-                          className={`pr-page-size-btn ${pageSize === s ? 'active' : ''}`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="pr-page-nav">
-                      <button
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="pr-page-btn"
-                      >
-                        Previous
-                      </button>
-                      <span className="pr-page-current">Page {currentPage} of {totalPages}</span>
-                      <button
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="pr-page-btn"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
+
+          {/* Table Area */}
+          <div className="so-content">
+            <p className="so-list-meta">{total} record(s) found</p>
+            <div className="so-table-card">
+              {loading ? (
+                <div style={{ padding: '4rem', textAlign: 'center' }}>
+                  <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto' }} />
+                  <p style={{ marginTop: '1rem', color: '#64748b', fontWeight: 600 }}>Loading receipts...</p>
                 </div>
+              ) : (
+                <>
+                  <div className="so-table-wrapper">
+                    <table className="so-table">
+                      <thead>
+                        <tr>
+                          <th>Receipt Number</th>
+                          <th>Supplier</th>
+                          <th>Date</th>
+                          <th>Status</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                          <th style={{ width: '50px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginated.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="so-empty">
+                              <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
+                              <p>No receipts found</p>
+                              <button onClick={openCreateModal} style={{ color: themeColor, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
+                                Create your first receipt
+                              </button>
+                            </td>
+                          </tr>
+                        ) : (
+                          paginated.map(rec => (
+                            <tr key={rec.name} onClick={() => fetchReceiptForEdit(rec.name)}>
+                              <td>
+                                <span style={{ fontWeight: 700, color: themeColor }}>{rec.name}</span>
+                              </td>
+                              <td>
+                                <div style={{ fontWeight: 500 }}>{rec.supplier_name}</div>
+                                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{rec.supplier}</div>
+                              </td>
+                              <td>
+                                <span style={{ color: '#475569' }}>{format(new Date(rec.posting_date), 'dd MMM yyyy')}</span>
+                              </td>
+                              <td>
+                                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
+                                  backgroundColor: (rec.status === 'Completed' || rec.status === 'To Bill') ? `${themeColor}20` : (rec.status === 'Draft' ? '#f1f5f9' : '#fee2e2'),
+                                  color: (rec.status === 'Completed' || rec.status === 'To Bill') ? themeColor : (rec.status === 'Draft' ? '#64748b' : '#ef4444'),
+                                  border: `1px solid ${(rec.status === 'Completed' || rec.status === 'To Bill') ? `${themeColor}40` : (rec.status === 'Draft' ? '#e2e8f0' : '#fecaca')}`
+                                }}>
+                                  {rec.status}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                                AED {rec.grand_total ? parseFloat(rec.grand_total).toFixed(2) : '0.00'}
+                              </td>
+                              <td onClick={e => e.stopPropagation()}>
+                                <button style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                                  <MoreVertical size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {total > 0 && (
+                    <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
+                        Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total}
+                      </span>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
+                          {[20, 50, 100].map(s => (
+                            <button key={s} onClick={() => { setPageSize(s); setCurrentPage(1); }} className={`so-page-btn ${pageSize === s ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{s}</button>
+                          ))}
+                        </div>
+                        
+                        <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>‹</button>
+                          <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem' }}>{currentPage} / {totalPages}</span>
+                          <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>›</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
-          )}
-        </main>
+          </div>
+        </div>
         {isModalOpen && (
-          <div className="pr-modal-overlay">
-            <div className="pr-modal">
-              <div className="pr-modal-header">
-                <div>
-                  <h2 className="pr-modal-title">New Purchase Receipt <span className="pr-not-saved">(Not Saved)</span></h2>
-                  <p className="pr-modal-subtitle">Add supplier details and items to create a new receipt</p>
-                </div>
-                <button onClick={() => setIsModalOpen(false)} className="pr-modal-close">
-                  <X className="pr-icon" />
+          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)}>
+            <div className="so-modal" style={{ maxWidth: '1200px', width: '95vw' }} onClick={e => e.stopPropagation()}>
+              <div className="so-modal-header">
+                <h2 className="so-modal-title">
+                  <Package size={18} style={{ display: 'inline', marginRight: '0.4rem' }} />
+                  {docName ? 'Edit' : 'New'} Purchase Receipt
+                </h2>
+                <button onClick={() => setIsModalOpen(false)} className="so-modal-close">
+                  <X size={20} />
                 </button>
               </div>
-              <div className="pr-modal-body">
-                <div className="pr-form-section">
-                  <h3 className="pr-section-title">Details</h3>
-                  <div className="pr-form-grid">
-                    <div className="pr-form-group">
-                      <label>Series <span className="pr-required">*</span></label>
-                      <input
-                        type="text"
-                        value={formData.series}
-                        onChange={e => setFormData(prev => ({ ...prev, series: e.target.value }))}
-                        className="pr-input"
-                      />
-                    </div>
-                    <div className="pr-form-group">
-                      <label>Date <span className="pr-required">*</span></label>
-                      <div className="pr-input-wrapper">
-                        <Calendar className="pr-input-icon" />
+
+              <div className="so-modal-body">
+                {/* Basic Details Card */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <p className="so-card-title">Basic Details</p>
+                  </div>
+                  <div className="so-card-body">
+                    <div className="so-form-grid">
+                      <div className="so-field">
+                        <label className="so-label">Series <span style={{ color: 'var(--so-danger)' }}>*</span></label>
+                        <input
+                          type="text"
+                          value={formData.series}
+                          onChange={e => setFormData(prev => ({ ...prev, series: e.target.value }))}
+                          className="so-input"
+                        />
+                      </div>
+                      <div className="so-field">
+                        <label className="so-label">Supplier <span style={{ color: 'var(--so-danger)' }}>*</span></label>
+                        <div className="relative" ref={supplierRef}>
+                          <input
+                            type="text"
+                            value={searchSupplier}
+                            onChange={e => setSearchSupplier(e.target.value)}
+                            onFocus={() => searchSupplier && setShowSupplierDropdown(true)}
+                            placeholder="Search and select supplier..."
+                            className="so-input"
+                          />
+                          {showSupplierDropdown && suppliers.length > 0 && (
+                            <div className="so-dropdown" style={{ left: 0, right: 0 }}>
+                              {suppliers.map(s => (
+                                <div key={s.name} onClick={() => selectSupplier(s)} className="so-dropdown-item">
+                                  <div style={{ fontWeight: 700 }}>{s.supplier_name}</div>
+                                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{s.name}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {formErrors.supplier && <span style={{ color: 'var(--so-danger)', fontSize: '0.7rem', fontWeight: 600 }}>{formErrors.supplier}</span>}
+                      </div>
+                      <div className="so-field">
+                        <label className="so-label">Posting Date <span style={{ color: 'var(--so-danger)' }}>*</span></label>
                         <input
                           type="date"
                           value={formData.posting_date}
                           onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
-                          className="pr-input"
+                          className="so-input"
+                        />
+                      </div>
+                      <div className="so-field">
+                        <label className="so-label">Posting Time <span style={{ color: 'var(--so-danger)' }}>*</span></label>
+                        <input
+                          type="time"
+                          value={formData.posting_time}
+                          onChange={e => setFormData(prev => ({ ...prev, posting_time: e.target.value }))}
+                          className="so-input"
+                        />
+                      </div>
+                      <div className="so-field">
+                        <label className="so-label">Set Branch <span style={{ color: 'var(--so-danger)' }}>*</span></label>
+                        <select
+                          value={formData.set_warehouse}
+                          onChange={e => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
+                          className="so-select"
+                        >
+                          <option value="">Select Branch</option>
+                          {warehouses.map(w => (
+                            <option key={w.name} value={w.name}>{w.warehouse_name}</option>
+                          ))}
+                        </select>
+                        {formErrors.set_warehouse && <span style={{ color: 'var(--so-danger)', fontSize: '0.7rem', fontWeight: 600 }}>{formErrors.set_warehouse}</span>}
+                      </div>
+                      <div className="so-field">
+                        <label className="so-label">Supplier Delivery Note</label>
+                        <input
+                          type="text"
+                          value={formData.supplier_delivery_note}
+                          onChange={e => setFormData(prev => ({ ...prev, supplier_delivery_note: e.target.value }))}
+                          placeholder="Reference number..."
+                          className="so-input"
                         />
                       </div>
                     </div>
-                    <div className="pr-form-group">
-                      <label className="pr-checkbox-group">
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '1.5rem', padding: '0.25rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
                         <input
                           type="checkbox"
                           checked={formData.apply_putaway_rule}
@@ -1180,48 +1267,7 @@ function PurchaseReceiptList() {
                         />
                         Apply Putaway Rule
                       </label>
-                    </div>
-                    <div className="pr-form-group" ref={supplierRef}>
-                      <label className="pr-label">
-                        Supplier <span className="pr-required">*</span>
-                      </label>
-                      <div className="pr-input-wrapper">
-                        <Building2 className="pr-input-icon" />
-                        <input
-                          type="text"
-                          value={searchSupplier}
-                          onChange={e => setSearchSupplier(e.target.value)}
-                          onFocus={() => searchSupplier && setShowSupplierDropdown(true)}
-                          placeholder="Search and select supplier..."
-                          className={`pr-input ${formErrors.supplier ? 'pr-input-error' : ''}`}
-                        />
-                      </div>
-                      {showSupplierDropdown && suppliers.length > 0 && (
-                        <div className="pr-dropdown">
-                          {suppliers.map(s => (
-                            <div key={s.name} onClick={() => selectSupplier(s)} className="pr-dropdown-item">
-                              <div className="pr-dropdown-main">{s.supplier_name}</div>
-                              <div className="pr-dropdown-sub">{s.name}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {formErrors.supplier && <span className="pr-error">{formErrors.supplier}</span>}
-                    </div>
-                    <div className="pr-form-group">
-                      <label>Posting Time <span className="pr-required">*</span></label>
-                      <div className="pr-input-wrapper">
-                        <Calendar className="pr-input-icon" />
-                        <input
-                          type="time"
-                          value={formData.posting_time}
-                          onChange={e => setFormData(prev => ({ ...prev, posting_time: e.target.value }))}
-                          className="pr-input"
-                        />
-                      </div>
-                    </div>
-                    <div className="pr-form-group">
-                      <label className="pr-checkbox-group">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
                         <input
                           type="checkbox"
                           checked={formData.is_return}
@@ -1230,379 +1276,304 @@ function PurchaseReceiptList() {
                         Is Return
                       </label>
                     </div>
-                    <div className="pr-form-group">
-                      <label>Supplier Delivery Note</label>
+                  </div>
+                </div>
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <p className="so-card-title">Barcode Scanner</p>
+                  </div>
+                  <div className="so-card-body">
+                    <div className="so-barcode-area">
+                      <Search size={18} />
                       <input
+                        id="barcode-scan-input-pr"
                         type="text"
-                        value={formData.supplier_delivery_note}
-                        onChange={e => setFormData(prev => ({ ...prev, supplier_delivery_note: e.target.value }))}
-                        placeholder="Enter delivery note..."
-                        className="pr-input"
+                        value={barcodeInput}
+                        onChange={(e) => setBarcodeInput(e.target.value)}
+                        onKeyDown={handleBarcodeScan}
+                        placeholder="Scan or type barcode → press Enter..."
+                        className="so-barcode-input"
+                        style={{ fontSize: '1rem' }}
                       />
                     </div>
                   </div>
                 </div>
-                <div className="pr-form-section">
-                  <h3 className="pr-section-title">Currency and Price List</h3>
-                  <div className="pr-form-grid">
-                    <div className="pr-form-group">
-                      <label>Currency</label>
-                      <input
-                        type="text"
-                        value={formData.currency}
-                        className="pr-input"
-                        readOnly
-                      />
-                    </div>
-                    <div className="pr-form-group">
-                      <label>Buying Price List</label>
-                      <input
-                        type="text"
-                        value={formData.buying_price_list}
-                        onChange={e => setFormData(prev => ({ ...prev, buying_price_list: e.target.value }))}
-                        className="pr-input"
-                      />
-                    </div>
-                    <div className="pr-form-group">
-                      <label>Set Warehouse <span className="pr-required">*</span></label>
-                      <select
-                        value={formData.set_warehouse}
-                        onChange={e => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
-                        className={`pr-select ${formErrors.set_warehouse ? 'pr-input-error' : ''}`}
-                      >
-                        <option value="">Select Warehouse</option>
-                        {warehouses.map(w => (
-                          <option key={w.name} value={w.name}>{w.warehouse_name}</option>
-                        ))}
-                      </select>
-                      {formErrors.set_warehouse && <span className="pr-error">{formErrors.set_warehouse}</span>}
-                    </div>
-                  </div>
-                </div>
-                <div className="pr-form-section">
-                  <h3 className="pr-section-title">Items</h3>
-                  <div className="pr-form-grid">
-                    <div className="pr-form-group pr-full-width">
-                      <label className="pr-barcode-label">Scan Barcode</label>
-                      <div className="pr-input-wrapper">
-                        <Barcode className="pr-input-icon" />
-                        <input
-                          id="barcode-scan-input-pr"
-                          type="text"
-                          value={barcodeInput}
-                          onChange={(e) => setBarcodeInput(e.target.value)}
-                          onKeyDown={handleBarcodeScan}
-                          placeholder="Scan or type barcode → press Enter"
-                          className="pr-input pr-barcode-input"
-                          autoFocus
-                        />
-                      </div>
-                      <p className="pr-barcode-note">
-                        Fast scanning enabled • Auto add item on Enter
-                      </p>
-                    </div>
-                  </div>
-                  <div className="pr-items-table-wrapper">
-                    <table className="pr-items-table">
-                      <thead>
-                        <tr>
-          
-                          <th className="pr-items-th" style={{ width: '40px' }}>No.</th>
-                          <th className="pr-items-th">Item Code <span className="pr-required">*</span></th>
-                          <th className="pr-items-th" style={{ width: '120px' }}>Accepted Quantity</th>
-                          <th className="pr-items-th" style={{ width: '100px' }}>Rejected Qty</th>
-                          <th className="pr-items-th" style={{ width: '120px' }}>Rate (AED)</th>
-                          <th className="pr-items-th" style={{ width: '120px' }}>Amount (AED)</th>
-                          <th className="pr-items-th" style={{ width: '50px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {formData.items.map((item, i) => (
-                          <tr key={i} className="pr-items-tr">
-                            <td className="pr-items-td">
-                              <span className="pr-items-text">{i + 1}</span>
-                            </td>
-                            <td className="pr-items-td" ref={el => itemRefs.current[i] = el}>
-                              <div className="pr-item-cell">
-                                <input
-                                  type="text"
-                                  value={itemSearches[i] || ''}
-                                  onChange={e => handleItemSearch(i, e.target.value)}
-                                  onFocus={() => itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
-                                  placeholder="Search item..."
-                                  className="pr-items-input"
-                                />
-                                {showItemDropdowns[i] && itemsList.length > 0 && (
-                                  <div className="pr-dropdown">
-                                    {itemsList.map(itm => (
-                                      <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="pr-dropdown-item">
-                                        <div className="pr-dropdown-main">{itm.item_name}</div>
-                                        <div className="pr-dropdown-sub">{itm.item_code}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {item.item_name && (
-                                  <div className="pr-item-selected">
-                                    {item.item_name}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="pr-items-td">
-                              <input
-                                type="number"
-                                value={item.accepted_qty}
-                                onChange={e => updateItem(i, 'accepted_qty', e.target.value)}
-                                className="pr-items-input pr-items-input-number"
-                                min="0"
-                              />
-                            </td>
-                            <td className="pr-items-td">
-                              <input
-                                type="number"
-                                value={item.rejected_qty}
-                                onChange={e => updateItem(i, 'rejected_qty', e.target.value)}
-                                className="pr-items-input pr-items-input-number"
-                                min="0"
-                              />
-                            </td>
-                            <td className="pr-items-td">
-                              <input
-                                type="number"
-                                value={item.rate}
-                                onChange={e => updateItem(i, 'rate', e.target.value)}
-                                className="pr-items-input pr-items-input-number"
-                                step="0.01"
-                                placeholder={rateLoading[i] ? "Fetching..." : "Enter rate or auto-fetch"}
-                                disabled={rateLoading[i]} // Brief disable during fetch
-                              />
-                              {rateLoading[i] && <small className="pr-rate-loading">Fetching rate...</small>}
-                            </td>
-                            <td className="pr-items-td">
-                              <span className="pr-items-amount">{parseFloat(item.amount) || '0.00'}</span>
-                            </td>
-                            <td className="pr-items-td">
-                              <button onClick={() => removeItemRow(i)} className="pr-btn-delete">
-                                <Trash2 className="pr-icon-sm" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div style={{ marginTop: '1rem', textAlign: 'left' }}>
-    <button onClick={addItemRow} className="pr-btn-link">
-      <Plus className="pr-icon-sm" />
-      Add Another Item
-    </button>
-  </div>
-                  </div>
-                  {formErrors.items && <span className="pr-error">{formErrors.items}</span>}
-                  <div className="pr-totals-row">
-                    <span>Total Quantity: {formData.total_qty}</span>
-                    <span>Total (AED): {parseFloat(formData.net_total) || '0.00'}</span>
-                  </div>
-                </div>
-                <div className="pr-form-section">
-                  <h3 className="pr-section-title">Taxes and Charges</h3>
-                  <div className="pr-form-grid">
-                    <div className="pr-form-group">
-                      <label>Purchase Taxes and Charges Template</label>
-                      <select
-                        value={formData.taxes_and_charges}
-                        onChange={e => handleTaxesTemplateChange(e.target.value)}
-                        className="pr-select"
-                      >
-                        <option value="">Select Template</option>
-                        {taxesTemplates.map(t => (
-                          <option key={t.name} value={t.name}>{t.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="pr-taxes-table-wrapper">
-                    <table className="pr-taxes-table">
-                      <thead>
-                        <tr>
-                          <th className="pr-taxes-th" style={{ width: '40px' }}></th>
-                          <th className="pr-taxes-th" style={{ width: '40px' }}>No.</th>
-                          <th className="pr-taxes-th">Type <span className="pr-required">*</span></th>
-                          <th className="pr-taxes-th">Account Head <span className="pr-required">*</span></th>
-                          <th className="pr-taxes-th" style={{ width: '100px' }}>Tax Rate</th>
-                          <th className="pr-taxes-th" style={{ width: '100px' }}>Amount</th>
-                          <th className="pr-taxes-th" style={{ width: '100px' }}>Total</th>
-                          <th className="pr-taxes-th" style={{ width: '50px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {formData.taxes.map((tax, i) => (
-                          <tr key={i}>
-                            <td className="pr-taxes-td">
-                              <input
-                                type="checkbox"
-                                checked={tax.add_row}
-                                onChange={e => updateTax(i, 'add_row', e.target.checked)}
-                                className="pr-checkbox"
-                              />
-                            </td>
-                            <td className="pr-taxes-td">{i + 1}</td>
-                            <td className="pr-taxes-td">
-                              <select
-                                value={tax.charge_type}
-                                onChange={e => updateTax(i, 'charge_type', e.target.value)}
-                                className="pr-items-input"
-                              >
-                                <option value="">Select Type</option>
-                                {taxTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                              </select>
-                            </td>
-                            <td className="pr-taxes-td">
-                              <input
-                                type="text"
-                                value={tax.account_head}
-                                onChange={e => updateTax(i, 'account_head', e.target.value)}
-                                placeholder="Account Head"
-                                className="pr-items-input"
-                              />
-                            </td>
-                            <td className="pr-taxes-td">
-                              <input
-                                type="number"
-                                value={tax.rate}
-                                onChange={e => updateTax(i, 'rate', e.target.value)}
-                                className="pr-items-input pr-items-input-number"
-                                step="0.01"
-                              />
-                            </td>
-                            <td className="pr-taxes-td">
-                              <input
-                                type="number"
-                                value={tax.tax_amount}
-                                onChange={e => updateTax(i, 'tax_amount', e.target.value)}
-                                className="pr-items-input pr-items-input-number"
-                                step="0.01"
-                              />
-                            </td>
-                            <td className="pr-taxes-td">
-                              <span className="pr-items-amount">{parseFloat(tax.total) || '0.00'}</span>
-                            </td>
-                            <td className="pr-taxes-td">
-                              <button onClick={() => removeTaxRow(i)} className="pr-btn-delete">
-                                <Trash2 className="pr-icon-sm" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <button onClick={addTaxRow} className="pr-btn-link">
-                      <Plus className="pr-icon-sm" />
-                      Add Row
+                {/* Items Card */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <p className="so-card-title">Items</p>
+                    <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
+                      <Plus size={14} /> Add Row
                     </button>
                   </div>
-                  <div className="pr-taxes-totals">
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Taxes and Charges Added (AED):</span>
-                      <span className="pr-total-amount">AED {formData.taxes_added}</span>
-                    </div>
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Taxes and Charges Deducted (AED):</span>
-                      <span className="pr-total-amount">AED {formData.taxes_deducted}</span>
-                    </div>
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Total Taxes and Charges (AED):</span>
-                      <span className="pr-total-amount">AED {formData.total_taxes_and_charges}</span>
+                  <div className="so-card-body" style={{ padding: 0 }}>
+                    <div className="so-table-wrapper" style={{ boxShadow: 'none' }}>
+                      <table className="so-items-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '50px', textAlign: 'center' }}>No.</th>
+                            <th>Item Details</th>
+                            <th style={{ width: '100px', textAlign: 'center' }}>Accepted</th>
+                            <th style={{ width: '100px', textAlign: 'center' }}>Rejected</th>
+                            <th style={{ width: '120px', textAlign: 'right' }}>Rate</th>
+                            <th style={{ width: '140px', textAlign: 'right' }}>Amount</th>
+                            <th style={{ width: '50px' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {formData.items.map((item, i) => (
+                            <tr key={i}>
+                              <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>{i + 1}</td>
+                              <td ref={el => itemRefs.current[i] = el}>
+                                <div style={{ position: 'relative' }}>
+                                  <input
+                                    type="text"
+                                    value={itemSearches[i] || ''}
+                                    onChange={e => handleItemSearch(i, e.target.value)}
+                                    onFocus={() => itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
+                                    placeholder="Search item..."
+                                    className="so-input"
+                                    style={{ height: '36px', fontSize: '0.85rem' }}
+                                  />
+                                  {showItemDropdowns[i] && itemsList.length > 0 && (
+                                    <div className="so-dropdown" style={{ minWidth: '300px' }}>
+                                      {itemsList.map(itm => (
+                                        <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="so-dropdown-item">
+                                          <div style={{ fontWeight: 700 }}>{itm.item_name}</div>
+                                          <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{itm.item_code}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {item.item_name && (
+                                    <div style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: themeColor, fontWeight: 700 }}>
+                                      {item.item_name} — {item.item_code}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={item.accepted_qty}
+                                  onChange={e => updateItem(i, 'accepted_qty', e.target.value)}
+                                  className="so-input"
+                                  style={{ textAlign: 'center', height: '36px' }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={item.rejected_qty}
+                                  onChange={e => updateItem(i, 'rejected_qty', e.target.value)}
+                                  className="so-input"
+                                  style={{ textAlign: 'center', height: '36px' }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={item.rate}
+                                  onChange={e => updateItem(i, 'rate', e.target.value)}
+                                  className="so-input"
+                                  style={{ textAlign: 'right', height: '36px' }}
+                                  step="0.01"
+                                  placeholder={rateLoading[i] ? "..." : "0.00"}
+                                  disabled={rateLoading[i]}
+                                />
+                                {rateLoading[i] && <div style={{ fontSize: '0.6rem', color: themeColor, textAlign: 'right', fontWeight: 700 }}>Fetching...</div>}
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.85rem' }}>
+                                {(parseFloat(item.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button onClick={() => removeItemRow(i)} className="so-btn-danger" style={{ padding: '0.25rem' }}>
+                                  <X size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
-                <div className="pr-form-section">
-                  <h3 className="pr-section-title">Discounts and Rounding</h3>
-                  <div className="pr-form-grid">
-                    <div className="pr-form-group">
-                      <label>Apply Discount On</label>
-                      <select
-                        value={formData.apply_discount_on}
-                        onChange={e => updateDiscount('apply_discount_on', e.target.value)}
-                        className="pr-select"
-                      >
-                        <option value="Net Total">Net Total</option>
-                        <option value="Grand Total">Grand Total</option>
-                      </select>
+                <div className="so-form-grid" style={{ gridTemplateColumns: '1.2fr 1fr', alignItems: 'start' }}>
+                  {/* Taxes and Charges Card */}
+                  <div className="so-card">
+                    <div className="so-card-header">
+                      <p className="so-card-title">Taxes & Charges</p>
+                      <button onClick={addTaxRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
+                        <Plus size={14} /> Add Row
+                      </button>
                     </div>
-                    <div className="pr-form-group">
-                      <label>Additional Discount Percentage</label>
-                      <input
-                        type="number"
-                        value={formData.additional_discount_percentage}
-                        onChange={e => updateDiscount('additional_discount_percentage', e.target.value)}
-                        className="pr-input"
-                        step="0.01"
-                        min="0"
-                      />
+                    <div className="so-card-body">
+                      <div className="so-field" style={{ marginBottom: '1.5rem' }}>
+                        <label className="so-label">Tax Template</label>
+                        <select
+                          value={formData.taxes_and_charges}
+                          onChange={e => handleTaxesTemplateChange(e.target.value)}
+                          className="so-select"
+                        >
+                          <option value="">Select Template</option>
+                          {taxesTemplates.map(t => (
+                            <option key={t.name} value={t.name}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
+                        <table className="so-items-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '40px' }}>Add</th>
+                              <th>Account / Type</th>
+                              <th style={{ width: '80px', textAlign: 'center' }}>Rate %</th>
+                              <th style={{ width: '100px', textAlign: 'right' }}>Total</th>
+                              <th style={{ width: '40px' }}></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {formData.taxes.map((tax, i) => (
+                              <tr key={i}>
+                                <td style={{ textAlign: 'center' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={tax.add_row}
+                                    onChange={e => updateTax(i, 'add_row', e.target.checked)}
+                                  />
+                                </td>
+                                <td>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{tax.account_head?.split(' - ')[0] || 'New Account'}</div>
+                                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{tax.charge_type}</div>
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    value={tax.rate}
+                                    onChange={e => updateTax(i, 'rate', e.target.value)}
+                                    className="so-input"
+                                    style={{ height: '30px', textAlign: 'center', fontSize: '0.75rem' }}
+                                  />
+                                </td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.75rem' }}>
+                                  {(parseFloat(tax.total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <button onClick={() => removeTaxRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}><X size={12} /></button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                    <div className="pr-form-group">
-                      <label>Discount Amount</label>
-                      <input
-                        type="number"
-                        value={formData.discount_amount}
-                        onChange={e => updateDiscount('discount_amount', e.target.value)}
-                        className="pr-input"
-                        step="0.01"
-                        min="0"
-                      />
+                  </div>
+                  {/* Summary Section */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div className="so-card">
+                      <div className="so-card-header">
+                        <p className="so-card-title">Discounts & Rounding</p>
+                      </div>
+                      <div className="so-card-body">
+                        <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                          <div className="so-field column-span-2">
+                             <label className="so-label">Apply Discount On</label>
+                            <select
+                              value={formData.apply_discount_on}
+                              onChange={e => updateDiscount('apply_discount_on', e.target.value)}
+                              className="so-select"
+                            >
+                              <option value="Net Total">Net Total</option>
+                              <option value="Grand Total">Grand Total</option>
+                            </select>
+                          </div>
+                          <div className="so-field">
+                            <label className="so-label">Discount %</label>
+                            <input
+                              type="number"
+                              value={formData.additional_discount_percentage}
+                              onChange={e => updateDiscount('additional_discount_percentage', e.target.value)}
+                              className="so-input"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="so-field">
+                            <label className="so-label">Discount Amount</label>
+                            <input
+                              type="number"
+                              value={formData.discount_amount}
+                              onChange={e => updateDiscount('discount_amount', e.target.value)}
+                              className="so-input"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="so-field column-span-2">
+                            <label className="so-label">Rounded Total</label>
+                            <input
+                              type="number"
+                              value={formData.rounded_total}
+                              onChange={e => updateDiscount('rounded_total', e.target.value)}
+                              className="so-input"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="pr-form-group">
-                      <label>Rounded Total</label>
-                      <input
-                        type="number"
-                        value={formData.rounded_total}
-                        onChange={e => updateDiscount('rounded_total', e.target.value)}
-                        className="pr-input"
-                        step="0.01"
-                      />
+
+                    <div style={{ 
+                      background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColorHover} 100%)`, 
+                      color: 'white', 
+                      borderRadius: '0.75rem', 
+                      padding: '1.75rem',
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
+                          <span>Net Total</span>
+                          <span style={{ fontWeight: 700 }}>AED {(parseFloat(formData.net_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
+                          <span>Total Tax</span>
+                          <span style={{ fontWeight: 700 }}>AED {(parseFloat(formData.total_taxes_and_charges) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
+                          <span>Less Discount</span>
+                          <span style={{ fontWeight: 700 }}>AED {(parseFloat(formData.discounted_amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '0.5rem 0' }}></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '1rem', fontWeight: 600 }}>Grand Total</span>
+                          <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>AED {(parseFloat(formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Rounded Total</span>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>AED {(parseFloat(formData.rounded_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <p style={{ fontSize: '0.65rem', opacity: 0.7, fontStyle: 'italic', marginTop: '0.5rem', textAlign: 'center' }}>
+                          * Rounding Adjustment: AED {((parseFloat(formData.rounded_total) || 0) - (parseFloat(formData.grand_total) || 0)).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="pr-form-section">
-                  <div className="pr-totals-section">
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Net Total:</span>
-                      <span className="pr-total-amount">AED {parseFloat(formData.net_total) || '0.00'}</span>
-                    </div>
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Less Discount:</span>
-                      <span className="pr-total-amount">AED {formData.discounted_amount}</span>
-                    </div>
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Grand Total (AED):</span>
-                      <span className="pr-total-amount">AED {formData.grand_total}</span>
-                    </div>
-                    <div className="pr-total-row">
-                      <span className="pr-total-label">Rounding Adjustment (AED):</span>
-                      <span className="pr-total-amount">AED {((parseFloat(formData.rounded_total) || 0) - (parseFloat(formData.grand_total) || 0)).toFixed(2)}</span>
-                    </div>
-                    <small className="pr-note">Note: Totals are approximate; exact values calculated on save.</small>
-                  </div>
-                </div>
-              </div>
-                            <div className="pr-modal-footer">
-                <button onClick={() => setIsModalOpen(false)} className="pr-btn-secondary">
+              </div> 
+              <div className="so-modal-footer">
+                <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary">
                   Cancel
                 </button>
-                <button onClick={handleSaveDraft} disabled={saving} className="pr-btn-secondary">
-                  {saving ? 'Saving...' : (docName ? 'Update Draft' : 'Save Draft')}
-                </button>
-                <button onClick={handleSubmit} disabled={saving} className="pr-btn-primary">
-                  {saving ? (
-                    <>
-                      <div className="pr-btn-spinner"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    docName ? 'Submit' : 'Save & Submit'
-                  )}
-                </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button onClick={handleSaveDraft} disabled={saving} className="so-btn-secondary" style={{ background: 'white' }}>
+                    {saving ? 'Saving...' : (docName ? 'Update Draft' : 'Save Draft')}
+                  </button>
+                  <button onClick={handleSubmit} disabled={saving} className="so-btn-primary">
+                    {saving ? (
+                      <><Loader2 className="so-spinner" size={16} /> Processing...</>
+                    ) : (
+                      docName ? 'Submit' : 'Save & Submit'
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

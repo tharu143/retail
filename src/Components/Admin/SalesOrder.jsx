@@ -1,1118 +1,1000 @@
-// src/pages/SalesOrder.jsx
+// src/Components/Admin/SalesOrder.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, Search, X, Trash2, Package, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Plus, Trash2, Package, Loader2,
+  ChevronLeft, ChevronRight, X, Search, ScanLine, Palette
+} from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
+import './SalesOrder.css';
 
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const RESOURCE_BASE = '/api/resource';
 
-
+/* ------------------------------------------------------------------ */
+/* Recalculation                                                        */
+/* ------------------------------------------------------------------ */
 function recalcForm(form) {
-    const items = form.items || [];
-    const taxes = form.taxes || [];
+  const items = form.items || [];
+  const taxes = form.taxes || [];
 
-    const total_qty = items.reduce(
-        (sum, i) => sum + (parseFloat(i.qty) || 0),
-        0
-    );
-    const base_total = items.reduce(
-        (sum, i) => sum + (parseFloat(i.amount) || 0),
-        0
-    );
+  const total_qty = items.reduce((s, i) => s + (parseFloat(i.qty) || 0), 0);
+  const base_total = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
 
-    let total_taxes = 0;
-    let previous_total = base_total;
+  let total_taxes = 0;
+  let prev_total = base_total;
 
-    const updatedTaxes = taxes.map(tax => {
-        let taxAmount = 0;
-        const rate = parseFloat(tax.rate) || 0;
-
-        if (tax.charge_type === 'Actual') {
-            taxAmount = parseFloat(tax.tax_amount) || 0;
-        } else if (tax.charge_type === 'On Previous Row Amount') {
-            taxAmount = previous_total * (rate / 100);
-        } else {
-
-            taxAmount = base_total * (rate / 100);
-        }
-
-        const signedAmount = tax.add_deduct_tax === 'Add'
-            ? taxAmount
-            : -taxAmount;
-
-        total_taxes += signedAmount;
-        previous_total += signedAmount;
-
-        return {
-            ...tax,
-            tax_amount: tax.charge_type === 'Actual'
-                ? parseFloat(tax.tax_amount || 0)
-                : parseFloat(taxAmount.toFixed(3)),
-            total: signedAmount.toFixed(3),
-        };
-    });
-
-    const net_total_with_tax = base_total + total_taxes;
-
-    const discount_perc = parseFloat(form.additional_discount_percentage) || 0;
-    const discount_amt = parseFloat(form.discount_amount) || 0;
-    const discount = form.apply_discount_on === 'Grand Total'
-        ? (net_total_with_tax * discount_perc / 100) + discount_amt
-        : (base_total * discount_perc / 100) + discount_amt;
-
-    const grand_total = net_total_with_tax - discount;
-    const rounded_total = Math.round(grand_total * 100) / 100;
-    const rounding_adjustment = rounded_total - grand_total;
-
+  const updatedTaxes = taxes.map(tax => {
+    const rate = parseFloat(tax.rate) || 0;
+    let taxAmount = 0;
+    if (tax.charge_type === 'Actual') {
+      taxAmount = parseFloat(tax.tax_amount) || 0;
+    } else if (tax.charge_type === 'On Previous Row Amount') {
+      taxAmount = prev_total * (rate / 100);
+    } else {
+      taxAmount = base_total * (rate / 100);
+    }
+    const signed = tax.add_deduct_tax === 'Add' ? taxAmount : -taxAmount;
+    total_taxes += signed;
+    prev_total += signed;
     return {
-        ...form,
-        total_qty,
-        base_total,
-        total: base_total,
-        total_taxes_and_charges: parseFloat(total_taxes.toFixed(2)),
-        grand_total: parseFloat(grand_total.toFixed(2)),
-        rounded_total: parseFloat(rounded_total.toFixed(2)),
-        rounding_adjustment: parseFloat(rounding_adjustment.toFixed(2)),
-        taxes: updatedTaxes,
+      ...tax,
+      tax_amount: tax.charge_type === 'Actual' ? parseFloat(tax.tax_amount || 0) : parseFloat(taxAmount.toFixed(3)),
+      total: signed.toFixed(3),
     };
+  });
+
+  const net = base_total + total_taxes;
+  const disc_perc = parseFloat(form.additional_discount_percentage) || 0;
+  const disc_amt = parseFloat(form.discount_amount) || 0;
+  const discount = form.apply_discount_on === 'Grand Total'
+    ? (net * disc_perc / 100) + disc_amt
+    : (base_total * disc_perc / 100) + disc_amt;
+
+  const grand_total = net - discount;
+  const rounded_total = Math.round(grand_total * 100) / 100;
+
+  return {
+    ...form,
+    total_qty,
+    base_total,
+    total: base_total,
+    total_taxes_and_charges: parseFloat(total_taxes.toFixed(2)),
+    grand_total: parseFloat(grand_total.toFixed(2)),
+    rounded_total: parseFloat(rounded_total.toFixed(2)),
+    rounding_adjustment: parseFloat((rounded_total - grand_total).toFixed(2)),
+    taxes: updatedTaxes,
+  };
 }
 
+const emptyForm = () => ({
+  naming_series: 'SAL-ORD-.YYYY.-',
+  transaction_date: new Date().toISOString().split('T')[0],
+  delivery_date: '',
+  customer: '',
+  customer_name: '',
+  order_type: 'Sales',
+  currency: 'AED',
+  selling_price_list: 'Standard Selling',
+  price_list_currency: 'AED',
+  items: [],
+  taxes_and_charges: '',
+  taxes: [],
+  apply_discount_on: 'Grand Total',
+  additional_discount_percentage: 0,
+  discount_amount: 0,
+  total_qty: 0,
+  base_total: 0,
+  total: 0,
+  total_taxes_and_charges: 0,
+  grand_total: 0,
+  rounding_adjustment: 0,
+  rounded_total: 0,
+});
 
-function SalesOrder() {
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [filteredOrders, setFilteredOrders] = useState([]);
+/* ------------------------------------------------------------------ */
+export default function SalesOrder() {
+  const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingDocName, setEditingDocName] = useState(null);
 
-    // Add these states with your others
-    const [searchTerm, setSearchTerm] = useState('');
-    const [titleFilter, setTitleFilter] = useState('');
-    const [customerFilter, setCustomerFilter] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [minAmount, setMinAmount] = useState('');
-    const [maxAmount, setMaxAmount] = useState('');
+  // Theme toggle (matching POS Green/Blue)
+  const [soTheme, setSoTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = soTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
 
-    const [barcodeInput, setBarcodeInput] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [editingDocName, setEditingDocName] = useState(null);
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', soTheme);
+    // Update CSS variable dynamically
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [soTheme, themeColor, themeColorHover, themeLight]);
 
-    const handleBarcodeScan = async (e) => {
-        if (e.key === 'Enter' && barcodeInput.trim()) {
-            e.preventDefault();
-            const barcode = barcodeInput.trim();
+  /* Filters */
+  const [searchTerm, setSearchTerm] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
 
-            try {
-                // Step 1: Check if barcode exists
-                const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
-                    params: { barcode },
-                    withCredentials: true
-                });
+  /* Form state */
+  const [form, setForm] = useState(emptyForm());
+  const [customers, setCustomers] = useState([]);
+  const [taxTemplates, setTaxTemplates] = useState([]);
+  const [itemsList, setItemsList] = useState([]);
+  const [searchCustomer, setSearchCustomer] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [itemSearches, setItemSearches] = useState({});
+  const [showItemDropdowns, setShowItemDropdowns] = useState({});
+  const [barcodeInput, setBarcodeInput] = useState('');
 
-                if (checkRes.data.message.exists) {
-                    const itemCode = checkRes.data.message.item;
+  const barcodeRef = useRef(null);
 
-                    // Step 2: Fetch item details using existing SO item search endpoint
-                    const itemRes = await axios.get(`${API_PATH}.get_items_so`, {
-                        params: { query: itemCode },
-                        withCredentials: true
-                    });
+  /* ---- Filter Effect ---- */
+  useEffect(() => {
+    let f = orders;
+    if (searchTerm) {
+      const t = searchTerm.toLowerCase();
+      f = f.filter(o =>
+        o.name?.toLowerCase().includes(t) ||
+        o.customer_name?.toLowerCase().includes(t)
+      );
+    }
+    if (customerFilter) f = f.filter(o => o.customer_name?.toLowerCase().includes(customerFilter.toLowerCase()));
+    if (statusFilter !== 'all') f = f.filter(o =>
+      (statusFilter === 'Submitted' && o.docstatus === 1) ||
+      (statusFilter === 'Draft' && o.docstatus === 0)
+    );
+    if (minAmount) f = f.filter(o => Number(o.grand_total || 0) >= Number(minAmount));
+    if (maxAmount) f = f.filter(o => Number(o.grand_total || 0) <= Number(maxAmount));
+    setFilteredOrders(f);
+  }, [searchTerm, customerFilter, statusFilter, minAmount, maxAmount, orders]);
 
-                    const itemsList = itemRes.data.message || [];
-                    if (itemsList.length > 0) {
-                        const item = itemsList[0];
+  /* ---- Fetch ---- */
+  useEffect(() => {
+    fetchOrders();
+    fetchCustomers();
+    fetchTaxTemplates();
+  }, []);
 
-                        // Step 3: Fetch selling rate (reuse existing logic)
-                        let rate = 0;
-                        try {
-                            const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
-                                params: {
-                                    item_code: item.item_code,
-                                    price_list: form.selling_price_list
-                                },
-                                withCredentials: true
-                            });
-                            // Handle nested message structure same as selectItem
-                            rate = rateRes.data?.message?.message?.rate ||
-                                rateRes.data?.message?.rate ||
-                                rateRes.data?.rate || 0;
-                        } catch (err) {
-                            console.error("Rate fetch failed in barcode:", err);
-                        }
+  const fetchOrders = async () => {
+    try {
+      const res = await axios.get('/api/resource/Sales Order', {
+        params: {
+          fields: JSON.stringify(['name', 'customer', 'customer_name', 'transaction_date', 'grand_total', 'docstatus'])
+        },
+        withCredentials: true
+      });
+      setOrders(res.data.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                        // Step 4: Add to items table
-                        setForm(prev => ({
-                            ...prev,
-                            items: [...prev.items, {
-                                item_code: item.item_code,
-                                item_name: item.item_name,
-                                qty: 1,
-                                uom: item.stock_uom || 'Nos',
-                                rate: rate,
-                                amount: rate * 1,
-                                delivery_date: prev.delivery_date || prev.transaction_date
-                            }]
-                        }));
+  const fetchCustomers = async () => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_customers_list_so`, { withCredentials: true });
+      setCustomers(res.data.message || []);
+    } catch (err) { console.error(err); }
+  };
 
-                        recalculate(); // recalc totals
-                        setBarcodeInput(''); // clear input
+  const fetchTaxTemplates = async () => {
+    try {
+      const res = await axios.get(`${API_PATH}.get_sales_taxes_templates_so`, { withCredentials: true });
+      setTaxTemplates(res.data.message || []);
+    } catch (err) { console.error(err); }
+  };
 
-                        // Refocus barcode input for next scan
-                        setTimeout(() => {
-                            const el = document.getElementById('barcode-scan-input-so');
-                            if (el) el.focus();
-                        }, 100);
-                    } else {
-                        alert("Item details not found for this barcode");
-                    }
-                } else {
-                    alert("Invalid barcode - No item found");
-                }
-            } catch (err) {
-                console.error("Barcode scan error:", err);
-                alert("Error scanning barcode: " + (err.response?.data?.message || err.message));
-            }
-        }
-    };
+  /* ---- Recalc ---- */
+  const recalculate = useCallback(() => {
+    setForm(prev => recalcForm(prev));
+  }, []);
 
-    useEffect(() => {
-        let filtered = orders;
+  /* ---- Item Ops ---- */
+  const searchItems = async (query, idx) => {
+    if (!query.trim()) {
+      setItemsList([]);
+      setShowItemDropdowns(p => ({ ...p, [idx]: false }));
+      return;
+    }
+    try {
+      const res = await axios.get(`${API_PATH}.get_items_so`, { params: { query }, withCredentials: true });
+      setItemsList(res.data.message || []);
+      setShowItemDropdowns(p => ({ ...p, [idx]: true }));
+    } catch { setItemsList([]); }
+  };
 
-        if (searchTerm) {
-            const term = searchTerm.toLowerCase();
-            filtered = filtered.filter(o =>
-                o.name?.toLowerCase().includes(term) ||
-                o.customer_name?.toLowerCase().includes(term) ||
-                o.title?.toLowerCase().includes(term)
-            );
-        }
-        if (titleFilter) filtered = filtered.filter(o => (o.title || '').toLowerCase().includes(titleFilter.toLowerCase()));
-        if (customerFilter) filtered = filtered.filter(o => o.customer_name?.toLowerCase().includes(customerFilter.toLowerCase()));
-        if (statusFilter !== 'all') filtered = filtered.filter(o =>
-            (o.docstatus === 1 && statusFilter === 'Submitted') ||
-            (o.docstatus === 0 && statusFilter === 'Draft')
-        );
+  const selectItem = async (idx, item) => {
+    try {
+      const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
+        params: { item_code: item.item_code, price_list: form.selling_price_list },
+        withCredentials: true
+      });
+      const rate =
+        rateRes.data?.message?.message?.rate ||
+        rateRes.data?.message?.rate ||
+        rateRes.data?.rate || 0;
 
-        if (minAmount || maxAmount) {
-            filtered = filtered.filter(o => {
-                const amt = Number(o.grand_total || 0);
-                if (minAmount && amt < Number(minAmount)) return false;
-                if (maxAmount && amt > Number(maxAmount)) return false;
-                return true;
-            });
-        }
+      setForm(prev => {
+        const items = [...prev.items];
+        items[idx] = {
+          item_code: item.item_code,
+          item_name: item.item_name,
+          uom: item.stock_uom || 'Nos',
+          qty: 1,
+          rate,
+          amount: rate,
+          delivery_date: prev.delivery_date || prev.transaction_date
+        };
+        return recalcForm({ ...prev, items });
+      });
+    } catch {
+      setForm(prev => {
+        const items = [...prev.items];
+        items[idx] = { ...items[idx], rate: 0, amount: 0 };
+        return recalcForm({ ...prev, items });
+      });
+    }
+    setItemSearches(p => ({ ...p, [idx]: '' }));
+    setShowItemDropdowns(p => ({ ...p, [idx]: false }));
+  };
 
-        setFilteredOrders(filtered);
-    }, [searchTerm, titleFilter, customerFilter, statusFilter, minAmount, maxAmount, orders]);
-
-    const [form, setForm] = useState({
-        naming_series: 'SAL-ORD-.YYYY.-',
-        transaction_date: new Date().toISOString().split('T')[0],
-        delivery_date: '',
-        customer: '',
-        customer_name: '',
-        order_type: 'Sales',
-        currency: 'AED',
-        selling_price_list: 'Standard Selling',
-        price_list_currency: 'AED',
-        items: [{
-            item_code: '',
-            item_name: '',
-            qty: 1,
-            rate: 0,
-            amount: 0,
-            uom: 'Nos',
-            delivery_date: ''
-        }],
-        taxes_and_charges: '',
-        taxes: [],
-        apply_discount_on: 'Grand Total',
-        additional_discount_percentage: 0,
-        discount_amount: 0,
-        total_qty: 0,
-        base_total: 0,
-        total: 0,
-        total_taxes_and_charges: 0,
-        grand_total: 0,
-        rounding_adjustment: 0,
-        rounded_total: 0
+  const updateItem = (idx, field, value) => {
+    setForm(prev => {
+      const items = [...prev.items];
+      items[idx] = { ...items[idx], [field]: value };
+      if (field === 'qty' || field === 'rate') {
+        items[idx].amount = (parseFloat(items[idx].qty) || 0) * (parseFloat(items[idx].rate) || 0);
+      }
+      return recalcForm({ ...prev, items });
     });
+  };
 
-    const [customers, setCustomers] = useState([]);
-    const [itemsList, setItemsList] = useState([]);
-    const [taxTemplates, setTaxTemplates] = useState([]);
-    const [searchCustomer, setSearchCustomer] = useState('');
-    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-    const [itemSearches, setItemSearches] = useState({});
-    const [showItemDropdowns, setShowItemDropdowns] = useState({});
+  const addItemRow = () => {
+    setForm(prev => ({
+      ...prev,
+      items: [...prev.items, { item_code: '', item_name: '', qty: 1, rate: 0, amount: 0, uom: 'Nos', delivery_date: prev.delivery_date }]
+    }));
+  };
 
-    useEffect(() => {
-        fetchOrders();
-        fetchCustomers();
-        fetchTaxTemplates();
-    }, []);
+  const removeItemRow = idx => {
+    setForm(prev => recalcForm({ ...prev, items: prev.items.filter((_, i) => i !== idx) }));
+  };
 
-    const fetchOrders = async () => {
-        try {
-            const res = await axios.get('/api/resource/Sales Order', {
-                params: {
-                    fields: JSON.stringify([
-                        "name",
-                        "customer",
-                        "customer_name",
-                        "transaction_date",
-                        "grand_total",
-                        "docstatus"
-                    ])
-                },
-                withCredentials: true
-            });
-
-            setOrders(res.data.data || []);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchCustomers = async () => {
-        try {
-            const res = await axios.get(`${API_PATH}.get_customers_list_so`, { withCredentials: true });
-            setCustomers(res.data.message || []);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const fetchTaxTemplates = async () => {
-        try {
-            const res = await axios.get(`${API_PATH}.get_sales_taxes_templates_so`, { withCredentials: true });
-            setTaxTemplates(res.data.message || []);
-        } catch (err) {
-            console.error("Tax template fetch error:", err);
-        }
-    };
-
-    const recalculate = useCallback(() => {
-        setForm(prev => recalcForm(prev));
-    }, []);
-
-
-    const loadTaxTemplate = async (templateName) => {
-        if (!templateName) {
-            setForm(prev => recalcForm({
-                ...prev,
-                taxes_and_charges: '',
-                taxes: []
-            }));
-            return;
-        }
-
-        try {
-            const res = await axios.get(`${API_PATH}.get_sales_taxes_templates_so`, {
-                params: { template: templateName },
-                withCredentials: true
-            });
-
-            const newTaxes = (res.data.message || []).map(t => ({
-                ...t,
-                add_deduct_tax: t.add_deduct_tax || "Add",
-                total: "0.000",
-            }));
-
-            setForm(prev => recalcForm({
-                ...prev,
-                taxes_and_charges: templateName,
-                taxes: newTaxes
-            }));
-        } catch (err) {
-            console.error("Failed to load tax template:", err);
-            alert("Could not load tax template: " + (err.response?.data?.message || err.message));
-        }
-    };
-
-
-    const updateItem = (idx, field, value) => {
-        setForm(prev => {
-            const items = [...prev.items];
-            items[idx] = { ...items[idx], [field]: value };
-            if (field === 'qty' || field === 'rate') {
-                items[idx].amount = (parseFloat(items[idx].qty) || 0) * (parseFloat(items[idx].rate) || 0);
-            }
-            return { ...prev, items };
-        });
-        recalculate();
-    };
-
-    const selectItem = async (idx, item) => {
-        try {
+  /* ---- Barcode ---- */
+  const handleBarcodeScan = async e => {
+    if (e.key !== 'Enter' || !barcodeInput.trim()) return;
+    e.preventDefault();
+    const barcode = barcodeInput.trim();
+    try {
+      const checkRes = await axios.get(
+        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists',
+        { params: { barcode }, withCredentials: true }
+      );
+      if (checkRes.data.message.exists) {
+        const itemCode = checkRes.data.message.item;
+        const itemRes = await axios.get(`${API_PATH}.get_items_so`, { params: { query: itemCode }, withCredentials: true });
+        const itemsList2 = itemRes.data.message || [];
+        if (itemsList2.length > 0) {
+          const item = itemsList2[0];
+          let rate = 0;
+          try {
             const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
-                params: {
-                    item_code: item.item_code,
-                    price_list: form.selling_price_list
-                },
-                withCredentials: true
+              params: { item_code: item.item_code, price_list: form.selling_price_list },
+              withCredentials: true
             });
+            rate = rateRes.data?.message?.message?.rate || rateRes.data?.message?.rate || 0;
+          } catch { }
 
-            // Frappe adds double "message" wrapper → so we need message.message.rate
-            const fetchedRate =
-                rateRes.data?.message?.message?.rate ||
-                rateRes.data?.message?.rate ||
-                rateRes.data?.rate ||
-                0;
-
-            console.log("Rate Response:", rateRes.data); // ← ഇത് console-ൽ നോക്കൂ, എന്താണ് വരുന്നതെന്ന്
-            console.log("Final Rate:", fetchedRate);
-
-            setForm(prev => {
-                const items = [...prev.items];
-                items[idx] = {
-                    item_code: item.item_code,
-                    item_name: item.item_name,
-                    uom: item.stock_uom || 'Nos',
-                    qty: 1,
-                    rate: fetchedRate,
-                    amount: fetchedRate * 1,
-                    delivery_date: prev.delivery_date || prev.transaction_date
-                };
-                return { ...prev, items };
-            });
-
-            recalculate();
-        } catch (err) {
-            console.error("Rate fetch failed:", err.response?.data || err);
-            setForm(prev => {
-                const items = [...prev.items];
-                items[idx].rate = 0;
-                items[idx].amount = 0;
-                return { ...prev, items };
-            });
-            recalculate();
-        }
-
-        setItemSearches(prev => ({ ...prev, [idx]: '' }));
-        setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
-    };
-
-    const searchItems = async (query, idx) => {
-        if (!query.trim()) {
-            setItemsList([]);
-            setShowItemDropdowns(prev => ({ ...prev, [idx]: false }));
-            return;
-        }
-        try {
-            const res = await axios.get(`${API_PATH}.get_items_so`, {
-                params: { query },
-                withCredentials: true
-            });
-            setItemsList(res.data.message || []);
-            setShowItemDropdowns(prev => ({ ...prev, [idx]: true }));
-        } catch (err) {
-            console.error("Item search failed:", err);
-            setItemsList([]);
-        }
-    };
-
-    const addItemRow = () => {
-        setForm(prev => ({
+          setForm(prev => recalcForm({
             ...prev,
             items: [...prev.items, {
-                item_code: '', item_name: '', qty: 1, rate: 0, amount: 0, uom: 'Nos', delivery_date: prev.delivery_date
+              item_code: item.item_code,
+              item_name: item.item_name,
+              qty: 1,
+              uom: item.stock_uom || 'Nos',
+              rate,
+              amount: rate,
+              delivery_date: prev.delivery_date || prev.transaction_date
             }]
-        }));
-        recalculate();
-    };
-
-    const removeItemRow = (idx) => {
-        setForm(prev => ({
-            ...prev,
-            items: prev.items.filter((_, i) => i !== idx)
-        }));
-        recalculate();
-    };
-
-    const addTaxRow = () => {
-        setForm(prev => ({
-            ...prev,
-            taxes: [...prev.taxes, {
-                add_deduct_tax: "Add",
-                charge_type: "On Net Total",
-                account_head: "",
-                rate: 0,
-                tax_amount: 0,
-                total: "0.000"
-            }]
-        }));
-        recalculate();
-    };
-
-    const updateTax = (idx, field, value) => {
-        setForm(prev => {
-            const taxes = [...prev.taxes];
-            taxes[idx] = { ...taxes[idx], [field]: value };
-            return { ...prev, taxes };
-        });
-        recalculate();
-    };
-
-    const removeTaxRow = (idx) => {
-        setForm(prev => ({
-            ...prev,
-            taxes: prev.taxes.filter((_, i) => i !== idx)
-        }));
-        recalculate();
-    };
-
-    const handleSave = async (submit = false) => {
-        if (!form.customer) return alert("Customer is required");
-        if (form.items.length === 0) return alert("Add at least one item");
-        if (form.items.some(i => !i.item_code)) return alert("All items must be selected");
-
-        const savingState = submit ? setIsSubmitting : setSaving;
-        savingState(true);
-
-        const payload = {
-            doctype: "Sales Order",
-            naming_series: form.naming_series,
-            transaction_date: form.transaction_date,
-            delivery_date: form.delivery_date || form.transaction_date,
-            customer: form.customer,
-            order_type: form.order_type,
-            currency: form.currency,
-            selling_price_list: form.selling_price_list,
-            items: form.items.map(i => ({
-                item_code: i.item_code,
-                qty: i.qty,
-                rate: i.rate,
-                amount: i.amount
-            })),
-            taxes_and_charges: form.taxes_and_charges || undefined,
-            taxes: form.taxes.map(t => ({
-                charge_type: t.charge_type || "On Net Total",
-                account_head: t.account_head,
-                rate: parseFloat(t.rate || 0),
-                tax_amount: t.charge_type === "Actual" ? parseFloat(t.tax_amount || 0) : 0,
-                add_deduct_tax: t.add_deduct_tax || "Add",
-                description: t.description || t.account_head
-            })),
-            additional_discount_percentage: form.additional_discount_percentage || 0,
-            discount_amount: form.discount_amount || 0,
-            apply_discount_on: form.apply_discount_on,
-            rounded_total: form.rounded_total,
-            rounding_adjustment: form.rounding_adjustment
-        };
-
-        if (submit) {
-            payload.docstatus = 1;
+          }));
+          setBarcodeInput('');
+          setTimeout(() => barcodeRef.current?.focus(), 100);
+        } else {
+          alert('Item not found for this barcode');
         }
+      } else {
+        alert('Invalid barcode');
+      }
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
-        try {
-            let response;
-            if (editingDocName) {
-                // Edit existing draft
-                response = await axios.put(`${RESOURCE_BASE}/Sales Order/${editingDocName}`, payload, { withCredentials: true });
-                alert(submit ? "Sales Order Submitted Successfully!" : "Draft Updated Successfully!");
-            } else {
-                // New document
-                response = await axios.post(`${RESOURCE_BASE}/Sales Order`, payload, { withCredentials: true });
-                alert(submit ? "Sales Order Submitted Successfully!" : "Sales Order Saved as Draft!");
-                if (!submit) {
-                    setEditingDocName(response.data.data.name); // Set editing mode
-                }
-            }
+  /* ---- Tax Ops ---- */
+  const loadTaxTemplate = async templateName => {
+    if (!templateName) {
+      setForm(prev => recalcForm({ ...prev, taxes_and_charges: '', taxes: [] }));
+      return;
+    }
+    try {
+      const res = await axios.get(`${API_PATH}.get_sales_taxes_templates_so`, {
+        params: { template: templateName }, withCredentials: true
+      });
+      const newTaxes = (res.data.message || []).map(t => ({ ...t, add_deduct_tax: t.add_deduct_tax || 'Add', total: '0.000' }));
+      setForm(prev => recalcForm({ ...prev, taxes_and_charges: templateName, taxes: newTaxes }));
+    } catch (err) {
+      alert('Could not load tax template: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
-            // Only close modal on Submit
-            if (submit) {
-                setShowModal(false);
-                setEditingDocName(null);
-            }
+  const updateTax = (idx, field, value) => {
+    setForm(prev => {
+      const taxes = [...prev.taxes];
+      taxes[idx] = { ...taxes[idx], [field]: value };
+      return recalcForm({ ...prev, taxes });
+    });
+  };
 
-            fetchOrders(); // Refresh list
-        } catch (err) {
-            console.error(err);
-            alert(err.response?.data?.message || "Failed to save Sales Order");
-        } finally {
-            setSaving(false);
-            setIsSubmitting(false);
-        }
+  const removeTaxRow = idx => {
+    setForm(prev => recalcForm({ ...prev, taxes: prev.taxes.filter((_, i) => i !== idx) }));
+  };
+
+  const addTaxRow = () => {
+    setForm(prev => ({
+      ...prev,
+      taxes: [...prev.taxes, { add_deduct_tax: 'Add', charge_type: 'On Net Total', account_head: '', rate: 0, tax_amount: 0, total: '0.000' }]
+    }));
+  };
+
+  /* ---- Save / Submit ---- */
+  const handleSave = async (submit = false) => {
+    if (!form.customer) return alert('Customer is required');
+    if (!form.items.length) return alert('Add at least one item');
+    if (form.items.some(i => !i.item_code)) return alert('All items must be selected');
+
+    const setS = submit ? setIsSubmitting : setSaving;
+    setS(true);
+
+    const payload = {
+      doctype: 'Sales Order',
+      naming_series: form.naming_series,
+      transaction_date: form.transaction_date,
+      delivery_date: form.delivery_date || form.transaction_date,
+      customer: form.customer,
+      order_type: form.order_type,
+      currency: form.currency,
+      selling_price_list: form.selling_price_list,
+      items: form.items.map(i => ({ item_code: i.item_code, qty: i.qty, rate: i.rate, amount: i.amount })),
+      taxes_and_charges: form.taxes_and_charges || undefined,
+      taxes: form.taxes.map(t => ({
+        charge_type: t.charge_type || 'On Net Total',
+        account_head: t.account_head,
+        rate: parseFloat(t.rate || 0),
+        tax_amount: t.charge_type === 'Actual' ? parseFloat(t.tax_amount || 0) : 0,
+        add_deduct_tax: t.add_deduct_tax || 'Add',
+        description: t.description || t.account_head
+      })),
+      additional_discount_percentage: form.additional_discount_percentage || 0,
+      discount_amount: form.discount_amount || 0,
+      apply_discount_on: form.apply_discount_on,
+      rounded_total: form.rounded_total,
+      rounding_adjustment: form.rounding_adjustment,
+      ...(submit ? { docstatus: 1 } : {})
     };
 
-    const loadSalesOrder = async (docName) => {
-        try {
-            setLoading(true);
-            const res = await axios.get(`${RESOURCE_BASE}/Sales Order/${docName}`, { withCredentials: true });
-            const data = res.data.data;
+    try {
+      if (editingDocName) {
+        await axios.put(`${RESOURCE_BASE}/Sales Order/${editingDocName}`, payload, { withCredentials: true });
+        alert(submit ? 'Sales Order Submitted!' : 'Draft Updated!');
+      } else {
+        const res = await axios.post(`${RESOURCE_BASE}/Sales Order`, payload, { withCredentials: true });
+        alert(submit ? 'Sales Order Submitted!' : 'Saved as Draft!');
+        if (!submit) setEditingDocName(res.data.data.name);
+      }
+      if (submit) { setShowModal(false); setEditingDocName(null); }
+      fetchOrders();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+      setIsSubmitting(false);
+    }
+  };
 
-            // Only allow editing if Draft
-            if (data.docstatus !== 0) {
-                alert("Submitted/Completed orders cannot be edited");
-                return;
-            }
+  /* ---- Load Existing ---- */
+  const loadSalesOrder = async docName => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${RESOURCE_BASE}/Sales Order/${docName}`, { withCredentials: true });
+      const d = res.data.data;
+      if (d.docstatus !== 0) return alert('Submitted orders cannot be edited');
 
-            setForm({
-                naming_series: data.naming_series || 'SAL-ORD-.YYYY.-',
-                transaction_date: data.transaction_date,
-                delivery_date: data.delivery_date || '',
-                customer: data.customer || '',
-                customer_name: data.customer_name || '',
-                order_type: data.order_type || 'Sales',
-                currency: data.currency || 'AED',
-                selling_price_list: data.selling_price_list || 'Standard Selling',
-                price_list_currency: data.price_list_currency || 'AED',
-                items: (data.items || []).map(i => ({
-                    item_code: i.item_code || '',
-                    item_name: i.item_name || '',
-                    qty: i.qty || 1,
-                    rate: i.rate || 0,
-                    amount: i.amount || 0,
-                    uom: i.uom || 'Nos',
-                    delivery_date: data.delivery_date || data.transaction_date
-                })),
-                taxes_and_charges: data.taxes_and_charges || '',
-                taxes: (data.taxes || []).map(t => ({
-                    ...t,
-                    add_deduct_tax: t.add_deduct_tax || "Add",
-                    total: "0.000"
-                })),
-                apply_discount_on: data.apply_discount_on || 'Grand Total',
-                additional_discount_percentage: data.additional_discount_percentage || 0,
-                discount_amount: data.discount_amount || 0,
-                total_qty: data.total_qty || 0,
-                base_total: data.base_total || 0,
-                total: data.total || 0,
-                total_taxes_and_charges: data.total_taxes_and_charges || 0,
-                grand_total: data.grand_total || 0,
-                rounding_adjustment: data.rounding_adjustment || 0,
-                rounded_total: data.rounded_total || 0
-            });
+      setForm({
+        naming_series: d.naming_series || 'SAL-ORD-.YYYY.-',
+        transaction_date: d.transaction_date,
+        delivery_date: d.delivery_date || '',
+        customer: d.customer || '',
+        customer_name: d.customer_name || '',
+        order_type: d.order_type || 'Sales',
+        currency: d.currency || 'AED',
+        selling_price_list: d.selling_price_list || 'Standard Selling',
+        price_list_currency: d.price_list_currency || 'AED',
+        items: (d.items || []).map(i => ({
+          item_code: i.item_code || '',
+          item_name: i.item_name || '',
+          qty: i.qty || 1,
+          rate: i.rate || 0,
+          amount: i.amount || 0,
+          uom: i.uom || 'Nos',
+          delivery_date: d.delivery_date || d.transaction_date
+        })),
+        taxes_and_charges: d.taxes_and_charges || '',
+        taxes: (d.taxes || []).map(t => ({ ...t, add_deduct_tax: t.add_deduct_tax || 'Add', total: '0.000' })),
+        apply_discount_on: d.apply_discount_on || 'Grand Total',
+        additional_discount_percentage: d.additional_discount_percentage || 0,
+        discount_amount: d.discount_amount || 0,
+        total_qty: d.total_qty || 0,
+        base_total: d.base_total || 0,
+        total: d.total || 0,
+        total_taxes_and_charges: d.total_taxes_and_charges || 0,
+        grand_total: d.grand_total || 0,
+        rounding_adjustment: d.rounding_adjustment || 0,
+        rounded_total: d.rounded_total || 0,
+      });
+      setSearchCustomer(d.customer_name || '');
+      setEditingDocName(docName);
+      setShowModal(true);
+      setTimeout(() => barcodeRef.current?.focus(), 300);
+    } catch { alert('Failed to load Sales Order'); }
+    finally { setLoading(false); }
+  };
 
-            setSearchCustomer(data.customer_name || '');
-            setEditingDocName(docName);
-            setShowModal(true);
+  const openNew = () => {
+    setEditingDocName(null);
+    setForm(emptyForm());
+    setSearchCustomer('');
+    setItemSearches({});
+    setShowItemDropdowns({});
+    setBarcodeInput('');
+    setShowModal(true);
+    setTimeout(() => barcodeRef.current?.focus(), 300);
+  };
 
-            // Focus barcode after load
-            setTimeout(() => {
-                const el = document.getElementById('barcode-scan-input-so');
-                if (el) el.focus();
-            }, 300);
+  const closeModal = () => { setShowModal(false); setEditingDocName(null); };
 
-        } catch (err) {
-            console.error(err);
-            alert("Failed to load Sales Order");
-        } finally {
-            setLoading(false);
-        }
-    };
+  const clearFilters = () => {
+    setSearchTerm(''); setCustomerFilter(''); setStatusFilter('all');
+    setMinAmount(''); setMaxAmount('');
+  };
 
-    const openNew = () => {
-        setEditingDocName(null);
-        setForm({
-            naming_series: 'SAL-ORD-.YYYY.-',
-            transaction_date: new Date().toISOString().split('T')[0],
-            delivery_date: '',
-            customer: '', customer_name: '',
-            order_type: 'Sales',
-            currency: 'AED',
-            selling_price_list: 'Standard Selling',
-            price_list_currency: 'AED',
-            items: [],
-            taxes_and_charges: '',
-            taxes: [],
-            apply_discount_on: 'Grand Total',
-            additional_discount_percentage: 0,
-            discount_amount: 0,
-            total_qty: 0,
-            base_total: 0,
-            total: 0,
-            total_taxes_and_charges: 0,
-            grand_total: 0,
-            rounding_adjustment: 0,
-            rounded_total: 0
-        });
-        setSearchCustomer('');
-        setItemSearches({});
-        setShowItemDropdowns({});
-        setBarcodeInput('');
-        setShowModal(true);
+  /* ================================================================ */
+  return (
+    <>
+      <NavBar />
+      <div className="so-page">
 
-        setTimeout(() => {
-            const el = document.getElementById('barcode-scan-input-so');
-            if (el) el.focus();
-        }, 300);
-    };
+        {/* ---- Page Header ---- */}
+        <div className="so-page-header">
+          <div>
+            <h1 className="so-page-title">
+              <Package size={20} />
+              Sales Orders
+            </h1>
+            <p className="so-page-subtitle">Manage and track all sales</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setSoTheme(isGreen ? 'blue' : 'green')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.45rem 0.9rem',
+                background: '#f8fafc',
+                border: `1.5px solid ${themeColor}`,
+                borderRadius: '0.375rem',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: themeColor,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em'
+              }}
+              title="Toggle Theme"
+            >
+              <Palette size={13} />
+              {soTheme.toUpperCase()}
+            </button>
+            <button className="so-btn-primary" onClick={openNew}>
+              <Plus size={16} /> New Sales Order
+            </button>
+          </div>
+        </div>
 
-    return (
-        <>
-            <NavBar />
-            <div className="min-h-screen bg-gray-100">
+        <div className="so-layout">
 
-                {/* ERPNext Style Header */}
-                <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
-                    <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
-                        <Package className="w-7 h-7" /> Sales Order
-                    </h1>
-                    <button
-                        onClick={openNew}
-                        className="bg-black text-white px-5 py-2.5 rounded-md hover:bg-gray-800 font-medium flex items-center gap-2"
-                    >
-                        <Plus className="w-5 h-5" /> Add Sales Order
-                    </button>
-                </div>
+          {/* ---- Sidebar Filters ---- */}
+          <div className="so-sidebar">
+            <p className="so-sidebar-title">Filters</p>
 
-                <div className="flex">
-
-                    {/* Sidebar Filters - Exact Sales Invoice Style */}
-                    <div className="w-72 bg-white border-r min-h-screen p-6 space-y-6">
-                        <h3 className="font-semibold text-gray-800 mb-4">Filters</h3>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                            <input
-                                type="text"
-                                placeholder="Search orders..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full border rounded-lg px-3 py-2 text-sm"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                            <input
-                                type="text"
-                                placeholder="e.g., Cash, Credit"
-                                value={titleFilter}
-                                onChange={e => setTitleFilter(e.target.value)}
-                                className="w-full border rounded-lg px-3 py-2 text-sm"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
-                            <input
-                                type="text"
-                                placeholder="Customer name..."
-                                value={customerFilter}
-                                onChange={e => setCustomerFilter(e.target.value)}
-                                className="w-full border rounded-lg px-3 py-2 text-sm"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select
-                                value={statusFilter}
-                                onChange={e => setStatusFilter(e.target.value)}
-                                className="w-full border rounded-lg px-3 py-2 text-sm"
-                            >
-                                <option value="all">All Status</option>
-                                <option value="Draft">Draft</option>
-                                <option value="To Deliver and Bill">To Deliver and Bill</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Cancelled">Cancelled</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Amount Range</label>
-                            <div className="flex gap-2">
-                                <input type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" />
-                                <input type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} className="w-full border rounded px-3 py-2 text-sm mt-2" />
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => {
-                                setSearchTerm('');
-                                setTitleFilter('');
-                                setCustomerFilter('');
-                                setStatusFilter('all');
-                                setMinAmount('');
-                                setMaxAmount('');
-                            }}
-                            className="w-full py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium"
-                        >
-                            Clear Filters
-                        </button>
-                    </div>
-
-                    {/* Main List - Exact Sales Invoice Style */}
-                    <div className="flex-1 p-6">
-                        <div className="flex justify-between items-center mb-4 text-sm text-gray-600">
-                            <div className="flex items-center gap-4">
-                                <span>{filteredOrders.length} items</span>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 border-b">
-                                    <tr>
-
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Grand Total</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {loading ? (
-                                        <tr><td colSpan="6" className="text-center py-16"><Loader2 className="w-10 h-10 animate-spin mx-auto" /></td></tr>
-                                    ) : orders.length === 0 ? (
-                                        <tr><td colSpan="6" className="text-center py-16 text-gray-500">No sales orders found</td></tr>
-                                    ) : (
-                                        orders.map(order => (
-                                            <tr
-                                                key={order.name}
-                                                className="hover:bg-gray-50 cursor-pointer"
-                                                onClick={() => loadSalesOrder(order.name)}  // ← Click to open & edit
-                                            >
-
-                                                <td className="px-6 py-4 text-sm font-medium">{order.title || 'Sales Order'}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.docstatus === 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                                        }`}>
-                                                        {order.docstatus === 1 ? 'Submitted' : 'Draft'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm">{order.customer_name}</td>
-                                                <td className="px-6 py-4 text-sm text-left font-medium">
-                                                    AED {Number(order.grand_total || 0).toLocaleString('en-AE', { minimumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-gray-500 font-mono">{order.name}</td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Pagination */}
-                        <div className="flex justify-between items-center mt-6">
-                            <div className="text-sm text-gray-600">
-                                Showing {orders.length > 0 ? '1' : '0'} to {orders.length} of {orders.length} entries
-                            </div>
-                            <div className="flex gap-2">
-                                <button className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50" disabled>
-                                    <ChevronLeft className="w-5 h-5" />
-                                </button>
-                                <button className="px-4 py-2 border rounded bg-black text-white">1</button>
-                                <button className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50" disabled>
-                                    <ChevronRight className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Modal */}
-                {showModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-                        <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-screen overflow-y-auto">
-                            <div className="sticky top-0 bg-white px-6 py-4 border-b flex justify-between items-center z-10">
-                                <h2 className="text-2xl font-bold">
-                                    {editingDocName ? `Edit Sales Order - ${editingDocName}` : 'New Sales Order'}
-                                </h2>
-                                <button onClick={() => { setShowModal(false); setEditingDocName(null); }}><X size={28} /></button>
-                            </div>
-
-                            <div className="p-6 space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                                    {/* Row 1 */}
-                                    {/* Customer Field */}
-                                    <div className="space-y-1">
-                                        <label className="block font-medium">Customer <span className="text-red-500">*</span></label>
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                value={searchCustomer}
-                                                onChange={e => setSearchCustomer(e.target.value)}
-                                                onFocus={() => setShowCustomerDropdown(true)}
-                                                placeholder="Search customer..."
-                                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            />
-                                            {showCustomerDropdown && customers.length > 0 && (
-                                                <div className="absolute z-20 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                                    {customers
-                                                        .filter(c => c.customer_name?.toLowerCase().includes(searchCustomer.toLowerCase()))
-                                                        .map(c => (
-                                                            <div
-                                                                key={c.name}
-                                                                onClick={() => {
-                                                                    setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
-                                                                    setSearchCustomer(c.customer_name);
-                                                                    setShowCustomerDropdown(false);
-                                                                }}
-                                                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer transition"
-                                                            >
-                                                                <div className="font-medium">{c.customer_name}</div>
-                                                                <div className="text-sm text-gray-500">{c.name}</div>
-                                                            </div>
-                                                        ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Date Field */}
-                                    <div className="space-y-1">
-                                        <label className="block font-medium">Date</label>
-                                        <input
-                                            type="date"
-                                            value={form.transaction_date}
-                                            onChange={e => setForm(prev => ({ ...prev, transaction_date: e.target.value }))}
-                                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-
-                                    {/* Row 2 */}
-                                    {/* Delivery Date */}
-                                    <div className="space-y-1">
-                                        <label className="block font-medium">Delivery Date</label>
-                                        <input
-                                            type="date"
-                                            value={form.delivery_date}
-                                            onChange={e => setForm(prev => ({ ...prev, delivery_date: e.target.value }))}
-                                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-
-                                    {/* Price List */}
-                                    <div className="space-y-1">
-                                        <label className="block font-medium">Price List</label>
-                                        <select
-                                            value={form.selling_price_list}
-                                            onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))}
-                                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        >
-                                            <option value="Standard Selling">Standard Selling</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <label className="block text-sm font-semibold text-blue-900 mb-2">
-                                        Scan Barcode
-                                    </label>
-                                    <input
-                                        id="barcode-scan-input-so"
-                                        type="text"
-                                        value={barcodeInput}
-                                        onChange={(e) => setBarcodeInput(e.target.value)}
-                                        onKeyDown={handleBarcodeScan}
-                                        placeholder="Scan or type barcode → press Enter"
-                                        className="w-full px-6 py-4 text-xl font-mono border-2 border-blue-300 rounded-lg focus:ring-4 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-inner"
-                                        autoFocus={false}
-                                    />
-                                    <p className="text-xs text-blue-700 mt-2">Scanner auto-submits on Enter • Fast scanning enabled!</p>
-                                </div>
-
-                                {/* Items */}
-                                <div>
-                                    <div className="flex justify-between items-center mb-3">
-                                        <h3 className="text-lg font-semibold">Items</h3>
-                                        <button onClick={addItemRow} className="text-blue-600 flex items-center gap-1"><Plus size={18} /> Add Item</button>
-                                    </div>
-                                    {/* REMOVED overflow-hidden here */}
-                                    <div className="border rounded-lg">
-                                        <table className="w-full">
-                                            <thead className="bg-gray-50">
-                                                <tr>
-                                                    <th className="text-left p-3">Item</th>
-                                                    <th className="text-center p-3 w-24">Qty</th>
-                                                    <th className="text-center p-3 w-32">Rate</th>
-                                                    <th className="text-center p-3 w-32">Amount</th>
-                                                    <th className="w-12"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {form.items.length === 0 ? (
-                                                    <tr>
-                                                        <td colSpan="5" className="p-12 text-center text-gray-500">
-                                                            <div className="space-y-3">
-                                                                <p className="text-lg font-medium">No items added yet</p>
-                                                                <p className="text-sm">
-                                                                    Scan a barcode or click <span className="font-semibold text-blue-600">"Add Item"</span> to get started
-                                                                </p>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ) : (
-                                                    form.items.map((item, i) => (
-                                                        <tr key={i} className="border-t">
-                                                            <td className="p-3 relative">
-                                                                {item.item_code ? (
-                                                                    <div>
-                                                                        <div className="font-medium">{item.item_name}</div>
-                                                                        <div className="text-sm text-gray-500">{item.item_code}</div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="relative">
-                                                                        <input
-                                                                            type="text"
-                                                                            value={itemSearches[i] || ''}
-                                                                            onChange={e => {
-                                                                                const val = e.target.value;
-                                                                                setItemSearches(prev => ({ ...prev, [i]: val }));
-                                                                                searchItems(val, i);
-                                                                            }}
-                                                                            placeholder="Search item..."
-                                                                            className="w-full px-3 py-2 border rounded"
-                                                                        />
-                                                                        {/* DROPDOWN: z-index high + outside table flow */}
-                                                                        {showItemDropdowns[i] && itemsList.length > 0 && (
-                                                                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-2xl z-50 max-h-60 overflow-y-auto">
-                                                                                {itemsList.map(itm => (
-                                                                                    <div
-                                                                                        key={itm.item_code}
-                                                                                        onClick={() => selectItem(i, itm)}
-                                                                                        className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
-                                                                                    >
-                                                                                        <div className="font-medium">{itm.item_name}</div>
-                                                                                        <div className="text-sm text-gray-500">{itm.item_code}</div>
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            {/* ... qty, rate, amount, delete same ... */}
-                                                            <td className="p-3">
-                                                                <input
-                                                                    type="number"
-                                                                    value={item.qty || ''}
-                                                                    onChange={e => updateItem(i, 'qty', e.target.value)}
-                                                                    className="w-full text-center border rounded px-2 py-1"
-                                                                />
-                                                            </td>
-                                                            <td className="p-3">
-                                                                <input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    value={item.rate || ''}
-                                                                    onChange={e => updateItem(i, 'rate', e.target.value)}
-                                                                    className="w-full text-right border rounded px-2 py-1"
-                                                                />
-                                                            </td>
-                                                            <td className="p-3 text-right font-medium">
-                                                                AED {(parseFloat(item.amount) || 0).toFixed(2)}
-                                                            </td>
-                                                            <td className="p-3 text-center">
-                                                                <button
-                                                                    onClick={() => removeItemRow(i)}
-                                                                    className="text-red-600 hover:text-red-800"
-                                                                >
-                                                                    <Trash2 size={18} />
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                {/* Taxes */}
-                                <div className="border-t pt-6">
-                                    <h3 className="text-lg font-semibold mb-4">Taxes & Charges</h3>
-                                    <div className="mb-4">
-                                        <label className="block font-medium mb-1">Taxes and Charges Template</label>
-                                        <select
-                                            value={form.taxes_and_charges}
-                                            onChange={e => loadTaxTemplate(e.target.value)}
-                                            className="w-full md:w-96 px-4 py-2 border rounded-lg"
-                                        >
-                                            <option value="">None</option>
-                                            {taxTemplates.map(t => (
-                                                <option key={t.name} value={t.name}>{t.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="border rounded-lg overflow-hidden">
-                                        <table className="w-full">
-                                            <thead className="bg-gray-50">
-                                                <tr>
-                                                    <th className="text-left p-3 w-12"></th>
-                                                    <th className="text-left p-3 w-20">#</th>
-                                                    <th className="text-left p-3">Type</th>
-                                                    <th className="text-left p-3">Account</th>
-                                                    <th className="text-center p-3 w-32">Rate %</th>
-                                                    <th className="text-center p-3 w-32">Amount</th>
-                                                    <th className="text-center p-3 w-32">Total</th>
-                                                    <th className="w-12"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {form.taxes.map((tax, i) => (
-                                                    <tr key={i} className="border-t">
-                                                        <td className="p-3">
-                                                            <input type="checkbox" checked={tax.add_deduct_tax === "Add"} onChange={e => updateTax(i, 'add_deduct_tax', e.target.checked ? "Add" : "Deduct")} className="w-5 h-5" />
-                                                        </td>
-                                                        <td className="p-3 text-center">{i + 1}</td>
-                                                        <td className="p-3">
-                                                            <select value={tax.charge_type || ''} onChange={e => updateTax(i, 'charge_type', e.target.value)} className="w-full px-2 py-1 border rounded">
-                                                                <option value="On Net Total">On Net Total</option>
-                                                                <option value="Actual">Actual</option>
-                                                                <option value="On Previous Row Amount">On Previous Row Amount</option>
-                                                            </select>
-                                                        </td>
-                                                        <td className="p-3"><input type="text" value={tax.account_head || ''} onChange={e => updateTax(i, 'account_head', e.target.value)} className="w-full px-2 py-1 border rounded" /></td>
-                                                        <td className="p-3"><input type="number" value={tax.rate || ''} onChange={e => updateTax(i, 'rate', e.target.value)} className="w-full text-right border rounded px-2" /></td>
-                                                        <td className="p-3"><input type="number" value={tax.tax_amount || ''} onChange={e => updateTax(i, 'tax_amount', e.target.value)} className="w-full text-right border rounded px-2" disabled={tax.charge_type !== 'Actual'} /></td>
-                                                        <td className="p-3 text-right font-medium">{parseFloat(tax.total || 0).toFixed(2)}</td>
-                                                        <td className="p-3 text-center"><button onClick={() => removeTaxRow(i)} className="text-red-600"><Trash2 size={16} /></button></td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                        <button onClick={addTaxRow} className="mt-2 text-blue-600 text-sm flex items-center gap-1"><Plus size={16} /> Add Row</button>
-                                    </div>
-                                </div>
-
-                                {/* Totals */}
-                                <div className="bg-blue-50 p-6 rounded-lg">
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-right">
-                                        <div><strong>Total Qty:</strong> {form.total_qty || 0}</div>
-                                        <div><strong>Net Total:</strong> AED {Number(form.base_total || 0).toFixed(2)}</div>
-                                        <div><strong>Taxes:</strong> AED {Number(form.total_taxes_and_charges || 0).toFixed(2)}</div>
-                                        <div className="text-xl font-bold text-blue-700">
-                                            Grand Total: AED {Number(form.rounded_total || 0).toFixed(2)}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-end gap-4 pt-6 border-t">
-                                    <button onClick={() => { setShowModal(false); setEditingDocName(null); }} className="px-6 py-3 border rounded-lg hover:bg-gray-50">
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={() => handleSave(false)}
-                                        disabled={saving || isSubmitting}
-                                        className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-70"
-                                    >
-                                        {saving ? 'Saving...' : (editingDocName ? 'Update Draft' : 'Save Draft')}
-                                    </button>
-                                    <button
-                                        onClick={() => handleSave(true)}
-                                        disabled={saving || isSubmitting}
-                                        className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-70 flex items-center gap-2"
-                                    >
-                                        {isSubmitting ? 'Submitting...' : 'Submit Sales Order'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+            <div className="so-filter-group">
+              <label className="so-filter-label">Search</label>
+              <input
+                className="so-filter-input"
+                placeholder="Order ID or customer..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
             </div>
-        </>
-    );
-}
 
-export default SalesOrder;
+            <div className="so-filter-group">
+              <label className="so-filter-label">Customer</label>
+              <input
+                className="so-filter-input"
+                placeholder="Customer name..."
+                value={customerFilter}
+                onChange={e => setCustomerFilter(e.target.value)}
+              />
+            </div>
+
+            <div className="so-filter-group">
+              <label className="so-filter-label">Status</label>
+              <select
+                className="so-filter-select"
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All</option>
+                <option value="Draft">Draft</option>
+                <option value="Submitted">Submitted</option>
+              </select>
+            </div>
+
+            <div className="so-filter-group">
+              <label className="so-filter-label">Amount Range</label>
+              <div className="so-amount-range">
+                <input className="so-filter-input" type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} />
+                <input className="so-filter-input" type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} />
+              </div>
+            </div>
+
+            <button className="so-clear-btn" onClick={clearFilters}>Clear Filters</button>
+          </div>
+
+          {/* ---- Main Content ---- */}
+          <div className="so-content">
+            <p className="so-list-meta">{filteredOrders.length} record(s) found</p>
+
+            <div className="so-table-card">
+              <table className="so-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Grand Total</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="so-empty">
+                        <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
+                      </td>
+                    </tr>
+                  ) : filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="so-empty">No sales orders found</td>
+                    </tr>
+                  ) : (
+                    filteredOrders.map(order => (
+                      <tr key={order.name} onClick={() => loadSalesOrder(order.name)}>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{order.name}</td>
+                        <td>{order.transaction_date}</td>
+                        <td>{order.customer_name}</td>
+                        <td>
+                          <strong>AED {Number(order.grand_total || 0).toLocaleString('en-AE', { minimumFractionDigits: 2 })}</strong>
+                        </td>
+                        <td>
+                          {order.docstatus === 1 ? (
+                            <span className="so-badge" style={{
+                              background: isGreen ? '#dcfce7' : '#e0f2fe',
+                              color: isGreen ? '#166534' : '#0369a1',
+                              border: `1px solid ${isGreen ? '#bbf7d0' : '#bae6fd'}`
+                            }}>
+                              Submitted
+                            </span>
+                          ) : (
+                            <span className="so-badge so-badge-draft">Draft</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="so-pagination">
+              <span>Showing {filteredOrders.length} of {orders.length} records</span>
+              <div className="so-pagination-btns">
+                <button className="so-page-btn" disabled><ChevronLeft size={14} /></button>
+                <button className="so-page-btn active">1</button>
+                <button className="so-page-btn" disabled><ChevronRight size={14} /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ================================================================ */}
+        {/* Modal                                                             */}
+        {/* ================================================================ */}
+        {showModal && (
+          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+            <div className="so-modal">
+
+              {/* Modal Header */}
+              <div className="so-modal-header">
+                <h2 className="so-modal-title">
+                  {editingDocName ? `Edit — ${editingDocName}` : 'New Sales Order'}
+                </h2>
+                <button className="so-modal-close" onClick={closeModal}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="so-modal-body">
+
+                {/* ---- Core Details Card ---- */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <span className="so-card-title">Order Details</span>
+                  </div>
+                  <div className="so-card-body">
+                    <div className="so-form-grid">
+                      {/* Customer */}
+                      <div className="so-field so-relative">
+                        <label className="so-label">Customer <span style={{ color: '#ef4444' }}>*</span></label>
+                        <input
+                          className="so-input"
+                          placeholder="Search customer..."
+                          value={searchCustomer}
+                          onChange={e => setSearchCustomer(e.target.value)}
+                          onFocus={() => setShowCustomerDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                        />
+                        {showCustomerDropdown && customers.length > 0 && (
+                          <div className="so-dropdown">
+                            {customers
+                              .filter(c => c.customer_name?.toLowerCase().includes(searchCustomer.toLowerCase()))
+                              .map(c => (
+                                <div
+                                  key={c.name}
+                                  className="so-dropdown-item"
+                                  onMouseDown={() => {
+                                    setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
+                                    setSearchCustomer(c.customer_name);
+                                    setShowCustomerDropdown(false);
+                                  }}
+                                >
+                                  <div className="so-dropdown-item-name">{c.customer_name}</div>
+                                  <div className="so-dropdown-item-code">{c.name}</div>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Transaction Date */}
+                      <div className="so-field">
+                        <label className="so-label">Transaction Date</label>
+                        <input
+                          type="date"
+                          className="so-input"
+                          value={form.transaction_date}
+                          onChange={e => setForm(prev => ({ ...prev, transaction_date: e.target.value }))}
+                        />
+                      </div>
+
+                      {/* Delivery Date */}
+                      <div className="so-field">
+                        <label className="so-label">Delivery Date</label>
+                        <input
+                          type="date"
+                          className="so-input"
+                          value={form.delivery_date}
+                          onChange={e => setForm(prev => ({ ...prev, delivery_date: e.target.value }))}
+                        />
+                      </div>
+
+                      {/* Price List */}
+                      <div className="so-field">
+                        <label className="so-label">Price List</label>
+                        <select
+                          className="so-select"
+                          value={form.selling_price_list}
+                          onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))}
+                        >
+                          <option value="Standard Selling">Standard Selling</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ---- Barcode Scanner ---- */}
+                <div className="so-barcode-area">
+                  <ScanLine size={22} />
+                  <input
+                    ref={barcodeRef}
+                    id="barcode-scan-input-so"
+                    className="so-barcode-input"
+                    placeholder="Scan barcode and press Enter..."
+                    value={barcodeInput}
+                    onChange={e => setBarcodeInput(e.target.value)}
+                    onKeyDown={handleBarcodeScan}
+                  />
+                </div>
+
+                {/* ---- Items Card ---- */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <span className="so-card-title">Product Items</span>
+                    <button className="so-btn-ghost" onClick={addItemRow}>
+                      <Plus size={14} /> Add Item
+                    </button>
+                  </div>
+                  <div className="so-items-table-wrap">
+                    <table className="so-items-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '35%' }}>Item</th>
+                          <th style={{ width: '10%' }}>UOM</th>
+                          <th style={{ width: '12%' }}>Qty</th>
+                          <th style={{ width: '15%' }}>Rate (AED)</th>
+                          <th style={{ width: '18%' }}>Amount</th>
+                          <th style={{ width: '10%' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.items.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="so-empty">
+                              No items yet — scan a barcode or click <strong>Add Item</strong>
+                            </td>
+                          </tr>
+                        ) : (
+                          form.items.map((item, i) => (
+                            <tr key={i}>
+                              <td className="so-relative">
+                                {item.item_code ? (
+                                  <div>
+                                    <div className="so-item-display-name">{item.item_name}</div>
+                                    <div className="so-item-display-code">{item.item_code}</div>
+                                  </div>
+                                ) : (
+                                  <div className="so-relative">
+                                    <input
+                                      className="so-td-input"
+                                      placeholder="Search item..."
+                                      value={itemSearches[i] || ''}
+                                      onChange={e => {
+                                        const v = e.target.value;
+                                        setItemSearches(p => ({ ...p, [i]: v }));
+                                        searchItems(v, i);
+                                      }}
+                                    />
+                                    {showItemDropdowns[i] && itemsList.length > 0 && (
+                                      <div className="so-dropdown">
+                                        {itemsList.map(itm => (
+                                          <div
+                                            key={itm.item_code}
+                                            className="so-dropdown-item"
+                                            onMouseDown={() => selectItem(i, itm)}
+                                          >
+                                            <div className="so-dropdown-item-name">{itm.item_name}</div>
+                                            <div className="so-dropdown-item-code">{itm.item_code}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ fontSize: '0.75rem', color: '#64748b' }}>{item.uom}</td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="so-td-input"
+                                  style={{ textAlign: 'center' }}
+                                  value={item.qty || ''}
+                                  onChange={e => updateItem(i, 'qty', e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="so-td-input"
+                                  style={{ textAlign: 'right' }}
+                                  value={item.rate || ''}
+                                  onChange={e => updateItem(i, 'rate', e.target.value)}
+                                />
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                                {(parseFloat(item.amount) || 0).toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button className="so-btn-danger" onClick={() => removeItemRow(i)}>
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* ---- Taxes Card ---- */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <span className="so-card-title">Taxes & Charges</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <select
+                        className="so-select"
+                        style={{ width: 'auto', minWidth: '180px', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                        value={form.taxes_and_charges}
+                        onChange={e => loadTaxTemplate(e.target.value)}
+                      >
+                        <option value="">No Template</option>
+                        {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                      </select>
+                      <button className="so-btn-ghost" onClick={addTaxRow}>
+                        <Plus size={14} /> Add Row
+                      </button>
+                    </div>
+                  </div>
+                  {form.taxes.length > 0 && (
+                    <div className="so-items-table-wrap">
+                      <table className="so-taxes-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '5%' }}>Add</th>
+                            <th style={{ width: '25%' }}>Type</th>
+                            <th style={{ width: '30%' }}>Account</th>
+                            <th style={{ width: '12%' }}>Rate %</th>
+                            <th style={{ width: '15%' }}>Amount</th>
+                            <th style={{ width: '13%' }}>Total</th>
+                            <th style={{ width: '5%' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {form.taxes.map((tax, i) => (
+                            <tr key={i}>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={tax.add_deduct_tax === 'Add'}
+                                  onChange={e => updateTax(i, 'add_deduct_tax', e.target.checked ? 'Add' : 'Deduct')}
+                                />
+                              </td>
+                              <td>
+                                <select
+                                  className="so-td-input"
+                                  value={tax.charge_type || ''}
+                                  onChange={e => updateTax(i, 'charge_type', e.target.value)}
+                                >
+                                  <option value="On Net Total">On Net Total</option>
+                                  <option value="Actual">Actual</option>
+                                  <option value="On Previous Row Amount">On Prev Row</option>
+                                </select>
+                              </td>
+                              <td>
+                                <input
+                                  className="so-td-input"
+                                  value={tax.account_head || ''}
+                                  onChange={e => updateTax(i, 'account_head', e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="so-td-input"
+                                  style={{ textAlign: 'right' }}
+                                  value={tax.rate || ''}
+                                  onChange={e => updateTax(i, 'rate', e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="so-td-input"
+                                  style={{ textAlign: 'right' }}
+                                  value={tax.tax_amount || ''}
+                                  onChange={e => updateTax(i, 'tax_amount', e.target.value)}
+                                  disabled={tax.charge_type !== 'Actual'}
+                                />
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                                {parseFloat(tax.total || 0).toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button className="so-btn-danger" onClick={() => removeTaxRow(i)}>
+                                  <Trash2 size={13} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* ---- Summary Bar ---- */}
+                <div className="so-summary-bar">
+                  <div className="so-summary-item">
+                    <span className="so-summary-label">Total Qty</span>
+                    <span className="so-summary-value">{form.total_qty || 0}</span>
+                  </div>
+                  <div className="so-summary-divider" />
+                  <div className="so-summary-item">
+                    <span className="so-summary-label">Net Total</span>
+                    <span className="so-summary-value">AED {Number(form.base_total || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="so-summary-divider" />
+                  <div className="so-summary-item">
+                    <span className="so-summary-label">Taxes</span>
+                    <span className="so-summary-value">AED {Number(form.total_taxes_and_charges || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="so-summary-divider" />
+                  <div className="so-summary-item">
+                    <span className="so-summary-label">Grand Total</span>
+                    <span className="so-summary-value grand">AED {Number(form.rounded_total || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="so-modal-footer">
+                <button className="so-btn-secondary" onClick={closeModal}>Cancel</button>
+                <button
+                  className="so-btn-secondary"
+                  disabled={saving || isSubmitting}
+                  onClick={() => handleSave(false)}
+                >
+                  {saving ? 'Saving...' : editingDocName ? 'Update Draft' : 'Save Draft'}
+                </button>
+                <button
+                  className="so-btn-primary"
+                  disabled={saving || isSubmitting}
+                  onClick={() => handleSave(true)}
+                  style={{ minWidth: '150px' }}
+                >
+                  {isSubmitting ? <><Loader2 size={14} className="so-spinner" /> Submitting...</> : 'Submit Order'}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+      </div>
+    </>
+  );
+}

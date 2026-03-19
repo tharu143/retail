@@ -766,9 +766,9 @@ function PurchaseOrder() {
                   />
                 </div>
                 <div>
-                  <label className="po-label">Warehouse (Target)</label>
+                  <label className="po-label">Branch (Target)</label>
                   <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} className="po-input font-bold">
-                    <option value="">Choose warehouse...</option>
+                    <option value="">Choose branch...</option>
                     {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
                   </select>
                 </div>

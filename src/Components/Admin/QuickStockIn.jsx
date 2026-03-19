@@ -264,7 +264,7 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                             <div className="space-y-3">
                                 <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">
                                     <Warehouse size={12} className="text-sky-500" />
-                                    Target Warehouse
+                                    Target Branch
                                 </label>
                                 <div className="grid grid-cols-1 gap-3">
                                     <select 
@@ -273,7 +273,7 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                         onChange={(e) => setSelectedWarehouse(e.target.value)}
                                         className="w-full bg-slate-100 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-black text-slate-800 outline-none focus:border-sky-500 focus:bg-white transition-all appearance-none cursor-pointer"
                                     >
-                                        <option value="">Select Warehouse...</option>
+                                        <option value="">Select Branch...</option>
                                         {warehouses.map(wh => (
                                             <option key={wh.name} value={wh.name}>{wh.warehouse_name || wh.name}</option>
                                         ))}

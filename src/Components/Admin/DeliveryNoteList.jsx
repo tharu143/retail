@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
-import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight, ArrowLeft, FileMinus } from 'lucide-react';
+import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight, ArrowLeft, FileMinus, Palette } from 'lucide-react';
+import '../Admin/SalesOrder.css';
 
 const DeliveryNoteList = () => {
     const navigate = useNavigate();
@@ -19,6 +20,20 @@ const DeliveryNoteList = () => {
     const [submittedReturnData, setSubmittedReturnData] = useState(null);
     const [defaultIncomeAccount, setDefaultIncomeAccount] = useState('');
     const [barcodeInput, setBarcodeInput] = useState('');
+
+    // Theme toggle (synced across pages)
+    const [dnTheme, setDnTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+    const isGreen = dnTheme === 'green';
+    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+    const themeColorHover = isGreen ? '#059669' : '#0284c7';
+    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+    useEffect(() => {
+        localStorage.setItem('legacySubTheme', dnTheme);
+        document.documentElement.style.setProperty('--so-primary', themeColor);
+        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+        document.documentElement.style.setProperty('--so-primary-light', themeLight);
+    }, [dnTheme, themeColor, themeColorHover, themeLight]);
 
 
     // Filters
@@ -658,45 +673,75 @@ const DeliveryNoteList = () => {
     return (
         <>
             <NavBar />
-            <div className="min-h-screen bg-gray-100">
-                {/* Header */}
-                <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
-                    <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
-                        <Package className="w-7 h-7" /> Delivery Note
-                    </h1>
-                    <div className="flex items-center gap-4">
+            <div className="so-page">
+                {/* Page Header */}
+                <div className="so-page-header">
+                    <div>
+                        <h1 className="so-page-title">
+                            <Package size={20} /> Delivery Note
+                        </h1>
+                        <p className="so-page-subtitle">Manage and track all delivery notes</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {/* Theme Toggle */}
                         <button
-                            onClick={() => { resetForm(); setShowModal(true); }}
-                            className="bg-black text-white px-5 py-2.5 rounded-md hover:bg-gray-800 font-medium flex items-center gap-2"
+                            onClick={() => setDnTheme(isGreen ? 'blue' : 'green')}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                padding: '0.45rem 0.9rem', background: '#f8fafc',
+                                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                                cursor: 'pointer', transition: 'all 0.2s',
+                                textTransform: 'uppercase', letterSpacing: '0.04em'
+                            }}
+                            title="Toggle Theme"
                         >
-                            <Plus className="w-5 h-5" /> Add Delivery Note
+                            <Palette size={13} />
+                            {dnTheme.toUpperCase()}
+                        </button>
+                        <button
+                            className="so-btn-primary"
+                            onClick={() => { resetForm(); setShowModal(true); }}
+                        >
+                            <Plus size={16} /> New Delivery Note
                         </button>
                     </div>
                 </div>
 
-                <div className="flex">
-                    {/* Sidebar Filters */}
-                    <div className="w-72 bg-white border-r min-h-screen p-6 space-y-6">
-                        <h3 className="font-semibold text-gray-800 mb-4">Filters</h3>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                            <input type="text" placeholder="Search anything..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                <div className="so-layout" style={{ flexDirection: 'column' }}>
+                    {/* Top Filters Bar */}
+                    <div className="so-filter-bar" style={{ 
+                        background: 'white', 
+                        padding: '1.25rem 1.5rem', 
+                        borderBottom: '1px solid var(--so-border)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '1.25rem',
+                        alignItems: 'flex-end'
+                    }}>
+                        <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+                            <label className="so-filter-label">Search</label>
+                            <input className="so-filter-input" placeholder="Search anything..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                            <input type="text" placeholder="e.g., Cash" value={titleFilter} onChange={e => setTitleFilter(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
+
+                        <div className="so-filter-group" style={{ minWidth: '120px', flex: 1 }}>
+                            <label className="so-filter-label">Title</label>
+                            <input className="so-filter-input" placeholder="e.g., Cash" value={titleFilter} onChange={e => setTitleFilter(e.target.value)} />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
-                            <input type="text" placeholder="Customer name..." value={customerFilter} onChange={e => setCustomerFilter(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
+
+                        <div className="so-filter-group" style={{ minWidth: '120px', flex: 1 }}>
+                            <label className="so-filter-label">Customer</label>
+                            <input className="so-filter-input" placeholder="Customer name..." value={customerFilter} onChange={e => setCustomerFilter(e.target.value)} />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
-                            <input type="text" placeholder="Company name..." value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
+
+                        <div className="so-filter-group" style={{ minWidth: '120px', flex: 1 }}>
+                            <label className="so-filter-label">Company</label>
+                            <input className="so-filter-input" placeholder="Company name..." value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+
+                        <div className="so-filter-group" style={{ minWidth: '120px', flex: 1 }}>
+                            <label className="so-filter-label">Status</label>
+                            <select className="so-filter-input" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '0.4rem' }}>
                                 <option value="all">All Status</option>
                                 <option value="Draft">Draft</option>
                                 <option value="Return">Return</option>
@@ -706,144 +751,147 @@ const DeliveryNoteList = () => {
                                 <option value="Return Issued">Return Issued</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Grand Total Range</label>
-                            <div className="flex gap-2">
-                                <input type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
-                                <input type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
+
+                        <div className="so-filter-group" style={{ minWidth: '140px', flex: 1 }}>
+                            <label className="so-filter-label">Amount Range</label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input className="so-filter-input" type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} />
+                                <input className="so-filter-input" type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} />
                             </div>
                         </div>
-                        <button onClick={() => {
+
+                        <button className="so-clear-btn" style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem' }} onClick={() => {
                             setSearchTerm(''); setTitleFilter(''); setCustomerFilter(''); setCompanyFilter(''); setStatusFilter('all'); setMinAmount(''); setMaxAmount('');
-                        }} className="w-full py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium">
+                        }}>
                             Clear Filters
                         </button>
                     </div>
 
                     {/* Main Content */}
-                    <div className="flex-1 p-6">
-                        <div className="flex justify-between items-center mb-4 text-sm text-gray-600">
-                            <div className="flex items-center gap-4">
-                                <span>{filteredNotes.length} items</span>
-                            </div>
-                        </div>
-                        <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 border-b">
-                                    <tr>
-                                        <th className="w-12 px-6 py-3"><input type="checkbox" /></th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Grand Total</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {loading ? (
-                                        <tr><td colSpan="8" className="text-center py-16"><Loader2 className="w-10 h-10 animate-spin mx-auto text-gray-400" /></td></tr>
-                                    ) : paginatedNotes.length === 0 ? (
-                                        <tr><td colSpan="8" className="text-center py-16 text-gray-500">No delivery notes found</td></tr>
-                                    ) : (
-                                        paginatedNotes.map(dn => (
-                                            <tr key={dn.name} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4"><input type="checkbox" /></td>
-                                                <td className="px-6 py-4 text-sm font-medium text-gray-900 cursor-pointer" onClick={() => loadDeliveryNote(dn.name, false)}>
-                                                    {dn.title || 'Cash'}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(dn.status)}`}>
-                                                        {dn.status || 'Draft'} {dn.is_return ? '(Return)' : ''}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm">{dn.customer_name || 'Cash'}</td>
-                                                <td className="px-6 py-4 text-sm text-gray-600">{dn.company || 'Your Company'}</td>
-                                                <td className="px-6 py-4 text-sm text-right font-medium">
-                                                    {getCurrencySymbol(dn.currency)}
-                                                    {dn.is_return ? '-' : ''}{Number(Math.abs(dn.grand_total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-gray-500 font-mono">{dn.name}</td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-6">
-                                                        {/* Create Return */}
-                                                        {dn.status === 'To Bill' &&
-                                                            !dn.is_return &&
-                                                            dn.issue_credit_note !== 1 && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        loadDeliveryNote(dn.name, true);
-                                                                    }}
-                                                                    className="text-red-600 hover:text-red-800 font-medium text-sm flex items-center gap-1"
-                                                                >
-                                                                    <ArrowLeft className="w-4 h-4" /> Create Return
-                                                                </button>
-                                                            )}
+                    <div className="so-content" style={{ padding: '1.5rem' }}>
+                        <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{filteredNotes.length} record(s) found</p>
+                        <div className="so-table-card">
+                            <div className="so-table-wrapper">
+                                <table className="so-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Status</th>
+                                            <th>Customer</th>
+                                            <th>Company</th>
+                                            <th style={{ textAlign: 'right' }}>Grand Total</th>
+                                            <th>ID</th>
+                                            <th style={{ width: '120px' }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {loading ? (
+                                            <tr><td colSpan="7" className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                                        ) : paginatedNotes.length === 0 ? (
+                                            <tr><td colSpan="7" className="so-empty">No delivery notes found</td></tr>
+                                        ) : (
+                                            paginatedNotes.map(dn => (
+                                                <tr key={dn.name} onClick={() => loadDeliveryNote(dn.name, false)} style={{ cursor: 'pointer' }}>
+                                                    <td style={{ fontWeight: 600 }}>{dn.title || 'Cash'}</td>
+                                                    <td>
+                                                        <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
+                                                            backgroundColor: (dn.status === 'Completed' || dn.status === 'Submitted') ? `${themeColor}20` : (dn.status === 'Draft' ? '#f1f5f9' : (dn.status === 'Cancelled' ? '#fee2e2' : '#fef9c3')),
+                                                            color: (dn.status === 'Completed' || dn.status === 'Submitted') ? themeColor : (dn.status === 'Draft' ? '#64748b' : (dn.status === 'Cancelled' ? '#ef4444' : '#854d0e')),
+                                                            border: `1px solid ${(dn.status === 'Completed' || dn.status === 'Submitted') ? `${themeColor}40` : (dn.status === 'Draft' ? '#e2e8f0' : (dn.status === 'Cancelled' ? '#fecaca' : '#fde047'))}`
+                                                        }}>
+                                                            {dn.status || 'Draft'} {dn.is_return ? '(Return)' : ''}
+                                                        </span>
+                                                    </td>
+                                                    <td>{dn.customer_name || 'Cash'}</td>
+                                                    <td style={{ color: '#64748b', fontSize: '0.8rem' }}>{dn.company || 'Your Company'}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                                                        {getCurrencySymbol(dn.currency)}{dn.is_return ? '-' : ''}{Number(Math.abs(dn.grand_total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--so-text-muted)' }}>{dn.name}</td>
+                                                    <td onClick={e => e.stopPropagation()}>
+                                                        <div className="flex items-center gap-2">
+                                                            {/* Create Return */}
+                                                            {dn.status === 'To Bill' &&
+                                                                !dn.is_return &&
+                                                                dn.issue_credit_note !== 1 && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            loadDeliveryNote(dn.name, true);
+                                                                        }}
+                                                                        className="so-btn-primary"
+                                                                        style={{ fontSize: '0.65rem', padding: '0.25rem 0.5rem', background: '#ef4444' }}
+                                                                    >
+                                                                        <ArrowLeft size={10} /> Return
+                                                                    </button>
+                                                                )}
 
-                                                        {/* Create Credit Note */}
-                                                        {dn.is_return === 1 &&
-                                                            ['To Bill', 'Submitted'].includes(dn.status) &&  // Completed um include cheyyam if needed
-                                                            dn.issue_credit_note !== 1 && (  // This field is key
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        loadReturnForCreditNote(dn.name);
-                                                                    }}
-                                                                    className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1"
-                                                                >
-                                                                    <FileMinus className="w-4 h-4" /> Create Credit Note
-                                                                </button>
-                                                            )}
-
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Pagination */}
-                        <div className="flex justify-between items-center mt-6">
-                            <div className="text-sm text-gray-600">
-                                Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredNotes.length)} of {filteredNotes.length} entries
+                                                            {/* Create Credit Note */}
+                                                            {dn.is_return === 1 &&
+                                                                ['To Bill', 'Submitted'].includes(dn.status) &&
+                                                                dn.issue_credit_note !== 1 && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            loadReturnForCreditNote(dn.name);
+                                                                        }}
+                                                                        className="so-btn-primary"
+                                                                        style={{ fontSize: '0.65rem', padding: '0.25rem 0.5rem', background: '#6366f1' }}
+                                                                    >
+                                                                        <FileMinus size={10} /> Credit Note
+                                                                    </button>
+                                                                )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50">
-                                    <ChevronLeft className="w-5 h-5" />
-                                </button>
-                                {[20, 100, 500, 2500].map(num => (
-                                    <button key={num} onClick={() => setPageSize(num)} className={`px-4 py-2 border rounded ${pageSize === num ? 'bg-black text-white' : 'hover:bg-gray-100'}`}>
-                                        {num}
-                                    </button>
-                                ))}
-                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50">
-                                    <ChevronRight className="w-5 h-5" />
-                                </button>
-                            </div>
+
+                            {filteredNotes.length > 0 && (
+                                <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
+                                        Showing {Math.min((currentPage - 1) * pageSize + 1, filteredNotes.length)}–{Math.min(currentPage * pageSize, filteredNotes.length)} of {filteredNotes.length}
+                                    </span>
+                                    
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
+                                            {[20, 100, 500, 2500].map(num => (
+                                                <button key={num} onClick={() => { setPageSize(num); setCurrentPage(1); }} className={`so-page-btn ${pageSize === num ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{num}</button>
+                                            ))}
+                                        </div>
+                                        
+                                        <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
+                                            <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
+                                            <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={14} /></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
                 {/* Modal */}
                 {showModal && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[95vh] overflow-y-auto border border-gray-200">
-                            <div className="sticky top-0 bg-white border-b border-gray-300 px-6 py-4 flex justify-between items-center">
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+                    <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())}>
+                        <div className="so-modal">
+                            <div className="so-modal-header">
+                                <h2 className="so-modal-title">
                                     {isReturnMode ? (
-                                        <> <ArrowLeft className="w-6 h-6" /> Sales Return - {returnSourceDN} </>
+                                        <><ArrowLeft size={16} style={{ display: 'inline', marginRight: '0.4rem' }} /> Sales Return — {returnSourceDN}</>
                                     ) : (
-                                        <> <FileText className="w-6 h-6 text-gray-700" /> {form.name ? `Delivery Note - ${form.name}` : 'New Delivery Note'} </>
+                                        <><FileText size={16} style={{ display: 'inline', marginRight: '0.4rem' }} /> {form.name ? `Delivery Note — ${form.name}` : 'New Delivery Note'}</>
                                     )}
                                 </h2>
-                                <button onClick={() => { setShowModal(false); resetForm(); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                                    <X className="w-5 h-5 text-gray-600" />
+                                <button className="so-modal-close" onClick={() => { setShowModal(false); resetForm(); }}>
+                                    <X size={20} />
                                 </button>
                             </div>
-                            <div className="p-6 space-y-8 bg-gray-50">
+                            <div className="so-modal-body">
                                 {/* Customer, Date, Time */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
@@ -939,9 +987,9 @@ const DeliveryNoteList = () => {
                                 </div>
                                 {/* Warehouse */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse <span className="text-red-500">*</span></label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Branch <span className="text-red-500">*</span></label>
                                     <select value={form.set_warehouse} onChange={e => setForm(prev => ({ ...prev, set_warehouse: e.target.value }))} className="w-full max-w-lg border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                                        <option value="">Select Warehouse</option>
+                                        <option value="">Select Branch</option>
                                         {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
                                     </select>
                                 </div>
@@ -1124,23 +1172,20 @@ const DeliveryNoteList = () => {
                                         )}
                                     </div>
                                 </div>
-                                {/* Action Buttons */}
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                                    <button onClick={() => { setShowModal(false); resetForm(); }} className="px-6 py-2.5 border border-gray-300 rounded-md hover:bg-gray-100 font-medium text-gray-700 transition-colors">
-                                        Cancel
-                                    </button>
-                                    <button onClick={() => saveDeliveryNote(false)} disabled={saving} className="px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-md font-medium">
-                                        {saving ? 'Saving...' : 'Save Draft'}
-                                    </button>
-                                    <button
-                                        onClick={() => saveDeliveryNote(true)}
-                                        disabled={saving || !form.name}  // Optional: disable submit until saved once
-                                        className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center gap-2 disabled:opacity-50 transition-colors"
-                                    >
-                                        {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
-                                        {saving ? 'Submitting...' : (form.name ? 'Submit Delivery Note' : 'Save First to Submit')}
-                                    </button>
-                                </div>
+                            </div>
+                            <div className="so-modal-footer">
+                                <button className="so-btn-secondary" onClick={() => { setShowModal(false); resetForm(); }}>Cancel</button>
+                                <button className="so-btn-secondary" onClick={() => saveDeliveryNote(false)} disabled={saving}>
+                                    {saving ? 'Saving...' : 'Save Draft'}
+                                </button>
+                                <button
+                                    className="so-btn-primary"
+                                    onClick={() => saveDeliveryNote(true)}
+                                    disabled={saving || !form.name}
+                                    style={{ minWidth: '200px', opacity: (!form.name || saving) ? 0.5 : 1 }}
+                                >
+                                    {saving ? <><Loader2 size={14} className="so-spinner" /> Submitting...</> : (form.name ? 'Submit Delivery Note' : 'Save First to Submit')}
+                                </button>
                             </div>
                         </div>
                     </div>

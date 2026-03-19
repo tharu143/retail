@@ -340,7 +340,7 @@ export default function PosProfileList() {
                     <th className="w-12 px-6 py-3"><input type="checkbox" /></th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Profile Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Warehouse</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Users</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   </tr>
@@ -444,10 +444,10 @@ export default function PosProfileList() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">Warehouse *</label>
+                    <label className="block text-sm font-medium mb-1">Branch *</label>
                     <select value={formData.warehouse} onChange={e => updateField('warehouse', e.target.value)}
                       className={`w-full px-4 py-2 border rounded ${formErrors.warehouse ? 'border-red-500' : ''}`}>
-                      <option value="">Select Warehouse</option>
+                      <option value="">Select Branch</option>
                       {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
                     </select>
                     {formErrors.warehouse && <p className="text-red-500 text-xs mt-1">{formErrors.warehouse}</p>}

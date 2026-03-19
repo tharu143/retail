@@ -231,7 +231,7 @@ function NavBar() {
             <ChevronLeft className="cursor-pointer" size={28} style={{ color: '#475569' }} onClick={() => navigate(-1)} />
           )}
           <div onClick={() => navigate('/homepage')} className="cursor-pointer">
-            <h1 className="nav-title">Retail POS</h1>
+            <h1 className="nav-title">POS8</h1>
           </div>
         </div>
 

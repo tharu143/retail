@@ -89,7 +89,7 @@ const POSService = {
         // Ensure customer exists, default to Cash for walk-ins
         const normalizedInvoices = invoices.map(inv => ({
             ...inv,
-            customer: (!inv.customer || inv.customer.trim() === '') 
+            customer: (!inv.customer || inv.customer.trim() === '')
                 ? 'Cash'
                 : inv.customer
         }));

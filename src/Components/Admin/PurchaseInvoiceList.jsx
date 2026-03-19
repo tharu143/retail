@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
-import './PurchaseInvoiceList.css';
+import '../Admin/SalesOrder.css';
 
 // Custom APIs (kept for suppliers, items, warehouses, tax templates)
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -27,6 +27,20 @@ function PurchaseInvoiceList() {
   const [docName, setDocName] = useState('');
   const [docStatus, setDocStatus] = useState(null);
   const theme = useSelector(state => state.user.theme);
+
+  // Theme toggle (synced across pages)
+  const [piTheme, setPiTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = piTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', piTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [piTheme, themeColor, themeColorHover, themeLight]);
 
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [loadingTaxTemplates, setLoadingTaxTemplates] = useState(false);
@@ -606,348 +620,420 @@ function PurchaseInvoiceList() {
   return (
     <>
       <NavBar />
-    <div className={`pi-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
+      <div className="so-page">
         {/* Header */}
-        <div className="pi-header">
-          <div className="pi-header-left">
-            <h1 className="pi-title">Purchase Invoices</h1>
-            <span className="pi-count">{total} total</span>
+        <div className="so-page-header">
+          <div className="so-page-left">
+            <h1 className="so-page-title">
+              <Package size={20} /> Purchase Invoices
+            </h1>
+            <p className="so-page-subtitle">{total} total record(s) found</p>
           </div>
-          <div className="pi-header-actions">
-            <button onClick={() => setShowFilters(!showFilters)} className="pi-btn-secondary">
-              <Filter className="pi-icon" /> Filters
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setPiTheme(isGreen ? 'blue' : 'green')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.45rem 0.9rem', background: '#f8fafc',
+                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                cursor: 'pointer', transition: 'all 0.2s',
+                textTransform: 'uppercase', letterSpacing: '0.04em'
+              }}
+              title="Toggle Theme"
+            >
+              <Palette size={13} />
+              {piTheme.toUpperCase()}
             </button>
-            <button onClick={openCreateModal} className="pi-btn-primary">
-              <Plus className="pi-icon" /> Create Invoice
+
+            <button onClick={openCreateModal} className="so-btn-primary">
+              <Plus size={16} /> Create Invoice
             </button>
           </div>
         </div>
 
-        {/* Filters */}
-        {showFilters && (
-          <div className="pi-filters">
-            <div className="pi-filters-grid">
-              <div className="pi-filter-item">
-                <label>Invoice Number</label>
-                <div className="pi-input-wrapper">
-                  <Search className="pi-input-icon" />
-                  <input type="text" placeholder="Search invoice..." value={filterName} onChange={e => setFilterName(e.target.value)} className="pi-input" />
-                </div>
-              </div>
-              <div className="pi-filter-item">
-                <label>Supplier</label>
-                <div className="pi-input-wrapper">
-                  <Building2 className="pi-input-icon" />
-                  <input type="text" placeholder="Search supplier..." value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)} className="pi-input" />
-                </div>
-              </div>
-              <div className="pi-filter-item">
-                <label>Status</label>
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="pi-select">
-                  <option value="">All Statuses</option>
-                  <option value="Draft">Draft</option>
-                  <option value="Unpaid">Unpaid</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Overdue">Overdue</option>
-                  <option value="Return">Return</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
-              <div className="pi-filter-item">
-                <label>From Date</label>
-                <div className="pi-input-wrapper">
-                  <Calendar className="pi-input-icon" />
-                  <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="pi-input" />
-                </div>
-              </div>
-              <div className="pi-filter-item">
-                <label>To Date</label>
-                <div className="pi-input-wrapper">
-                  <Calendar className="pi-input-icon" />
-                  <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="pi-input" />
-                </div>
-              </div>
-              <div className="pi-filter-actions">
-                <button onClick={clearFilters} className="pi-btn-ghost">Clear</button>
-              </div>
+        <div className="so-layout" style={{ flexDirection: 'column' }}>
+          {/* Top Filters Bar */}
+          <div className="so-filter-bar" style={{ 
+            background: 'white', 
+            padding: '1.25rem 2rem', 
+            borderBottom: '1px solid var(--so-border)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '1.25rem',
+            alignItems: 'flex-end'
+          }}>
+            <div style={{ flex: '1 1 180px' }}>
+              <label className="so-filter-label">Invoice Number</label>
+              <input
+                type="text"
+                placeholder="Search invoice..."
+                value={filterName}
+                onChange={e => setFilterName(e.target.value)}
+                className="so-filter-input"
+              />
             </div>
-          </div>
-        )}
 
-        {/* Table */}
-        <main className="pi-main">
-          {loading ? (
-            <div className="pi-loading">
-              <div className="pi-spinner"></div>
-              <p>Loading invoices...</p>
+            <div style={{ flex: '1 1 180px' }}>
+              <label className="so-filter-label">Supplier</label>
+              <input
+                type="text"
+                placeholder="Search supplier..."
+                value={filterSupplier}
+                onChange={e => setFilterSupplier(e.target.value)}
+                className="so-filter-input"
+              />
             </div>
-          ) : (
-            <div className="pi-table-container">
-              <div className="pi-table-wrapper">
-                <table className="pi-table">
-                  <thead>
-                    <tr>
-                      <th className="pi-th">Invoice Number</th>
-                      <th className="pi-th">Supplier</th>
-                      <th className="pi-th">Date</th>
-                      <th className="pi-th">Status</th>
-                      <th className="pi-th-right">Amount</th>
-                      <th className="pi-th-actions"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.length === 0 ? (
-                      <tr>
-                        <td colSpan="7" className="pi-empty">
-                          <Package className="pi-empty-icon" />
-                          <p>No invoices found</p>
-                          <button onClick={openCreateModal} className="pi-btn-link">Create your first invoice</button>
-                        </td>
-                      </tr>
-                    ) : (
-                      paginated.map(inv => (
-                        <tr key={inv.name} className="pi-tr" onClick={() => handleRowClick(inv)}>
-                          <td className="pi-td">
-                            <span className="pi-invoice-number">{inv.name}</span>
-                          </td>
-                          <td className="pi-td">
-                            <div className="pi-supplier">
-                              <span className="pi-supplier-name">{inv.supplier_name}</span>
-                              <span className="pi-supplier-code">{inv.supplier}</span>
-                            </div>
-                          </td>
-                          <td className="pi-td">
-                            <span className="pi-date">{format(new Date(inv.posting_date), 'dd MMM yyyy')}</span>
-                          </td>
-                          <td className="pi-td">
-                            <span className={`pi-status ${getStatusColor(inv.status)}`}>{inv.status}</span>
-                          </td>
-                          <td className="pi-td-right">
-                            <span className="pi-amount">AED {inv.grand_total?.toFixed(2)}</span>
-                          </td>
-                          <td className="pi-td-actions" onClick={e => e.stopPropagation()}>
-                            <div ref={el => actionsRefs.current[inv.name] = el} style={{ position: 'relative' }}>
-                              <button className="pi-btn-icon" onClick={() => setShowActions(showActions === inv.name ? null : inv.name)}>
-                                <MoreVertical className="pi-icon" />
+
+            <div style={{ flex: '1 1 140px' }}>
+              <label className="so-filter-label">Status</label>
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className="so-filter-input"
+                style={{ padding: '0.45rem' }}
+              >
+                <option value="">All Statuses</option>
+                <option value="Draft">Draft</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Paid">Paid</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Return">Return</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            <div style={{ flex: '1 1 150px' }}>
+              <label className="so-filter-label">From Date</label>
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={e => setFilterDateFrom(e.target.value)}
+                className="so-filter-input"
+              />
+            </div>
+
+            <div style={{ flex: '1 1 150px' }}>
+              <label className="so-filter-label">To Date</label>
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={e => setFilterDateTo(e.target.value)}
+                className="so-filter-input"
+              />
+            </div>
+
+            <button onClick={clearFilters} className="so-clear-btn" style={{ margin: 0, height: '38px' }}>
+              Clear
+            </button>
+          </div>
+
+          {/* Table Area */}
+          <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
+            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{total} record(s) found</p>
+            <div className="so-table-card">
+              {loading ? (
+                <div style={{ padding: '4rem', textAlign: 'center' }}>
+                  <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto' }} />
+                  <p style={{ marginTop: '1rem', color: '#64748b', fontWeight: 600 }}>Loading invoices...</p>
+                </div>
+              ) : (
+                <>
+                  <div className="so-table-wrapper">
+                    <table className="so-table">
+                      <thead>
+                        <tr>
+                          <th>Invoice Number</th>
+                          <th>Supplier</th>
+                          <th>Date</th>
+                          <th>Status</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                          <th style={{ width: '50px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginated.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="so-empty">
+                              <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
+                              <p>No invoices found</p>
+                              <button onClick={openCreateModal} style={{ color: themeColor, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
+                                Create your first invoice
                               </button>
-                              {showActions === inv.name && (
-                                <div className="pi-actions-dropdown">
-                                  {inv.status === 'Draft' && (
-                                    <div className="pi-dropdown-item" onClick={() => handleDelete(inv.name)}>Delete</div>
-                                  )}
-                                  {inv.status !== 'Draft' && inv.status !== 'Cancelled' && (
-                                    <div className="pi-dropdown-item" onClick={() => handleCancel(inv.name)}>Cancel</div>
+                            </td>
+                          </tr>
+                        ) : (
+                          paginated.map(inv => (
+                            <tr key={inv.name} onClick={() => handleRowClick(inv)} style={{ cursor: 'pointer' }}>
+                              <td>
+                                <span style={{ fontWeight: 700, color: themeColor }}>{inv.name}</span>
+                              </td>
+                              <td>
+                                <div style={{ fontWeight: 600 }}>{inv.supplier_name}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)' }}>{inv.supplier}</div>
+                              </td>
+                              <td>
+                                <span style={{ color: '#475569', fontSize: '0.85rem' }}>{format(new Date(inv.posting_date), 'dd MMM yyyy')}</span>
+                              </td>
+                              <td>
+                                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
+                                  backgroundColor: inv.status === 'Paid' ? `${themeColor}20` : (inv.status === 'Unpaid' ? '#fef9c3' : (inv.status === 'Draft' ? '#f1f5f9' : '#fee2e2')),
+                                  color: inv.status === 'Paid' ? themeColor : (inv.status === 'Unpaid' ? '#854d0e' : (inv.status === 'Draft' ? '#64748b' : '#ef4444')),
+                                  border: `1px solid ${inv.status === 'Paid' ? `${themeColor}40` : (inv.status === 'Unpaid' ? '#fde047' : (inv.status === 'Draft' ? '#e2e8f0' : '#fecaca'))}`
+                                }}>
+                                  {inv.status}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                                AED {inv.grand_total?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                              <td onClick={e => e.stopPropagation()}>
+                                <div ref={el => actionsRefs.current[inv.name] = el} style={{ position: 'relative' }}>
+                                  <button
+                                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}
+                                    onClick={() => setShowActions(showActions === inv.name ? null : inv.name)}
+                                  >
+                                    <MoreVertical size={16} />
+                                  </button>
+                                  {showActions === inv.name && (
+                                    <div style={{
+                                      position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)',
+                                      zIndex: 100, background: '#fff', border: '1px solid var(--so-border)',
+                                      borderRadius: '0.5rem', boxShadow: 'var(--so-shadow)',
+                                      minWidth: '120px', overflow: 'hidden'
+                                    }}>
+                                      {inv.status === 'Draft' && (
+                                        <button
+                                          style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#ef4444', cursor: 'pointer' }}
+                                          onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}
+                                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                          onClick={() => handleDelete(inv.name)}
+                                        >
+                                          Delete
+                                        </button>
+                                      )}
+                                      {inv.status !== 'Draft' && inv.status !== 'Cancelled' && (
+                                        <button
+                                          style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#ef4444', cursor: 'pointer' }}
+                                          onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}
+                                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                          onClick={() => handleCancel(inv.name)}
+                                        >
+                                          Cancel
+                                        </button>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {total > 0 && (
-                <div className="pi-pagination">
-                  <div className="pi-pagination-info">
-                    Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} invoices
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="pi-pagination-controls">
-                    <div className="pi-page-size">
-                      <span>Rows:</span>
-                      {[20, 50, 100].map(s => (
-                        <button key={s} onClick={() => { setPageSize(s); setCurrentPage(1); }}
-                          className={`pi-page-size-btn ${pageSize === s ? 'active' : ''}`}>{s}</button>
-                      ))}
-                    </div>
-                    <div className="pi-page-nav">
-                      <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="pi-page-btn">Previous</button>
-                      <span className="pi-page-current">Page {currentPage} of {totalPages}</span>
-                      <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="pi-page-btn">Next</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
 
-        {isModalOpen && (
-          <div className="pi-modal-overlay" onClick={() => setIsModalOpen(false)}>
-            <div className="pi-modal" onClick={e => e.stopPropagation()}>
-              <div className="pi-modal-header">
-                <h2 className="pi-modal-title">
-                  {isEditMode ? 'Edit' : isViewMode ? 'View' : 'New'} Purchase Invoice
-                </h2>
-                <button onClick={closeModal} className="pi-modal-close">
-                  <X className="pi-icon" />
-                </button>
-              </div>
-
-              <div className="pi-modal-body">
-                {/* Supplier Info */}
-                <div className="pi-form-section">
-                  <h3 className="pi-section-title">Supplier Information</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* First Row */}
-                    <div className="pi-form-group" ref={supplierRef}>
-                      <label className="pi-label">Supplier {!isViewMode && <span className="pi-required">*</span>}</label>
-                      <div className="pi-input-wrapper">
-                        <Building2 className="pi-input-icon" />
-                        <input
-                          type="text"
-                          value={searchSupplier}
-                          onChange={e => setSearchSupplier(e.target.value)}
-                          onFocus={() => !isViewMode && searchSupplier && setShowSupplierDropdown(true)}
-                          placeholder="Search and select supplier..."
-                          className={`pi-input ${formErrors.supplier ? 'pi-input-error' : ''}`}
-                          disabled={isViewMode}
-                        />
-                      </div>
-                      {showSupplierDropdown && suppliers.length > 0 && !isViewMode && (
-                        <div className="pi-dropdown">
-                          {suppliers.map(s => (
-                            <div key={s.name} onClick={() => selectSupplier(s)} className="pi-dropdown-item">
-                              <div className="pi-dropdown-main">{s.supplier_name}</div>
-                              <div className="pi-dropdown-sub">{s.name}</div>
-                            </div>
+                  {total > 0 && (
+                    <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
+                        Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total}
+                      </span>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
+                          {[20, 50, 100].map(s => (
+                            <button key={s} onClick={() => { setPageSize(s); setCurrentPage(1); }} className={`so-page-btn ${pageSize === s ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{s}</button>
                           ))}
                         </div>
-                      )}
-                      {formErrors.supplier && <span className="pi-error">{formErrors.supplier}</span>}
+                        
+                        <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
+                          <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
+                          <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={14} /></button>
+                        </div>
+                      </div>
                     </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
 
-                    <div className="pi-form-group">
-                      <label className="pi-label">Posting Date {!isViewMode && <span className="pi-required">*</span>}</label>
-                      <div className="pi-input-wrapper">
-                        <Calendar className="pi-input-icon" />
+        {isModalOpen && (
+          <div className="so-modal-overlay" onClick={closeModal}>
+            <div className="so-modal" style={{ maxWidth: '1000px', width: '95vw' }} onClick={e => e.stopPropagation()}>
+              <div className="so-modal-header">
+                <h2 className="so-modal-title">
+                  <Package size={18} style={{ display: 'inline', marginRight: '0.4rem' }} />
+                  {isEditMode ? 'Edit' : isViewMode ? 'View' : 'New'} Purchase Invoice
+                </h2>
+                <button onClick={closeModal} className="so-modal-close">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Basic Details Card */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <p className="so-card-title">Basic Details</p>
+                  </div>
+                  <div className="so-card-body">
+                    <div className="so-form-grid">
+                      <div className="so-field" ref={supplierRef} style={{ position: 'relative' }}>
+                        <label className="so-label">Supplier {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                        <div style={{ position: 'relative' }}>
+                          <Building2 size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                          <input
+                            type="text"
+                            value={searchSupplier}
+                            onChange={e => setSearchSupplier(e.target.value)}
+                            onFocus={() => !isViewMode && searchSupplier && setShowSupplierDropdown(true)}
+                            placeholder="Search supplier..."
+                            className="so-input"
+                            style={{ paddingLeft: '2.5rem' }}
+                            disabled={isViewMode}
+                          />
+                        </div>
+                        {showSupplierDropdown && suppliers.length > 0 && !isViewMode && (
+                          <div className="so-dropdown" style={{ top: '100%', left: 0, right: 0, zIndex: 100 }}>
+                            {suppliers.map(s => (
+                              <div key={s.name} onClick={() => selectSupplier(s)} className="so-dropdown-item">
+                                <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{s.supplier_name}</div>
+                                <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{s.name}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {formErrors.supplier && <span className="so-error-text">{formErrors.supplier}</span>}
+                      </div>
+
+                      <div className="so-field">
+                        <label className="so-label">Posting Date</label>
+                        <div style={{ position: 'relative' }}>
+                          <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                          <input
+                            type="date"
+                            value={formData.posting_date}
+                            onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
+                            className="so-input"
+                            style={{ paddingLeft: '2.5rem' }}
+                            disabled={isViewMode}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="so-field">
+                        <label className="so-label">Due Date</label>
+                        <div style={{ position: 'relative' }}>
+                          <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                          <input
+                            type="date"
+                            value={formData.due_date}
+                            onChange={e => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                            className="so-input"
+                            style={{ paddingLeft: '2.5rem' }}
+                            disabled={isViewMode}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="so-field">
+                        <label className="so-label">Bill Number</label>
                         <input
-                          type="date"
-                          value={formData.posting_date}
-                          onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
-                          className="pi-input"
+                          type="text"
+                          value={formData.bill_no}
+                          onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
+                          placeholder="Enter bill number..."
+                          className="so-input"
                           disabled={isViewMode}
                         />
                       </div>
-                    </div>
-
-                    {/* Second Row */}
-                    <div className="pi-form-group">
-                      <label className="pi-label">Due Date</label>
-                      <div className="pi-input-wrapper">
-                        <Calendar className="pi-input-icon" />
-                        <input
-                          type="date"
-                          value={formData.due_date}
-                          onChange={e => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-                          className="pi-input"
-                          disabled={isViewMode}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pi-form-group">
-                      <label className="pi-label">Bill Number</label>
-                      <input
-                        type="text"
-                        value={formData.bill_no}
-                        onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
-                        placeholder="Enter bill number..."
-                        className="pi-input"
-                        disabled={isViewMode}
-                      />
                     </div>
                   </div>
                 </div>
 
-
-                {/* Items Table - WAREHOUSE REMOVED, STOCK FIELDS ADDED AT FORM LEVEL */}
-                <div className="pi-form-section">
-                  <div className="pi-section-header">
-                    <h3 className="pi-section-title">Items</h3>
-                    {!isViewMode && <button onClick={addItemRow} className="pi-btn-link"><Plus className="pi-icon-sm" /> Add Item</button>}
-                  </div>
-
-                  {/* NEW: Barcode Scanner Input */}
-                  {!isViewMode && (
-                    <div className="pi-barcode-scanner-wrapper" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '2px dashed #dee2e6' }}>
-                      <label className="pi-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Scan Barcode (Press Enter to Add)</label>
-                      <div className="pi-input-wrapper">
-                        <Barcode className="pi-input-icon" />
+                {/* Barcode Scanner Card */}
+                {!isViewMode && (
+                  <div className="so-card" style={{ border: `1px dashed ${themeColor}`, background: `${themeColor}05` }}>
+                    <div className="so-card-body" style={{ padding: '1rem 1.5rem' }}>
+                      <div className="so-form-grid" style={{ gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ background: themeColor, color: 'white', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                            <Barcode size={20} />
+                          </div>
+                          <div>
+                            <p style={{ fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Quick Scan</p>
+                            <p style={{ fontSize: '0.65rem', opacity: 0.6 }}>Add items instantly</p>
+                          </div>
+                        </div>
                         <input
                           ref={barcodeRef}
                           type="text"
                           value={barcodeInput}
                           onChange={e => setBarcodeInput(e.target.value)}
                           onKeyDown={handleBarcodeScan}
-                          placeholder="Scan or enter barcode..."
-                          className="pi-input"
-                          autoFocus
+                          placeholder="Place cursor here and scan barcode..."
+                          className="so-input"
+                          style={{ height: '42px', fontSize: '0.9rem', borderStyle: 'dashed' }}
                           disabled={barcodeLoading}
+                          autoFocus
                         />
-                        {barcodeLoading && <Loader2 className="animate-spin pi-input-icon" style={{ marginLeft: '0.5rem' }} />}
+                        {barcodeLoading && <Loader2 className="so-spinner" size={20} />}
                       </div>
-                      <p style={{ fontSize: '0.875rem', color: '#6c757d', marginTop: '0.25rem' }}>Scanned items will be added to the table automatically.</p>
                     </div>
-                  )}
+                  </div>
+                )}
+                {/* Stock Controls Card */}
+                <div className="so-card">
+                  <div className="so-card-body">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: isViewMode ? 'not-allowed' : 'pointer', userSelect: 'none' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.update_stock}
+                          onChange={e => {
+                            const checked = e.target.checked;
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              update_stock: checked,
+                              accepted_warehouse: checked ? (prev.accepted_warehouse || warehouses[0]?.name || '') : '',
+                            }));
+                          }}
+                          disabled={isViewMode}
+                          style={{ width: '1.2rem', height: '1.2rem', accentColor: themeColor }}
+                        />
+                        <div>
+                          <p style={{ fontWeight: 700, fontSize: '0.85rem' }}>Update Stock</p>
+                          <p style={{ fontSize: '0.7rem', opacity: 0.6 }}>Receive items into inventory upon submission</p>
+                        </div>
+                      </label>
 
-                  {/* NEW: Stock Controls - Visible based on Update Stock */}
-                  <div className="pi-stock-controls" style={{ marginBottom: '1rem' }}>
-                    <label style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      fontSize: '1.1rem',
-                      fontWeight: '600',
-                      cursor: isViewMode ? 'not-allowed' : 'pointer'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.update_stock}
-                        onChange={e => {
-                          const checked = e.target.checked;
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            update_stock: checked,
-                            accepted_warehouse: checked ? (prev.accepted_warehouse || warehouses[0]?.name || '') : '',
-                            rejected_warehouse: checked ? prev.rejected_warehouse : '',
-                            is_subcontracted: checked ? prev.is_subcontracted : false
-                          }));
-                        }}
-                        disabled={isViewMode}
-                        style={{ width: '20px', height: '20px' }}
-                      />
-                      <span>Update Stock</span>
-                      <span style={{ fontWeight: '400', color: '#666' }}>(Receive items into warehouse)</span>
-                    </label>
-
-                    {formData.update_stock && !isViewMode && (
-                      <>
-                        <div className="pi-form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                          <div className="pi-form-group">
-                            <label className="pi-label">Set Accepted Warehouse {!isViewMode && <span className="pi-required">*</span>}</label>
+                      {formData.update_stock && (
+                        <div className="so-form-grid" style={{ gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr) auto', alignItems: 'end' }}>
+                          <div className="so-field">
+                            <label className="so-label">Accepted Branch</label>
                             <select
                               value={formData.accepted_warehouse}
                               onChange={e => setFormData(prev => ({ ...prev, accepted_warehouse: e.target.value }))}
-                              className={`pi-select ${formErrors.accepted_warehouse ? 'pi-input-error' : ''}`}
-                              required
+                              className="so-select"
+                              disabled={isViewMode}
                             >
-                              <option value="">Select Warehouse</option>
+                              <option value="">Select Branch</option>
                               {warehouses.map(w => (
                                 <option key={w.name} value={w.name}>{w.warehouse_name}</option>
                               ))}
                             </select>
-                            {formErrors.accepted_warehouse && <span className="pi-error">{formErrors.accepted_warehouse}</span>}
                           </div>
-                          <div className="pi-form-group">
-                            <label className="pi-label">Rejected Warehouse</label>
+                          <div className="so-field">
+                            <label className="so-label">Rejected Branch</label>
                             <select
                               value={formData.rejected_warehouse}
                               onChange={e => setFormData(prev => ({ ...prev, rejected_warehouse: e.target.value }))}
-                              className="pi-select"
+                              className="so-select"
+                              disabled={isViewMode}
                             >
                               <option value="">None</option>
                               {warehouses.map(w => (
@@ -955,284 +1041,290 @@ function PurchaseInvoiceList() {
                               ))}
                             </select>
                           </div>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: isViewMode ? 'not-allowed' : 'pointer', marginBottom: '0.75rem' }}>
+                             <input
+                              type="checkbox"
+                              checked={formData.is_subcontracted}
+                              onChange={e => setFormData(prev => ({ ...prev, is_subcontracted: e.target.checked }))}
+                              disabled={isViewMode}
+                              style={{ accentColor: themeColor }}
+                            />
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Subcontracted</span>
+                          </label>
                         </div>
-                        <label style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          marginTop: '1rem',
-                          fontSize: '1rem',
-                          fontWeight: '500',
-                          cursor: isViewMode ? 'not-allowed' : 'pointer'
-                        }}>
-                          <input
-                            type="checkbox"
-                            checked={formData.is_subcontracted}
-                            onChange={e => setFormData(prev => ({ ...prev, is_subcontracted: e.target.checked }))}
-                            disabled={isViewMode}
-                            style={{ width: '20px', height: '20px' }}
-                          />
-                          <span>Is Subcontracted</span>
-                        </label>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </div>
+                </div>
 
-                  <div className="pi-items-table-wrapper">
-                    <table className="pi-items-table">
-                      <thead>
-                        <tr>
-                          <th className="pi-items-th">
-                            Item {!isViewMode && <span className="pi-required">*</span>}
-                          </th>
-                          <th className="pi-items-th" style={{ width: '120px' }}>
-                            Accepted Qty {!isViewMode && <span className="pi-required">*</span>}
-                          </th>
-                          <th className="pi-items-th" style={{ width: '100px' }}>UOM</th>
-                          <th className="pi-items-th" style={{ width: '140px' }}>
-                            Rate (AED) {!isViewMode && <span className="pi-required">*</span>}
-                          </th>
-                          <th className="pi-items-th" style={{ width: '140px' }}>
-                            Amount (AED) {!isViewMode && <span className="pi-required">*</span>}
-                          </th>
-                          <th className="pi-items-th" style={{ width: '60px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {formData.items.map((item, i) => (
-                          <tr key={i}>
-                            <td className="pi-items-td" ref={el => itemRefs.current[i] = el}>
-                              {item.item_code ? (
-                                <div className="pi-item-selected">{item.item_name}</div>
-                              ) : (
-                                <div className="pi-item-cell">
-                                  <input
-                                    type="text"
-                                    value={itemSearches[i] || ''}
-                                    onChange={e => handleItemSearch(i, e.target.value)}
-                                    placeholder="Search item..."
-                                    className="pi-items-input"
-                                    disabled={isViewMode}
-                                  />
-                                  {showItemDropdowns[i] && itemsList.length > 0 && !isViewMode && (
-                                    <div className="pi-dropdown pi-dropdown-absolute">
-                                      {itemsList.map(itm => (
-                                        <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="pi-dropdown-item">
-                                          <div className="pi-dropdown-main">{itm.item_name}</div>
-                                          <div className="pi-dropdown-sub">{itm.item_code}</div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                            <td className="pi-items-td">
-                              <input
-                                type="number"
-                                value={item.qty || ''}
-                                onChange={e => updateItem(i, 'qty', e.target.value)}
-                                className="pi-items-input pi-items-input-number"
-                                min="1"
-                                disabled={isViewMode}
-                              />
-                            </td>
-                            <td className="pi-items-td"><span className="pi-items-text">{item.uom || '-'}</span></td>
-                            <td className="pi-items-td">
-                              <input
-                                type="number"
-                                value={item.rate || ''}
-                                onChange={e => updateItem(i, 'rate', e.target.value)}
-                                className="pi-items-input pi-items-input-number"
-                                step="0.01"
-                                disabled={isViewMode}
-                              />
-                            </td>
-                            <td className="pi-items-td">
-                              <span className="pi-items-amount">
-                                {item.amount ? parseFloat(item.amount).toFixed(2) : '0.00'}
-                              </span>
-                            </td>
-                            <td className="pi-items-td">
-                              {!isViewMode && formData.items.length > 1 && (
-                                <button onClick={() => removeItemRow(i)} className="pi-btn-delete">
-                                  <Trash2 className="pi-icon-sm" />
-                                </button>
-                              )}
-                            </td>
+                {/* Items Card */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <p className="so-card-title">Items</p>
+                    {!isViewMode && <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
+                      <Plus size={14} /> Add Row
+                    </button>}
+                  </div>
+                  <div className="so-card-body">
+                    <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
+                      <table className="so-items-table">
+                        <thead>
+                          <tr>
+                            <th>Item Description</th>
+                            <th style={{ width: '100px', textAlign: 'center' }}>Accepted Qty</th>
+                            <th style={{ width: '80px', textAlign: 'center' }}>UOM</th>
+                            <th style={{ width: '120px', textAlign: 'right' }}>Rate (AED)</th>
+                            <th style={{ width: '120px', textAlign: 'right' }}>Amount (AED)</th>
+                            <th style={{ width: '40px' }}></th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {!isViewMode && (
-                      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
-                        <button onClick={addItemRow} className="pi-btn-secondary">
-                          <Plus className="pi-icon-sm" /> Add Row
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Discount & Taxes Section - Update Stock REMOVED */}
-                <div className="pi-form-section">
-                  <h3 className="pi-section-title">Discount & Taxes</h3>
-
-                  <div className="pi-form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
-                    <div className="pi-form-group">
-                      <label className="pi-label">Apply Discount On</label>
-                      <select value={formData.apply_discount_on}
-                        onChange={e => setFormData(prev => ({ ...prev, apply_discount_on: e.target.value }))}
-                        disabled={isViewMode} className="pi-select">
-                        <option>Grand Total</option>
-                        <option>Net Total</option>
-                      </select>
-                    </div>
-                    <div className="pi-form-group">
-                      <label className="pi-label">Discount (%)</label>
-                      <div className="pi-input-wrapper">
-                        <Percent className="pi-input-icon" />
-                        <input type="number" value={formData.additional_discount_percentage}
-                          onChange={e => setFormData(prev => ({ ...prev, additional_discount_percentage: e.target.value, discount_amount: 0 }))}
-                          className="pi-input" min="0" max="100" step="0.01" disabled={isViewMode} />
-                      </div>
-                    </div>
-                    <div className="pi-form-group">
-                      <label className="pi-label">Discount Amount</label>
-                      <div className="pi-input-wrapper">
-                        <DollarSign className="pi-input-icon" />
-                        <input type="number" value={formData.discount_amount}
-                          onChange={e => setFormData(prev => ({ ...prev, discount_amount: e.target.value, additional_discount_percentage: 0 }))}
-                          className="pi-input" min="0" step="0.01" disabled={isViewMode} />
-                      </div>
-                    </div>
-                  </div>
-                  {/* Tax Template */}
-                  <div className="pi-form-section">
-                    <div className="pi-form-group">
-                      <label className="pi-label">Taxes and Charges Template</label>
-                      <select value={formData.taxes_and_charges}
-                        onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
-                        disabled={isViewMode || loadingTaxTemplates} className="pi-select">
-                        <option value="">No Tax</option>
-                        {taxTemplates.map(t => (
-                          <option key={t.name} value={t.name}>{t.title || t.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/*  Tax Table */}
-                  <div style={{ marginBottom: '2rem' }}>
-                    <h4 className="pi-section-title" style={{ marginBottom: '1rem' }}>Purchase Taxes and Charges</h4>
-                    {taxPreview.length === 0 ? (
-                      <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: '#f8f9fa', borderRadius: '8px', color: '#6c757d' }}>
-                        <p style={{ margin: 0, fontStyle: 'italic' }}>No tax template selected</p>
-                      </div>
-                    ) : (
-                      <div style={{ overflowX: 'auto', border: '1px solid #dee2e6', borderRadius: '8px' }}>
-                        <table style={{ width: '100%', backgroundColor: 'white' }}>
-                          <thead style={{ backgroundColor: '#f8f9fa' }}>
-                            <tr>
-                              <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '600' }}>Type</th>
-                              <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '600' }}>Account Head</th>
-                              <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600' }}>Rate (%)</th>
-                              <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '600' }}>Amount (AED)</th>
+                        </thead>
+                        <tbody>
+                          {formData.items.map((item, i) => (
+                            <tr key={i}>
+                              <td ref={el => itemRefs.current[i] = el}>
+                                {item.item_code ? (
+                                  <div style={{ padding: '0.5rem 0' }}>
+                                    <div style={{ fontWeight: 800, fontSize: '0.8rem', color: themeColor }}>{item.item_code}</div>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 500, opacity: 0.8 }}>{item.item_name}</div>
+                                  </div>
+                                ) : (
+                                  <div style={{ position: 'relative' }}>
+                                    <input
+                                      type="text"
+                                      value={itemSearches[i] || ''}
+                                      onChange={e => handleItemSearch(i, e.target.value)}
+                                      placeholder="Search and select item..."
+                                      className="so-input"
+                                      style={{ height: '36px', fontSize: '0.75rem' }}
+                                      disabled={isViewMode}
+                                    />
+                                    {showItemDropdowns[i] && itemsList.length > 0 && !isViewMode && (
+                                      <div className="so-dropdown" style={{ top: '100%', left: 0, right: 0, zIndex: 110 }}>
+                                        {itemsList.map(itm => (
+                                          <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="so-dropdown-item">
+                                            <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{itm.item_name}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{itm.item_code}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <input
+                                  type="number"
+                                  value={item.qty}
+                                  onChange={e => updateItem(i, 'qty', e.target.value)}
+                                  className="so-input"
+                                  style={{ height: '36px', textAlign: 'center', fontWeight: 700 }}
+                                  disabled={isViewMode}
+                                />
+                              </td>
+                              <td style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 600 }}>{item.uom || '-'}</td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={item.rate}
+                                  onChange={e => updateItem(i, 'rate', e.target.value)}
+                                  className="so-input"
+                                  style={{ height: '36px', textAlign: 'right', fontWeight: 700 }}
+                                  disabled={isViewMode}
+                                  step="0.01"
+                                />
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.8rem' }}>
+                                {(parseFloat(item.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                {!isViewMode && formData.items.length > 1 && (
+                                  <button onClick={() => removeItemRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}>
+                                    <X size={14} />
+                                  </button>
+                                )}
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {taxPreview.map((tax, i) => (
-                              <tr key={i} style={{ borderTop: '1px solid #dee2e6' }}>
-                                <td style={{ padding: '16px' }}>
-                                  <span style={{
-                                    backgroundColor: '#e3f2fd',
-                                    color: '#1976d2',
-                                    padding: '6px 12px',
-                                    borderRadius: '20px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '600'
-                                  }}>Actual</span>
-                                </td>
-                                <td style={{ padding: '16px', fontWeight: '500' }}>{tax.account_head || 'N/A'}</td>
-                                <td style={{ padding: '16px', textAlign: 'center' }}>{parseFloat(tax.rate || 0).toFixed(2)}%</td>
-                                <td style={{ padding: '16px', textAlign: 'right', fontWeight: '700', color: '#2e7d32' }}>
-                                  AED {(netTotal * (parseFloat(tax.rate || 0) / 100)).toFixed(2)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Grand Total Box */}
-                  <div style={{
-                    backgroundColor: '#f0f8ff',
-                    padding: '1.5rem',
-                    borderRadius: '12px',
-                    border: '2px solid #b3e5fc'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                      <span style={{ fontWeight: '500' }}>Net Total:</span>
-                      <strong>AED {netTotal.toFixed(2)}</strong>
-                    </div>
-                    {discountAmount > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', color: '#c62828' }}>
-                        <span style={{ fontWeight: '500' }}>Discount:</span>
-                        <strong>-AED {discountAmount.toFixed(2)}</strong>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                      <span style={{ fontWeight: '500' }}>Total Tax:</span>
-                      <strong>AED {taxTotal.toFixed(2)}</strong>
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      paddingTop: '1rem',
-                      borderTop: '3px double #1976d2',
-                      fontSize: '1.4rem',
-                      fontWeight: 'bold'
-                    }}>
-                      <span>Grand Total:</span>
-                      <span style={{ color: '#1976d2' }}>AED {grandTotal}</span>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div className="pi-modal-footer" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                  {/* Draft or New invoice (docStatus === 0 or null) → Editable + buttons */}
-                  {(docStatus === 0 || docStatus === null) && (
-                    <>
-                      <button onClick={closeModal} className="pi-btn-secondary">
-                        Cancel
-                      </button>
+                {/* Discounts & Taxes Section */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+                  {/* Left Column: Discounts & Tax Selection */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div className="so-card">
+                      <div className="so-card-header">
+                        <p className="so-card-title">Discounts & Rounding</p>
+                      </div>
+                      <div className="so-card-body">
+                        <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                          <div className="so-field" style={{ gridColumn: 'span 2' }}>
+                            <label className="so-label">Apply Discount On</label>
+                            <select 
+                              value={formData.apply_discount_on}
+                              onChange={e => setFormData(prev => ({ ...prev, apply_discount_on: e.target.value }))}
+                              disabled={isViewMode} 
+                              className="so-select"
+                            >
+                              <option>Grand Total</option>
+                              <option>Net Total</option>
+                            </select>
+                          </div>
+                          <div className="so-field">
+                            <label className="so-label">Discount (%)</label>
+                            <input 
+                              type="number" 
+                              value={formData.additional_discount_percentage}
+                              onChange={e => setFormData(prev => ({ ...prev, additional_discount_percentage: e.target.value, discount_amount: 0 }))}
+                              className="so-input" 
+                              min="0" max="100" step="0.01" 
+                              disabled={isViewMode} 
+                            />
+                          </div>
+                          <div className="so-field">
+                            <label className="so-label">Discount Amount</label>
+                            <input 
+                              type="number" 
+                              value={formData.discount_amount}
+                              onChange={e => setFormData(prev => ({ ...prev, discount_amount: e.target.value, additional_discount_percentage: 0 }))}
+                              className="so-input" 
+                              min="0" step="0.01" 
+                              disabled={isViewMode} 
+                            />
+                          </div>
+                          <div className="so-field" style={{ gridColumn: 'span 2' }}>
+                            <label className="so-label">Tax Template</label>
+                            <select 
+                              value={formData.taxes_and_charges}
+                              onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
+                              disabled={isViewMode || loadingTaxTemplates} 
+                              className="so-select"
+                            >
+                              <option value="">No Tax</option>
+                              {taxTemplates.map(t => (
+                                <option key={t.name} value={t.name}>{t.title || t.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                      <button onClick={handleSaveDraft} disabled={saving} className="pi-btn-secondary">
-                        {saving ? 'Saving...' : (docName ? 'Update Draft' : 'Save Draft')}
-                      </button>
+                    {/* Taxes Table Card */}
+                    {taxPreview.length > 0 && (
+                      <div className="so-card">
+                        <div className="so-card-header">
+                          <p className="so-card-title">Taxes & Charges</p>
+                        </div>
+                        <div className="so-card-body">
+                          <div className="so-table-wrapper" style={{ boxShadow: 'none', border: '1px solid var(--so-border)', marginTop: 0 }}>
+                            <table className="so-items-table">
+                              <thead>
+                                <tr>
+                                  <th>Type</th>
+                                  <th>Account</th>
+                                  <th style={{ textAlign: 'center' }}>Rate</th>
+                                  <th style={{ textAlign: 'right' }}>Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {taxPreview.map((tax, i) => (
+                                  <tr key={i}>
+                                    <td><span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '1rem', background: '#e0f2fe', color: '#0369a1' }}>ACTUAL</span></td>
+                                    <td style={{ fontSize: '0.75rem', fontWeight: 600 }}>{tax.account_head?.split(' - ')[0]}</td>
+                                    <td style={{ textAlign: 'center', fontWeight: 700 }}>{tax.rate}%</td>
+                                    <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                                      {(netTotal * (parseFloat(tax.rate || 0) / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-                      <button onClick={handleSubmit} disabled={saving} className="pi-btn-primary" style={{ minWidth: '160px' }}>
-                        {saving ? (
-                          <>
-                            <Loader2 className="animate-spin" size={20} style={{ marginRight: '8px' }} />
-                            Processing...
-                          </>
-                        ) : (
-                          'Submit Invoice'
-                        )}
-                      </button>
-                    </>
-                  )}
+                  {/* Right Column: Totals Summary */}
+                  <div className="so-card" style={{ 
+                    background: isGreen 
+                      ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' 
+                      : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)',
+                    color: 'white',
+                    height: '100%'
+                  }}>
+                    <div className="so-card-header" style={{ borderBottomColor: 'rgba(255,255,255,0.1)' }}>
+                      <p className="so-card-title" style={{ color: 'white' }}>Final Summary</p>
+                    </div>
+                    <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
+                        <span>Subtotal</span>
+                        <span style={{ fontWeight: 700 }}>AED {subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      
+                      {discountAmount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fda4af' }}>
+                          <span>Total Discount</span>
+                          <span style={{ fontWeight: 700 }}>- AED {discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
 
-                  {/* Submitted invoice (docStatus === 1) → View only + Close button */}
-                  {docStatus === 1 && (
-                    <button onClick={closeModal} className="pi-btn-secondary">
-                      Close
-                    </button>
-                  )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
+                        <span>Tax Total</span>
+                        <span style={{ fontWeight: 700 }}>AED {taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+
+                      <div style={{ 
+                        marginTop: '1rem', 
+                        paddingTop: '1rem', 
+                        borderTop: '1px solid rgba(255,255,255,0.2)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <span style={{ fontSize: '1rem', fontWeight: 500 }}>Grand Total</span>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '1.75rem', fontWeight: 900, display: 'block', lineHeight: 1 }}>
+                            AED {parseFloat(grandTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inc. All Taxes</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="so-modal-footer">
+                  <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+                    {(docStatus === 0 || docStatus === null) ? (
+                      <>
+                        <button onClick={closeModal} className="so-btn-secondary">Cancel</button>
+                        <button 
+                          onClick={handleSaveDraft} 
+                          disabled={saving} 
+                          className="so-btn-secondary"
+                          style={{ minWidth: '140px' }}
+                        >
+                          {saving ? <Loader2 size={16} className="so-spinner" /> : (docName ? 'Update Draft' : 'Save Draft')}
+                        </button>
+                        <button 
+                          onClick={handleSubmit} 
+                          disabled={saving} 
+                          className="so-btn-primary"
+                          style={{ minWidth: '180px' }}
+                        >
+                          {saving ? <Loader2 size={16} className="so-spinner" /> : 'Submit Invoice'}
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={closeModal} className="so-btn-primary" style={{ minWidth: '120px' }}>Done</button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -3,9 +3,9 @@ import { useSelector } from 'react-redux';
 import {
   Search, Calendar, Filter, Plus, FileText, ChevronRight,
   Loader2, ShoppingCart, ArrowRightLeft, Clock, History,
-  CheckCircle2, AlertCircle, Eye, Printer, Trash2, Edit2
+  CheckCircle2, AlertCircle, Eye, Printer, Trash2, Edit2, Palette
 } from 'lucide-react';
-import './Purchase.css';
+import '../Admin/SalesOrder.css';
 import '../Headers/LegacyPOS.css';
 
 const PurchaseOrderList = ({ onNew }) => {
@@ -15,6 +15,20 @@ const PurchaseOrderList = ({ onNew }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [error, setError] = useState(null);
+
+  // Theme toggle (synced across pages)
+  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = polTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', polTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [polTheme, themeColor, themeColorHover, themeLight]);
 
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = '';
@@ -63,188 +77,249 @@ const PurchaseOrderList = ({ onNew }) => {
     );
   };
 
-  return (
-    <div className={`font-sans purchase-list-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
-      {/* HEADER SECTION */}
-      <div className="bg-white px-8 py-5 border-b border-slate-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-extrabold text-[#0f172a] tracking-tight">Purchase Directory</h1>
-          <p className="text-xs font-semibold text-slate-400 mt-0.5 uppercase tracking-widest">
-            Manage your procurement workflow
-          </p>
-        </div>
+  const STATUS_TABS = ['All', 'Draft', 'Submitted', 'Partially Received', 'Completed'];
 
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+  return (
+    <div className="so-page" style={{ minHeight: '100vh' }}>
+      {/* Page Header */}
+      <div className="so-page-header">
+        <div>
+          <h1 className="so-page-title">
+            <ShoppingCart size={20} /> Purchase Directory
+          </h1>
+          <p className="so-page-subtitle">Manage your procurement workflow</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {/* Search */}
+          <div style={{ position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input
               type="text"
-              placeholder="Quick Search (e.g. PO-001 or Supplier)..."
+              placeholder="Search PO or Supplier..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700 w-[280px] focus:bg-white focus:border-emerald-500 transition-all outline-none"
+              style={{
+                paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.45rem', paddingBottom: '0.45rem',
+                border: '1.5px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.8rem',
+                width: '220px', outline: 'none', background: '#f8fafc', color: '#1e293b'
+              }}
             />
           </div>
 
+          {/* Theme Toggle */}
           <button
-            onClick={onNew}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95"
+            onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.45rem 0.9rem', background: '#f8fafc',
+              border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+              fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+              cursor: 'pointer', transition: 'all 0.2s',
+              textTransform: 'uppercase', letterSpacing: '0.04em'
+            }}
+            title="Toggle Theme"
           >
-            <Plus className="w-4 h-4" />
-            Create New PO
+            <Palette size={13} />
+            {polTheme.toUpperCase()}
+          </button>
+
+          <button className="so-btn-primary" onClick={onNew}>
+            <Plus size={16} /> Create New PO
           </button>
         </div>
       </div>
 
-      <div className="max-w-[1700px] mx-auto p-8">
-        {/* FILTER BAR */}
-        <div className="flex items-center justify-between mb-8 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-          <div className="flex gap-2">
-            {['All', 'Draft', 'Submitted', 'Partially Received', 'Completed'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setFilterStatus(tab)}
-                className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === tab
-                  ? 'bg-emerald-50 text-emerald-600 shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50'
-                  }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+      {/* Status Filter Tabs */}
+      <div style={{
+        background: '#fff', borderBottom: '1px solid #e2e8f0',
+        padding: '0.6rem 2rem', display: 'flex', gap: '0.4rem', alignItems: 'center'
+      }}>
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setFilterStatus(tab)}
+            style={{
+              padding: '0.35rem 1rem',
+              borderRadius: '0.375rem',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              background: filterStatus === tab ? themeLight : 'transparent',
+              color: filterStatus === tab ? themeColor : '#94a3b8',
+              outline: filterStatus === tab ? `1.5px solid ${themeColor}` : 'none',
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
+          {orders.length} order(s)
+        </span>
+      </div>
 
-          <div className="flex items-center gap-3 text-slate-400">
-            <Filter className="w-4 h-4" />
-            <span className="text-[11px] font-bold uppercase tracking-wider">Advanced Filtering</span>
-          </div>
-        </div>
-
-        {/* DATA GRID */}
-                <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <div className="relative">
-                <div className="w-12 h-12 border-4 border-emerald-50 border-t-emerald-600 rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <ShoppingCart className="w-4 h-4 text-emerald-600/30" />
-                </div>
-              </div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Processing Directory...</p>
-            </div>
-          ) : error ? (
-            <div className="py-24 text-center">
-              <div className="mx-auto w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
-                <AlertCircle className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800">{error}</h3>
-              <button onClick={fetchOrders} className="mt-4 text-xs font-bold text-emerald-600 hover:underline">Retry</button>
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="py-32 text-center">
-              <div className="mx-auto w-20 h-20 bg-slate-50 text-slate-200 rounded-full flex items-center justify-center mb-6">
-                <FileText className="w-10 h-10" />
-              </div>
-              <h3 className="text-lg font-extrabold text-slate-800 tracking-tight">No Transactions Found</h3>
-              <p className="text-sm text-slate-400 font-medium max-w-sm mx-auto mt-2">
-                We couldn't find any purchase orders matching your current filter criteria.
-              </p>
-              <button onClick={onNew} className="mt-8 bg-emerald-600 text-white px-8 py-3 rounded-xl text-xs font-bold shadow-md hover:bg-emerald-700 transition-all uppercase tracking-widest">
-                Start New Purchase
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/50">
-                    <th className="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Identity #</th>
-                    <th className="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Supplier & Location</th>
-                    <th className="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Posting Matrix</th>
-                    <th className="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Analytics</th>
-                    <th className="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">Commitment Value</th>
-                    <th className="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Status</th>
-                    <th className="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-center">Controls</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {orders.map((po) => (
-                    <tr key={po.name} className="group hover:bg-emerald-50/30 transition-all duration-200">
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-all shadow-sm">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-extrabold text-slate-800">{po.name}</div>
-                            {po.set_warehouse && (
-                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5 flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-slate-300" />
-                                {po.set_warehouse}
-                              </div>
-                            )}
-                          </div>
+      {/* Main Content */}
+      <div style={{ padding: '1.5rem 2rem' }}>
+        <div className="so-table-card">
+          <table className="so-table">
+            <thead>
+              <tr>
+                <th>Identity #</th>
+                <th>Supplier &amp; Location</th>
+                <th>Posting Matrix</th>
+                <th>Analytics</th>
+                <th>Commitment Value</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'center' }}>Controls</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="so-empty">
+                    <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto 0.5rem' }} />
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      Processing Directory...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="7" className="so-empty">
+                    <AlertCircle size={36} style={{ margin: '0 auto 0.5rem', color: '#ef4444' }} />
+                    <div style={{ fontWeight: 700, color: '#1e293b' }}>{error}</div>
+                    <button
+                      onClick={fetchOrders}
+                      style={{ marginTop: '0.5rem', color: themeColor, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}
+                    >
+                      Retry
+                    </button>
+                  </td>
+                </tr>
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="so-empty">
+                    <FileText size={36} style={{ margin: '0 auto 0.75rem', color: '#e2e8f0' }} />
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>No Transactions Found</div>
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.3rem' }}>
+                      No purchase orders match your current filter criteria.
+                    </div>
+                    <button className="so-btn-primary" onClick={onNew} style={{ marginTop: '1rem' }}>
+                      <Plus size={14} /> Start New Purchase
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                orders.map((po) => (
+                  <tr key={po.name}>
+                    {/* Identity */}
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '0.5rem',
+                          background: themeLight, color: themeColor,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <FileText size={16} />
                         </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="text-[13px] font-bold text-slate-700 leading-snug">{po.supplier_name || po.supplier}</div>
-                        <div className="text-[10px] font-bold text-[#003d7c] mt-1 bg-slate-100 px-2 py-0.5 rounded-md inline-block">
-                          ID: {po.supplier}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            {new Date(po.transaction_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
-                          </div>
-                          {po.schedule_date && (
-                            <div className="text-[10px] font-bold text-emerald-600 uppercase">
-                              Due: {new Date(po.schedule_date).toLocaleDateString()}
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#0f172a' }}>{po.name}</div>
+                          {po.set_warehouse && (
+                            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.15rem' }}>
+                              <Clock size={10} /> {po.set_warehouse}
                             </div>
                           )}
                         </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs font-bold text-slate-800">{parseFloat(po.total_qty || 0).toFixed(0)}</div>
-                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Products</div>
+                      </div>
+                    </td>
+
+                    {/* Supplier */}
+                    <td>
+                      <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155' }}>
+                        {po.supplier_name || po.supplier}
+                      </div>
+                      <div style={{
+                        fontSize: '0.68rem', fontWeight: 700, color: '#003d7c',
+                        background: '#f1f5f9', padding: '0.1rem 0.4rem',
+                        borderRadius: '0.25rem', display: 'inline-block', marginTop: '0.25rem'
+                      }}>
+                        ID: {po.supplier}
+                      </div>
+                    </td>
+
+                    {/* Posting Matrix */}
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
+                          <Calendar size={12} style={{ color: '#94a3b8' }} />
+                          {new Date(po.transaction_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+                        </div>
+                        {po.schedule_date && (
+                          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: themeColor, textTransform: 'uppercase' }}>
+                            Due: {new Date(po.schedule_date).toLocaleDateString()}
                           </div>
-                          <div className="w-20 h-1 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (po.total_qty / 100) * 100)}%` }}></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">NET AMOUNT</div>
-                        <div className="text-sm font-black text-slate-900 tabular-nums">
-                          <span className="text-[10px] text-slate-400 mr-1 font-bold">AED</span>
-                          {parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        {getStatusBadge(po.status)}
-                      </td>
-                      <td className="px-6 py-5 text-center">
-                        <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button className="p-2 hover:bg-white hover:shadow-md rounded-lg text-slate-400 hover:text-emerald-600 transition-all">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button className="p-2 hover:bg-white hover:shadow-md rounded-lg text-slate-400 hover:text-blue-600 transition-all">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button className="p-2 hover:bg-white hover:shadow-md rounded-lg text-slate-400 hover:text-indigo-600 transition-all">
-                            <Printer className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Analytics */}
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1e293b' }}>
+                          {parseFloat(po.total_qty || 0).toFixed(0)}
+                        </span>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Products</span>
+                      </div>
+                      <div style={{ width: '64px', height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden', marginTop: '0.35rem' }}>
+                        <div style={{ height: '100%', background: themeColor, borderRadius: '9999px', width: `${Math.min(100, (po.total_qty / 100) * 100)}%` }} />
+                      </div>
+                    </td>
+
+                    {/* Commitment Value */}
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.15rem' }}>NET AMOUNT</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, marginRight: '0.2rem' }}>AED</span>
+                        {parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td>{getStatusBadge(po.status)}</td>
+
+                    {/* Controls */}
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                        <button
+                          style={{ padding: '0.35rem', borderRadius: '0.375rem', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = themeLight; e.currentTarget.style.color = themeColor; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8'; }}
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          style={{ padding: '0.35rem', borderRadius: '0.375rem', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#2563eb'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8'; }}
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        <button
+                          style={{ padding: '0.35rem', borderRadius: '0.375rem', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#f5f3ff'; e.currentTarget.style.color = '#7c3aed'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8'; }}
+                        >
+                          <Printer size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

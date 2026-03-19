@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, X, Loader2, ChevronLeft, ChevronRight, Palette, Layers } from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 
@@ -8,6 +8,20 @@ function ItemGroupList() {
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Theme toggle (synced across pages)
+  const [itTheme, setItTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = itTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', itTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [itTheme, themeColor, themeColorHover, themeLight]);
 
   const [filterName, setFilterName] = useState('');
   const [filterPath, setFilterPath] = useState('');
@@ -114,269 +128,237 @@ function ItemGroupList() {
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const handlePageChange = (page) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  };
-
   return (
     <>
       <NavBar />
-      <div className="min-h-screen bg-gray-50">
+      <div className="so-page">
+        {/* Header */}
+        <div className="so-page-header">
+          <div className="so-page-left">
+            <h1 className="so-page-title">
+              <Layers size={20} /> Item Groups
+            </h1>
+            <p className="so-page-subtitle">{filtered.length} group(s) found</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setItTheme(isGreen ? 'blue' : 'green')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.45rem 0.9rem', background: '#f8fafc',
+                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                cursor: 'pointer', transition: 'all 0.2s',
+                textTransform: 'uppercase', letterSpacing: '0.04em'
+              }}
+              title="Toggle Theme"
+            >
+              <Palette size={13} />
+              {itTheme.toUpperCase()}
+            </button>
 
-        <div className="bg-white border-b px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-gray-900">Item Groups</h1>
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="so-btn-primary"
             >
-              <Plus className="w-5 h-5" />
-              Add Item Group
+              <Plus size={16} /> Add Item Group
             </button>
           </div>
         </div>
 
-        <main className="p-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <div className="so-layout" style={{ flexDirection: 'column' }}>
+          {/* Top Filters Bar */}
+          <div className="so-filter-bar" style={{ 
+            background: 'white', 
+            padding: '1.25rem 2rem', 
+            borderBottom: '1px solid var(--so-border)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '1.25rem',
+            alignItems: 'flex-end'
+          }}>
+            <div style={{ flex: '1 1 250px' }}>
+              <label className="so-filter-label">Group Name</label>
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={filterName}
+                onChange={e => { setFilterName(e.target.value); setCurrentPage(1); }}
+                className="so-filter-input"
+              />
             </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow">
 
-              <div className="p-4 border-b bg-gray-50">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Filter by Name
-                    </label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={filterName}
-                        onChange={(e) => {
-                          setFilterName(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        placeholder="Search by name..."
-                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      {filterName && (
-                        <button
-                          onClick={() => setFilterName('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Filter by Path
-                    </label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={filterPath}
-                        onChange={(e) => {
-                          setFilterPath(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        placeholder="Search by path..."
-                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      {filterPath && (
-                        <button
-                          onClick={() => setFilterPath('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div style={{ flex: '1 1 250px' }}>
+              <label className="so-filter-label">Full Path</label>
+              <input
+                type="text"
+                placeholder="Search by path..."
+                value={filterPath}
+                onChange={e => { setFilterPath(e.target.value); setCurrentPage(1); }}
+                className="so-filter-input"
+              />
+            </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Full Path
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {paginated.length === 0 ? (
+            <button
+              onClick={() => { setFilterName(''); setFilterPath(''); setCurrentPage(1); }}
+              className="so-clear-btn"
+              style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1.5rem' }}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
+            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{filtered.length} record(s) found</p>
+            <div className="so-table-card">
+              <div className="so-table-wrapper">
+                {loading ? (
+                  <div style={{ padding: '4rem', textAlign: 'center' }}>
+                    <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto' }} />
+                    <p style={{ marginTop: '1rem', color: '#64748b', fontWeight: 600 }}>Loading groups...</p>
+                  </div>
+                ) : paginated.length === 0 ? (
+                  <div style={{ padding: '4rem', textAlign: 'center' }}>
+                    <Layers size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--so-text-heading)' }}>
+                      No groups found
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--so-text-muted)', marginTop: '0.5rem' }}>
+                      {groups.length === 0 ? 'Start by adding your first group.' : 'Try adjusting your filters.'}
+                    </p>
+                  </div>
+                ) : (
+                  <table className="so-table">
+                    <thead>
                       <tr>
-                        <td colSpan="2" className="px-6 py-12 text-center text-gray-500">
-                          No item groups found
-                        </td>
+                        <th>Name</th>
+                        <th>Full Path</th>
                       </tr>
-                    ) : (
-                      paginated.map((group) => (
-                        <tr key={group.value} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    </thead>
+                    <tbody>
+                      {paginated.map((group) => (
+                        <tr key={group.value}>
+                          <td style={{ fontWeight: 700, color: themeColor }}>
                             {group.label.split(' > ').pop()}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
+                          <td style={{ fontWeight: 600, color: 'var(--so-text-muted)' }}>
                             {group.label}
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
 
-              <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-700">
-                    Showing {paginated.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-                    {Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} results
+              {/* Pagination */}
+              {!loading && filtered.length > 0 && (
+                <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
+                    Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-gray-700">Rows per page:</label>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                      <option value={500}>500</option>
-                    </select>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
+                      {[20, 50, 100, 500].map(size => (
+                        <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); }} className={`so-page-btn ${pageSize === size ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{size}</button>
+                      ))}
+                    </div>
+                    
+                    <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
+                      <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages || 1}</span>
+                      <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}><ChevronRight size={14} /></button>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-sm text-gray-700 min-w-[100px] text-center">
-                    Page {currentPage} of {totalPages || 1}
-                  </span>
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages || totalPages === 0}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
-          )}
-        </main>
+          </div>
+        </div>
 
+        {/* Add Group Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">New Item Group</h2>
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
+          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
+            <div className="so-modal" style={{ maxWidth: '450px' }}>
+              <div className="so-modal-header">
+                <h2 className="so-modal-title">New Item Group</h2>
+                <button onClick={() => setShowForm(false)} className="so-modal-close">
+                  <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="p-6 space-y-4">
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Item Group Name <span className="text-red-500">*</span>
-                  </label>
+              <form onSubmit={handleSave} className="so-modal-body" style={{ gap: '1.5rem' }}>
+                <div className="so-field">
+                  <label className="so-label">Item Group Name <span style={{ color: 'var(--so-danger)' }}>*</span></label>
                   <input
                     type="text"
                     value={form.item_group_name}
-                    onChange={(e) => setForm({ ...form, item_group_name: e.target.value })}
+                    onChange={e => setForm({ ...form, item_group_name: e.target.value })}
+                    className="so-input"
                     placeholder="e.g., Electronics"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
+                    autoFocus
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Parent Item Group
-                  </label>
-                  <div className="space-y-2">
+                <div className="so-field">
+                  <label className="so-label">Parent Item Group</label>
+                  <div style={{ position: 'relative' }}>
                     <input
                       type="text"
                       value={groupSearch}
-                      onChange={(e) => setGroupSearch(e.target.value)}
+                      onChange={e => setGroupSearch(e.target.value)}
                       placeholder="Search for parent group..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="so-input"
+                      style={{ paddingLeft: '2.5rem' }}
                     />
-
+                    <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                    
                     {groupSearch && (
-                      <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto">
+                      <div className="so-dropdown" style={{ top: '100%', left: 0, right: 0, marginTop: '4px' }}>
                         {parentGroups.length === 0 ? (
-                          <div className="p-3 text-sm text-gray-500 text-center">
-                            No groups found
-                          </div>
+                          <div className="so-dropdown-item" style={{ color: 'var(--so-text-muted)', textAlign: 'center' }}>No groups found</div>
                         ) : (
                           parentGroups.map((group) => (
-                            <button
+                            <div
                               key={group.value}
-                              type="button"
                               onClick={() => {
                                 setForm({ ...form, parent_item_group: group.value });
                                 setGroupSearch('');
                               }}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 transition-colors border-b last:border-b-0"
+                              className="so-dropdown-item"
                             >
                               {group.label}
-                            </button>
+                            </div>
                           ))
                         )}
                       </div>
                     )}
-
-                    <div className="text-sm text-gray-600">
-                      Selected: <span className="font-medium">{form.parent_item_group}</span>
-                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', marginTop: '0.4rem', fontWeight: 600 }}>
+                    Selected: <span style={{ color: themeColor }}>{form.parent_item_group}</span>
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="so-btn-secondary"
+                    style={{ flex: 1 }}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    className="so-btn-primary"
+                    style={{ flex: 1, minWidth: '100px' }}
                   >
-                    {saving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save'
-                    )}
+                    {saving ? <><Loader2 size={14} className="so-spinner" /> Saving...</> : 'Save Group'}
                   </button>
                 </div>
               </form>
