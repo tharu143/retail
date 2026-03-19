@@ -6,7 +6,7 @@ import Swal from 'sweetalert2';
 import {
   AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, Users,
   DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
-  Search, File
+  Search, File, Palette
 } from 'lucide-react';
 import CustomSearchDropdown from './CustomSearchDropdown';
 import './Purchase.css';
@@ -65,6 +65,25 @@ function PurchaseOrder() {
   const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
   const dropdownRef = useRef(null);
+
+  // Theme toggle (synced across pages)
+  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = polTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', polTheme);
+    // Update both PO and SO variables for consistency
+    document.documentElement.style.setProperty('--po-primary', themeColor);
+    document.documentElement.style.setProperty('--po-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--po-primary-light', themeLight);
+    
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [polTheme, themeColor, themeColorHover, themeLight]);
 
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = '';
@@ -217,11 +236,11 @@ function PurchaseOrder() {
     setFormData(prev => {
       if (!template) {
         const totals = calculateTotals(prev.items, []);
-        return { 
-          ...prev, 
-          taxes_and_charges: null, 
-          taxes: [], 
-          ...totals 
+        return {
+          ...prev,
+          taxes_and_charges: null,
+          taxes: [],
+          ...totals
         };
       }
 
@@ -234,18 +253,18 @@ function PurchaseOrder() {
         charge_type: "On Net Total",
         account_head: 'Tax - KSPL',
         rate: taxPercentage,
-        tax_amount: 0, 
+        tax_amount: 0,
         description: template,
         add_deduct_tax: "Add"
       }];
 
       // Unified Recalculation
       const totals = calculateTotals(prev.items, formattedTaxes);
-      
-      return { 
-        ...prev, 
-        ...totals, 
-        taxes_and_charges: template 
+
+      return {
+        ...prev,
+        ...totals,
+        taxes_and_charges: template
       };
     });
   };
@@ -694,10 +713,28 @@ function PurchaseOrder() {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
+            type="button"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.45rem 0.9rem', background: '#f8fafc',
+              border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+              fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+              cursor: 'pointer', transition: 'all 0.2s',
+              textTransform: 'uppercase', letterSpacing: '0.04em'
+            }}
+            title="Toggle Theme"
+          >
+            <Palette className="w-4 h-4" />
+            {polTheme.toUpperCase()}
+          </button>
+          
+          <button
             type="button"
             onClick={handleSaveDraft}
             disabled={saving || loading}
             className="po-btn-secondary"
+            style={{ border: `1px solid ${themeColor}`, color: themeColor }}
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Save Draft
@@ -707,6 +744,7 @@ function PurchaseOrder() {
             onClick={handleSubmit}
             disabled={loading || saving || !formData.supplier || formData.items.filter(i => i.item_code).length === 0 || formData.docstatus === 1}
             className="po-btn-primary px-6"
+            style={{ backgroundColor: themeColor, borderColor: themeColor }}
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             {formData.docstatus === 1 ? 'Submitted' : 'Process Order'}
