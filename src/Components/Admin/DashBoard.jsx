@@ -46,7 +46,6 @@ const routeMap = {
   'Item List': { path: '/itemlist', icon: Boxes },
   'Price List': { path: '/itempricelist', icon: Tag },
   'Item Group': { path: '/itemgrouplist', icon: Layers },
-  'Purchase Tools': { path: '/purchasetools', icon: Settings },
   'Quick Stock-In': { path: '/quickstockin', icon: PlusCircle },
 
   // POS
@@ -92,7 +91,7 @@ function Dashboard() {
       icon: Boxes,
       colorClass: 'icon-items',
       cardClass: 'card-items',
-      items: ['Item List', 'Item Group', 'Price List', 'Purchase Tools', 'Quick Stock-In'],
+      items: ['Item List', 'Item Group', 'Price List', 'Quick Stock-In'],
     },
     {
       title: 'POS Operations',

@@ -521,7 +521,7 @@ function Home() {
         } else {
           // Call updated API with search_type
           const results = await frappeCall({
-            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_customers',
+            method: 'kyle_retail.retail_api.api.get_customers',
             args: {
               search: searchTerm,
               search_type: searchType
@@ -708,7 +708,7 @@ function Home() {
       const rawLastSync = localStorage.getItem('last_item_sync_time') || "";
       const storedLastSync = (rawLastSync === "undefined" || rawLastSync === "null") ? "" : rawLastSync;
 
-      let url = `custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`;
+      let url = `kyle_retail.retail_api.api.get_item_details?warehouse=${encodeURIComponent(warehouse)}`;
 
       if (storedLastSync && !force) {
         const d = new Date(storedLastSync);
@@ -909,7 +909,7 @@ function Home() {
     try {
       setSearchLoading(true);
       const results = await frappeCall({
-        method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_retail_item_details',
+        method: 'kyle_retail.retail_api.api.get_retail_item_details',
         args: { search_term: barcode.trim(), warehouse: warehouse }
       });
       const apiItem = (results || [])[0];
@@ -940,7 +940,7 @@ function Home() {
           try {
             Swal.fire({ title: 'Checking Nearby Stock...', didOpen: () => Swal.showLoading() });
             const nearest = await frappeCall({
-              method: 'custom_retailpos.custom_retailpos.retail_api.retail.find_nearest_stock',
+              method: 'kyle_retail.retail_api.api.find_nearest_stock',
               args: { item_code: itemToBill.id, current_warehouse: warehouse }
             });
             // Update itemToBill with the latest proximity data
@@ -1085,7 +1085,7 @@ function Home() {
       try {
         Swal.showLoading();
         const res = await frappeCall({
-          method: 'custom_retailpos.custom_retailpos.retail_api.retail.create_draft_material_request',
+          method: 'kyle_retail.retail_api.api.create_draft_material_request',
           args: {
             item_code: item.id,
             qty: parseInt(quantity), // Renamed from quantity
@@ -1152,7 +1152,7 @@ function Home() {
         });
 
         await frappeCall({
-          method: 'custom_retailpos.custom_retailpos.retail_api.retail.create_draft_material_request',
+          method: 'kyle_retail.retail_api.api.create_draft_material_request',
           args: {
             item_code: itemCode,
             from_branch: fromWarehouse, // Renamed from from_warehouse
@@ -1251,7 +1251,7 @@ function Home() {
 
       Swal.fire({ title: 'Submitting Purchase...', didOpen: () => Swal.showLoading() });
       await frappeCall({
-        method: 'custom_retailpos.custom_retailpos.retail_api.retail.submit_purchase_entry',
+        method: 'kyle_retail.retail_api.api.submit_purchase_entry',
         args: {
           item_code: purchaseForm.item_code,
           supplier: purchaseForm.supplier,
@@ -1532,7 +1532,7 @@ function Home() {
       });
 
       const results = await frappeCall({
-        method: 'custom_retailpos.custom_retailpos.retail_api.retail.auto_handle_missing_stock',
+        method: 'kyle_retail.retail_api.api.auto_handle_missing_stock',
         args: { item_code: item.id, current_warehouse: warehouse }
       });
 
@@ -1559,7 +1559,7 @@ function Home() {
           Swal.fire({ title: 'Creating Material Request...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
           try {
             const res = await frappeCall({
-              method: 'custom_retailpos.custom_retailpos.retail_api.retail.create_draft_material_request',
+              method: 'kyle_retail.retail_api.api.create_draft_material_request',
               args: { item_code: itemCode, qty: 1, from_warehouse: fromWh, to_warehouse: toWh }
             });
             if (res.status === 'success') {
@@ -1615,7 +1615,7 @@ function Home() {
         setCustomerLoading(true);
         try {
           const res = await frappeCall({
-            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_or_create_customer_by_mobile',
+            method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
             args: { mobile_no: searchTerm }
           });
 
@@ -1633,7 +1633,7 @@ function Home() {
             try {
               // Try searching one more time or use a simpler detail call
               const searchRes = await frappeCall({
-                method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_customer_details',
+                method: 'kyle_retail.retail_api.api.get_customer_details',
                 args: { customer: searchTerm }
               });
               if (searchRes && searchRes.name) {
@@ -2669,14 +2669,6 @@ function Home() {
                                   Stock Breakdown
                                 </button>
                               )}
-                              {user?.role_profile === 'Retail Manager' && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); openPurchaseTools(item); }}
-                                  style={{ marginTop: '4px', width: '100%', padding: '4px', fontSize: '0.75rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                >
-                                  Purchase Tools
-                                </button>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -2935,56 +2927,6 @@ function Home() {
         </div>
       )}
 
-      {showPurchaseModal && (
-        <div className="home-modal-overlay" onClick={() => setShowPurchaseModal(false)}>
-          <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
-            <div className="home-modal-header">
-              <h3>Purchase Tools: {purchaseForm.item_code}</h3>
-              <button className="home-modal-close" onClick={() => setShowPurchaseModal(false)}><X size={20} /></button>
-            </div>
-            <div className="home-modal-body">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <label style={{ fontSize: '13px', fontWeight: 700 }}>Supplier</label>
-                <input type="text" placeholder="Enter Supplier Name" value={purchaseForm.supplier} onChange={e => setPurchaseForm({ ...purchaseForm, supplier: e.target.value })} className="home-customer-input" />
-
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '13px', fontWeight: 700 }}>Purchase Rate (AED)</label>
-                    <input type="number" value={purchaseForm.purchase_rate} onChange={e => updatePurchasePrice('purchase_rate', e.target.value)} className="home-customer-input" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '13px', fontWeight: 700 }}>Markup (%)</label>
-                    <input type="number" value={purchaseForm.markup} onChange={e => updatePurchasePrice('markup', e.target.value)} className="home-customer-input" />
-                  </div>
-                </div>
-
-                <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                    <span style={{ fontSize: '14px', color: '#64748b' }}>Price Type:</span>
-                    <span style={{ fontWeight: 700 }}>{purchaseForm.price_type}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '10px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer', flex: 1 }}>
-                      <input type="radio" checked={purchaseForm.price_type === 'Percentage'} onChange={() => updatePurchasePrice('price_type', 'Percentage')} /> Percentage
-                    </label>
-                    <label style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer', flex: 1 }}>
-                      <input type="radio" checked={purchaseForm.price_type === 'Amount'} onChange={() => updatePurchasePrice('price_type', 'Amount')} /> Fixed Amount
-                    </label>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', marginTop: '15px' }}>
-                    <span style={{ fontWeight: 700 }}>Target Selling Price:</span>
-                    <span style={{ fontWeight: 800, color: '#10b981' }}>AED {purchaseForm.target_price.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="home-modal-footer">
-              <button className="home-modal-cancel" onClick={() => setShowPurchaseModal(false)}>Cancel</button>
-              <button className="home-modal-apply" onClick={handlePurchaseSubmit} style={{ background: '#10b981' }}>Submit Purchase</button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* QuickStockIn moved to full page */}
     </div>
   );

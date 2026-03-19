@@ -37,7 +37,7 @@ export default function PurchaseTools() {
     const timer = setTimeout(async () => {
       try {
         const res = await frappeCall({
-          method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_suppliers',
+          method: 'kyle_retail.retail_api.api.get_suppliers',
           args: { search: supplier.trim() },
           type: 'GET'
         });
@@ -52,7 +52,7 @@ export default function PurchaseTools() {
     const fetchItems = async () => {
       try {
         const res = await frappeCall({
-          method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_retail_item_details',
+          method: 'kyle_retail.retail_api.api.get_retail_item_details',
           args: { warehouse },
           type: 'GET'
         });
@@ -125,7 +125,7 @@ export default function PurchaseTools() {
       };
 
       await frappeCall({
-        method: 'custom_retailpos.custom_retailpos.retail_api.retail.submit_purchase_entry',
+        method: 'kyle_retail.retail_api.api.submit_purchase_entry',
         args: { data: JSON.stringify(payload) }
       });
 
