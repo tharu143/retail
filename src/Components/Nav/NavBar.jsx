@@ -226,12 +226,14 @@ function NavBar() {
   return (
     <nav className="navbar navbar-expand-lg nav-div">
       <div className="container-fluid justify-content-between">
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-center gap-2">
           {location.pathname !== '/homepage' && location.pathname !== '/' && (
-            <ChevronLeft className="cursor-pointer" size={28} style={{ color: '#475569' }} onClick={() => navigate(-1)} />
+            <ChevronLeft className="cursor-pointer" size={22} style={{ color: '#64748b' }} onClick={() => navigate(-1)} />
           )}
           <div onClick={() => navigate('/homepage')} className="cursor-pointer">
-            <h1 className="nav-title">POS8</h1>
+            <h1 className="nav-title">
+              POS<span>8</span>
+            </h1>
           </div>
         </div>
 
