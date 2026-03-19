@@ -178,9 +178,9 @@ function CustomerList() {
         {/* Layout: Top Filters + Content */}
         <div className="so-layout" style={{ flexDirection: 'column' }}>
           {/* Top Filters Bar */}
-          <div className="so-filter-bar" style={{ 
-            background: 'white', 
-            padding: '1.25rem 2rem', 
+          <div className="so-filter-bar" style={{
+            background: 'white',
+            padding: '1.25rem 2rem',
             borderBottom: '1px solid var(--so-border)',
             display: 'flex',
             flexWrap: 'wrap',
@@ -197,7 +197,7 @@ function CustomerList() {
                 placeholder="Search customers..."
               />
             </div>
-            
+
             <button
               className="so-clear-btn"
               onClick={() => { setFilterName(''); setCurrentPage(1); }}
@@ -267,7 +267,7 @@ function CustomerList() {
                   <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                     Showing {Math.min((currentPage - 1) * pageSize + 1, total)}–{Math.min(currentPage * pageSize, total)} of {total}
                   </span>
-                  
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
@@ -275,7 +275,7 @@ function CustomerList() {
                         <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); }} className={`so-page-btn ${pageSize === size ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{size}</button>
                       ))}
                     </div>
-                    
+
                     <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
                       <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>

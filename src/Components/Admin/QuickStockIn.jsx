@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Package, Save, X, Box, ShoppingCart, DollarSign, Loader2, Warehouse, History, ArrowRight } from 'lucide-react';
+import { Search, Package, Save, X, Box, ShoppingCart, DollarSign, Loader2, Warehouse, History, ArrowRight, Palette } from 'lucide-react';
 import Swal from 'sweetalert2';
 import POSService from '../../utils/posService';
 import { db } from '../../db';
@@ -14,6 +14,20 @@ const QuickStockIn = ({ isOpen, onClose }) => {
     const [selectedWarehouse, setSelectedWarehouse] = useState('');
     const [itemHistory, setItemHistory] = useState(null);
     const searchRef = useRef(null);
+
+    // Theme toggle (synced across pages)
+    const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+    const isGreen = polTheme === 'green';
+    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+    const themeColorHover = isGreen ? '#059669' : '#0284c7';
+    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+    useEffect(() => {
+        localStorage.setItem('legacySubTheme', polTheme);
+        document.documentElement.style.setProperty('--po-primary', themeColor);
+        document.documentElement.style.setProperty('--po-primary-hover', themeColorHover);
+        document.documentElement.style.setProperty('--po-primary-light', themeLight);
+    }, [polTheme, themeColor, themeColorHover, themeLight]);
 
     const [form, setForm] = useState({
         box_qty: 0,
@@ -169,19 +183,39 @@ const QuickStockIn = ({ isOpen, onClose }) => {
         <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-fadeIn">
             <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="bg-slate-900 px-8 py-6 flex justify-between items-center text-white">
+                <div 
+                    className="px-8 py-6 flex justify-between items-center text-white"
+                    style={{ background: '#0f172a' }} // Deep slate
+                >
                     <div className="flex items-center gap-3">
                         <div className="bg-white/10 p-2 rounded-xl">
-                            <Package className="text-sky-400" size={24} />
+                            <Package style={{ color: themeColor }} size={24} />
                         </div>
                         <div>
                             <h3 className="font-black uppercase tracking-widest text-lg leading-tight">Quick Stock-In</h3>
                             <p className="text-[10px] font-bold text-white/50 uppercase tracking-tighter">Manager Authorization Required</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/70 hover:text-white">
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                padding: '0.35rem 0.75rem', background: 'rgba(255,255,255,0.05)',
+                                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                                fontSize: '0.65rem', fontWeight: 800, color: themeColor,
+                                cursor: 'pointer', transition: 'all 0.2s',
+                                textTransform: 'uppercase', letterSpacing: '0.04em'
+                            }}
+                            title="Toggle Theme"
+                        >
+                            <Palette size={12} />
+                            {polTheme}
+                        </button>
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/70 hover:text-white">
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
@@ -189,19 +223,22 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                         <div className="space-y-6">
                             <div className="relative">
                                 <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">
-                                    <Search size={22} strokeWidth={2.5} />
+                                    <Search size={22} strokeWidth={2.5} style={{ color: themeColor }} />
                                 </div>
                                 <input 
                                     ref={searchRef}
                                     type="text" 
                                     placeholder="SCAN BARCODE OR TYPE ITEM NAME..." 
-                                    className="w-full bg-slate-100 border-2 border-transparent rounded-[1.5rem] pl-14 pr-6 py-5 text-sm font-black text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:bg-white transition-all shadow-sm outline-none"
+                                    className="w-full bg-slate-100 border-2 border-transparent rounded-[1.5rem] pl-14 pr-6 py-5 text-sm font-black text-slate-800 placeholder:text-slate-400 focus:bg-white transition-all shadow-sm outline-none"
+                                    style={{ borderColor: 'transparent' }}
+                                    onFocus={(e) => e.target.style.borderColor = themeColor}
+                                    onBlur={(e) => e.target.style.borderColor = 'transparent'}
                                     value={searchQuery}
                                     onChange={(e) => handleSearch(e.target.value)}
                                 />
                                 {loading && (
                                     <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                                        <Loader2 className="animate-spin text-sky-500" size={20} />
+                                        <Loader2 className="animate-spin" size={20} style={{ color: themeColor }} />
                                     </div>
                                 )}
                             </div>
@@ -212,11 +249,11 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                         <div 
                                             key={it.id} 
                                             onClick={() => selectItem(it)}
-                                            className="px-6 py-5 hover:bg-sky-50 cursor-pointer transition-all flex justify-between items-center group"
+                                            className="px-6 py-5 hover:bg-slate-100 cursor-pointer transition-all flex justify-between items-center group"
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-slate-100 group-hover:border-sky-200 shadow-sm transition-all">
-                                                    <Package size={18} className="text-slate-400 group-hover:text-sky-500" />
+                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-slate-100 group-hover:border-slate-200 shadow-sm transition-all">
+                                                    <Package size={18} className="text-slate-400 group-hover:text-emerald-500" style={{ color: isGreen ? '' : '#0ea5e9' }} />
                                                 </div>
                                                 <div>
                                                     <div className="text-sm font-black text-slate-800 leading-tight">{it.name}</div>
@@ -224,7 +261,7 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-xs font-black text-sky-600 bg-sky-100 px-3 py-1 rounded-full">
+                                                <div className="text-[10px] font-black px-3 py-1 rounded-full" style={{ background: themeLight, color: themeColor }}>
                                                     STK: {it.local_qty || 0}
                                                 </div>
                                             </div>
@@ -244,14 +281,14 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                         <form onSubmit={handleSubmit} className="space-y-8">
                             {/* Selected Item Detail */}
                             <div className="bg-slate-900 rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden">
-                                <div className="absolute right-0 top-0 w-32 h-32 bg-sky-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                                <div className="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
                                 <div className="relative z-10 flex justify-between items-start">
                                     <div>
-                                        <div className="text-[9px] font-black text-sky-400 uppercase tracking-[0.2em] mb-2">Item Identified</div>
+                                        <div className="text-[9px] font-black uppercase tracking-[0.2em] mb-2" style={{ color: themeColor }}>Item Identified</div>
                                         <h4 className="text-lg font-black leading-tight mb-1">{selectedItem.name}</h4>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-bold text-white/40 uppercase bg-white/5 px-2 py-0.5 rounded">{selectedItem.id}</span>
-                                            <span className="text-[10px] font-black text-sky-300">● {selectedItem.group}</span>
+                                            <span className="text-[10px] font-black" style={{ color: themeColor }}>● {selectedItem.group}</span>
                                         </div>
                                     </div>
                                     <button type="button" onClick={() => setSelectedItem(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-all h-fit">
@@ -263,7 +300,7 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                             {/* Stock Location */}
                             <div className="space-y-3">
                                 <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">
-                                    <Warehouse size={12} className="text-sky-500" />
+                                    <Warehouse size={12} style={{ color: themeColor }} />
                                     Target Branch
                                 </label>
                                 <div className="grid grid-cols-1 gap-3">
@@ -271,7 +308,10 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                         required
                                         value={selectedWarehouse}
                                         onChange={(e) => setSelectedWarehouse(e.target.value)}
-                                        className="w-full bg-slate-100 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-black text-slate-800 outline-none focus:border-sky-500 focus:bg-white transition-all appearance-none cursor-pointer"
+                                        className="w-full bg-slate-100 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-black text-slate-800 outline-none focus:bg-white transition-all appearance-none cursor-pointer"
+                                        style={{ borderColor: 'transparent' }}
+                                        onFocus={(e) => e.target.style.borderColor = themeColor}
+                                        onBlur={(e) => e.target.style.borderColor = 'transparent'}
                                     >
                                         <option value="">Select Branch...</option>
                                         {warehouses.map(wh => (
@@ -281,12 +321,16 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                     
                                     {/* Existing stock in warehouses mini-list */}
                                     <div className="flex flex-wrap gap-2 px-2">
-                                        {(selectedItem.warehouse_details || []).map((wd, idx) => (
-                                            <div key={idx} className={`text-[9px] font-black px-3 py-1.5 rounded-lg border flex items-center gap-2 ${selectedWarehouse === (wd.warehouse || wd.warehouse_name) ? 'bg-sky-600 text-white border-sky-600' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                                                <span>{wd.warehouse_name || wd.warehouse}:</span>
-                                                <span className={selectedWarehouse === (wd.warehouse || wd.warehouse_name) ? 'text-white' : 'text-slate-900'}>{wd.actual_qty || 0}</span>
-                                            </div>
-                                        ))}
+                                        {(selectedItem.warehouse_details || []).map((wd, idx) => {
+                                            const isSelected = selectedWarehouse === (wd.warehouse || wd.warehouse_name);
+                                            return (
+                                                <div key={idx} className={`text-[9px] font-black px-3 py-1.5 rounded-lg border flex items-center gap-2 transition-all ${isSelected ? '' : 'bg-slate-50 text-slate-400 border-slate-100'}`}
+                                                     style={isSelected ? { background: themeColor, color: '#fff', borderColor: themeColor } : {}}>
+                                                    <span>{wd.warehouse_name || wd.warehouse}:</span>
+                                                    <span className={isSelected ? 'text-white' : 'text-slate-900'}>{wd.actual_qty || 0}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
@@ -302,7 +346,10 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                             required
                                             value={form.box_qty || ''}
                                             onChange={(e) => setForm({...form, box_qty: parseFloat(e.target.value) || 0})}
-                                            className="w-full pl-11 pr-4 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl text-sm font-black text-slate-800 focus:border-sky-500 focus:bg-white outline-none transition-all shadow-sm"
+                                            className="w-full pl-11 pr-4 py-4 bg-slate-50 border-2 rounded-2xl text-sm font-black text-slate-800 focus:bg-white outline-none transition-all shadow-sm"
+                                            style={{ borderColor: 'transparent' }}
+                                            onFocus={(e) => e.target.style.borderColor = themeColor}
+                                            onBlur={(e) => e.target.style.borderColor = 'transparent'}
                                             placeholder="0"
                                         />
                                     </div>
@@ -316,7 +363,10 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                             required
                                             value={form.pcs_per_box || ''}
                                             onChange={(e) => setForm({...form, pcs_per_box: parseFloat(e.target.value) || 1})}
-                                            className="w-full pl-11 pr-4 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl text-sm font-black text-slate-800 focus:border-sky-500 focus:bg-white outline-none transition-all shadow-sm"
+                                            className="w-full pl-11 pr-4 py-4 bg-slate-50 border-2 rounded-2xl text-sm font-black text-slate-800 focus:bg-white outline-none transition-all shadow-sm"
+                                            style={{ borderColor: 'transparent' }}
+                                            onFocus={(e) => e.target.style.borderColor = themeColor}
+                                            onBlur={(e) => e.target.style.borderColor = 'transparent'}
                                             placeholder="1"
                                         />
                                     </div>
@@ -325,7 +375,7 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                 {/* PRICING SIDE BY SIDE */}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Buying Price (Box)</label>
-                                    <div className="bg-slate-50 border-2 border-slate-50 rounded-2xl p-1 focus-within:border-sky-500 focus-within:bg-white transition-all shadow-sm">
+                                    <div className="bg-slate-50 border-2 border-slate-50 rounded-2xl p-1 focus-within:bg-white transition-all shadow-sm" style={{ borderColor: 'transparent' }} onFocus={(e) => e.currentTarget.style.borderColor = themeColor} onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}>
                                         <div className="flex items-center gap-2 pl-3">
                                             <DollarSign size={14} className="text-slate-400" />
                                             <input 
@@ -341,7 +391,7 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                         {itemHistory && (
                                             <div className="bg-slate-900 mx-1 mb-1 rounded-xl px-3 py-1.5 flex justify-between items-center">
                                                 <span className="text-[8px] font-black text-slate-400 uppercase">Last Buy:</span>
-                                                <span className="text-[9px] font-black text-sky-400">AED {parseFloat(itemHistory.rate * form.pcs_per_box).toFixed(2)}</span>
+                                                <span className="text-[9px] font-black" style={{ color: themeColor }}>AED {parseFloat(itemHistory.rate * form.pcs_per_box).toFixed(2)}</span>
                                             </div>
                                         )}
                                     </div>
@@ -362,7 +412,7 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                                 placeholder="0.00"
                                             />
                                         </div>
-                                        <div className="bg-emerald-600 mx-1 mb-1 rounded-xl px-3 py-1.5 flex justify-between items-center">
+                                        <div className="mx-1 mb-1 rounded-xl px-3 py-1.5 flex justify-between items-center" style={{ background: themeColor }}>
                                             <span className="text-[8px] font-black text-emerald-100 uppercase">Current:</span>
                                             <span className="text-[9px] font-black text-white">AED {parseFloat(selectedItem.price).toFixed(2)}</span>
                                         </div>
@@ -389,7 +439,8 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                 <button 
                                     type="submit" 
                                     disabled={submitting}
-                                    className="w-full bg-slate-900 text-white rounded-2xl py-5 mt-6 font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
+                                    className="w-full text-white rounded-2xl py-5 mt-6 font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
+                                    style={{ background: themeColor }}
                                 >
                                     {submitting ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                                     {submitting ? "Processing..." : "Commit Inventory & Price Update"}

@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Plus, Building, Warehouse, Users, CreditCard,
-  ChevronLeft, ChevronRight, X, Check, AlertCircle, Trash2, Search, Filter
+  ChevronLeft, ChevronRight, X, Check, AlertCircle, Trash2, Search, Filter,
+  Palette, Loader2
 } from 'lucide-react';
 import NavBar from '../Nav/NavBar';
+import '../Admin/SalesOrder.css';
 
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const getSession = () => localStorage.getItem('session') || '';
@@ -15,7 +17,7 @@ export default function PosProfileList() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(20);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,6 +29,20 @@ export default function PosProfileList() {
   const [editingProfile, setEditingProfile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+
+  // Theme support (synced)
+  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = polTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', polTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [polTheme, themeColor, themeColorHover, themeLight]);
 
   // Form Data
   const [formData, setFormData] = useState({
@@ -95,6 +111,7 @@ export default function PosProfileList() {
     }
 
     setFilteredProfiles(filtered);
+    setCurrentPage(1);
   }, [searchTerm, companyFilter, statusFilter, profiles]);
 
   const fetchDropdowns = async () => {
@@ -283,293 +300,338 @@ export default function PosProfileList() {
     setFormData(prev => ({ ...prev, [table]: prev[table].filter((_, i) => i !== idx) }));
   };
 
+  const paginated = filteredProfiles.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(filteredProfiles.length / pageSize);
+
   return (
     <>
       <NavBar />
-      <div className="min-h-screen bg-gray-100">
-
-        {/* Header */}
-        <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
-            <CreditCard className="w-7 h-7" /> POS Profiles
-          </h1>
-          <button onClick={openCreateModal} className="bg-black text-white px-5 py-2.5 rounded-md hover:bg-gray-800 flex items-center gap-2">
-            <Plus className="w-5 h-5" /> Create Profile
-          </button>
+      <div className="so-page">
+        {/* Header (Matching Customer List) */}
+        <div className="so-page-header">
+          <div>
+            <h1 className="so-page-title">
+              <CreditCard size={20} /> POS Profiles
+            </h1>
+            <p className="so-page-subtitle">{total} profile(s) found</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+               onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
+               style={{
+                 display: 'flex', alignItems: 'center', gap: '0.4rem',
+                 padding: '0.45rem 0.9rem', background: '#f8fafc',
+                 border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                 fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                 cursor: 'pointer', transition: 'all 0.2s',
+                 textTransform: 'uppercase', letterSpacing: '0.04em'
+               }}
+            >
+              <Palette size={13} /> {polTheme.toUpperCase()}
+            </button>
+            <button className="so-btn-primary" onClick={openCreateModal}>
+              <Plus size={16} /> Create Profile
+            </button>
+          </div>
         </div>
 
-        <div className="flex">
-
-          {/* Sidebar Filters */}
-          <div className="w-72 bg-white border-r min-h-screen p-6 space-y-6">
-            <h3 className="font-semibold text-gray-800 mb-4">Filters</h3>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-              <input type="text" placeholder="Profile name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
+        {/* Layout: Full Width Column (No Sidebar) */}
+        <div className="so-layout" style={{ flexDirection: 'column' }}>
+          
+          {/* Top Filter Bar (Full Width) */}
+          <div className="so-filter-bar" style={{ 
+            background: 'white', 
+            padding: '1.25rem 2rem', 
+            borderBottom: '1px solid var(--so-border)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '1.5rem',
+            alignItems: 'flex-end'
+          }}>
+            <div style={{ flex: '1 1 250px' }}>
+              <label className="so-filter-label">Search Profile</label>
+              <input 
+                type="text" 
+                placeholder="Name or company..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                className="so-filter-input" 
+              />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
-              <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <div style={{ flex: '0 0 200px' }}>
+              <label className="so-filter-label">Company</label>
+              <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} className="so-filter-input">
                 <option value="">All Companies</option>
                 {companiesList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <div style={{ flex: '0 0 150px' }}>
+              <label className="so-filter-label">Status</label>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="so-filter-input">
                 <option value="all">All Status</option>
                 <option value="enabled">Enabled</option>
                 <option value="disabled">Disabled</option>
               </select>
             </div>
 
-            <button onClick={() => { setSearchTerm(''); setCompanyFilter(''); setStatusFilter('all'); }} className="w-full py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium">
-              Clear Filters
+            <button 
+              onClick={() => { setSearchTerm(''); setCompanyFilter(''); setStatusFilter('all'); }} 
+              className="so-clear-btn"
+              style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1.5rem' }}
+            >
+              Reset
             </button>
           </div>
 
-          {/* Main List */}
-          <div className="flex-1 p-6">
-            <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="w-12 px-6 py-3"><input type="checkbox" /></th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Profile Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Users</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {loading ? (
-                    <tr><td colSpan="6" className="text-center py-16 text-gray-500">Loading...</td></tr>
-                  ) : filteredProfiles.length === 0 ? (
-                    <tr><td colSpan="6" className="text-center py-16 text-gray-500">No POS profiles found</td></tr>
-                  ) : (
-                    filteredProfiles.map(p => (
-                      <tr key={p.name} className="hover:bg-gray-50 cursor-pointer" onClick={() => openEditModal(p)}>
-                        <td className="px-6 py-4"><input type="checkbox" /></td>
-                        <td className="px-6 py-4 text-sm font-medium text-blue-600">{p.name}</td>
-                        <td className="px-6 py-4 text-sm">{p.company}</td>
-                        <td className="px-6 py-4 text-sm">{p.warehouse}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1">
-                            {p.users?.slice(0, 3).map(u => (
-                              <span key={u.user} className={`px-2 py-1 text-xs rounded-full ${u.default ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}>
-                                {u.user.split('@')[0]}
-                              </span>
-                            ))}
-                            {p.users?.length > 3 && <span className="text-xs text-gray-500">+{p.users.length - 3}</span>}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${p.disabled ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                            {p.disabled ? 'Disabled' : 'Enabled'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+          {/* Main List Area */}
+          <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
+            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{filteredProfiles.length} record(s) found</p>
+            
+            <div className="so-table-card">
+              <div className="so-table-wrapper">
+                <table className="so-table">
+                  <thead>
+                    <tr>
+                      <th className="w-12 px-6 py-3"><input type="checkbox" /></th>
+                      <th>Profile Name</th>
+                      <th>Company</th>
+                      <th>Branch</th>
+                      <th>Users</th>
+                      <th className="text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan="6" className="so-empty">
+                         <Loader2 size={24} className="so-spinner" style={{ margin: '0 auto' }} />
+                      </td></tr>
+                    ) : paginated.length === 0 ? (
+                      <tr><td colSpan="6" className="so-empty">No POS profiles found</td></tr>
+                    ) : (
+                      paginated.map(p => (
+                        <tr key={p.name} className="cursor-pointer hover:bg-slate-50" onClick={() => openEditModal(p)}>
+                          <td className="px-6 py-4" onClick={e => e.stopPropagation()}><input type="checkbox" /></td>
+                          <td className="font-semibold" style={{ color: themeColor }}>{p.name}</td>
+                          <td>{p.company}</td>
+                          <td>{p.warehouse}</td>
+                          <td>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                              {p.users?.slice(0, 3).map(u => (
+                                <span key={u.user} style={{ 
+                                  fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '1rem',
+                                  background: u.default ? 'var(--so-primary-light)' : '#f1f5f9',
+                                  color: u.default ? 'var(--so-primary)' : '#64748b',
+                                  fontWeight: 700
+                                }}>
+                                  {u.user.split('@')[0]}
+                                </span>
+                              ))}
+                              {p.users?.length > 3 && <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>+{p.users.length - 3}</span>}
+                            </div>
+                          </td>
+                          <td className="text-center">
+                            <span style={{ 
+                              fontSize: '0.65rem', padding: '0.2rem 0.75rem', borderRadius: '1rem', fontWeight: 800, textTransform: 'uppercase',
+                              background: p.disabled ? '#fee2e2' : 'var(--so-primary-light)',
+                              color: p.disabled ? '#ef4444' : 'var(--so-primary)'
+                            }}>
+                              {p.disabled ? 'Disabled' : 'Enabled'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Pagination */}
-            <div className="flex justify-between items-center mt-6">
-              <div className="text-sm text-gray-600">
-                Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredProfiles.length)} of {filteredProfiles.length} entries
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50">
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button className="px-4 py-2 border rounded bg-black text-white">{currentPage}</button>
-                <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage * pageSize >= filteredProfiles.length} className="p-2 border rounded hover:bg-gray-100 disabled:opacity-50">
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
+              {/* Pagination */}
+              {!loading && filteredProfiles.length > 0 && (
+                <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
+                    Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredProfiles.length)} of {filteredProfiles.length}
+                  </span>
+                  
+                  <div className="so-pagination-btns" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
+                    <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
+                    <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronLeft size={14} style={{ transform: 'rotate(180deg)' }} /></button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Modal - Create & Edit */}
+        {/* Modal (Matching Customer List Modal Style) */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-                <h2 className="text-2xl font-bold">
-                  {editingProfile ? `Edit Profile: ${editingProfile.name}` : 'Create New POS Profile'}
+          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && setIsModalOpen(false)}>
+            <div className="so-modal" style={{ maxWidth: '800px' }}>
+              <div className="so-modal-header">
+                <h2 className="so-modal-title">
+                  <CreditCard size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
+                  {editingProfile ? `Edit: ${editingProfile.name}` : 'New POS Profile'}
                 </h2>
-                <div className="flex gap-3">
-                  <button onClick={handleSave} disabled={saving}
-                    className="bg-black text-white px-6 py-2.5 rounded hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2">
-                    {saving ? 'Saving...' : (editingProfile ? 'Update' : 'Save')}
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                   <button className="so-btn-primary" onClick={handleSave} disabled={saving}>
+                      {saving ? 'Saving...' : 'Save Profile'}
+                   </button>
+                   <button className="so-modal-close" onClick={() => setIsModalOpen(false)}>
+                    <X size={20} />
                   </button>
-                  <button onClick={() => { setIsModalOpen(false); resetForm(); }}
-                    className="p-2 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
                 </div>
               </div>
 
-              <div className="p-6 space-y-8">
-                {/* Basic Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Profile Name {editingProfile ? '' : '*'}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name || ''} 
-                      onChange={e => updateField('name', e.target.value)}
-                      disabled={!!editingProfile}
-                      placeholder="e.g. Main POS"
-                      className={`w-full px-4 py-2 border rounded ${editingProfile ? 'bg-gray-100' : ''} ${formErrors.name ? 'border-red-500' : ''}`}
-                    />
-                    {formErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{formErrors.name}</p>}
-                  </div>
+              <div className="so-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Basic Identity</h3>
+                      
+                      <div>
+                        <label className="so-filter-label">Profile Name *</label>
+                        <input 
+                          type="text" 
+                          value={formData.name} 
+                          onChange={e => updateField('name', e.target.value)} 
+                          disabled={!!editingProfile}
+                          placeholder="Main Counter"
+                          className="so-filter-input"
+                          style={editingProfile ? { background: '#f8fafc' } : {}}
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Company *</label>
-                    <select value={formData.company} onChange={e => updateField('company', e.target.value)}
-                      className={`w-full px-4 py-2 border rounded ${formErrors.company ? 'border-red-500' : ''}`}>
-                      <option value="">Select Company</option>
-                      {companiesList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                    </select>
-                    {formErrors.company && <p className="text-red-500 text-xs mt-1">{formErrors.company}</p>}
-                  </div>
+                      <div>
+                        <label className="so-filter-label">Company *</label>
+                        <select value={formData.company} onChange={e => updateField('company', e.target.value)} className="so-filter-input">
+                          <option value="">Select...</option>
+                          {companiesList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Branch *</label>
-                    <select value={formData.warehouse} onChange={e => updateField('warehouse', e.target.value)}
-                      className={`w-full px-4 py-2 border rounded ${formErrors.warehouse ? 'border-red-500' : ''}`}>
-                      <option value="">Select Branch</option>
-                      {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
-                    </select>
-                    {formErrors.warehouse && <p className="text-red-500 text-xs mt-1">{formErrors.warehouse}</p>}
-                  </div>
+                      <div>
+                        <label className="so-filter-label">Default Branch *</label>
+                        <select value={formData.warehouse} onChange={e => updateField('warehouse', e.target.value)} className="so-filter-input">
+                          <option value="">Select...</option>
+                          {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Currency *</label>
-                    <select value={formData.currency} onChange={e => updateField('currency', e.target.value)}
-                      className={`w-full px-4 py-2 border rounded ${formErrors.currency ? 'border-red-500' : ''}`}>
-                      <option value="">Select Currency</option>
-                      {currenciesList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                    </select>
-                    {formErrors.currency && <p className="text-red-500 text-xs mt-1">{formErrors.currency}</p>}
-                  </div>
+                      <div>
+                        <label className="so-filter-label">Currency *</label>
+                        <select value={formData.currency} onChange={e => updateField('currency', e.target.value)} className="so-filter-input">
+                          <option value="">Select...</option>
+                          {currenciesList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                        </select>
+                      </div>
+                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Write Off Account *</label>
-                    <select value={formData.write_off_account} onChange={e => updateField('write_off_account', e.target.value)}
-                      className={`w-full px-4 py-2 border rounded ${formErrors.write_off_account ? 'border-red-500' : ''}`}>
-                      <option value="">Select Account</option>
-                      {accountsList.map(a => <option key={a.name} value={a.name}>{a.account_name}</option>)}
-                    </select>
-                    {formErrors.write_off_account && <p className="text-red-500 text-xs mt-1">{formErrors.write_off_account}</p>}
-                  </div>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Account & Limits</h3>
+                      
+                      <div>
+                        <label className="so-filter-label">Write Off Account *</label>
+                        <select value={formData.write_off_account} onChange={e => updateField('write_off_account', e.target.value)} className="so-filter-input">
+                          <option value="">Select...</option>
+                          {accountsList.map(a => <option key={a.name} value={a.name}>{a.account_name}</option>)}
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Write Off Cost Center *</label>
-                    <select value={formData.write_off_cost_center} onChange={e => updateField('write_off_cost_center', e.target.value)}
-                      className={`w-full px-4 py-2 border rounded ${formErrors.write_off_cost_center ? 'border-red-500' : ''}`}>
-                      <option value="">Select Cost Center</option>
-                      {costCentersList.map(cc => <option key={cc.name} value={cc.name}>{cc.cost_center_name || cc.name}</option>)}
-                    </select>
-                    {formErrors.write_off_cost_center && <p className="text-red-500 text-xs mt-1">{formErrors.write_off_cost_center}</p>}
-                  </div>
+                      <div>
+                        <label className="so-filter-label">Cost Center *</label>
+                        <select value={formData.write_off_cost_center} onChange={e => updateField('write_off_cost_center', e.target.value)} className="so-filter-input">
+                          <option value="">Select...</option>
+                          {costCentersList.map(cc => <option key={cc.name} value={cc.name}>{cc.cost_center_name || cc.name}</option>)}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="so-filter-label">Write Off Limit</label>
+                        <input 
+                          type="number" 
+                          value={formData.write_off_limit} 
+                          onChange={e => updateField('write_off_limit', parseFloat(e.target.value) || 0)} 
+                          className="so-filter-input" 
+                        />
+                      </div>
+                   </div>
                 </div>
 
-                {/* Users Table */}
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-lg font-medium">Applicable Users *</h3>
-                    <button onClick={() => addRow('users')} className="text-sm text-blue-600 hover:underline">+ Add User</button>
-                  </div>
-                  {formErrors.users && <p className="text-red-500 text-xs mb-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{formErrors.users}</p>}
-                  <div className="border rounded overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs">Default</th>
-                          <th className="px-4 py-2 text-left text-xs">User</th>
-                          <th className="w-10"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {formData.users.map((u, i) => (
-                          <tr key={i} className="border-t">
-                            <td className="px-4 py-2 text-center">
-                              <input type="checkbox" checked={u.default} onChange={e => updateTable('users', i, 'default', e.target.checked)} />
-                            </td>
-                            <td className="px-4 py-2">
-                              <select value={u.user} onChange={e => updateTable('users', i, 'user', e.target.value)}
-                                className="w-full px-2 py-1 border rounded text-sm">
-                                <option value="">Select User</option>
-                                {usersList.map(user => (
-                                  <option key={user.name} value={user.name}>{user.email || user.name}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="text-center">
-                              <button onClick={() => removeRow('users', i)} className="text-red-600 hover:text-red-800">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                <div style={{ marginTop: '2rem' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Assigned Operators</h3>
+                      <button className="so-clear-btn" style={{ margin: 0, padding: '0.2rem 1rem' }} onClick={() => addRow('users')}>+ User</button>
+                   </div>
+                   <div className="so-table-wrapper" style={{ maxHeight: '150px', border: '1px solid #f1f5f9', borderRadius: '0.5rem' }}>
+                      <table className="so-table text-xs">
+                         <thead className="bg-[#f8fafc]">
+                            <tr>
+                               <th style={{ width: '80px' }}>Default</th>
+                               <th>User Email</th>
+                               <th style={{ width: '50px' }}></th>
+                            </tr>
+                         </thead>
+                         <tbody>
+                            {formData.users.map((u, i) => (
+                              <tr key={i}>
+                                 <td className="text-center">
+                                    <input type="checkbox" checked={u.default} onChange={e => updateTable('users', i, 'default', e.target.checked)} />
+                                 </td>
+                                 <td>
+                                    <select value={u.user} onChange={e => updateTable('users', i, 'user', e.target.value)} className="so-filter-input" style={{ padding: '0.25rem' }}>
+                                       <option value="">Select User...</option>
+                                       {usersList.map(usr => <option key={usr.name} value={usr.name}>{usr.email || usr.name}</option>)}
+                                    </select>
+                                 </td>
+                                 <td className="text-center">
+                                    <button onClick={() => removeRow('users', i)} style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
+                                 </td>
+                              </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                   </div>
                 </div>
 
-                {/* Payment Methods Table */}
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-lg font-medium">Payment Methods *</h3>
-                    <button onClick={() => addRow('payment_methods')} className="text-sm text-blue-600 hover:underline">+ Add Payment</button>
-                  </div>
-                  {formErrors.payments && <p className="text-red-500 text-xs mb-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{formErrors.payments}</p>}
-                  <div className="border rounded overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs">Default</th>
-                          <th className="px-4 py-2 text-left text-xs">Allow Returns</th>
-                          <th className="px-4 py-2 text-left text-xs">Mode of Payment</th>
-                          <th className="w-10"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {formData.payment_methods.map((p, i) => (
-                          <tr key={i} className="border-t">
-                            <td className="px-4 py-2 text-center">
-                              <input type="checkbox" checked={p.default} onChange={e => updateTable('payment_methods', i, 'default', e.target.checked)} />
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                              <input type="checkbox" checked={p.allow_in_returns} onChange={e => updateTable('payment_methods', i, 'allow_in_returns', e.target.checked)} />
-                            </td>
-                            <td className="px-4 py-2">
-                              <select value={p.mode_of_payment} onChange={e => updateTable('payment_methods', i, 'mode_of_payment', e.target.value)}
-                                className="w-full px-2 py-1 border rounded text-sm">
-                                <option value="">Select Payment</option>
-                                {modesList.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
-                              </select>
-                            </td>
-                            <td className="text-center">
-                              <button onClick={() => removeRow('payment_methods', i)} className="text-red-600 hover:text-red-800">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                <div style={{ marginTop: '2rem' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Payment Gateways</h3>
+                      <button className="so-clear-btn" style={{ margin: 0, padding: '0.2rem 1rem' }} onClick={() => addRow('payment_methods')}>+ Method</button>
+                   </div>
+                   <div className="so-table-wrapper" style={{ maxHeight: '200px', border: '1px solid #f1f5f9', borderRadius: '0.5rem' }}>
+                      <table className="so-table text-xs">
+                         <thead className="bg-[#f8fafc]">
+                            <tr>
+                               <th style={{ width: '80px' }}>Default</th>
+                               <th style={{ width: '80px' }}>Return</th>
+                               <th>Mode of Payment</th>
+                               <th style={{ width: '50px' }}></th>
+                            </tr>
+                         </thead>
+                         <tbody>
+                            {formData.payment_methods.map((p, i) => (
+                              <tr key={i}>
+                                 <td className="text-center">
+                                    <input type="checkbox" checked={p.default} onChange={e => updateTable('payment_methods', i, 'default', e.target.checked)} />
+                                 </td>
+                                 <td className="text-center">
+                                    <input type="checkbox" checked={p.allow_in_returns} onChange={e => updateTable('payment_methods', i, 'allow_in_returns', e.target.checked)} />
+                                 </td>
+                                 <td>
+                                    <select value={p.mode_of_payment} onChange={e => updateTable('payment_methods', i, 'mode_of_payment', e.target.value)} className="so-filter-input" style={{ padding: '0.25rem' }}>
+                                       <option value="">Select Gateway...</option>
+                                       {modesList.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+                                    </select>
+                                 </td>
+                                 <td className="text-center">
+                                    <button onClick={() => removeRow('payment_methods', i)} style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
+                                 </td>
+                              </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                   </div>
                 </div>
               </div>
             </div>
