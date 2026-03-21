@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../db';
-import { Loader2, RefreshCw, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, FastForward } from 'lucide-react';
+import { 
+    Loader2, RefreshCw, AlertCircle, CheckCircle2, 
+    ChevronDown, ChevronUp, FastForward, Cloud, 
+    Wifi, WifiOff, Activity, ArrowRight, Palette,
+    ArrowUpCircle, ArrowDownCircle, Info
+} from 'lucide-react';
 import Swal from 'sweetalert2';
 import POSService from '../../utils/posService';
+import { useSelector } from 'react-redux';
+import "../Admin/SalesOrder.css";
 
 const SyncManager = () => {
     const [pendingInvoices, setPendingInvoices] = useState([]);
@@ -11,8 +18,21 @@ const SyncManager = () => {
     const [syncLogs, setSyncLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [syncingId, setSyncingId] = useState(null);
-    const [expandedId, setExpandedId] = useState(null);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    // Sync Theme
+    const [syncSubTheme, setSyncSubTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+    const isGreen = syncSubTheme === 'green';
+    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+    const themeColorHover = isGreen ? '#059669' : '#0284c7';
+    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+    useEffect(() => {
+        localStorage.setItem('legacySubTheme', syncSubTheme);
+        document.documentElement.style.setProperty('--so-primary', themeColor);
+        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+        document.documentElement.style.setProperty('--so-primary-light', themeLight);
+    }, [syncSubTheme, themeColor, themeColorHover, themeLight]);
 
     const fetchData = async () => {
         try {
@@ -34,7 +54,6 @@ const SyncManager = () => {
     useEffect(() => {
         fetchData();
         const interval = setInterval(fetchData, 5000);
-
         const handleStatusChange = () => setIsOnline(navigator.onLine);
         window.addEventListener('online', handleStatusChange);
         window.addEventListener('offline', handleStatusChange);
@@ -63,14 +82,12 @@ const SyncManager = () => {
         });
 
         try {
-            // Prepare payload for bulk_sync_invoices
             const payload = invoicesToSync.map(inv => {
                 const { id, is_synced, synced_at, server_name, ...cleanInv } = inv;
                 return cleanInv;
             });
 
             const results = await POSService.bulkSyncInvoices(payload);
-
             let successCount = 0;
             let failCount = 0;
 
@@ -81,8 +98,6 @@ const SyncManager = () => {
                 if (result.status === 'success' || result.message?.includes("Duplicate ignored")) {
                     const now = new Date().toISOString();
                     const serverName = result.invoice_name || result.name || result.message?.invoice_name || result.message?.name;
-
-                    // CRITICAL: Validate ERPNext naming series (DXB-, AUH-, GEN-, KS1-, etc.)
                     const isValidERPName = serverName && /^[A-Za-z0-9]{2,}-/.test(serverName);
 
                     if (isValidERPName) {
@@ -100,19 +115,17 @@ const SyncManager = () => {
                             server_name: serverName
                         });
                     } else {
-                        // Server returned UUID or null — NOT a real sync
                         failCount++;
                         await db.invoices.update(originalInvoice.id, {
                             retry_count: (originalInvoice.retry_count || 0) + 1
                         });
-                        // Dump the JSON to easily see why it failed
                         const errDump = JSON.stringify(result).substring(0, 100);
                         await db.sync_log.add({
                             offline_id: originalInvoice.offline_id,
                             action: 'bulk_sync_failed',
                             timestamp: now,
                             status: 'failed',
-                            error: `Server Response: ${errDump} — Invoice NOT posted`
+                            error: `Server Response: ${errDump}`
                         });
                     }
                 } else {
@@ -122,7 +135,7 @@ const SyncManager = () => {
                         action: 'bulk_sync_failed',
                         timestamp: new Date().toISOString(),
                         status: 'failed',
-                        error: result.message || "Unknown server error"
+                        error: result.message || "Unknown error"
                     });
                 }
             }
@@ -130,29 +143,18 @@ const SyncManager = () => {
             Swal.fire('Sync Complete', `Successfully synced ${successCount} invoices. ${failCount} failed.`, successCount > 0 ? 'success' : 'error');
             fetchData();
         } catch (err) {
-            console.error("Bulk sync error:", err);
             Swal.fire('Error', `Network error: ${err.message}`, 'error');
         }
     };
 
     const manualSync = async (invoice, hardProceed = false) => {
-        if (!isOnline) {
-            Swal.fire('Offline', "No internet connection.", 'warning');
-            return;
-        }
-
+        if (!isOnline) { Swal.fire('Offline', "No internet connection.", 'warning'); return; }
         setSyncingId(invoice.id);
         try {
-            // DEEP CLEAN for Hard Proceed cases
             const { id, is_synced, synced_at, server_name, ...cleanInv } = invoice;
             if (hardProceed) {
                 cleanInv.hard_proceed = 1;
-                // Force a valid generic customer to fix party-required errors
-                // If completely missing, use Cash
-                if (!cleanInv.customer || cleanInv.customer.trim() === '') {
-                    cleanInv.customer = 'Cash';
-                }
-                // Also ensure we remove any existing server_name in the inner payload if it exists
+                if (!cleanInv.customer || cleanInv.customer.trim() === '') cleanInv.customer = 'Cash';
                 delete cleanInv.name; 
             }
 
@@ -164,51 +166,23 @@ const SyncManager = () => {
             if (result.status === 'success' || result.message?.includes("Duplicate ignored")) {
                 const now = new Date().toISOString();
                 const serverName = result.invoice_name || result.name || result.message?.invoice_name || result.message?.name;
-
-                // CRITICAL: Validate ERPNext naming series
                 const isValidERPName = serverName && /^[A-Za-z0-9]{2,}-/.test(serverName);
 
                 if (isValidERPName) {
-                    await db.invoices.update(invoice.id, {
-                        is_synced: 1,
-                        synced_at: now,
-                        server_name: serverName
-                    });
-                    await db.sync_log.add({
-                        offline_id: invoice.offline_id,
-                        action: hardProceed ? 'hard_sync_success' : 'manual_sync_success',
-                        timestamp: now,
-                        status: 'success',
-                        server_name: serverName
-                    });
-                    Swal.fire({ icon: 'success', title: 'Sync Successful', text: `Invoice: ${serverName}`, timer: 1500, showConfirmButton: false });
+                    await db.invoices.update(invoice.id, { is_synced: 1, synced_at: now, server_name: serverName });
+                    await db.sync_log.add({ offline_id: invoice.offline_id, action: hardProceed ? 'hard_sync_success' : 'manual_sync_success', timestamp: now, status: 'success', server_name: serverName });
+                    Swal.fire({ icon: 'success', title: 'Sync Successful', text: `${serverName}`, timer: 1500, showConfirmButton: false });
                     fetchData();
                 } else {
-                    // Server returned UUID/null — NOT truly synced
-                    await db.invoices.update(invoice.id, {
-                        retry_count: (invoice.retry_count || 0) + 1
-                    });
+                    await db.invoices.update(invoice.id, { retry_count: (invoice.retry_count || 0) + 1 });
                     const errDump = JSON.stringify(result).substring(0, 150);
-                    await db.sync_log.add({
-                        offline_id: invoice.offline_id,
-                        action: hardProceed ? 'hard_sync_failed' : 'manual_sync_failed',
-                        timestamp: now,
-                        status: 'failed',
-                        error: `Response: ${errDump} — Invoice NOT posted`
-                    });
-                    Swal.fire('Sync Rejected', `Backend failed to provide valid Invoice ID. Response: ${errDump}`, 'error');
+                    await db.sync_log.add({ offline_id: invoice.offline_id, action: 'manual_sync_failed', timestamp: now, status: 'failed', error: `Response: ${errDump}` });
+                    Swal.fire('Sync Rejected', `Backend failed. Response: ${errDump}`, 'error');
                     fetchData();
                 }
             } else {
-                const errorMsg = result.message || "Unknown server error (e.g., Warehouse missing, Zero qty)";
-                await db.sync_log.add({
-                    offline_id: invoice.offline_id,
-                    action: hardProceed ? 'hard_sync_failed' : 'manual_sync_failed',
-                    timestamp: new Date().toISOString(),
-                    status: 'failed',
-                    error: errorMsg
-                });
-
+                const errorMsg = result.message || "Server error";
+                await db.sync_log.add({ offline_id: invoice.offline_id, action: 'manual_sync_failed', timestamp: new Date().toISOString(), status: 'failed', error: errorMsg });
                 Swal.fire({
                     title: 'Sync Failed',
                     text: errorMsg,
@@ -219,11 +193,8 @@ const SyncManager = () => {
                 }).then((r) => { if (r.isConfirmed) manualSync(invoice, true); });
             }
         } catch (err) {
-            console.error("Manual sync error:", err);
             Swal.fire('Error', `Network error: ${err.message}`, 'error');
-        } finally {
-            setSyncingId(null);
-        }
+        } finally { setSyncingId(null); }
     };
 
     const syncOpeningEntry = async (entry) => {
@@ -250,12 +221,8 @@ const SyncManager = () => {
                 await db.sync_log.add({ offline_id: entry.offline_id, action: 'opening_sync_success', timestamp: new Date().toISOString(), status: 'success', server_name: serverName });
                 Swal.fire('Success', 'Opening Entry Synced', 'success');
                 fetchData();
-            } else {
-                throw new Error(data.message || "Server error 500");
-            }
-        } catch (err) {
-            Swal.fire('Sync Failed', err.message, 'error');
-        } finally { setSyncingId(null); }
+            } else { throw new Error(data.message || "Server error"); }
+        } catch (err) { Swal.fire('Sync Failed', err.message, 'error'); } finally { setSyncingId(null); }
     };
 
     const syncClosingEntry = async (entry) => {
@@ -276,235 +243,218 @@ const SyncManager = () => {
                 await db.sync_log.add({ offline_id: entry.offline_id, action: 'closing_sync_success', timestamp: new Date().toISOString(), status: 'success' });
                 Swal.fire('Success', 'Closing Entry Synced', 'success');
                 fetchData();
-            } else {
-                throw new Error(data.message || "Server error 500");
-            }
-        } catch (err) {
-            Swal.fire('Sync Failed', err.message, 'error');
-        } finally { setSyncingId(null); }
+            } else { throw new Error(data.message || "Server error"); }
+        } catch (err) { Swal.fire('Sync Failed', err.message, 'error'); } finally { setSyncingId(null); }
     };
 
-    if (loading) return <div className="p-4 text-center"><Loader2 className="animate-spin inline mr-2" /> Loading sync details...</div>;
+    if (loading) return (
+        <div className="so-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
+                <Loader2 size={40} className="so-spinner" style={{ color: 'var(--so-primary)' }} />
+                <p style={{ marginTop: '1rem', fontWeight: 600, color: 'var(--so-text-muted)' }}>Initializing Sync Manager...</p>
+            </div>
+        </div>
+    );
 
     return (
-        <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b' }}>Sync Manager</h2>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px 14px',
-                    borderRadius: '20px',
-                    backgroundColor: isOnline ? '#ecfdf5' : '#fef2f2',
-                    color: isOnline ? '#059669' : '#dc2626',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    border: `1px solid ${isOnline ? '#10b981' : '#ef4444'}`
-                }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isOnline ? '#10b981' : '#ef4444' }}></div>
-                    {isOnline ? 'System Online' : 'System Offline'}
+        <div className="so-page">
+            <div className="so-page-header">
+                <div>
+                    <h1 className="so-page-title"><Activity size={20} /> Data Sync Manager</h1>
+                    <p className="so-page-subtitle">Real-time status of local data synchronization and shift states.</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '8px', padding: '0.45rem 1rem',
+                        borderRadius: '99px', background: isOnline ? '#ecfdf5' : '#fef2f2',
+                        color: isOnline ? '#059669' : '#dc2626', fontSize: '0.75rem', fontWeight: 700,
+                        border: `1.5px solid ${isOnline ? '#10b981' : '#ef4444'}`
+                    }}>
+                        {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
+                        {isOnline ? 'SYSTEM CONNECTED' : 'OFFLINE MODE'}
+                    </div>
+                    <button
+                        onClick={() => setSyncSubTheme(isGreen ? 'blue' : 'green')}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                            padding: '0.45rem 1rem', background: '#f8fafc',
+                            border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
+                            fontSize: '0.75rem', fontWeight: 800, color: themeColor,
+                            cursor: 'pointer', transition: 'all 0.2s',
+                            textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}
+                    >
+                        <Palette size={14} /> {syncSubTheme.toUpperCase()}
+                    </button>
+                    <button className="so-btn-primary" onClick={fetchData} disabled={loading}>
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh Data
+                    </button>
                 </div>
             </div>
 
-            {/* Opening & Closing Priority Section */}
-            {(pendingOpening.length > 0 || pendingClosing.length > 0) && (
-                <div style={{ marginBottom: '32px', border: '2px solid #6366f1', borderRadius: '12px', overflow: 'hidden' }}>
-                    <div style={{ padding: '12px 20px', backgroundColor: '#eef2ff', color: '#4338ca', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <AlertCircle size={20} /> HIGH PRIORITY: Shift Entries Required for Data Sync
-                    </div>
-                    {pendingOpening.length > 0 && (
-                        <div style={{ padding: '15px', backgroundColor: '#fff', borderBottom: '1px solid #eef2ff' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>Pending Opening Entries ({pendingOpening.length})</h4>
-                            {pendingOpening.map(entry => (
-                                <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#f8fafc', borderRadius: '8px' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 'bold' }}>{entry.offline_id}</div>
-                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{entry.company} | {entry.pos_profile}</div>
-                                    </div>
-                                    <button
-                                        onClick={() => syncOpeningEntry(entry)}
-                                        disabled={syncingId === `open-${entry.id}`}
-                                        style={{
-                                            padding: '6px 12px',
-                                            borderRadius: '6px',
-                                            backgroundColor: syncingId === `open-${entry.id}` ? '#94a3b8' : '#6366f1',
-                                            color: 'white',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            fontSize: '0.75rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '5px'
-                                        }}
-                                    >
-                                        {syncingId === `open-${entry.id}` ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                                        Sync Opening
-                                    </button>
+            <div className="so-layout" style={{ padding: '1.5rem' }}>
+                <div style={{ width: '100%' }}>
+                    
+                    {/* Shift Priority Alerts */}
+                    {(pendingOpening.length > 0 || pendingClosing.length > 0) && (
+                        <div style={{ marginBottom: '2rem', border: '1.5px solid #6366f1', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.1)' }}>
+                            <div style={{ padding: '1rem 1.5rem', background: '#eef2ff', color: '#4338ca', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <AlertCircle size={20} />
+                                <div style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Urgent: Shift Entries Required for Data Sync
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                    {pendingClosing.length > 0 && (
-                        <div style={{ padding: '15px', backgroundColor: '#fff' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>Pending Closing Entries ({pendingClosing.length})</h4>
-                            {pendingClosing.map(entry => (
-                                <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#f8fafc', borderRadius: '8px', marginBottom: '8px' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 'bold' }}>{entry.offline_id}</div>
-                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{entry.company} | Total: AED {entry.grand_total?.toFixed(2)}</div>
-                                    </div>
-                                    <button
-                                        onClick={() => syncClosingEntry(entry)}
-                                        disabled={syncingId === `close-${entry.id}`}
-                                        style={{
-                                            padding: '6px 12px',
-                                            borderRadius: '6px',
-                                            backgroundColor: syncingId === `close-${entry.id}` ? '#94a3b8' : '#6366f1',
-                                            color: 'white',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            fontSize: '0.75rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '5px'
-                                        }}
-                                    >
-                                        {syncingId === `close-${entry.id}` ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                                        Sync Closing
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-            <div style={{ marginBottom: '32px', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                <div style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Pending Sync ({pendingInvoices.length})</h3>
-                        {pendingInvoices.length > 0 && (
-                            <button
-                                onClick={() => bulkSync(pendingInvoices)}
-                                style={{
-                                    backgroundColor: '#22c55e',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '4px 12px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '5px'
-                                }}
-                            >
-                                <FastForward size={14} /> Sync All
-                            </button>
-                        )}
-                    </div>
-                    <div></div>
-                </div>
-
-                <div style={{ padding: '0' }}>
-                    {pendingInvoices.length === 0 ? (
-                        <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-                            <CheckCircle2 size={40} style={{ color: '#10b981', marginBottom: '12px' }} />
-                            <p>All invoices are synced with the server.</p>
-                        </div>
-                    ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: '0.85rem', color: '#64748b', backgroundColor: '#fdfdfd' }}>
-                                    <th style={{ padding: '12px 20px' }}>Offline ID</th>
-                                    <th style={{ padding: '12px 20px' }}>Customer</th>
-                                    <th style={{ padding: '12px 20px' }}>Items</th>
-                                    <th style={{ padding: '12px 20px' }}>Amount</th>
-                                    <th style={{ padding: '12px 20px' }}>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {pendingInvoices.map(inv => (
-                                    <React.Fragment key={inv.id}>
-                                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                            <td style={{ padding: '16px 20px', fontWeight: 600 }}>{inv.offline_id}</td>
-                                            <td style={{ padding: '16px 20px' }}>{inv.customer}</td>
-                                            <td style={{ padding: '16px 20px' }}>{inv.items?.length || 0} items</td>
-                                            <td style={{ padding: '16px 20px', fontWeight: 600 }}>AED {inv.grand_total?.toFixed(2)}</td>
-                                            <td style={{ padding: '16px 20px' }}>
-                                                <button
-                                                    onClick={() => manualSync(inv)}
-                                                    disabled={syncingId === inv.id || !isOnline}
-                                                    style={{
-                                                        padding: '6px 16px',
-                                                        borderRadius: '6px',
-                                                        backgroundColor: syncingId === inv.id ? '#94a3b8' : '#2563eb',
-                                                        color: '#white',
-                                                        border: 'none',
-                                                        cursor: isOnline ? 'pointer' : 'not-allowed',
-                                                        fontSize: '0.85rem',
-                                                        fontWeight: 500,
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '6px'
-                                                    }}
-                                                >
-                                                    {syncingId === inv.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                                                    {syncingId === inv.id ? 'Syncing...' : 'Sync Now'}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </React.Fragment>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            </div>
-
-            {/* Logs Section */}
-            <div style={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                <div style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Recent Sync Activity</h3>
-                </div>
-                <div style={{ padding: '0' }}>
-                    {syncLogs.length === 0 ? (
-                        <p style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>No activity logs yet.</p>
-                    ) : (
-                        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                            {syncLogs.map(log => (
-                                <div key={log.id} style={{
-                                    padding: '12px 20px',
-                                    borderBottom: '1px solid #f1f5f9',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center'
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        {log.status === 'success' ? <CheckCircle2 size={20} style={{ color: '#10b981' }} /> : <AlertCircle size={20} style={{ color: '#ef4444' }} />}
+                            </div>
+                            <div style={{ background: 'white', padding: '1rem' }}>
+                                {pendingOpening.map(entry => (
+                                    <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '0.5rem' }}>
                                         <div>
-                                            <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{log.offline_id} - {log.action.replace(/_/g, ' ')}</div>
-                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{new Date(log.timestamp).toLocaleString()}</div>
-                                            {log.error && <div style={{ fontSize: '0.8rem', color: '#ef4444', marginTop: '4px' }}>Error: {log.error}</div>}
-                                            {log.server_name && <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '4px' }}>Server: {log.server_name}</div>}
+                                            <div style={{ fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <ArrowUpCircle size={16} color="#6366f1" /> {entry.offline_id}
+                                                <span className="so-badge" style={{ background: '#eef2ff', color: '#6366f1' }}>OPENING</span>
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{entry.company} | {entry.pos_profile}</div>
                                         </div>
+                                        <button className="so-btn-primary" style={{ background: '#6366f1', borderColor: '#6366f1' }} onClick={() => syncOpeningEntry(entry)} disabled={syncingId === `open-${entry.id}`}>
+                                            {syncingId === `open-${entry.id}` ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Post Shift
+                                        </button>
                                     </div>
-                                    <div style={{
-                                        padding: '4px 8px',
-                                        borderRadius: '4px',
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        textTransform: 'uppercase',
-                                        backgroundColor: log.status === 'success' ? '#ecfdf5' : '#fef2f2',
-                                        color: log.status === 'success' ? '#059669' : '#dc2626'
-                                    }}>
-                                        {log.status === 'success' ? '✅ POSTED' : '❌ FAILED'}
+                                ))}
+                                {pendingClosing.map(entry => (
+                                    <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '0.5rem' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <ArrowDownCircle size={16} color="#4338ca" /> {entry.offline_id}
+                                                <span className="so-badge" style={{ background: '#e0e7ff', color: '#4338ca' }}>CLOSING</span>
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Total Sales: AED {entry.grand_total?.toFixed(2)}</div>
+                                        </div>
+                                        <button className="so-btn-primary" style={{ background: '#4338ca', borderColor: '#4338ca' }} onClick={() => syncClosingEntry(entry)} disabled={syncingId === `close-${entry.id}`}>
+                                            {syncingId === `close-${entry.id}` ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Close Shift
+                                        </button>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', alignItems: 'start' }}>
+                        
+                        {/* Pending Invoices Table */}
+                        <div className="so-table-card">
+                            <div className="so-card-header" style={{ background: '#f8fafc' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>
+                                        PENDING INVOICES ({pendingInvoices.length})
+                                    </h3>
+                                    {pendingInvoices.length > 0 && (
+                                        <button className="so-btn-primary" style={{ padding: '0.35rem 0.85rem', fontSize: '0.7rem' }} onClick={() => bulkSync(pendingInvoices)}>
+                                            <FastForward size={14} /> Bulk Sync
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="so-table-wrapper">
+                                <table className="so-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Ref & ID</th>
+                                            <th>Customer</th>
+                                            <th style={{ textAlign: 'right' }}>Total</th>
+                                            <th style={{ textAlign: 'center' }}>Status</th>
+                                            <th style={{ textAlign: 'center' }}>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pendingInvoices.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="5" className="so-empty" style={{ padding: '4rem' }}>
+                                                    <CheckCircle2 size={40} style={{ color: 'var(--so-primary)', marginBottom: '1rem' }} />
+                                                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>Everything Up to Date</div>
+                                                    <p>All local invoices have been successfully pushed to the server.</p>
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            pendingInvoices.map(inv => (
+                                                <tr key={inv.id}>
+                                                    <td>
+                                                        <div style={{ fontWeight: 800, color: 'var(--so-primary)' }}>{inv.offline_id}</div>
+                                                        <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{new Date(inv.timestamp || 0).toLocaleString()}</div>
+                                                    </td>
+                                                    <td style={{ fontWeight: 600 }}>{inv.customer}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 800 }}>AED {inv.grand_total?.toFixed(2)}</td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <span className="so-badge" style={{ background: '#fef3c7', color: '#92400e' }}>PENDING</span>
+                                                    </td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <button 
+                                                            className="so-btn-ghost" 
+                                                            onClick={() => manualSync(inv)}
+                                                            disabled={syncingId === inv.id || !isOnline}
+                                                        >
+                                                            {syncingId === inv.id ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Recent Activity Logs */}
+                        <div className="so-table-card">
+                            <div className="so-card-header" style={{ background: '#f8fafc' }}>
+                                <h3 style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--so-text-muted)' }}>
+                                    RECENT ACTIVITY LOGS
+                                </h3>
+                            </div>
+                            <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                                {syncLogs.length === 0 ? (
+                                    <div className="so-empty" style={{ padding: '3rem' }}>No activity records found.</div>
+                                ) : (
+                                    syncLogs.map(log => (
+                                        <div key={log.id} style={{ padding: '1rem', borderBottom: '1px solid #f1f5f9', display: 'flex', gap: '0.75rem' }}>
+                                            <div style={{ marginTop: '0.2rem' }}>
+                                                {log.status === 'success' ? 
+                                                    <CheckCircle2 size={18} color="#10b981" /> : 
+                                                    <AlertCircle size={18} color="#ef4444" />
+                                                }
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>
+                                                        {log.offline_id} 
+                                                    </div>
+                                                    <span className="so-badge" style={{ 
+                                                        background: log.status === 'success' ? '#dcfce7' : '#fee2e2', 
+                                                        color: log.status === 'success' ? '#166534' : '#b91c1c',
+                                                        fontSize: '0.55rem'
+                                                    }}>
+                                                        {log.status === 'success' ? 'OK' : 'ERR'}
+                                                    </span>
+                                                </div>
+                                                <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                                                    {log.action.replace(/_/g, ' ').toUpperCase()} • {new Date(log.timestamp).toLocaleTimeString()}
+                                                </div>
+                                                {log.server_name && (
+                                                    <div style={{ fontSize: '0.7rem', background: 'var(--so-primary-light)', padding: '4px 8px', borderRadius: '4px', marginTop: '6px', color: 'var(--so-primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <Cloud size={10} /> {log.server_name}
+                                                    </div>
+                                                )}
+                                                {log.error && (
+                                                    <div style={{ fontSize: '0.7rem', background: '#fef2f2', padding: '4px 8px', borderRadius: '4px', marginTop: '6px', color: '#991b1b', fontStyle: 'italic' }}>
+                                                        Error: {log.error}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         </div>

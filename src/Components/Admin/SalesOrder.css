@@ -54,10 +54,22 @@
   margin: 0;
 }
 
-/* ---- Main Layout: Sidebar + Content ---- */
+/* ---- Main Layout: Full Width ---- */
 .so-layout {
   display: flex;
+  flex-direction: column;
   min-height: calc(100vh - 57px);
+}
+
+/* ---- Horizontal Filter Bar ---- */
+.so-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: var(--so-white);
+  border-bottom: 1px solid var(--so-border);
+  align-items: flex-end;
 }
 
 /* ---- Sidebar Filters ---- */
@@ -766,6 +778,17 @@ input[type=number].so-td-input::-webkit-inner-spin-button,
 input[type=number].so-td-input::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
-}. s o - d r o p d o w n - p o r t a l  
-   p o s i t i o n :   a b s o l u t e ;    
- 
+}
+
+.so-dropdown-portal {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  background: var(--so-white);
+  border: 1px solid var(--so-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  margin-top: 0.25rem;
+}

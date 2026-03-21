@@ -1,8 +1,11 @@
-// src/pages/PosClosingEntryList.jsx
 import React, { useState, useEffect } from 'react';
-import { Plus, Calendar, User, DollarSign, Package, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+    Plus, Calendar, User, DollarSign, Package, Search, Filter, 
+    ChevronLeft, ChevronRight, Palette, Receipt, Clock, Tag, Loader2
+} from 'lucide-react';
 import NavBar from '../Nav/NavBar';
 import { useNavigate } from 'react-router-dom';
+import './SalesOrder.css';
 
 function PosClosingEntryList() {
   const [closings, setClosings] = useState([]);
@@ -21,6 +24,22 @@ function PosClosingEntryList() {
   const navigate = useNavigate();
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
   const getSession = () => localStorage.getItem('session') || '';
+
+  // Theme support
+  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = polTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#ecfdf5' : '#f0f9ff';
+  const themeHeaderBg = isGreen ? '#f2fdf9' : '#eff6ff';
+  const themeHeaderText = isGreen ? '#0d9488' : '#1d4ed8';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', polTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [polTheme, themeColor, themeColorHover, themeLight]);
 
   /* ────────────────────── FETCH CLOSINGS ────────────────────── */
   useEffect(() => {
@@ -57,180 +76,231 @@ function PosClosingEntryList() {
   };
 
   /* ────────────────────── PAGINATION ────────────────────── */
-  const totalPages = Math.ceil(total / pageSize);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <>
+    <div className="so-page">
       <NavBar />
-      <div className="min-h-screen bg-gray-50">
 
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <h1 className="text-xl font-semibold text-gray-900">POS Closing Entries</h1>
-            <div className="flex items-center space-x-1 text-sm text-gray-600">
-              <span>List View</span>
-            </div>
-          </div>
+      {/* 1. PREMIUM HEADER */}
+      <div className="so-page-header">
+        <div>
+          <h1 className="so-page-title">
+            <Receipt size={22} />
+            POS Closing Entries
+          </h1>
+          <p className="so-page-subtitle">Historical record of shift settlements and reconciliations</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <button
-            onClick={() => navigate('/closingentry')}
-            className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
+            onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.5rem 1rem', background: themeHeaderBg,
+              border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
+              fontSize: '0.7rem', fontWeight: 700, color: themeHeaderText,
+              cursor: 'pointer', transition: 'all 0.2s',
+              textTransform: 'uppercase', letterSpacing: '0.04em'
+            }}
           >
-            <Plus className="w-4 h-4" />
-            <span>Create Closing</span>
+            <Palette size={14} />
+            {polTheme}
+          </button>
+
+          <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
+
+          <button className="so-btn-primary" onClick={() => navigate('/closingentry')}>
+            <Plus size={16} /> New Closing Entry
           </button>
         </div>
+      </div>
 
-        {/* Filters */}
-        <div className="bg-white border-b px-6 py-3">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <input
-              type="date"
-              value={filters.from_date}
-              onChange={e => setFilters({ ...filters, from_date: e.target.value })}
-              className="px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500"
-              placeholder="From Date"
-            />
-            <input
-              type="date"
-              value={filters.to_date}
-              onChange={e => setFilters({ ...filters, to_date: e.target.value })}
-              className="px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500"
-              placeholder="To Date"
-            />
-            <input
-              type="text"
-              value={filters.pos_profile}
-              onChange={e => setFilters({ ...filters, pos_profile: e.target.value })}
-              className="px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500"
-              placeholder="POS Profile"
-            />
-            <input
-              type="text"
-              value={filters.user}
-              onChange={e => setFilters({ ...filters, user: e.target.value })}
-              className="px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500"
-              placeholder="User"
-            />
-            <select
-              value={filters.status}
-              onChange={e => setFilters({ ...filters, status: e.target.value })}
-              className="px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500"
+      {/* 2. HORIZONTAL FILTER BAR */}
+      <div className="so-filter-bar">
+        <div style={{ flex: '1 1 150px' }}>
+          <label className="so-filter-label">From Date</label>
+          <input
+            type="date"
+            className="so-filter-input"
+            value={filters.from_date}
+            onChange={e => { setFilters({ ...filters, from_date: e.target.value }); setCurrentPage(1); }}
+          />
+        </div>
+        <div style={{ flex: '1 1 150px' }}>
+          <label className="so-filter-label">To Date</label>
+          <input
+            type="date"
+            className="so-filter-input"
+            value={filters.to_date}
+            onChange={e => { setFilters({ ...filters, to_date: e.target.value }); setCurrentPage(1); }}
+          />
+        </div>
+        <div style={{ flex: '1 1 150px' }}>
+          <label className="so-filter-label">POS Profile</label>
+          <input
+            type="text"
+            className="so-filter-input"
+            placeholder="Filter profile..."
+            value={filters.pos_profile}
+            onChange={e => { setFilters({ ...filters, pos_profile: e.target.value }); setCurrentPage(1); }}
+          />
+        </div>
+        <div style={{ flex: '1 1 150px' }}>
+          <label className="so-filter-label">User</label>
+          <input
+            type="text"
+            className="so-filter-input"
+            placeholder="Filter user ID..."
+            value={filters.user}
+            onChange={e => { setFilters({ ...filters, user: e.target.value }); setCurrentPage(1); }}
+          />
+        </div>
+        <div style={{ flex: '1 1 150px' }}>
+          <label className="so-filter-label">Status</label>
+          <select
+            className="so-filter-select"
+            value={filters.status}
+            onChange={e => { setFilters({ ...filters, status: e.target.value }); setCurrentPage(1); }}
+          >
+            <option value="">All Status</option>
+            <option value="Draft">Draft</option>
+            <option value="Submitted">Submitted</option>
+          </select>
+        </div>
+        <button 
+          className="so-clear-btn" 
+          onClick={() => setFilters({ from_date: '', to_date: '', pos_profile: '', user: '', status: '' })}
+          style={{ width: 'auto', margin: 0, padding: '0 1rem', height: '38px' }}
+        >
+          Clear
+        </button>
+      </div>
+
+      {/* 3. MAIN CONTENT */}
+      <main className="so-content" style={{ padding: '1.5rem 2rem' }}>
+        <p className="so-list-meta">
+          Showing <b>{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)}</b> of <b>{total}</b> settlements
+        </p>
+
+        <div className="so-table-card">
+          <div className="so-table-wrapper">
+            <table className="so-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Shift Information</th>
+                  <th>Closing Agent</th>
+                  <th style={{ textAlign: 'right' }}>Items</th>
+                  <th style={{ textAlign: 'right' }}>Net Summary</th>
+                  <th style={{ textAlign: 'right' }}>Grand Total</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="7" className="so-empty">
+                      <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
+                      <p style={{ marginTop: '0.5rem' }}>Loading settlements...</p>
+                    </td>
+                  </tr>
+                ) : closings.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="so-empty">No closing entries match your filters.</td>
+                  </tr>
+                ) : (
+                  closings.map(c => (
+                    <tr key={c.name} onClick={() => navigate(`/pos-closing/${c.name}`)}>
+                      <td>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{c.posting_date}</div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Clock size={14} style={{ color: '#64748b' }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{c.pos_profile}</span>
+                        </div>
+                        <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '2px' }}>
+                          {c.period_start} — {c.period_end}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <User size={14} style={{ color: '#64748b' }} />
+                          <span style={{ fontSize: '0.75rem' }}>{c.user}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                         <span style={{ fontWeight: 600 }}>{c.total_quantity}</span>
+                         <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '4px' }}>pcs</span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+                          AED {c.net_total.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>
+                              AED {c.grand_total.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
+                          </div>
+                      </td>
+                      <td>
+                        <span className="so-badge" style={{
+                            background: c.status === 'Submitted' ? '#dcfce7' : c.status === 'Draft' ? '#fef9c3' : '#fee2e2',
+                            color: c.status === 'Submitted' ? '#166534' : c.status === 'Draft' ? '#854d0e' : '#991b1b'
+                        }}>
+                          {c.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Pagination */}
+        <div className="so-pagination">
+          <div style={{ color: '#64748b' }}>
+            Page <b>{currentPage}</b> of <b>{totalPages}</b>
+          </div>
+          <div className="so-pagination-btns">
+            <button
+              className="so-page-btn"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
             >
-              <option value="">All Status</option>
-              <option value="Draft">Draft</option>
-              <option value="Submitted">Submitted</option>
+              <ChevronLeft size={14} />
+            </button>
+            {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                const pageNum = i + 1;
+                return (
+                    <button
+                        key={pageNum}
+                        className={`so-page-btn ${currentPage === pageNum ? 'active' : ''}`}
+                        onClick={() => setCurrentPage(pageNum)}
+                    >
+                        {pageNum}
+                    </button>
+                );
+            })}
+            <button
+              className="so-page-btn"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              <ChevronRight size={14} />
+            </button>
+
+            <select
+              value={pageSize}
+              onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+              style={{ padding: '0.2rem 0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.7rem', marginLeft: '0.5rem' }}
+            >
+              {[10, 20, 50].map(sz => <option key={sz} value={sz}>{sz} / page</option>)}
             </select>
           </div>
         </div>
-
-        {/* Table */}
-        <main className="p-6">
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POS Profile</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Net Total</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Grand Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {loading ? (
-                    <tr><td colSpan="8" className="text-center py-10 text-gray-500">Loading...</td></tr>
-                  ) : closings.length === 0 ? (
-                    <tr><td colSpan="8" className="text-center py-10 text-gray-500">No closing entries found</td></tr>
-                  ) : (
-                    closings.map(c => (
-                      <tr key={c.name} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/pos-closing/${c.name}`)}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            {c.posting_date}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {c.period_start} - {c.period_end}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-1">
-                            <User className="w-4 h-4 text-gray-400" />
-                            {c.user}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{c.pos_profile}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Package className="w-4 h-4 text-gray-400" />
-                            {c.total_quantity}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
-                          AED {c.net_total.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-green-600">
-                          AED {c.grand_total.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            c.status === 'Submitted' ? 'bg-green-100 text-green-800' :
-                            c.status === 'Draft' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {c.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="bg-white px-6 py-3 flex items-center justify-between border-t border-gray-200">
-              <div className="text-sm text-gray-700">
-                Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} entries
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-sm text-gray-700">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-                <select
-                  value={pageSize}
-                  onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                  className="ml-3 px-3 py-1 border rounded text-sm"
-                >
-                  {[10, 20, 50, 100].map(size => (
-                    <option key={size} value={size}>{size} / page</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
 

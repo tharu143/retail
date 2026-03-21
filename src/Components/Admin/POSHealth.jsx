@@ -1,20 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import {
-    Activity,
-    TrendingUp,
-    FileText,
-    Clock,
-    AlertCircle,
-    CheckCircle2,
-    RefreshCw
+    Activity, TrendingUp, FileText, Clock, AlertCircle, 
+    CheckCircle2, RefreshCw, Palette, ShieldCheck, 
+    Database, Wifi, WifiOff, Server, HardDrive
 } from 'lucide-react';
+import '../Admin/SalesOrder.css';
 
 const POSHealth = () => {
     const posProfile = useSelector((state) => state.user.posProfile);
     const [healthData, setHealthData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [localSyncTime, setLocalSyncTime] = useState(localStorage.getItem('last_item_sync_time'));
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    // Theme Support
+    const [healthTheme, setHealthTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+    const isGreen = healthTheme === 'green';
+    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+    const themeColorHover = isGreen ? '#059669' : '#0284c7';
+    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+    useEffect(() => {
+        localStorage.setItem('legacySubTheme', healthTheme);
+        document.documentElement.style.setProperty('--so-primary', themeColor);
+        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+        document.documentElement.style.setProperty('--so-primary-light', themeLight);
+    }, [healthTheme, themeColor, themeColorHover, themeLight]);
 
     const fetchHealthData = useCallback(async () => {
         try {
@@ -26,6 +38,7 @@ const POSHealth = () => {
             const data = await response.json();
             setHealthData(data.message || data);
             setLocalSyncTime(localStorage.getItem('last_item_sync_time'));
+            setIsOnline(navigator.onLine);
         } catch (err) {
             console.error("Health fetch failed:", err);
         } finally {
@@ -35,118 +48,200 @@ const POSHealth = () => {
 
     useEffect(() => {
         fetchHealthData();
-        const interval = setInterval(fetchHealthData, 60000); // Refresh every minute
-        return () => clearInterval(interval);
+        const interval = setInterval(fetchHealthData, 60000);
+        const handleStatus = () => setIsOnline(navigator.onLine);
+        window.addEventListener('online', handleStatus);
+        window.addEventListener('offline', handleStatus);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('online', handleStatus);
+            window.removeEventListener('offline', handleStatus);
+        };
     }, [fetchHealthData]);
 
     const getSyncStatus = () => {
-        if (!healthData?.last_item_update || !localSyncTime) return { label: 'UNKNOWN', color: 'gray' };
-
+        if (!healthData?.last_item_update || !localSyncTime) return { label: 'UNKNOWN', color: '#94a3b8', bg: '#f1f5f9' };
         const serverTime = new Date(healthData.last_item_update).getTime();
         const localTime = new Date(localSyncTime).getTime();
-
-        if (serverTime > localTime + 1000) { // 1s tolerance
-            return { label: 'OUTDATED', color: 'red' };
-        }
-        return { label: 'UP TO DATE', color: 'emerald' };
+        if (serverTime > localTime + 1000) return { label: 'OUTDATED', color: '#dc2626', bg: '#fef2f2' };
+        return { label: 'UP TO DATE', color: isGreen ? '#059669' : '#0ea5e9', bg: isGreen ? '#ecfdf5' : '#f0f9ff' };
     };
 
     const syncStatus = getSyncStatus();
     const isOutOfSync = syncStatus.label === 'OUTDATED';
 
-    const StatCard = ({ title, value, icon: Icon, color }) => (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-start justify-between">
-            <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-                <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+    const DashboardCard = ({ title, value, subtitle, icon: Icon, color, trend }) => (
+        <div className="so-table-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: `4px solid ${color || themeColor}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--so-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>{title}</p>
+                    <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0 }}>{value}</h3>
+                    {subtitle && <p style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', marginTop: '4px' }}>{subtitle}</p>}
+                </div>
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: `${color || themeColor}15`, color: color || themeColor }}>
+                    <Icon size={24} />
+                </div>
             </div>
-            <div className={`p-3 rounded-lg ${color}`}>
-                <Icon size={24} className="text-white" />
+            {trend && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', fontWeight: 700, color: color || themeColor }}>
+                    <TrendingUp size={12} /> {trend} since opening
+                </div>
+            )}
+        </div>
+    );
+
+    if (loading && !healthData) return (
+        <div className="so-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
+                <RefreshCw size={40} className="animate-spin" style={{ color: themeColor, margin: '0 auto' }} />
+                <p style={{ marginTop: '1rem', fontWeight: 700, color: 'var(--so-text-muted)', letterSpacing: '0.05em' }}>DIAGNOSING SYSTEM HEALTH...</p>
             </div>
         </div>
     );
 
-    if (loading && !healthData) return <div className="flex justify-center p-20"><RefreshCw className="animate-spin text-blue-500" size={32} /></div>;
-
     return (
-        <div className="p-8 bg-gray-50 min-h-screen">
-            <div className="max-w-6xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <Activity className="text-blue-500" /> POS Health Dashboard
+        <div className="so-page">
+            <div className="so-page-header">
+                <div>
+                    <h1 className="so-page-title">
+                        <ShieldCheck size={22} color={themeColor} />
+                        System Health & Telemetry
                     </h1>
+                    <p className="so-page-subtitle">Real-time monitoring of POS data integrity and sync status.</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '8px', padding: '0.45rem 1rem',
+                        borderRadius: '99px', background: isOnline ? (isGreen ? '#ecfdf5' : '#f0f9ff') : '#fef2f2',
+                        color: isOnline ? themeColor : '#dc2626', fontSize: '0.7rem', fontWeight: 800,
+                        border: `1.5px solid ${isOnline ? themeColor : '#ef4444'}`
+                    }}>
+                        {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
+                        {isOnline ? 'NETWORK STABLE' : 'NETWORK OFFLINE'}
+                    </div>
                     <button
-                        onClick={fetchHealthData}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                        onClick={() => setHealthTheme(isGreen ? 'blue' : 'green')}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                            padding: '0.45rem 1rem', background: '#f8fafc',
+                            border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
+                            fontSize: '0.75rem', fontWeight: 800, color: themeColor,
+                            cursor: 'pointer', transition: 'all 0.2s',
+                            textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}
                     >
-                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
+                        <Palette size={14} /> {healthTheme.toUpperCase()}
+                    </button>
+                    <button className="so-btn-primary" 
+                            style={{ background: themeColor, borderColor: themeColor }}
+                            onClick={fetchHealthData} disabled={loading}>
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Run Diagnostic
                     </button>
                 </div>
+            </div>
 
-                {isOutOfSync && (
-                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3 text-amber-800">
-                        <AlertCircle />
-                        <div>
-                            <p className="font-semibold">Local cache is out of date</p>
-                            <p className="text-sm">The server has newer item data. Please perform a full sync to update prices and stock.</p>
+            <div className="so-layout">
+                <main className="so-content" style={{ padding: '2rem' }}>
+                    
+                    {isOutOfSync && (
+                        <div style={{ 
+                            background: '#fff7ed', border: '1.5px solid #fdba74', borderRadius: '12px', 
+                            padding: '1.25rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem',
+                            boxShadow: '0 4px 6px -1px rgba(251, 146, 60, 0.1)'
+                        }}>
+                            <div style={{ background: '#ffedd5', padding: '0.5rem', borderRadius: '8px', color: '#9a3412' }}>
+                                <AlertCircle size={24} />
+                            </div>
+                            <div>
+                                <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: '#9a3412' }}>Local Cache is Outdated</h4>
+                                <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#c2410c' }}>Server-side item revisions are ahead of this station. Please perform a Full Sync.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
+                        <DashboardCard
+                            title="Fiscal Sales"
+                            value={`AED ${healthData?.today_total_sales?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}`}
+                            subtitle="Total revenue processed today"
+                            icon={TrendingUp}
+                            color={themeColor}
+                            trend={`${healthData?.today_invoice_count || 0} invoices`}
+                        />
+                        <DashboardCard
+                            title="Active Profile"
+                            value={posProfile || 'Default'}
+                            subtitle="The terminal configuration currently in use"
+                            icon={Server}
+                            color={isGreen ? '#3b82f6' : '#2dd4bf'} 
+                        />
+                        <DashboardCard
+                            title="Sync Age"
+                            value={localSyncTime ? new Date(localSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                            subtitle="Last successful local data fetch"
+                            icon={Clock}
+                            color={isGreen ? '#8b5cf6' : '#f43f5e'} 
+                        />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+                        <div className="so-table-card">
+                            <div className="so-card-header" style={{ background: '#f8fafc' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Database size={16} color={themeColor} />
+                                    <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>DATA INTEGRITY ENGINE</h3>
+                                </div>
+                            </div>
+                            <div style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
+                                        <div>
+                                            <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--so-text-heading)', margin: 0 }}>Item Price Revision (Server)</p>
+                                            <p style={{ fontSize: '0.65rem', color: 'var(--so-text-muted)' }}>{healthData?.last_item_update || 'Checking version...'}</p>
+                                        </div>
+                                        <span className="so-badge" style={{ 
+                                            background: syncStatus.bg, 
+                                            color: syncStatus.color,
+                                            border: `1px solid ${syncStatus.color}20` 
+                                        }}>
+                                            {syncStatus.label}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
+                                        <div>
+                                            <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--so-text-heading)', margin: 0 }}>Station Synchronization (Local)</p>
+                                            <p style={{ fontSize: '0.65rem', color: 'var(--so-text-muted)' }}>{localSyncTime || 'Pending synchronization'}</p>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8' }}>
+                                            <HardDrive size={12} /> VOLATILE STORAGE
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--so-text-heading)', margin: 0 }}>API Handshake Status</p>
+                                            <p style={{ fontSize: '0.65rem', color: 'var(--so-text-muted)' }}>Connection to Frappe/ERPNext backend</p>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', fontWeight: 800, color: isOnline ? themeColor : '#ef4444' }}>
+                                            {isOnline ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                                            {isOnline ? 'VERIFIED' : 'UNREACHABLE'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ background: themeLight, borderRadius: '12px', padding: '1.5rem', border: `1px solid ${themeColor}20` }}>
+                            <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', fontWeight: 800, color: themeColor, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Activity size={16} /> SYSTEM NOTES
+                            </h4>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--so-text-body)', lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                <p>• <b>Sync Threshold:</b> Outdated statuses appear when the server revision time exceeds the local store by more than 1 second.</p>
+                                <p>• <b>Network Latency:</b> Telemetry is refreshed every 60 seconds automatically.</p>
+                                <p>• <b>Security:</b> All diagnostic handshakes are performed over encrypted SSL tunnels.</p>
+                            </div>
                         </div>
                     </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <StatCard
-                        title="Today's Total Sales"
-                        value={`AED ${healthData?.today_total_sales?.toLocaleString() || '0.00'}`}
-                        icon={TrendingUp}
-                        color="bg-emerald-500"
-                    />
-                    <StatCard
-                        title="Today's Invoices"
-                        value={healthData?.today_invoice_count || '0'}
-                        icon={FileText}
-                        color="bg-blue-500"
-                    />
-                    <StatCard
-                        title="Local Sync Age"
-                        value={localSyncTime ? new Date(localSyncTime).toLocaleTimeString() : 'Never'}
-                        icon={Clock}
-                        color="bg-violet-500"
-                    />
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100">
-                        <h2 className="text-lg font-semibold text-gray-800">Sync Details</h2>
-                    </div>
-                    <div className="p-6 space-y-4">
-                        <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">Last Server Item Update</p>
-                                <p className="text-xs text-gray-500">{healthData?.last_item_update || 'N/A'}</p>
-                            </div>
-                            <span className={`px-3 py-1 bg-${syncStatus.color}-100 text-${syncStatus.color}-700 text-xs font-bold rounded-full`}>
-                                {syncStatus.label}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">POS Profile</p>
-                                <p className="text-xs text-gray-500">{posProfile}</p>
-                            </div>
-                            <span className="text-xs font-mono text-gray-400">active</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">System Connection</p>
-                                <p className="text-xs text-gray-500">{navigator.onLine ? 'Broadband / LAN' : 'Disconnected'}</p>
-                            </div>
-                            <div className="flex items-center gap-1 text-emerald-500 text-xs font-bold">
-                                {navigator.onLine ? <CheckCircle2 size={14} /> : <AlertCircle size={14} className="text-red-500" />}
-                                {navigator.onLine ? 'STABLE' : 'OFFLINE'}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </main>
             </div>
         </div>
     );

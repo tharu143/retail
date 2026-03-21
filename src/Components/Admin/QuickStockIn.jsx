@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Package, Save, X, Box, ShoppingCart, DollarSign, Loader2, Warehouse, History, ArrowRight, Palette } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Search, Package, Save, X, Box, ShoppingCart, DollarSign, Loader2, Warehouse, History, ArrowRight, Palette, Camera, Scan, Upload, ImageIcon, RefreshCw, AlertCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
 import POSService from '../../utils/posService';
 import { db } from '../../db';
+import { BrowserMultiFormatReader } from '@zxing/library';
 
 const QuickStockIn = ({ isOpen, onClose }) => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -21,6 +23,11 @@ const QuickStockIn = ({ isOpen, onClose }) => {
     const themeColor = isGreen ? '#10b981' : '#0ea5e9';
     const themeColorHover = isGreen ? '#059669' : '#0284c7';
     const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const videoRef = useRef(null);
+    const codeReader = useRef(new BrowserMultiFormatReader());
+    const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => {
         localStorage.setItem('legacySubTheme', polTheme);
@@ -79,6 +86,97 @@ const QuickStockIn = ({ isOpen, onClose }) => {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBarcodeEnter = async (e) => {
+        if (e.key !== 'Enter') return;
+        const barcode = e.target.value.trim();
+        if (!barcode) return;
+
+        setLoading(true);
+        try {
+            const localItems = await db.items.toArray();
+            const found = localItems.find(it => 
+                (it.id || '').toLowerCase() === barcode.toLowerCase() ||
+                (it.barcodes || []).some(b => (b.barcode || '').toLowerCase() === barcode.toLowerCase())
+            );
+
+            if (found) {
+                selectItem(found);
+            } else {
+                // Try API
+                const res = await POSService.getItemByBarcode(barcode);
+                if (res) {
+                    selectItem(res);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Not Found',
+                        text: `No item found for barcode: ${barcode}`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+            setSearchQuery('');
+        }
+    };
+
+    const startCameraScanner = async () => {
+        setIsScannerOpen(true);
+        setTimeout(async () => {
+            try {
+                const videoInputDevices = await codeReader.current.listVideoInputDevices();
+                const selectedDeviceId = videoInputDevices[0].deviceId;
+                codeReader.current.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result) => {
+                    if (result) {
+                        const barcode = result.getText();
+                        handleBarcodeEnter({ key: 'Enter', target: { value: barcode } });
+                        stopCameraScanner();
+                    }
+                });
+            } catch (err) {
+                console.error(err);
+                setIsScannerOpen(false);
+            }
+        }, 100);
+    };
+
+    const stopCameraScanner = () => {
+        codeReader.current.reset();
+        setIsScannerOpen(false);
+    };
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        decodeImage(file);
+    };
+
+    const decodeImage = async (file) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const image = new Image();
+                image.src = reader.result;
+                image.onload = async () => {
+                    try {
+                        const result = await codeReader.current.decodeFromImageElement(image);
+                        handleBarcodeEnter({ key: 'Enter', target: { value: result.getText() } });
+                        stopCameraScanner();
+                    } catch (err) {
+                        Swal.fire('Error', 'No barcode found in image', 'error');
+                    }
+                };
+            };
+            reader.readAsDataURL(file);
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -229,18 +327,27 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                                     ref={searchRef}
                                     type="text" 
                                     placeholder="SCAN BARCODE OR TYPE ITEM NAME..." 
-                                    className="w-full bg-slate-100 border-2 border-transparent rounded-[1.5rem] pl-14 pr-6 py-5 text-sm font-black text-slate-800 placeholder:text-slate-400 focus:bg-white transition-all shadow-sm outline-none"
+                                    className="w-full bg-slate-100 border-2 border-transparent rounded-[1.5rem] pl-14 pr-16 py-5 text-sm font-black text-slate-800 placeholder:text-slate-400 focus:bg-white transition-all shadow-sm outline-none"
                                     style={{ borderColor: 'transparent' }}
                                     onFocus={(e) => e.target.style.borderColor = themeColor}
                                     onBlur={(e) => e.target.style.borderColor = 'transparent'}
                                     value={searchQuery}
                                     onChange={(e) => handleSearch(e.target.value)}
+                                    onKeyDown={handleBarcodeEnter}
                                 />
-                                {loading && (
-                                    <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                    <button 
+                                        type="button"
+                                        onClick={startCameraScanner}
+                                        className="p-2 hover:bg-slate-200 rounded-full transition-all text-slate-400 hover:text-emerald-500"
+                                        title="Start Camera"
+                                    >
+                                        <Camera size={20} />
+                                    </button>
+                                    {loading && (
                                         <Loader2 className="animate-spin" size={20} style={{ color: themeColor }} />
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
 
                             {searchResults.length > 0 && (
@@ -451,11 +558,75 @@ const QuickStockIn = ({ isOpen, onClose }) => {
                 </div>
             </div>
             
+            {isScannerOpen && createPortal(
+                <div 
+                    className="fixed inset-0 z-[10000] bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-fadeIn"
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) decodeImage(file);
+                    }}
+                >
+                    <div className={`relative w-full max-w-lg aspect-square bg-black rounded-3xl overflow-hidden shadow-2xl border-4 transition-all duration-300 ${isDragging ? 'border-emerald-500 scale-105 ring-4 ring-emerald-500/20' : 'border-emerald-500/30'}`}>
+                        {isDragging ? (
+                            <div className="absolute inset-0 bg-emerald-600/40 backdrop-blur-sm flex flex-col items-center justify-center z-50 animate-pulse">
+                                <Upload className="w-16 h-16 text-white mb-4" />
+                                <p className="text-white font-bold text-lg uppercase tracking-widest">Drop Image to Scan</p>
+                            </div>
+                        ) : (
+                            <>
+                                <video ref={videoRef} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 border-[60px] border-black/40 pointer-events-none flex items-center justify-center">
+                                    <div className="w-full h-full border-2 border-emerald-400/50 relative">
+                                        <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-sm" />
+                                        <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-sm" />
+                                        <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-sm" />
+                                        <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-sm" />
+                                        <div className="w-full h-0.5 bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.8)] absolute animate-scanLine" />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="absolute top-4 right-4 flex gap-2">
+                            <label className="w-10 h-10 bg-white/10 hover:bg-emerald-500/30 backdrop-blur-md text-white rounded-full flex items-center justify-center transition-all border border-white/20 cursor-pointer group" title="Upload Image">
+                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                                <ImageIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            </label>
+                            <button 
+                                onClick={stopCameraScanner}
+                                className="w-10 h-10 bg-white/10 hover:bg-red-500/30 backdrop-blur-md text-white rounded-full flex items-center justify-center transition-all border border-white/20"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
+                            <div className="text-white bg-emerald-600/80 backdrop-blur-md px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg whitespace-nowrap">
+                                {isDragging ? 'Release to Scan' : 'Align Barcode or Drop Image'}
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
             <style dangerouslySetInnerHTML={{ __html: `
                 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+                
+                @keyframes scanLine {
+                    0% { top: 0; }
+                    100% { top: 100%; }
+                }
+                .animate-scanLine {
+                    animation: scanLine 2s linear infinite;
+                }
             `}} />
         </div>
     );

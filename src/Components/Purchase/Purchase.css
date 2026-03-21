@@ -194,7 +194,7 @@ input[type=number] {
 }
 
 .purchase-td {
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 0.5rem;
   border-bottom: 1px solid var(--po-border);
   font-size: 0.75rem;
   font-weight: 500;

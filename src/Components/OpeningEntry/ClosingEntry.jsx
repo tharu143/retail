@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { AlertCircle, CheckCircle2, Loader2, Receipt, Calendar, CreditCard, TrendingUp, DollarSign } from 'lucide-react';
+import {
+  AlertCircle, CheckCircle2, Loader2, Receipt, Calendar, CreditCard,
+  TrendingUp, DollarSign, Palette, RefreshCw, FileText, ChevronDown
+} from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { db } from '../../db';
+import NavBar from '../Nav/NavBar';
+import '../Admin/SalesOrder.css';
 
 function ClosingEntry() {
   const currentUser = useSelector((state) => state.user.user);
@@ -27,6 +32,15 @@ function ClosingEntry() {
 
   const [postingDate, setPostingDate] = useState(getCurrentISTDateTime());
   const [periodEndDate, setPeriodEndDate] = useState(getCurrentISTDateTime());
+
+  // Theme support
+  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  const isGreen = polTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeLight = isGreen ? '#ecfdf5' : '#f0f9ff';
+  const themeHeaderBg = isGreen ? '#f2fdf9' : '#eff6ff';
+  const themeHeaderText = isGreen ? '#0d9488' : '#1d4ed8';
 
   const getSession = () => localStorage.getItem('session') || '';
 
@@ -109,6 +123,13 @@ function ClosingEntry() {
     };
     fetchOpeningEntries();
   }, [company, currentUser, currentPosProfile]);
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', polTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+    document.documentElement.style.setProperty('--so-primary-light', themeLight);
+  }, [polTheme, themeColor, themeColorHover, themeLight]);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -377,284 +398,334 @@ function ClosingEntry() {
 
   if (loading && openingEntries.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="so-page" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="flex items-center gap-3 text-slate-600">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span className="text-lg">Loading...</span>
+          <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+          <span className="text-lg font-medium">Loading session list...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <Receipt className="w-8 h-8 text-slate-700" />
+    <div className="so-page" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <NavBar />
+
+      <style>{`
+        .ce-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.25rem 1.5rem;
+            background: #f8fafc;
+        }
+        .ce-summary-card {
+            background: linear-gradient(135deg, ${isGreen ? '#064e3b' : '#0c4a6e'} 0%, ${isGreen ? '#065f46' : '#075985'} 100%);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .ce-stat-value {
+            font-size: 1.875rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .ce-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+      `}</style>
+
+      <div className="so-page-header" style={{ flexShrink: 0 }}>
+        <div>
+          <h1 className="so-page-title">
+            <Receipt size={22} />
             POS Closing Entry
           </h1>
-          <p className="text-slate-600 mt-2">Complete your daily closing and reconcile payments</p>
+          <p className="so-page-subtitle">Reconcile shift payments and finalize daily sales</p>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button
+            onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.5rem 1rem', background: themeHeaderBg,
+              border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
+              fontSize: '0.7rem', fontWeight: 700, color: themeHeaderText,
+              cursor: 'pointer', transition: 'all 0.2s',
+              textTransform: 'uppercase', letterSpacing: '0.04em'
+            }}
+          >
+            <Palette size={14} />
+            {polTheme}
+          </button>
 
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="text-red-900 font-semibold">Error</h3>
-              <p className="text-red-700 text-sm mt-1">{error}</p>
-            </div>
-          </div>
-        )}
+          <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
 
-        {successMessage && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="text-green-900 font-semibold">Success</h3>
-              <p className="text-green-700 text-sm mt-1">{successMessage}</p>
-            </div>
-          </div>
-        )}
-
-        {noInvoicesMessage && (
-          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-amber-800">{noInvoicesMessage}</p>
-          </div>
-        )}
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Entry Details
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                POS Opening Entry <span className="text-red-500">*</span>
-              </label>
-              <select
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white text-slate-900"
-                value={selectedOpeningEntry}
-                onChange={(e) => setSelectedOpeningEntry(e.target.value)}
-              >
-                <option value="">Select Opening Entry</option>
-                {openingEntries.map((entry) => (
-                  <option key={entry.name} value={entry.name}>
-                    {entry.name} ({entry.pos_profile}, {new Date(entry.period_start_date).toLocaleDateString()})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Posting Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="datetime-local"
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white text-slate-900"
-                value={postingDate}
-                onChange={(e) => setPostingDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Period End Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="datetime-local"
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white text-slate-900"
-                value={periodEndDate}
-                onChange={(e) => setPeriodEndDate(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {invoicesData && (
-          <>
-            {/* Invoices Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-                  <Receipt className="w-5 h-5" />
-                  Invoices
-                </h2>
-                <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">
-                  {invoicesData.invoices.length} {invoicesData.invoices.length === 1 ? 'Invoice' : 'Invoices'}
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Invoice</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Customer</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Date</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Net Total</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Tax</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Grand Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoicesData.invoices.map((inv, idx) => (
-                      <tr key={inv.name} className={idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
-                        <td className="py-3 px-4 text-sm text-slate-900 font-medium">{inv.name}</td>
-                        <td className="py-3 px-4 text-sm text-slate-700">{inv.customer_name}</td>
-                        <td className="py-3 px-4 text-sm text-slate-700">
-                          {new Date(inv.posting_date).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-slate-900 text-right font-mono">
-                          AED {flt(inv.net_total).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-slate-900 text-right font-mono">
-                          AED {flt(inv.total_taxes_and_charges).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-slate-900 text-right font-semibold font-mono">
-                          AED {flt(inv.grand_total).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Payment Reconciliation */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-              <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                Payment Reconciliation
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Payment Mode</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Opening</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Expected</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Closing Amount</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Difference</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paymentReconciliation.map((pr, idx) => (
-                      <tr key={pr.mode_of_payment} className={idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
-                        <td className="py-3 px-4 text-sm text-slate-900 font-medium">{pr.mode_of_payment}</td>
-                        <td className="py-3 px-4 text-sm text-slate-700 text-right font-mono">
-                          AED {flt(pr.opening_amount).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-slate-900 text-right font-semibold font-mono">
-                          AED {flt(pr.expected_amount).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4">
-                          <input
-                            type="number"
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-right font-mono text-sm"
-                            value={pr.closing_amount || ''}
-                            onChange={(e) => handleClosingAmountChange(idx, e.target.value)}
-                            min="0"
-                            step="0.01"
-                            ref={(el) => (closingAmountRefs.current[idx] = el)}
-                          />
-                        </td>
-                        <td className={`py-3 px-4 text-sm text-right font-semibold font-mono ${pr.difference > 0 ? 'text-red-600' : pr.difference < 0 ? 'text-green-600' : 'text-slate-700'
-                          }`}>
-                          AED {Math.abs(flt(pr.difference)).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Tax Breakdown */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-              <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Tax Breakdown
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Account</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Rate</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoicesData.taxes.map((tax, idx) => (
-                      <tr key={tax.account_head} className={idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
-                        <td className="py-3 px-4 text-sm text-slate-900">{tax.account_head}</td>
-                        <td className="py-3 px-4 text-sm text-slate-700 text-right">{tax.rate}%</td>
-                        <td className="py-3 px-4 text-sm text-slate-900 text-right font-semibold font-mono">
-                          AED {flt(tax.amount).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Summary */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 mb-6">
-              <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Summary
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                  <p className="text-slate-300 text-sm mb-1">Net Total</p>
-                  <p className="text-2xl font-bold text-white font-mono">AED {flt(invoicesData.net_total).toFixed(2)}</p>
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                  <p className="text-slate-300 text-sm mb-1">Grand Total</p>
-                  <p className="text-2xl font-bold text-white font-mono">AED {flt(invoicesData.grand_total).toFixed(2)}</p>
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                  <p className="text-slate-300 text-sm mb-1">Total Quantity</p>
-                  <p className="text-2xl font-bold text-white font-mono">{flt(invoicesData.total_quantity).toFixed(2)}</p>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-end">
-          {/* ONLY show Finalize & Submit if user is a manager/admin. Otherwise ONLY show Save as Draft */}
-          {userRoles.includes('Administrator') || userRoles.includes('System Manager') ? (
-            <>
+          {/* Action Buttons in Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {userRoles.includes('Administrator') || userRoles.includes('System Manager') ? (
+              <>
+                <button
+                  className="so-btn-ghost"
+                  style={{ background: '#f1f5f9', fontSize: '0.7rem', padding: '0.55rem 1rem', height: '38px' }}
+                  onClick={() => handleSubmit(true)}
+                  disabled={loading || !invoicesData}
+                >
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  Save Draft
+                </button>
+                <button
+                  className="so-btn-primary"
+                  style={{ height: '38px', padding: '0 1.25rem', fontSize: '0.75rem', background: '#0f172a' }}
+                  onClick={() => handleSubmit(false)}
+                  disabled={loading || !invoicesData}
+                >
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  {loading ? 'Processing...' : 'Finalize & Submit Shift'}
+                </button>
+              </>
+            ) : (
               <button
-                className="px-6 py-3 bg-slate-500 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="so-btn-primary"
+                style={{ height: '38px', padding: '0 1.5rem', fontSize: '0.75rem' }}
                 onClick={() => handleSubmit(true)}
                 disabled={loading || !invoicesData}
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                Save as Draft
+                {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                {loading ? 'Processing...' : 'Save Shift as Draft'}
               </button>
-              <button
-                className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                onClick={() => handleSubmit(false)}
-                disabled={loading || !invoicesData}
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                {loading ? 'Processing...' : 'Finalize & Submit'}
-              </button>
-            </>
-          ) : (
-            <button
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              onClick={() => handleSubmit(true)}
-              disabled={loading || !invoicesData}
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-              {loading ? 'Processing...' : 'Save as Draft'}
-            </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. SCROLLABLE CONTENT */}
+      <div className="ce-scroll-area">
+        <div style={{ width: '100%' }}>
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 animate-in fade-in duration-300">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-red-900 font-semibold text-sm caps">System Error</h3>
+                <p className="text-red-700 text-sm mt-1">{error}</p>
+              </div>
+            </div>
           )}
+
+          {successMessage && (
+            <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3 animate-in zoom-in duration-300">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-emerald-900 font-semibold text-sm">Operation Success</h3>
+                <p className="text-emerald-700 text-sm mt-1">{successMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {noInvoicesMessage && (
+            <div className="so-card" style={{ borderLeft: `4px solid #f59e0b`, padding: '1rem 1.5rem', marginBottom: '1.5rem' }}>
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+                <p className="text-slate-700 font-medium text-sm">{noInvoicesMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Session Selector Card */}
+          <div className="so-card" style={{ marginBottom: '1.5rem' }}>
+            <div className="so-card-header">
+              <span className="so-card-title flex items-center gap-2">
+                <Calendar size={16} style={{ color: themeColor }} />
+                Shift Details
+              </span>
+            </div>
+            <div className="so-card-body">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="so-label">POS Opening Entry <span className="text-red-500">*</span></label>
+                  <div className="so-relative">
+                    <select
+                      className="so-select"
+                      value={selectedOpeningEntry}
+                      onChange={(e) => setSelectedOpeningEntry(e.target.value)}
+                    >
+                      <option value="">Select Opening Entry</option>
+                      {openingEntries.map((entry) => (
+                        <option key={entry.name} value={entry.name}>
+                          {entry.name} — {entry.pos_profile}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
+                  </div>
+                </div>
+                <div>
+                  <label className="so-label">Posting Date</label>
+                  <input
+                    type="datetime-local"
+                    className="so-input"
+                    value={postingDate}
+                    onChange={(e) => setPostingDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="so-label">Period End Date</label>
+                  <input
+                    type="datetime-local"
+                    className="so-input"
+                    value={periodEndDate}
+                    onChange={(e) => setPeriodEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {invoicesData && (
+            <>
+              {/* Summary Dashboard Section */}
+              <div className="ce-grid">
+                <div className="ce-summary-card">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="p-2 bg-white/20 rounded-lg"><DollarSign size={20} /></div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-white/70">Grand Total</span>
+                  </div>
+                  <div className="ce-stat-value">AED {flt(invoicesData.grand_total).toLocaleString('en-AE', { minimumFractionDigits: 2 })}</div>
+                  <div className="mt-2 text-sm text-white/80 flex items-center gap-1">
+                    <TrendingUp size={14} /> Total collected across all modes
+                  </div>
+                </div>
+
+                <div className="ce-summary-card" style={{ background: `linear-gradient(135deg, #1e293b 0%, #334155 100%)` }}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="p-2 bg-white/10 rounded-lg"><Receipt size={20} /></div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-white/60">Invoice Count</span>
+                  </div>
+                  <div className="ce-stat-value">{invoicesData.invoices.length}</div>
+                  <div className="mt-2 text-sm text-white/50">Successful transactions in this shift</div>
+                </div>
+
+                <div className="ce-summary-card" style={{ background: `linear-gradient(135deg, ${isGreen ? '#065f46' : '#075985'} 0%, ${isGreen ? '#10b981' : '#0ea5e9'} 100%)` }}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="p-2 bg-white/20 rounded-lg"><FileText size={20} /></div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-white/70">Quantity</span>
+                  </div>
+                  <div className="ce-stat-value">{flt(invoicesData.total_quantity).toFixed(0)}</div>
+                  <div className="mt-2 text-sm text-white/80 font-medium">Items moved during session</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Reconciliation Table */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <span className="so-card-title flex items-center gap-2">
+                      <CreditCard size={16} /> Payment Reconciliation
+                    </span>
+                  </div>
+                  <div className="so-items-table-wrap">
+                    <table className="so-items-table">
+                      <thead>
+                        <tr>
+                          <th>Payment Mode</th>
+                          <th style={{ textAlign: 'right' }}>Expected</th>
+                          <th style={{ textAlign: 'right', width: '30%' }}>Closing Amount</th>
+                          <th style={{ textAlign: 'right' }}>Diff</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentReconciliation.map((pr, idx) => (
+                          <tr key={pr.mode_of_payment}>
+                            <td style={{ fontWeight: 600 }}>{pr.mode_of_payment}</td>
+                            <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{flt(pr.expected_amount).toFixed(2)}</td>
+                            <td>
+                              <input
+                                type="number"
+                                className="so-td-input"
+                                style={{ textAlign: 'right', fontStyle: 'normal', fontWeight: 800 }}
+                                value={pr.closing_amount || ''}
+                                onChange={(e) => handleClosingAmountChange(idx, e.target.value)}
+                                ref={(el) => (closingAmountRefs.current[idx] = el)}
+                              />
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: pr.difference > 0 ? '#ef4444' : pr.difference < 0 ? '#10b981' : '#64748b' }}>
+                              {flt(pr.difference).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Tax Breakdown Card */}
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <span className="so-card-title flex items-center gap-2">
+                      <TrendingUp size={16} /> Tax Statistics
+                    </span>
+                  </div>
+                  <div className="so-items-table-wrap">
+                    <table className="so-items-table">
+                      <thead>
+                        <tr>
+                          <th>Account</th>
+                          <th style={{ textAlign: 'right' }}>Rate</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoicesData.taxes.map((tax) => (
+                          <tr key={tax.account_head}>
+                            <td style={{ fontSize: '0.75rem' }}>{tax.account_head}</td>
+                            <td style={{ textAlign: 'right' }}>{tax.rate}%</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>AED {flt(tax.amount).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoices List Card - Compact */}
+              <div className="so-card">
+                <div className="so-card-header" style={{ background: '#f8fafc' }}>
+                  <span className="so-card-title flex items-center gap-2">
+                    <Receipt size={16} /> Shift Transaction Log
+                  </span>
+                </div>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  <table className="so-table">
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: '#f2fdf9' }}>
+                      <tr>
+                        <th>Invoice #</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th style={{ textAlign: 'right' }}>Grand Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoicesData.invoices.map((inv) => (
+                        <tr key={inv.name}>
+                          <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{inv.name}</td>
+                          <td>{inv.customer_name}</td>
+                          <td>{new Date(inv.posting_date).toLocaleDateString()}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>AED {flt(inv.grand_total).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Footer removed, actions moved to header */}
+          <div className="mb-20"></div>
         </div>
       </div>
     </div>

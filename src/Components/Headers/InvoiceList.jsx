@@ -2,12 +2,12 @@ import { useEffect, useState, useMemo } from "react";
 import {
     AlertCircle, Search, Calendar, Clock, CreditCard,
     CheckCircle, Cloud, RefreshCw, XCircle, FileText,
-    Printer, Eye, Filter, Trash2, ArrowLeft, Smartphone
+    Printer, Eye, Filter, Trash2, ArrowLeft, Smartphone, Palette, Loader2, Link
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { db } from '../../db';
-import "./InvoiceList.css";
+import "../Admin/SalesOrder.css";
 
 function InvoiceList() {
     const navigate = useNavigate();
@@ -16,7 +16,7 @@ function InvoiceList() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    // Modern Filter State
+    // Filter State
     const [filterId, setFilterId] = useState("");
     const [filterDate, setFilterDate] = useState("");
     const [filterTime, setFilterTime] = useState("");
@@ -25,10 +25,9 @@ function InvoiceList() {
     const [filterSource, setFilterSource] = useState(""); // 'all', 'synced', 'pending'
 
     const [selectedInvoice, setSelectedInvoice] = useState(null);
-    const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [offlineInvoices, setOfflineInvoices] = useState([]);
 
-    // NEW: Search Suggestions
+    // Suggestions
     const [showIdSuggestions, setShowIdSuggestions] = useState(false);
     const idSuggestions = useMemo(() => {
         if (!filterId || filterId.length < 2) return [];
@@ -47,8 +46,21 @@ function InvoiceList() {
     }, [filterId, offlineInvoices, invoices]);
 
     const userData = useSelector((state) => state.user);
-    const theme = useSelector((state) => state.user.theme);
     const getSession = () => userData?.session || localStorage.getItem("session") || "";
+
+    // Sync Theme
+    const [invTheme, setInvTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+    const isGreen = invTheme === 'green';
+    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+    const themeColorHover = isGreen ? '#059669' : '#0284c7';
+    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+
+    useEffect(() => {
+        localStorage.setItem('legacySubTheme', invTheme);
+        document.documentElement.style.setProperty('--so-primary', themeColor);
+        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+        document.documentElement.style.setProperty('--so-primary-light', themeLight);
+    }, [invTheme, themeColor, themeColorHover, themeLight]);
 
     // Load local and server data
     const loadData = async () => {
@@ -96,7 +108,7 @@ function InvoiceList() {
             }
         } catch (err) {
             console.error("Data load failed:", err);
-            setError("Failed to synchronize invoice list. Local data is still available.");
+            setError("Synchronization issue. Local data available.");
         } finally {
             setLoading(false);
         }
@@ -104,7 +116,7 @@ function InvoiceList() {
 
     useEffect(() => {
         loadData();
-        const interval = setInterval(loadData, 30000); // Auto-refresh every 30s
+        const interval = setInterval(loadData, 30000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -142,23 +154,23 @@ function InvoiceList() {
         setFilterMobile(""); setFilterMode(""); setFilterSource("");
     };
 
-    const getStatusBadge = (inv) => {
+    const StatusBadge = ({ inv }) => {
         if (inv._source === 'pending') {
-            return <span className="status-badge status-pending"><RefreshCw size={12} className="animate-spin" /> Pending</span>;
+            return <span className="so-badge" style={{ background: '#fef3c7', color: '#92400e' }}><RefreshCw size={11} className="animate-spin" /> PENDING</span>;
         }
         if (inv._source === 'sync_failed') {
-            return <span className="status-badge status-failed"><XCircle size={12} /> Sync Error</span>;
+            return <span className="so-badge" style={{ background: '#fee2e2', color: '#991b1b' }}><XCircle size={11} /> FAILED</span>;
         }
         if (inv._source === 'synced_local') {
-            return <span className="status-badge status-synced"><CheckCircle size={12} /> Synced</span>;
+            return <span className="so-badge" style={{ background: '#dcfce7', color: '#166534' }}><CheckCircle size={11} /> SYNCED</span>;
         }
-        return <span className="status-badge status-server"><Cloud size={12} /> Server</span>;
+        return <span className="so-badge" style={{ background: 'var(--so-primary-light)', color: 'var(--so-primary)' }}><Cloud size={11} /> SERVER</span>;
     };
 
     const handlePrint = (invoice) => {
         const cashier = userData?.user?.split('@')[0].toUpperCase() || 'CASHIER';
-        const companyName = userData?.company || 'KYLE RETAIL';
-        const address = userData?.warehouse || 'Main Store Address';
+        const companyName = userData?.company || 'RETAIL POS';
+        const address = userData?.warehouse || 'Main Store';
         const tel = '+971 00 000 0000';
 
         const invoiceItems = (invoice.pos_invoice_items || invoice.items || []);
@@ -168,29 +180,20 @@ function InvoiceList() {
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Print Receipt - ${invoice.name}</title>
+                    <title>Bill Print - ${invoice.name}</title>
                     <style>
                         @page { size: 80mm auto; margin: 0; }
-                        body { 
-                            width: 72mm; margin: 0 auto; padding: 10px 0; 
-                            font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.2; color: #000;
-                        }
+                        body { width: 72mm; margin: 0 auto; padding: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.2; }
                         .center { text-align: center; }
                         .bold { font-weight: bold; }
                         .divider { border-top: 1px dashed #000; margin: 8px 0; }
                         .header h2 { margin: 0; font-size: 18px; text-transform: uppercase; }
-                        .header p { margin: 2px 0; font-size: 11px; }
-                        .info { margin: 10px 0; font-size: 11px; }
-                        .info-row { display: flex; justify-content: space-between; }
-                        .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                        .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; font-size: 11px; }
-                        .items-table td { padding: 4px 0; vertical-align: top; font-size: 11px; }
-                        .text-right { text-align: right; }
-                        .totals { margin: 8px 0; }
+                        .info-row { display: flex; justify-content: space-between; font-size: 11px; }
+                        .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11px; }
+                        .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; }
                         .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 12px; }
                         .grand-total { font-size: 16px; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
                         .barcode { display: block; margin: 15px auto; width: 100%; max-height: 40px; }
-                        .footer { font-size: 10px; margin-top: 15px; }
                         @media print { body { width: 72mm; margin: 0 auto; } }
                     </style>
                 </head>
@@ -198,79 +201,33 @@ function InvoiceList() {
                     <div class="header center">
                         <h2 class="bold">${companyName}</h2>
                         <p>${address}</p>
-                        <p>Tel: ${tel}</p>
                     </div>
                     <div class="divider"></div>
                     <div class="info">
                         <div class="info-row"><span>CASHIER:</span> <span class="bold">#${cashier}</span></div>
                         <div class="info-row"><span>DATE:</span> <span>${invoice.posting_date}</span></div>
-                        <div class="info-row"><span>TIME:</span> <span>${invoice.posting_time || '--:--'}</span></div>
                         <div class="info-row"><span>INV NO:</span> <span class="bold">${invoice.name}</span></div>
                     </div>
                     <table class="items-table">
                         <thead>
-                            <tr>
-                                <th style="width: 50%;">ITEM</th>
-                                <th class="text-right" style="width: 15%;">QTY</th>
-                                <th class="text-right" style="width: 35%;">PRICE</th>
-                            </tr>
+                            <tr><th style="width: 50%;">ITEM</th><th style="text-align:right">QTY</th><th style="text-align:right">PRICE</th></tr>
                         </thead>
                         <tbody>
                             ${invoiceItems.map(it => `
                                 <tr>
-                                    <td>${String(it.item_name || it.item_code || it.name || 'ITEM').substring(0, 20)}</td>
-                                    <td class="text-right">${it.qty || 1}</td>
-                                    <td class="text-right">${parseFloat(it.rate || it.basePrice || 0).toFixed(2)}</td>
+                                    <td>${String(it.item_name || it.item_code).substring(0, 20)}</td>
+                                    <td style="text-align:right">${it.qty || 1}</td>
+                                    <td style="text-align:right">${parseFloat(it.rate || 0).toFixed(2)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                     <div class="divider"></div>
                     <div class="totals">
-                        <div class="total-row">
-                            <span>SUB TOTAL</span>
-                            <span>AED ${parseFloat(invoice.total || invoice.subtotal || invoice.grand_total || 0).toFixed(2)}</span>
-                        </div>
-                        ${(invoice.discount_amount || invoice.discount_amount || 0) > 0 ? `
-                            <div class="total-row">
-                                <span>DISCOUNT</span>
-                                <span>-AED ${parseFloat(invoice.discount_amount || invoice.discount_amount).toFixed(2)}</span>
-                            </div>
-                        ` : ''}
-                        ${(invoice.tax_amount || invoice.total_taxes_and_charges || 0) > 0 ? `
-                            <div class="total-row">
-                                <span>TAX</span>
-                                <span>AED ${parseFloat(invoice.tax_amount || invoice.total_taxes_and_charges).toFixed(2)}</span>
-                            </div>
-                        ` : ''}
-                        <div class="total-row grand-total bold">
-                            <span>TOTAL</span>
-                            <span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span>
-                        </div>
-                        <div style="margin-top: 10px;">
-                            ${(invoice.payments || [{ mode_of_payment: 'CASH', amount: invoice.grand_total }]).map(p => `
-                                <div class="total-row">
-                                    <span>${(p.mode_of_payment || 'PAYMENT').toUpperCase()}</span>
-                                    <span>AED ${parseFloat(p.amount || 0).toFixed(2)}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="total-row" style="margin-top: 5px; opacity: 0.8;">
-                            <span>CHANGE</span>
-                            <span>AED 0.00</span>
-                        </div>
+                        <div class="total-row bold grand-total"><span>TOTAL</span><span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span></div>
                     </div>
-                    <div class="center">
-                        <img class="barcode" src="${barCodeUrl}" />
-                        <div class="footer">
-                            <p class="bold" style="font-size: 12px;">THANK YOU!</p>
-                            <p>GLAD TO SEE YOU AGAIN!</p>
-                            <p style="margin-top: 5px; opacity: 0.7;">Powered by KYLE RETAIL</p>
-                        </div>
-                    </div>
-                    <script>
-                        window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
-                    </script>
+                    <div class="center"><img class="barcode" src="${barCodeUrl}" /><p>THANK YOU!</p></div>
+                    <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };</script>
                 </body>
             </html>
         `);
@@ -278,244 +235,224 @@ function InvoiceList() {
     };
 
     return (
-        <div className={`invoice-list-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
-            <div className="invoice-list-header">
-                <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem' }}>
-                    POS Invoice Management
-                </h2>
-                <p style={{ color: '#64748b' }}>View, filter, and track all your sales transactions in one place.</p>
+        <div className="so-page">
+            <div className="so-page-header">
+                <div>
+                    <h1 className="so-page-title"><FileText size={20} /> POS Invoice Journal</h1>
+                    <p className="so-page-subtitle">{filteredInvoices.length} transaction(s) available</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                        onClick={() => setInvTheme(isGreen ? 'blue' : 'green')}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                            padding: '0.45rem 0.9rem', background: '#f8fafc',
+                            border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                            fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                            cursor: 'pointer', transition: 'all 0.2s',
+                            textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}
+                    >
+                        <Palette size={13} /> {invTheme.toUpperCase()}
+                    </button>
+                    <button className="so-btn-primary" onClick={loadData} disabled={loading}>
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Sync Store
+                    </button>
+                </div>
             </div>
 
-            {/* Premium Filter Card */}
-            <div className="filter-card">
-                <div className="filter-grid">
-                    <div className="filter-item" style={{ position: 'relative' }}>
-                        <label><Search size={14} /> ID / Offline ID</label>
-                        <div className="filter-input-wrapper">
-                            <input
-                                type="text"
-                                className="filter-input"
-                                placeholder="Search IDs..."
-                                value={filterId}
-                                onChange={(e) => { setFilterId(e.target.value); setShowIdSuggestions(true); }}
-                                onFocus={() => setShowIdSuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowIdSuggestions(false), 200)}
-                            />
-                            {showIdSuggestions && idSuggestions.length > 0 && (
-                                <div className="suggestion-dropdown">
-                                    {idSuggestions.map((id, i) => (
-                                        <div
-                                            key={i}
-                                            className="suggestion-item"
-                                            onClick={() => { setFilterId(id); setShowIdSuggestions(false); }}
-                                        >
-                                            {id}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="filter-item">
-                        <label><Calendar size={14} /> Date</label>
+            <div className="so-layout">
+                <div className="so-filter-bar" style={{ background: 'white' }}>
+                    <div style={{ flex: '1 1 200px', position: 'relative' }}>
+                        <label className="so-filter-label">Search ID</label>
                         <input
-                            type="date"
-                            className="filter-input"
-                            style={{ paddingLeft: '1rem' }}
-                            value={filterDate}
-                            onChange={(e) => setFilterDate(e.target.value)}
+                            type="text"
+                            className="so-filter-input"
+                            placeholder="Invoice # or Ref..."
+                            value={filterId}
+                            onChange={(e) => { setFilterId(e.target.value); setShowIdSuggestions(true); }}
+                            onFocus={() => setShowIdSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowIdSuggestions(false), 200)}
                         />
+                        {showIdSuggestions && idSuggestions.length > 0 && (
+                            <div className="so-dropdown-portal" style={{ top: 'unset', bottom: '100%', marginBottom: '8px' }}>
+                                {idSuggestions.map((id, i) => (
+                                    <div
+                                        key={i}
+                                        className="so-dropdown-item"
+                                        onClick={() => { setFilterId(id); setShowIdSuggestions(false); }}
+                                    >
+                                        {id}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="filter-item">
-                        <label><Clock size={14} /> Time</label>
-                        <input
-                            type="time"
-                            className="filter-input"
-                            style={{ paddingLeft: '1rem' }}
-                            value={filterTime}
-                            onChange={(e) => setFilterTime(e.target.value)}
-                        />
+                    <div style={{ flex: '1 1 150px' }}>
+                        <label className="so-filter-label">Date</label>
+                        <input type="date" className="so-filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
                     </div>
 
-                    <div className="filter-item">
-                        <label><CreditCard size={14} /> Payment Mode</label>
-                        <select
-                            className="filter-input filter-select"
-                            style={{ paddingLeft: '1rem' }}
-                            value={filterMode}
-                            onChange={(e) => setFilterMode(e.target.value)}
-                        >
+                    <div style={{ flex: '1 1 150px' }}>
+                        <label className="so-filter-label">Payment Mode</label>
+                        <select className="so-filter-select" value={filterMode} onChange={(e) => setFilterMode(e.target.value)}>
                             <option value="">All Modes</option>
                             <option value="Cash">Cash</option>
                             <option value="Credit Card">Credit Card</option>
                             <option value="Bank">Bank</option>
-                            <option value="Store Credit">Store Credit</option>
                         </select>
                     </div>
 
-                    <div className="filter-item">
-                        <label><Smartphone size={14} /> Mobile</label>
-                        <input
-                            type="text"
-                            className="filter-input"
-                            style={{ paddingLeft: '1rem' }}
-                            placeholder="Customer mobile..."
-                            value={filterMobile}
-                            onChange={(e) => setFilterMobile(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="filter-item">
-                        <label><Filter size={14} /> Sync Status</label>
-                        <select
-                            className="filter-input filter-select"
-                            style={{ paddingLeft: '1rem' }}
-                            value={filterSource}
-                            onChange={(e) => setFilterSource(e.target.value)}
-                        >
-                            <option value="">All Statuses</option>
+                    <div style={{ flex: '1 1 150px' }}>
+                        <label className="so-filter-label">Sync Status</label>
+                        <select className="so-filter-select" value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
+                            <option value="">All Sources</option>
                             <option value="synced">Synced (Live)</option>
                             <option value="pending">Pending Sync</option>
                         </select>
                     </div>
 
-                    <div className="filter-item" style={{ justifyContent: 'flex-end' }}>
-                        <button className="action-btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={clearFilters}>
-                            <Trash2 size={16} /> Clear All
-                        </button>
+                    <button className="so-clear-btn" onClick={clearFilters} style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem' }}>
+                        Clear
+                    </button>
+                </div>
+
+                <div className="so-content">
+                    <div className="so-table-card">
+                        <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
+                            <table className="so-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice Reference</th>
+                                        <th>Posting Details</th>
+                                        <th>Customer</th>
+                                        <th style={{ textAlign: 'right' }}>Grand Total</th>
+                                        <th style={{ textAlign: 'center' }}>Status</th>
+                                        <th style={{ textAlign: 'center' }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {loading && filteredInvoices.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="6" className="so-empty">
+                                                <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
+                                                <p style={{ marginTop: '0.5rem' }}>Synchronizing journals...</p>
+                                            </td>
+                                        </tr>
+                                    ) : filteredInvoices.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="6" className="so-empty">No invoices found for the selected criteria.</td>
+                                        </tr>
+                                    ) : (
+                                        filteredInvoices.map((inv, idx) => (
+                                            <tr key={inv.name + idx} onClick={() => setSelectedInvoice(inv)}>
+                                                <td>
+                                                    <div style={{ fontWeight: 800, color: themeColor }}>{inv.name}</div>
+                                                    <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
+                                                        REF: {inv.offline_id || 'SERVER-ONLY'}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+                                                        <Calendar size={12} style={{ color: '#64748b' }} /> {inv.posting_date}
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#94a3b8', fontSize: '0.7rem', marginTop: '4px' }}>
+                                                        <Clock size={12} /> {inv.posting_time || '--:--'}
+                                                    </div>
+                                                </td>
+                                                <td style={{ fontWeight: 600 }}>{inv.customer_name}</td>
+                                                <td style={{ fontWeight: 800, textAlign: 'right', fontSize: '0.9rem' }}>
+                                                    AED {parseFloat(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td style={{ textAlign: 'center' }}><StatusBadge inv={inv} /></td>
+                                                <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                                        <button className="so-btn-ghost" onClick={() => setSelectedInvoice(inv)} title="View Detail">
+                                                            <Eye size={16} />
+                                                        </button>
+                                                        <button className="so-btn-ghost" onClick={() => handlePrint(inv)} title="Quick Print">
+                                                            <Printer size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Invoice List Table */}
-            <div className="invoice-table-card">
-                {loading && (
-                    <div className="empty-state">
-                        <RefreshCw size={32} className="animate-spin mb-3" />
-                        <p>Synchronizing sales data...</p>
-                    </div>
-                )}
-
-                {!loading && filteredInvoices.length === 0 && (
-                    <div className="empty-state">
-                        <FileText size={48} className="empty-state-icon" />
-                        <h3>No Invoices Found</h3>
-                        <p>No transactions match your current filter criteria.</p>
-                        <button className="btn-view action-btn mt-3" onClick={clearFilters}>Reset Filters</button>
-                    </div>
-                )}
-
-                {!loading && filteredInvoices.length > 0 && (
-                    <div className="table-responsive">
-                        <table className="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>Invoice ID / Reference</th>
-                                    <th>Posting Info</th>
-                                    <th>Customer</th>
-                                    <th>Grand Total</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredInvoices.map((inv, idx) => (
-                                    <tr key={inv.name + idx}>
-                                        <td>
-                                            <div style={{ fontWeight: 800, color: '#0f172a' }}>{inv.name}</div>
-                                            <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
-                                                Ref: {inv.offline_id || inv.name}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569' }}>
-                                                <Calendar size={12} /> {inv.posting_date}
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px' }}>
-                                                <Clock size={12} /> {inv.posting_time || '--:--'}
-                                            </div>
-                                        </td>
-                                        <td style={{ fontWeight: 500 }}>{inv.customer_name}</td>
-                                        <td style={{ fontWeight: 800, color: '#16a34a' }}>
-                                            AED {parseFloat(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </td>
-                                        <td>{getStatusBadge(inv)}</td>
-                                        <td>
-                                            <button className="action-btn btn-view" onClick={() => setSelectedInvoice(inv)}>
-                                                <Eye size={14} /> View
-                                            </button>
-                                            <button className="action-btn btn-print" onClick={() => handlePrint(inv)}>
-                                                <Printer size={14} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {/* Detailed Invoice Popup */}
             {selectedInvoice && (
-                <div className="modal-overlay" onClick={() => setSelectedInvoice(null)}>
-                    <div className="modern-modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
+                <div className="so-modal-overlay" onClick={() => setSelectedInvoice(null)}>
+                    <div className="so-modal" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+                        <div className="so-modal-header">
                             <div>
-                                <h3>{selectedInvoice.name}</h3>
-                                <p>Reference: {selectedInvoice.offline_id || selectedInvoice.name}</p>
+                                <h3 className="so-modal-title">{selectedInvoice.name}</h3>
+                                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>
+                                    {selectedInvoice.offline_id ? `Ref: ${selectedInvoice.offline_id}` : 'Server Transaction'}
+                                </p>
                             </div>
-                            <button className="close-btn" onClick={() => setSelectedInvoice(null)}><XCircle size={24} /></button>
+                            <button className="so-modal-close" onClick={() => setSelectedInvoice(null)}><XCircle size={20} /></button>
                         </div>
-                        <div className="modal-body">
-                            <div className="details-grid">
-                                <div className="detail-item">
-                                    <label>Customer</label>
-                                    <p>{selectedInvoice.customer_name}</p>
+                        <div className="so-modal-body">
+                            <div className="so-summary-bar">
+                                <div className="so-summary-item">
+                                    <span className="so-summary-label">Customer</span>
+                                    <span className="so-summary-value">{selectedInvoice.customer_name}</span>
                                 </div>
-                                <div className="detail-item">
-                                    <label>Date & Time</label>
-                                    <p>{selectedInvoice.posting_date} {selectedInvoice.posting_time}</p>
+                                <div className="so-summary-item">
+                                    <span className="so-summary-label">Date</span>
+                                    <span className="so-summary-value">{selectedInvoice.posting_date}</span>
                                 </div>
-                                <div className="detail-item">
-                                    <label>Grand Total</label>
-                                    <p style={{ color: '#16a34a', fontWeight: 800 }}>AED {parseFloat(selectedInvoice.grand_total || 0).toFixed(2)}</p>
-                                </div>
-                                <div className="detail-item">
-                                    <label>Mode of Payment</label>
-                                    <p>{(selectedInvoice.payments || []).map(p => p.mode_of_payment).join(', ') || 'N/A'}</p>
+                                <div className="so-summary-item">
+                                    <span className="so-summary-label">Total Amount</span>
+                                    <span className="so-summary-value grand">AED {parseFloat(selectedInvoice.grand_total).toFixed(2)}</span>
                                 </div>
                             </div>
 
-                            <div className="items-section">
-                                <label>Invoice Items</label>
-                                <table className="items-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Item</th>
-                                            <th className="text-right">Qty</th>
-                                            <th className="text-right">Rate</th>
-                                            <th className="text-right">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(selectedInvoice.pos_invoice_items || selectedInvoice.items || []).map((it, i) => (
-                                            <tr key={i}>
-                                                <td>{it.item_name || it.item_code}</td>
-                                                <td className="text-right">{it.qty || it.quantity}</td>
-                                                <td className="text-right">AED {(it.rate || it.basePrice || 0).toFixed(2)}</td>
-                                                <td className="text-right">AED {((it.qty || it.quantity || 1) * (it.rate || it.basePrice || 0)).toFixed(2)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div className="so-card">
+                                <div className="so-card-header">
+                                    <span className="so-card-title">Transaction Items</span>
+                                </div>
+                                <div className="so-card-body" style={{ padding: 0 }}>
+                                    <div className="so-items-table-wrap">
+                                        <table className="so-items-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Item</th>
+                                                    <th style={{ textAlign: 'right' }}>Qty</th>
+                                                    <th style={{ textAlign: 'right' }}>Rate</th>
+                                                    <th style={{ textAlign: 'right' }}>Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {(selectedInvoice.pos_invoice_items || selectedInvoice.items || []).map((it, i) => (
+                                                    <tr key={i}>
+                                                        <td>
+                                                            <div className="so-item-display-name">{it.item_name || it.item_code}</div>
+                                                            <div className="so-item-display-code">{it.item_code}</div>
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{it.qty || it.quantity}</td>
+                                                        <td style={{ textAlign: 'right' }}>{parseFloat(it.rate || 0).toFixed(2)}</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                                                            {((it.qty || 1) * (it.rate || 0)).toFixed(2)}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div className="modal-footer">
-                            <button className="action-btn btn-print" onClick={() => handlePrint(selectedInvoice)} style={{ width: '100%', justifyContent: 'center' }}>
-                                <Printer size={18} /> Print Invoice
+                        <div className="so-modal-footer">
+                            <button className="so-btn-secondary" onClick={() => setSelectedInvoice(null)}>Close</button>
+                            <button className="so-btn-primary" onClick={() => handlePrint(selectedInvoice)}>
+                                <Printer size={16} /> Print Receipt
                             </button>
                         </div>
                     </div>
@@ -525,4 +462,4 @@ function InvoiceList() {
     );
 }
 
-export default InvoiceList;
+export default InvoiceList;

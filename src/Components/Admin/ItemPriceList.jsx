@@ -217,22 +217,6 @@ function ItemPriceList() {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {/* Search */}
-          <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input
-              type="text"
-              placeholder="Search items..."
-              value={filterItemCode}
-              onChange={(e) => { setFilterItemCode(e.target.value); setCurrentPage(1); }}
-              style={{
-                paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.45rem', paddingBottom: '0.45rem',
-                border: '1.5px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.8rem',
-                width: '220px', outline: 'none', background: '#f8fafc', color: '#1e293b'
-              }}
-            />
-          </div>
-
           {/* Theme Toggle */}
           <button
             onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
@@ -256,35 +240,41 @@ function ItemPriceList() {
         </div>
       </div>
 
-      <div className="so-layout">
-        {/* Sidebar Filters */}
-        <aside className="so-sidebar">
-          <div className="so-filter-group">
+      <div className="so-layout" style={{ flexDirection: 'column' }}>
+        {/* Horizontal Filters Bar */}
+        <div className="so-filter-bar" style={{
+          background: 'white',
+          padding: '1.25rem 2rem',
+          borderBottom: '1px solid var(--so-border)',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '1.5rem',
+          alignItems: 'flex-end'
+        }}>
+          <div style={{ flex: '1 1 200px' }}>
             <label className="so-filter-label">Item Code</label>
             <input 
-              type="text" 
               className="so-filter-input" 
-              placeholder="Filter by code..."
+              placeholder="Search code..."
               value={filterItemCode}
-              onChange={(e) => setFilterItemCode(e.target.value)}
+              onChange={(e) => { setFilterItemCode(e.target.value); setCurrentPage(1); }}
             />
           </div>
-          <div className="so-filter-group">
+          <div style={{ flex: '1 1 250px' }}>
             <label className="so-filter-label">Item Name</label>
             <input 
-              type="text" 
               className="so-filter-input" 
-              placeholder="Filter by name..."
+              placeholder="Search name..."
               value={filterItemName}
-              onChange={(e) => setFilterItemName(e.target.value)}
+              onChange={(e) => { setFilterItemName(e.target.value); setCurrentPage(1); }}
             />
           </div>
-          <div className="so-filter-group">
+          <div style={{ flex: '1 1 200px' }}>
             <label className="so-filter-label">Price List</label>
             <select 
               className="so-filter-select"
               value={filterPriceList}
-              onChange={(e) => setFilterPriceList(e.target.value)}
+              onChange={(e) => { setFilterPriceList(e.target.value); setCurrentPage(1); }}
             >
               <option value="">All Lists</option>
               <option value="Standard Selling">Standard Selling</option>
@@ -294,14 +284,15 @@ function ItemPriceList() {
           
           <button 
             className="so-clear-btn"
-            onClick={() => { setFilterItemCode(''); setFilterItemName(''); setFilterPriceList(''); }}
+            onClick={() => { setFilterItemCode(''); setFilterItemName(''); setFilterPriceList(''); setCurrentPage(1); }}
+            style={{ width: 'auto', margin: 0, padding: '0 1.5rem', height: '38px', fontWeight: 600 }}
           >
             Clear Filters
           </button>
-        </aside>
+        </div>
 
         {/* Main Content */}
-        <main className="so-content">
+        <main className="so-content" style={{ padding: '1.5rem 2rem' }}>
           <div className="so-list-meta">
             Showing <b>{paginated.length}</b> of <b>{total}</b> price records
           </div>

@@ -522,13 +522,10 @@ export default function SalesOrder() {
         </div>
 
         <div className="so-layout">
-
-          {/* ---- Sidebar Filters ---- */}
-          <div className="so-sidebar">
-            <p className="so-sidebar-title">Filters</p>
-
-            <div className="so-filter-group">
-              <label className="so-filter-label">Search</label>
+          {/* ---- Horizontal Filter Bar ---- */}
+          <div className="so-filter-bar">
+            <div style={{ flex: '1 1 200px' }}>
+              <label className="so-filter-label">Search Orders</label>
               <input
                 className="so-filter-input"
                 placeholder="Order ID or customer..."
@@ -537,7 +534,7 @@ export default function SalesOrder() {
               />
             </div>
 
-            <div className="so-filter-group">
+            <div style={{ flex: '1 1 200px' }}>
               <label className="so-filter-label">Customer</label>
               <input
                 className="so-filter-input"
@@ -547,20 +544,20 @@ export default function SalesOrder() {
               />
             </div>
 
-            <div className="so-filter-group">
+            <div style={{ flex: '1 1 150px' }}>
               <label className="so-filter-label">Status</label>
               <select
                 className="so-filter-select"
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
               >
-                <option value="all">All</option>
+                <option value="all">All Status</option>
                 <option value="Draft">Draft</option>
                 <option value="Submitted">Submitted</option>
               </select>
             </div>
 
-            <div className="so-filter-group">
+            <div style={{ flex: '1 1 200px' }}>
               <label className="so-filter-label">Amount Range</label>
               <div className="so-amount-range">
                 <input className="so-filter-input" type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} />
@@ -568,7 +565,13 @@ export default function SalesOrder() {
               </div>
             </div>
 
-            <button className="so-clear-btn" onClick={clearFilters}>Clear Filters</button>
+            <button 
+              className="so-clear-btn" 
+              onClick={clearFilters}
+              style={{ width: 'auto', margin: 0, padding: '0 1.5rem', height: '38px', fontWeight: 600 }}
+            >
+              Clear Filters
+            </button>
           </div>
 
           {/* ---- Main Content ---- */}

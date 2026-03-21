@@ -90,11 +90,11 @@ const CustomSearchDropdown = ({
         setShow(false);
         setJustCreated(true);
 
-        // BLUE SUCCESS TOAST
+        // THEME-AWARE SUCCESS TOAST
         const toast = document.createElement('div');
-        toast.className = 'fixed bottom-4 right-4 bg-[#0066cc] text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fadeIn';
+        toast.className = 'fixed bottom-4 right-4 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fadeIn border-l-4 border-[var(--po-primary)]';
         toast.innerHTML = `
-        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-6 h-6 text-[var(--po-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
         </svg>
         <div>
@@ -158,7 +158,7 @@ const CustomSearchDropdown = ({
             onFocus={() => setShow(true)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:border-[#10b981] outline-none transition-all text-xs font-bold text-slate-700"
+            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:border-[var(--po-primary)] outline-none transition-all text-xs font-bold text-slate-700"
           />
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -171,7 +171,7 @@ const CustomSearchDropdown = ({
           <button
             onClick={handleCreate}
             disabled={loading || !query.trim()}
-            className="px-4 bg-[#10b981] text-white rounded-lg hover:bg-[#059669] disabled:bg-gray-200 disabled:text-gray-400 transition-colors font-bold text-xs"
+            className="px-4 bg-[var(--po-primary)] text-white rounded-lg hover:opacity-90 disabled:bg-gray-200 disabled:text-gray-400 transition-colors font-bold text-xs"
           >
             Create
           </button>
@@ -189,15 +189,21 @@ const CustomSearchDropdown = ({
         >
           {/* Search Results */}
           {results.length > 0 ? (
-            results.map((item, i) => (
+            results
+              .filter(item => 
+                !query.trim() || 
+                (item[optionsLabel] || "").toLowerCase().includes(query.toLowerCase()) ||
+                (item.name || "").toLowerCase().includes(query.toLowerCase())
+              )
+              .map((item, i) => (
               <div
                 key={i}
                 onClick={() => handleItemClick(item)}
                 onMouseEnter={() => setSelectedIndex(i)}
-                className={`px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all ${selectedIndex === i ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
+                className={`px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
               >
                 <div className="flex flex-col">
-                  <span className={`font-bold text-[13px] transition-colors ${selectedIndex === i ? 'text-emerald-600' : 'text-slate-700'}`}>
+                  <span className={`font-bold text-[13px] transition-colors ${selectedIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-700'}`}>
                     {item[optionsLabel]}
                   </span>
                   {item.name !== item[optionsLabel] && (
@@ -205,7 +211,7 @@ const CustomSearchDropdown = ({
                   )}
                 </div>
                 {item.supplier_type && (
-                  <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter opacity-70 group-hover:opacity-100 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-all">
+                  <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter opacity-70 group-hover:opacity-100 group-hover:bg-[var(--po-primary-light)] group-hover:text-[var(--po-primary)] transition-all">
                     {item.supplier_type}
                   </span>
                 )}
@@ -222,7 +228,7 @@ const CustomSearchDropdown = ({
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No Matches Found</p>
                     <button
                       onClick={handleCreate}
-                      className="mt-3 text-[11px] bg-[#10b981] text-white font-bold py-2 px-4 rounded-lg hover:bg-[#059669] transition-all shadow-md"
+                      className="mt-3 text-[11px] bg-[var(--po-primary)] text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-all shadow-md"
                     >
                       + Create "{query}"
                     </button>
