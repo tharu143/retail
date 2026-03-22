@@ -9,6 +9,8 @@ const userSlice = createSlice({
     company: null,
     warehouse: null,
     branchPrefix: null,
+    is_manager: false,
+    user_roles: [],
     theme: 'modern', // 'modern' or 'legacy'
     message: {
       allowed_item_groups: [],
@@ -25,6 +27,8 @@ const userSlice = createSlice({
       state.company = action.payload.company;
       state.warehouse = action.payload.warehouse;
       state.branchPrefix = action.payload.branch_prefix;
+      state.is_manager = action.payload.is_manager || false;
+      state.user_roles = action.payload.user_roles || [];
       state.message = action.payload.message;
     },
     logout: (state) => {

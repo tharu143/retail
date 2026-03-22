@@ -8,7 +8,8 @@ import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import './SalesOrder.css';
 
-const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+const API_PATH_K = '/api/method/kyle_retail.retail_api.api';
+const API_PATH_C = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const RESOURCE_BASE = '/api/resource';
 
 /* ------------------------------------------------------------------ */
@@ -93,7 +94,7 @@ const emptyForm = () => ({
 });
 
 /* ------------------------------------------------------------------ */
-export default function SalesOrder() {
+function SalesOrder() {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +102,9 @@ export default function SalesOrder() {
   const [saving, setSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingDocName, setEditingDocName] = useState(null);
+  const [linkedDocs, setLinkedDocs] = useState({});
+  const [loadingLinks, setLoadingLinks] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false);
 
   // Theme toggle (matching POS Green/Blue)
   const [soTheme, setSoTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
@@ -168,6 +172,7 @@ export default function SalesOrder() {
     try {
       const res = await axios.get('/api/resource/Sales Order', {
         params: {
+          limit_page_length: 2000,
           fields: JSON.stringify(['name', 'customer', 'customer_name', 'transaction_date', 'grand_total', 'docstatus'])
         },
         withCredentials: true
@@ -182,14 +187,14 @@ export default function SalesOrder() {
 
   const fetchCustomers = async () => {
     try {
-      const res = await axios.get(`${API_PATH}.get_customers_list_so`, { withCredentials: true });
+      const res = await axios.get(`${API_PATH_K}.get_customers_list_so`, { withCredentials: true });
       setCustomers(res.data.message || []);
     } catch (err) { console.error(err); }
   };
 
   const fetchTaxTemplates = async () => {
     try {
-      const res = await axios.get(`${API_PATH}.get_sales_taxes_templates_so`, { withCredentials: true });
+      const res = await axios.get(`${API_PATH_K}.get_sales_taxes_templates_so`, { withCredentials: true });
       setTaxTemplates(res.data.message || []);
     } catch (err) { console.error(err); }
   };
@@ -411,13 +416,65 @@ export default function SalesOrder() {
     }
   };
 
+  /* ---- Transition (SO to DN/SI) ---- */
+  const handleTransition = async (type) => {
+    if (!editingDocName) return;
+    setLoadingLinks(true);
+    try {
+      const endpoint = type === 'delivery_note' ? 'create_delivery_note_from_so' : 'create_sales_invoice_from_so';
+      const res = await axios.post(`${API_PATH_K}.${endpoint}`, {
+        so_name: editingDocName,
+        submit_doc: true
+      }, { withCredentials: true });
+
+      const apiResp = res.data.message || res.data;
+      if (apiResp.status === 'success') {
+        alert(`${type === 'delivery_note' ? 'Delivery Note' : 'Sales Invoice'} created: ${apiResp.name}`);
+        fetchLinkedDocs(editingDocName);
+      } else {
+        throw new Error(apiResp.message || 'Failed to create');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
+
+  /* ---- Delete Order ---- */
+  const deleteOrder = async name => {
+    if (!window.confirm(`Are you sure you want to delete ${name}?`)) return;
+    try {
+      setSaving(true);
+      await axios.delete(`${RESOURCE_BASE}/Sales Order/${name}`, { withCredentials: true });
+      alert('Sales Order deleted!');
+      closeModal();
+      fetchOrders();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fetchLinkedDocs = async (name) => {
+    setLoadingLinks(true);
+    try {
+      const res = await axios.get(`${API_PATH_K}.get_linked_documents`, {
+        params: { doctype: 'Sales Order', name },
+        withCredentials: true
+      });
+      setLinkedDocs(res.data.message || {});
+    } catch (err) { console.error(err); }
+    finally { setLoadingLinks(false); }
+  };
+
   /* ---- Load Existing ---- */
   const loadSalesOrder = async docName => {
     try {
       setLoading(true);
       const res = await axios.get(`${RESOURCE_BASE}/Sales Order/${docName}`, { withCredentials: true });
       const d = res.data.data;
-      if (d.docstatus !== 0) return alert('Submitted orders cannot be edited');
 
       setForm({
         naming_series: d.naming_series || 'SAL-ORD-.YYYY.-',
@@ -450,10 +507,13 @@ export default function SalesOrder() {
         grand_total: d.grand_total || 0,
         rounding_adjustment: d.rounding_adjustment || 0,
         rounded_total: d.rounded_total || 0,
+        docstatus: d.docstatus,
       });
       setSearchCustomer(d.customer_name || '');
       setEditingDocName(docName);
+      setIsViewMode(true);
       setShowModal(true);
+      fetchLinkedDocs(docName);
       setTimeout(() => barcodeRef.current?.focus(), 300);
     } catch { alert('Failed to load Sales Order'); }
     finally { setLoading(false); }
@@ -466,6 +526,7 @@ export default function SalesOrder() {
     setItemSearches({});
     setShowItemDropdowns({});
     setBarcodeInput('');
+    setIsViewMode(false);
     setShowModal(true);
     setTimeout(() => barcodeRef.current?.focus(), 300);
   };
@@ -565,8 +626,8 @@ export default function SalesOrder() {
               </div>
             </div>
 
-            <button 
-              className="so-clear-btn" 
+            <button
+              className="so-clear-btn"
               onClick={clearFilters}
               style={{ width: 'auto', margin: 0, padding: '0 1.5rem', height: '38px', fontWeight: 600 }}
             >
@@ -644,360 +705,566 @@ export default function SalesOrder() {
         {/* Modal                                                             */}
         {/* ================================================================ */}
         {showModal && (
-          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
-            <div className="so-modal">
+          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()} style={{ padding: 0 }}>
+            <div className="so-modal" style={{
+              maxWidth: 'none',
+              width: '100vw',
+              height: '100vh',
+              margin: 0,
+              borderRadius: 0,
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
 
               {/* Modal Header */}
-              <div className="so-modal-header">
-                <h2 className="so-modal-title">
-                  {editingDocName ? `Edit — ${editingDocName}` : 'New Sales Order'}
-                </h2>
-                <button className="so-modal-close" onClick={closeModal}>
-                  <X size={20} />
-                </button>
+              <div className="so-modal-header" style={{ padding: '1rem 2rem', background: 'white', borderBottom: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <button onClick={closeModal} className="so-modal-close" style={{ background: '#f8fafc' }}>
+                    <ChevronLeft size={20} />
+                  </button>
+                  <div>
+                    <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                      {isViewMode ? `Order: ${editingDocName}` : (editingDocName ? 'Edit Sales Order' : 'New Sales Order')}
+                    </h2>
+                    {isViewMode && <p style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>{form.customer_name}</p>}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  {isViewMode && form.docstatus === 0 && (
+                    <button
+                      onClick={() => setIsViewMode(false)}
+                      className="so-btn-primary"
+                      style={{ padding: '0.4rem 1rem', fontSize: '0.75rem' }}
+                    >
+                      <Plus size={14} /> Edit Order
+                    </button>
+                  )}
+                  {form.docstatus === 1 && (
+                    <span className="so-badge" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>SUBMITTED</span>
+                  )}
+                  <button className="so-modal-close" onClick={closeModal}>
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
-              {/* Modal Body */}
-              <div className="so-modal-body">
+              <div className="so-modal-body" style={{ flex: 1, background: '#f8fafc', padding: '2rem' }}>
+                {isViewMode ? (
+                  /* Detail View Content */
+                  <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
 
-                {/* ---- Core Details Card ---- */}
-                <div className="so-card">
-                  <div className="so-card-header">
-                    <span className="so-card-title">Order Details</span>
-                  </div>
-                  <div className="so-card-body">
-                    <div className="so-form-grid">
-                      {/* Customer */}
-                      <div className="so-field so-relative">
-                        <label className="so-label">Customer <span style={{ color: '#ef4444' }}>*</span></label>
-                        <input
-                          className="so-input"
-                          placeholder="Search customer..."
-                          value={searchCustomer}
-                          onChange={e => setSearchCustomer(e.target.value)}
-                          onFocus={() => setShowCustomerDropdown(true)}
-                          onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
-                        />
-                        {showCustomerDropdown && customers.length > 0 && (
-                          <div className="so-dropdown">
-                            {customers
-                              .filter(c => c.customer_name?.toLowerCase().includes(searchCustomer.toLowerCase()))
-                              .map(c => (
-                                <div
-                                  key={c.name}
-                                  className="so-dropdown-item"
-                                  onMouseDown={() => {
-                                    setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
-                                    setSearchCustomer(c.customer_name);
-                                    setShowCustomerDropdown(false);
-                                  }}
-                                >
-                                  <div className="so-dropdown-item-name">{c.customer_name}</div>
-                                  <div className="so-dropdown-item-code">{c.name}</div>
-                                </div>
-                              ))}
+                    {/* Dashboard Connections (ERP Style) */}
+                    <div className="so-card" style={{ marginBottom: '2rem', border: `1px solid ${themeColor}30`, background: 'white' }}>
+                      <div className="so-card-header" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <p className="so-card-title" style={{ fontSize: '0.7rem', color: themeColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dashboard / Connections</p>
+                      </div>
+                      <div className="so-card-body">
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                          <div style={{ padding: '0.75rem 1.25rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '160px' }}>
+                            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>Delivery Notes</span>
+                            <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#15803d' }}>{linkedDocs.Delivery_Note?.length || 0}</span>
+                          </div>
+                          <div style={{ padding: '0.75rem 1.25rem', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '160px' }}>
+                            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#075985', textTransform: 'uppercase' }}>Sales Invoices</span>
+                            <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0369a1' }}>{linkedDocs.Sales_Invoice?.length || 0}</span>
+                          </div>
+                        </div>
+
+                        {form.docstatus === 1 && (
+                          <div style={{ display: 'flex', gap: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+                            <button onClick={() => handleTransition('delivery_note')} disabled={loadingLinks} className="so-btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.75rem' }}>
+                              Create Delivery Note
+                            </button>
+                            <button onClick={() => handleTransition('sales_invoice')} disabled={loadingLinks} className="so-btn-secondary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.75rem' }}>
+                              Create Sales Invoice
+                            </button>
                           </div>
                         )}
+
+                        {/* Connection Badges */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
+                          {linkedDocs.Delivery_Note?.map(dn => (
+                            <span key={dn} className="so-badge" style={{ background: '#fff', border: '1px solid #e2e8f0', fontSize: '0.65rem' }}>DN: {dn}</span>
+                          ))}
+                          {linkedDocs.Sales_Invoice?.map(si => (
+                            <span key={si} className="so-badge" style={{ background: '#fff', border: '1px solid #e2e8f0', fontSize: '0.65rem' }}>SI: {si}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '2rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        <div className="so-card">
+                          <div className="so-card-header"><p className="so-card-title">Order Summary</p></div>
+                          <div className="so-card-body">
+                            <div className="so-table-wrapper" style={{ border: '1px solid #f1f5f9' }}>
+                              <table className="so-items-table">
+                                <thead>
+                                  <tr>
+                                    <th>Item</th>
+                                    <th style={{ textAlign: 'center' }}>Qty</th>
+                                    <th style={{ textAlign: 'right' }}>Rate</th>
+                                    <th style={{ textAlign: 'right' }}>Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {form.items.map((i, idx) => (
+                                    <tr key={idx}>
+                                      <td>
+                                        <p style={{ fontWeight: 700, fontSize: '0.8rem' }}>{i.item_code}</p>
+                                        <p style={{ fontSize: '0.7rem', color: '#64748b' }}>{i.item_name}</p>
+                                      </td>
+                                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{i.qty}</td>
+                                      <td style={{ textAlign: 'right' }}>{i.rate.toFixed(2)}</td>
+                                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{i.amount.toFixed(2)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Transaction Date */}
-                      <div className="so-field">
-                        <label className="so-label">Transaction Date</label>
-                        <input
-                          type="date"
-                          className="so-input"
-                          value={form.transaction_date}
-                          onChange={e => setForm(prev => ({ ...prev, transaction_date: e.target.value }))}
-                        />
-                      </div>
-
-                      {/* Delivery Date */}
-                      <div className="so-field">
-                        <label className="so-label">Delivery Date</label>
-                        <input
-                          type="date"
-                          className="so-input"
-                          value={form.delivery_date}
-                          onChange={e => setForm(prev => ({ ...prev, delivery_date: e.target.value }))}
-                        />
-                      </div>
-
-                      {/* Price List */}
-                      <div className="so-field">
-                        <label className="so-label">Price List</label>
-                        <select
-                          className="so-select"
-                          value={form.selling_price_list}
-                          onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))}
-                        >
-                          <option value="Standard Selling">Standard Selling</option>
-                        </select>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        <div className="so-card">
+                          <div className="so-card-header"><p className="so-card-title">Order Info</p></div>
+                          <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Date</span>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{form.transaction_date}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Delivery</span>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{form.delivery_date || 'N/A'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Status</span>
+                              <span className="so-badge" style={{
+                                background: form.docstatus === 1 ? '#dcfce7' : '#f1f5f9',
+                                color: form.docstatus === 1 ? '#166534' : '#64748b'
+                              }}>
+                                {form.docstatus === 1 ? 'SUBMITTED' : 'DRAFT'}
+                              </span>
+                            </div>
+                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Currency</span>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{form.currency}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '1rem', fontWeight: 900 }}>Total</span>
+                                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: themeColor }}>AED {form.grand_total.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  /* Edit Mode Content (Original Form Content) */
+                  <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+                    {/* ... Original Form Content ... (existing cards) */}
+                    {/* I'll wrap the existing cards here */}
 
-                {/* ---- Barcode Scanner ---- */}
-                <div className="so-barcode-area">
-                  <ScanLine size={22} />
-                  <input
-                    ref={barcodeRef}
-                    id="barcode-scan-input-so"
-                    className="so-barcode-input"
-                    placeholder="Scan barcode and press Enter..."
-                    value={barcodeInput}
-                    onChange={e => setBarcodeInput(e.target.value)}
-                    onKeyDown={handleBarcodeScan}
-                  />
-                </div>
+                    {/* ---- Transition & Connections (New Requirement) ---- */}
+                    {form.docstatus === 1 && (
+                      <div className="so-card" style={{ border: `1.5px solid ${themeColor}`, background: themeLight }}>
+                        <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span className="so-card-title" style={{ color: themeColor, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Zap size={14} fill={themeColor} /> Transition & Quick Actions
+                          </span>
+                          {loadingLinks && <Loader2 size={14} className="so-spinner" />}
+                        </div>
+                        <div className="so-card-body">
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+                            <button
+                              className="so-btn-primary"
+                              onClick={() => handleTransition('delivery_note')}
+                              disabled={loadingLinks}
+                              style={{ height: '36px', fontSize: '0.75rem' }}
+                            >
+                              Create Delivery Note
+                            </button>
+                            <button
+                              className="so-btn-secondary"
+                              onClick={() => handleTransition('sales_invoice')}
+                              disabled={loadingLinks}
+                              style={{ height: '36px', fontSize: '0.75rem', background: '#fff' }}
+                            >
+                              Create Sales Invoice
+                            </button>
+                          </div>
 
-                {/* ---- Items Card ---- */}
-                <div className="so-card">
-                  <div className="so-card-header">
-                    <span className="so-card-title">Product Items</span>
-                    <button className="so-btn-ghost" onClick={addItemRow}>
-                      <Plus size={14} /> Add Item
-                    </button>
-                  </div>
-                  <div className="so-items-table-wrap">
-                    <table className="so-items-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '35%' }}>Item</th>
-                          <th style={{ width: '10%' }}>UOM</th>
-                          <th style={{ width: '12%' }}>Qty</th>
-                          <th style={{ width: '15%' }}>Rate (AED)</th>
-                          <th style={{ width: '18%' }}>Amount</th>
-                          <th style={{ width: '10%' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {form.items.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="so-empty">
-                              No items yet — scan a barcode or click <strong>Add Item</strong>
-                            </td>
-                          </tr>
-                        ) : (
-                          form.items.map((item, i) => (
-                            <tr key={i}>
-                              <td className="so-relative">
-                                {item.item_code ? (
-                                  <div>
-                                    <div className="so-item-display-name">{item.item_name}</div>
-                                    <div className="so-item-display-code">{item.item_code}</div>
-                                  </div>
-                                ) : (
-                                  <div className="so-relative">
-                                    <input
-                                      className="so-td-input"
-                                      placeholder="Search item..."
-                                      value={itemSearches[i] || ''}
-                                      onChange={e => {
-                                        const v = e.target.value;
-                                        setItemSearches(p => ({ ...p, [i]: v }));
-                                        searchItems(v, i);
+                          {/* Connection Links */}
+                          {(linkedDocs.Delivery_Note?.length > 0 || linkedDocs.Sales_Invoice?.length > 0 || linkedDocs.Payment_Entry?.length > 0) && (
+                            <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '0.75rem' }}>
+                              <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', marginBottom: '0.5rem' }}>Linked Documents</p>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                {linkedDocs.Delivery_Note?.map(dn => (
+                                  <span key={dn} className="so-badge" style={{ background: '#fff', border: '1px solid #e2e8f0', fontSize: '0.65rem' }}>DN: {dn}</span>
+                                ))}
+                                {linkedDocs.Sales_Invoice?.map(si => (
+                                  <span key={si} className="so-badge" style={{ background: '#fff', border: '1px solid #e2e8f0', fontSize: '0.65rem' }}>SI: {si}</span>
+                                ))}
+                                {linkedDocs.Payment_Entry?.map(pe => (
+                                  <span key={pe} className="so-badge" style={{ background: '#fff', border: '1px solid #e2e8f0', fontSize: '0.65rem' }}>PE: {pe}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ---- Core Details Card ---- */}
+                    <div className="so-card">
+                      <div className="so-card-header">
+                        <span className="so-card-title">Order Details</span>
+                      </div>
+                      <div className="so-card-body">
+                        <div className="so-form-grid">
+                          {/* Customer */}
+                          <div className="so-field so-relative">
+                            <label className="so-label">Customer <span style={{ color: '#ef4444' }}>*</span></label>
+                            <input
+                              className="so-input"
+                              placeholder="Search customer..."
+                              value={searchCustomer}
+                              onChange={e => setSearchCustomer(e.target.value)}
+                              onFocus={() => setShowCustomerDropdown(true)}
+                              onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                            />
+                            {showCustomerDropdown && customers.length > 0 && (
+                              <div className="so-dropdown">
+                                {customers
+                                  .filter(c => c.customer_name?.toLowerCase().includes(searchCustomer.toLowerCase()))
+                                  .map(c => (
+                                    <div
+                                      key={c.name}
+                                      className="so-dropdown-item"
+                                      onMouseDown={() => {
+                                        setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
+                                        setSearchCustomer(c.customer_name);
+                                        setShowCustomerDropdown(false);
                                       }}
-                                    />
-                                    {showItemDropdowns[i] && itemsList.length > 0 && (
-                                      <div className="so-dropdown">
-                                        {itemsList.map(itm => (
-                                          <div
-                                            key={itm.item_code}
-                                            className="so-dropdown-item"
-                                            onMouseDown={() => selectItem(i, itm)}
-                                          >
-                                            <div className="so-dropdown-item-name">{itm.item_name}</div>
-                                            <div className="so-dropdown-item-code">{itm.item_code}</div>
+                                    >
+                                      <div className="so-dropdown-item-name">{c.customer_name}</div>
+                                      <div className="so-dropdown-item-code">{c.name}</div>
+                                    </div>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Transaction Date */}
+                          <div className="so-field">
+                            <label className="so-label">Transaction Date</label>
+                            <input
+                              type="date"
+                              className="so-input"
+                              value={form.transaction_date}
+                              onChange={e => setForm(prev => ({ ...prev, transaction_date: e.target.value }))}
+                            />
+                          </div>
+
+                          {/* Delivery Date */}
+                          <div className="so-field">
+                            <label className="so-label">Delivery Date</label>
+                            <input
+                              type="date"
+                              className="so-input"
+                              value={form.delivery_date}
+                              onChange={e => setForm(prev => ({ ...prev, delivery_date: e.target.value }))}
+                            />
+                          </div>
+
+                          {/* Price List */}
+                          <div className="so-field">
+                            <label className="so-label">Price List</label>
+                            <select
+                              className="so-select"
+                              value={form.selling_price_list}
+                              onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))}
+                            >
+                              <option value="Standard Selling">Standard Selling</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ---- Barcode Scanner ---- */}
+                    <div className="so-barcode-area">
+                      <ScanLine size={22} />
+                      <input
+                        ref={barcodeRef}
+                        id="barcode-scan-input-so"
+                        className="so-barcode-input"
+                        placeholder="Scan barcode and press Enter..."
+                        value={barcodeInput}
+                        onChange={e => setBarcodeInput(e.target.value)}
+                        onKeyDown={handleBarcodeScan}
+                      />
+                    </div>
+
+                    {/* ---- Items Card ---- */}
+                    <div className="so-card">
+                      <div className="so-card-header">
+                        <span className="so-card-title">Product Items</span>
+                        <button className="so-btn-ghost" onClick={addItemRow}>
+                          <Plus size={14} /> Add Item
+                        </button>
+                      </div>
+                      <div className="so-items-table-wrap">
+                        <table className="so-items-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '35%' }}>Item</th>
+                              <th style={{ width: '10%' }}>UOM</th>
+                              <th style={{ width: '12%' }}>Qty</th>
+                              <th style={{ width: '15%' }}>Rate (AED)</th>
+                              <th style={{ width: '18%' }}>Amount</th>
+                              <th style={{ width: '10%' }}></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {form.items.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="so-empty">
+                                  No items yet — scan a barcode or click <strong>Add Item</strong>
+                                </td>
+                              </tr>
+                            ) : (
+                              form.items.map((item, i) => (
+                                <tr key={i}>
+                                  <td className="so-relative">
+                                    {item.item_code ? (
+                                      <div>
+                                        <div className="so-item-display-name">{item.item_name}</div>
+                                        <div className="so-item-display-code">{item.item_code}</div>
+                                      </div>
+                                    ) : (
+                                      <div className="so-relative">
+                                        <input
+                                          className="so-td-input"
+                                          placeholder="Search item..."
+                                          value={itemSearches[i] || ''}
+                                          onChange={e => {
+                                            const v = e.target.value;
+                                            setItemSearches(p => ({ ...p, [i]: v }));
+                                            searchItems(v, i);
+                                          }}
+                                        />
+                                        {showItemDropdowns[i] && itemsList.length > 0 && (
+                                          <div className="so-dropdown">
+                                            {itemsList.map(itm => (
+                                              <div
+                                                key={itm.item_code}
+                                                className="so-dropdown-item"
+                                                onMouseDown={() => selectItem(i, itm)}
+                                              >
+                                                <div className="so-dropdown-item-name">{itm.item_name}</div>
+                                                <div className="so-dropdown-item-code">{itm.item_code}</div>
+                                              </div>
+                                            ))}
                                           </div>
-                                        ))}
+                                        )}
                                       </div>
                                     )}
-                                  </div>
-                                )}
-                              </td>
-                              <td style={{ fontSize: '0.75rem', color: '#64748b' }}>{item.uom}</td>
-                              <td>
-                                <input
-                                  type="number"
-                                  className="so-td-input"
-                                  style={{ textAlign: 'center' }}
-                                  value={item.qty || ''}
-                                  onChange={e => updateItem(i, 'qty', e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  className="so-td-input"
-                                  style={{ textAlign: 'right' }}
-                                  value={item.rate || ''}
-                                  onChange={e => updateItem(i, 'rate', e.target.value)}
-                                />
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
-                                {(parseFloat(item.amount) || 0).toFixed(2)}
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <button className="so-btn-danger" onClick={() => removeItemRow(i)}>
-                                  <Trash2 size={14} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                                  </td>
+                                  <td style={{ fontSize: '0.75rem', color: '#64748b' }}>{item.uom}</td>
+                                  <td>
+                                    <input
+                                      type="number"
+                                      className="so-td-input"
+                                      style={{ textAlign: 'center' }}
+                                      value={item.qty || ''}
+                                      onChange={e => updateItem(i, 'qty', e.target.value)}
+                                    />
+                                  </td>
+                                  <td>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      className="so-td-input"
+                                      style={{ textAlign: 'right' }}
+                                      value={item.rate || ''}
+                                      onChange={e => updateItem(i, 'rate', e.target.value)}
+                                    />
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                                    {(parseFloat(item.amount) || 0).toFixed(2)}
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <button className="so-btn-danger" onClick={() => removeItemRow(i)}>
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
 
-                {/* ---- Taxes Card ---- */}
-                <div className="so-card">
-                  <div className="so-card-header">
-                    <span className="so-card-title">Taxes & Charges</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <select
-                        className="so-select"
-                        style={{ width: 'auto', minWidth: '180px', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
-                        value={form.taxes_and_charges}
-                        onChange={e => loadTaxTemplate(e.target.value)}
-                      >
-                        <option value="">No Template</option>
-                        {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                      </select>
-                      <button className="so-btn-ghost" onClick={addTaxRow}>
-                        <Plus size={14} /> Add Row
+                    {/* ---- Taxes Card ---- */}
+                    <div className="so-card">
+                      <div className="so-card-header">
+                        <span className="so-card-title">Taxes & Charges</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <select
+                            className="so-select"
+                            style={{ width: 'auto', minWidth: '180px', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                            value={form.taxes_and_charges}
+                            onChange={e => loadTaxTemplate(e.target.value)}
+                          >
+                            <option value="">No Template</option>
+                            {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                          </select>
+                          <button className="so-btn-ghost" onClick={addTaxRow}>
+                            <Plus size={14} /> Add Row
+                          </button>
+                        </div>
+                      </div>
+                      {form.taxes.length > 0 && (
+                        <div className="so-items-table-wrap">
+                          <table className="so-taxes-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: '5%' }}>Add</th>
+                                <th style={{ width: '25%' }}>Type</th>
+                                <th style={{ width: '30%' }}>Account</th>
+                                <th style={{ width: '12%' }}>Rate %</th>
+                                <th style={{ width: '15%' }}>Amount</th>
+                                <th style={{ width: '13%' }}>Total</th>
+                                <th style={{ width: '5%' }}></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {form.taxes.map((tax, i) => (
+                                <tr key={i}>
+                                  <td>
+                                    <input
+                                      type="checkbox"
+                                      checked={tax.add_deduct_tax === 'Add'}
+                                      onChange={e => updateTax(i, 'add_deduct_tax', e.target.checked ? 'Add' : 'Deduct')}
+                                    />
+                                  </td>
+                                  <td>
+                                    <select
+                                      className="so-td-input"
+                                      value={tax.charge_type || ''}
+                                      onChange={e => updateTax(i, 'charge_type', e.target.value)}
+                                    >
+                                      <option value="On Net Total">On Net Total</option>
+                                      <option value="Actual">Actual</option>
+                                      <option value="On Previous Row Amount">On Prev Row</option>
+                                    </select>
+                                  </td>
+                                  <td>
+                                    <input
+                                      className="so-td-input"
+                                      value={tax.account_head || ''}
+                                      onChange={e => updateTax(i, 'account_head', e.target.value)}
+                                    />
+                                  </td>
+                                  <td>
+                                    <input
+                                      type="number"
+                                      className="so-td-input"
+                                      style={{ textAlign: 'right' }}
+                                      value={tax.rate || ''}
+                                      onChange={e => updateTax(i, 'rate', e.target.value)}
+                                    />
+                                  </td>
+                                  <td>
+                                    <input
+                                      type="number"
+                                      className="so-td-input"
+                                      style={{ textAlign: 'right' }}
+                                      value={tax.tax_amount || ''}
+                                      onChange={e => updateTax(i, 'tax_amount', e.target.value)}
+                                      disabled={tax.charge_type !== 'Actual'}
+                                    />
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                                    {parseFloat(tax.total || 0).toFixed(2)}
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <button className="so-btn-danger" onClick={() => removeTaxRow(i)}>
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ---- Summary Bar ---- */}
+                    <div className="so-summary-bar">
+                      <div className="so-summary-item">
+                        <span className="so-summary-label">Total Qty</span>
+                        <span className="so-summary-value">{form.total_qty || 0}</span>
+                      </div>
+                      <div className="so-summary-divider" />
+                      <div className="so-summary-item">
+                        <span className="so-summary-label">Net Total</span>
+                        <span className="so-summary-value">AED {Number(form.base_total || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="so-summary-divider" />
+                      <div className="so-summary-item">
+                        <span className="so-summary-label">Taxes</span>
+                        <span className="so-summary-value">AED {Number(form.total_taxes_and_charges || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="so-summary-divider" />
+                      <div className="so-summary-item">
+                        <span className="so-summary-label">Grand Total</span>
+                        <span className="so-summary-value grand">AED {Number(form.rounded_total || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+
+              {!isViewMode && (
+                <div className="so-modal-footer" style={{ padding: '1rem 2rem', background: 'white', borderTop: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    {editingDocName && form.docstatus === 0 && (
+                      <button className="so-btn-danger" onClick={() => deleteOrder(editingDocName)}>
+                        <Trash2 size={16} /> Delete Order
                       </button>
-                    </div>
+                    )}
                   </div>
-                  {form.taxes.length > 0 && (
-                    <div className="so-items-table-wrap">
-                      <table className="so-taxes-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: '5%' }}>Add</th>
-                            <th style={{ width: '25%' }}>Type</th>
-                            <th style={{ width: '30%' }}>Account</th>
-                            <th style={{ width: '12%' }}>Rate %</th>
-                            <th style={{ width: '15%' }}>Amount</th>
-                            <th style={{ width: '13%' }}>Total</th>
-                            <th style={{ width: '5%' }}></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {form.taxes.map((tax, i) => (
-                            <tr key={i}>
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={tax.add_deduct_tax === 'Add'}
-                                  onChange={e => updateTax(i, 'add_deduct_tax', e.target.checked ? 'Add' : 'Deduct')}
-                                />
-                              </td>
-                              <td>
-                                <select
-                                  className="so-td-input"
-                                  value={tax.charge_type || ''}
-                                  onChange={e => updateTax(i, 'charge_type', e.target.value)}
-                                >
-                                  <option value="On Net Total">On Net Total</option>
-                                  <option value="Actual">Actual</option>
-                                  <option value="On Previous Row Amount">On Prev Row</option>
-                                </select>
-                              </td>
-                              <td>
-                                <input
-                                  className="so-td-input"
-                                  value={tax.account_head || ''}
-                                  onChange={e => updateTax(i, 'account_head', e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  className="so-td-input"
-                                  style={{ textAlign: 'right' }}
-                                  value={tax.rate || ''}
-                                  onChange={e => updateTax(i, 'rate', e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  className="so-td-input"
-                                  style={{ textAlign: 'right' }}
-                                  value={tax.tax_amount || ''}
-                                  onChange={e => updateTax(i, 'tax_amount', e.target.value)}
-                                  disabled={tax.charge_type !== 'Actual'}
-                                />
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
-                                {parseFloat(tax.total || 0).toFixed(2)}
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <button className="so-btn-danger" onClick={() => removeTaxRow(i)}>
-                                  <Trash2 size={13} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                {/* ---- Summary Bar ---- */}
-                <div className="so-summary-bar">
-                  <div className="so-summary-item">
-                    <span className="so-summary-label">Total Qty</span>
-                    <span className="so-summary-value">{form.total_qty || 0}</span>
-                  </div>
-                  <div className="so-summary-divider" />
-                  <div className="so-summary-item">
-                    <span className="so-summary-label">Net Total</span>
-                    <span className="so-summary-value">AED {Number(form.base_total || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="so-summary-divider" />
-                  <div className="so-summary-item">
-                    <span className="so-summary-label">Taxes</span>
-                    <span className="so-summary-value">AED {Number(form.total_taxes_and_charges || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="so-summary-divider" />
-                  <div className="so-summary-item">
-                    <span className="so-summary-label">Grand Total</span>
-                    <span className="so-summary-value grand">AED {Number(form.rounded_total || 0).toFixed(2)}</span>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button className="so-btn-secondary" onClick={closeModal}>Cancel</button>
+                    {(form.docstatus !== 1) && (
+                      <button className="so-btn-primary" onClick={() => handleSave(false)} disabled={saving || isSubmitting}>
+                        {saving ? <><Loader2 size={14} className="so-spinner" /> Saving...</> : 'Save Draft'}
+                      </button>
+                    )}
+                    {(form.docstatus !== 1) && (
+                      <button className="so-btn-primary" onClick={() => handleSave(true)} disabled={saving || isSubmitting} style={{ background: themeColor }}>
+                        {isSubmitting ? <><Loader2 size={14} className="so-spinner" /> Submitting...</> : 'Submit'}
+                      </button>
+                    )}
                   </div>
                 </div>
-
-              </div>
-
-              {/* Modal Footer */}
-              <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={closeModal}>Cancel</button>
-                <button
-                  className="so-btn-secondary"
-                  disabled={saving || isSubmitting}
-                  onClick={() => handleSave(false)}
-                >
-                  {saving ? 'Saving...' : editingDocName ? 'Update Draft' : 'Save Draft'}
-                </button>
-                <button
-                  className="so-btn-primary"
-                  disabled={saving || isSubmitting}
-                  onClick={() => handleSave(true)}
-                  style={{ minWidth: '150px' }}
-                >
-                  {isSubmitting ? <><Loader2 size={14} className="so-spinner" /> Submitting...</> : 'Submit Order'}
-                </button>
-              </div>
-
+              )}
             </div>
           </div>
         )}
-
       </div>
     </>
   );
 }
+
+export default SalesOrder;

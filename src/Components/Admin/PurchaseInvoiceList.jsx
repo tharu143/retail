@@ -124,9 +124,9 @@ function PurchaseInvoiceList() {
   // FIXED: Fetch Warehouses (only non-group nodes)
   const fetchWarehouses = async () => {
     try {
-      const res = await axios.get(`${API_PATH}.get_company_warehouses`, { 
+      const res = await axios.get(`${API_PATH}.get_company_warehouses`, {
         params: { is_group: 0 }, // NEW: Filter for leaf nodes only
-        withCredentials: true 
+        withCredentials: true
       });
       setWarehouses(Array.isArray(res.data.message) ? res.data.message : []);
     } catch (err) {
@@ -153,7 +153,7 @@ function PurchaseInvoiceList() {
           withCredentials: true
         });
         const item = Array.isArray(res.data.message) ? res.data.message[0] : res.data.message;
-        
+
         if (item && item.item_code) {
           // Add to last row or create new row
           const lastIndex = formData.items.length - 1;
@@ -192,7 +192,7 @@ function PurchaseInvoiceList() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_PATH}.get_purchase_invoices`, { withCredentials: true });
+      const res = await axios.get(`${API_PATH}.get_purchase_invoices`, { params: { limit: 2000, limit_page_length: 2000 }, withCredentials: true });
       if (res.data.message?.success) setInvoices(res.data.message.data || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -470,14 +470,15 @@ function PurchaseInvoiceList() {
       additional_discount_percentage: formData.additional_discount_percentage > 0 ? parseFloat(formData.additional_discount_percentage) : null,
       discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
       taxes_and_charges: formData.taxes_and_charges || null,
-      taxes: taxes.length > 0 ? taxes : null,  // ← THIS IS THE KEY!
+      taxes: taxes.length > 0 ? taxes : null,
       items: formData.items
         .filter(i => i.item_code && i.qty > 0)
         .map(i => ({
           item_code: i.item_code,
           qty: parseFloat(i.qty) || 1,
           rate: parseFloat(i.rate || 0),
-          warehouse: formData.update_stock ? formData.accepted_warehouse : ''
+          warehouse: formData.update_stock ? formData.accepted_warehouse : '',
+          target_warehouse: formData.update_stock ? formData.accepted_warehouse : ''
         }))
     };
   };
@@ -497,22 +498,26 @@ function PurchaseInvoiceList() {
 
     try {
       let response;
+      const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
       if (docName) {
         // Existing draft → UPDATE (PUT)
         response = await axios.put(`${RESOURCE_API}/${docName}`, payload, { withCredentials: true });
         alert(`Draft updated: ${docName}`);
       } else {
-        // New → CREATE (POST)
-        response = await axios.post(RESOURCE_API, payload, { withCredentials: true });
-        if (response.data?.data?.name) {
-          setDocName(response.data.data.name);
-          alert(`Draft saved: ${response.data.data.name}`);
+        // New → CREATE (POST) using create_generic_doc
+        response = await axios.post(GENERIC_API, {
+          doctype: "Purchase Invoice",
+          data: payload
+        }, { withCredentials: true });
+        const apiResp = response.data.message || response.data;
+        if (apiResp.name) {
+          setDocName(apiResp.name);
+          alert(`Draft saved: ${apiResp.name}`);
         } else {
           throw new Error('Failed to create draft');
         }
       }
       setDocStatus(0); // Set as draft after save
-      // Refresh list to show updated status
       fetchInvoices();
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.exception || 'Save failed';
@@ -538,10 +543,15 @@ function PurchaseInvoiceList() {
     try {
       let name = docName;
       if (!name) {
-        // First save as draft
-        const createRes = await axios.post(RESOURCE_API, payload, { withCredentials: true });
-        if (!createRes.data?.data?.name) throw new Error('Create failed');
-        name = createRes.data.data.name;
+        const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
+        // First save as draft using generic doc creator
+        const createRes = await axios.post(GENERIC_API, {
+          doctype: "Purchase Invoice",
+          data: payload
+        }, { withCredentials: true });
+        const apiResp = createRes.data.message || createRes.data;
+        if (!apiResp.name) throw new Error('Create failed');
+        name = apiResp.name;
         setDocName(name);
       }
       // Submit
@@ -617,6 +627,18 @@ function PurchaseInvoiceList() {
     setFilterDateFrom(''); setFilterDateTo('');
   };
 
+  useEffect(() => {
+    const hash = window.location.hash;
+    const queryStart = hash.indexOf('?');
+    if (queryStart !== -1) {
+      const params = new URLSearchParams(hash.slice(queryStart));
+      const nameFromUrl = params.get('name');
+      if (nameFromUrl) {
+        setTimeout(() => openEditModal({ name: nameFromUrl }), 500);
+      }
+    }
+  }, []);
+
   return (
     <>
       <NavBar />
@@ -655,9 +677,9 @@ function PurchaseInvoiceList() {
 
         <div className="so-layout" style={{ flexDirection: 'column' }}>
           {/* Top Filters Bar */}
-          <div className="so-filter-bar" style={{ 
-            background: 'white', 
-            padding: '1.25rem 2rem', 
+          <div className="so-filter-bar" style={{
+            background: 'white',
+            padding: '1.25rem 2rem',
             borderBottom: '1px solid var(--so-border)',
             display: 'flex',
             flexWrap: 'wrap',
@@ -839,7 +861,7 @@ function PurchaseInvoiceList() {
                       <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                         Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total}
                       </span>
-                      
+
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
@@ -847,7 +869,7 @@ function PurchaseInvoiceList() {
                             <button key={s} onClick={() => { setPageSize(s); setCurrentPage(1); }} className={`so-page-btn ${pageSize === s ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{s}</button>
                           ))}
                         </div>
-                        
+
                         <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
                           <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
@@ -863,8 +885,8 @@ function PurchaseInvoiceList() {
         </div>
 
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={closeModal}>
-            <div className="so-modal" style={{ maxWidth: '1000px', width: '95vw' }} onClick={e => e.stopPropagation()}>
+          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0 }}>
+            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header">
                 <h2 className="so-modal-title">
                   <Package size={18} style={{ display: 'inline', marginRight: '0.4rem' }} />
@@ -996,8 +1018,8 @@ function PurchaseInvoiceList() {
                           checked={formData.update_stock}
                           onChange={e => {
                             const checked = e.target.checked;
-                            setFormData(prev => ({ 
-                              ...prev, 
+                            setFormData(prev => ({
+                              ...prev,
                               update_stock: checked,
                               accepted_warehouse: checked ? (prev.accepted_warehouse || warehouses[0]?.name || '') : '',
                             }));
@@ -1042,7 +1064,7 @@ function PurchaseInvoiceList() {
                             </select>
                           </div>
                           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: isViewMode ? 'not-allowed' : 'pointer', marginBottom: '0.75rem' }}>
-                             <input
+                            <input
                               type="checkbox"
                               checked={formData.is_subcontracted}
                               onChange={e => setFormData(prev => ({ ...prev, is_subcontracted: e.target.checked }))}
@@ -1163,10 +1185,10 @@ function PurchaseInvoiceList() {
                         <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
                           <div className="so-field" style={{ gridColumn: 'span 2' }}>
                             <label className="so-label">Apply Discount On</label>
-                            <select 
+                            <select
                               value={formData.apply_discount_on}
                               onChange={e => setFormData(prev => ({ ...prev, apply_discount_on: e.target.value }))}
-                              disabled={isViewMode} 
+                              disabled={isViewMode}
                               className="so-select"
                             >
                               <option>Grand Total</option>
@@ -1175,32 +1197,32 @@ function PurchaseInvoiceList() {
                           </div>
                           <div className="so-field">
                             <label className="so-label">Discount (%)</label>
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               value={formData.additional_discount_percentage}
                               onChange={e => setFormData(prev => ({ ...prev, additional_discount_percentage: e.target.value, discount_amount: 0 }))}
-                              className="so-input" 
-                              min="0" max="100" step="0.01" 
-                              disabled={isViewMode} 
+                              className="so-input"
+                              min="0" max="100" step="0.01"
+                              disabled={isViewMode}
                             />
                           </div>
                           <div className="so-field">
                             <label className="so-label">Discount Amount</label>
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               value={formData.discount_amount}
                               onChange={e => setFormData(prev => ({ ...prev, discount_amount: e.target.value, additional_discount_percentage: 0 }))}
-                              className="so-input" 
-                              min="0" step="0.01" 
-                              disabled={isViewMode} 
+                              className="so-input"
+                              min="0" step="0.01"
+                              disabled={isViewMode}
                             />
                           </div>
                           <div className="so-field" style={{ gridColumn: 'span 2' }}>
                             <label className="so-label">Tax Template</label>
-                            <select 
+                            <select
                               value={formData.taxes_and_charges}
                               onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
-                              disabled={isViewMode || loadingTaxTemplates} 
+                              disabled={isViewMode || loadingTaxTemplates}
                               className="so-select"
                             >
                               <option value="">No Tax</option>
@@ -1250,9 +1272,9 @@ function PurchaseInvoiceList() {
                   </div>
 
                   {/* Right Column: Totals Summary */}
-                  <div className="so-card" style={{ 
-                    background: isGreen 
-                      ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' 
+                  <div className="so-card" style={{
+                    background: isGreen
+                      ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
                       : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)',
                     color: 'white',
                     height: '100%'
@@ -1265,7 +1287,7 @@ function PurchaseInvoiceList() {
                         <span>Subtotal</span>
                         <span style={{ fontWeight: 700 }}>AED {subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      
+
                       {discountAmount > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fda4af' }}>
                           <span>Total Discount</span>
@@ -1278,9 +1300,9 @@ function PurchaseInvoiceList() {
                         <span style={{ fontWeight: 700 }}>AED {taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
 
-                      <div style={{ 
-                        marginTop: '1rem', 
-                        paddingTop: '1rem', 
+                      <div style={{
+                        marginTop: '1rem',
+                        paddingTop: '1rem',
                         borderTop: '1px solid rgba(255,255,255,0.2)',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -1304,17 +1326,17 @@ function PurchaseInvoiceList() {
                     {(docStatus === 0 || docStatus === null) ? (
                       <>
                         <button onClick={closeModal} className="so-btn-secondary">Cancel</button>
-                        <button 
-                          onClick={handleSaveDraft} 
-                          disabled={saving} 
+                        <button
+                          onClick={handleSaveDraft}
+                          disabled={saving}
                           className="so-btn-secondary"
                           style={{ minWidth: '140px' }}
                         >
                           {saving ? <Loader2 size={16} className="so-spinner" /> : (docName ? 'Update Draft' : 'Save Draft')}
                         </button>
-                        <button 
-                          onClick={handleSubmit} 
-                          disabled={saving} 
+                        <button
+                          onClick={handleSubmit}
+                          disabled={saving}
                           className="so-btn-primary"
                           style={{ minWidth: '180px' }}
                         >

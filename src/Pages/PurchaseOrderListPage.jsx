@@ -1,13 +1,11 @@
-import NavBar from "../Components/Nav/NavBar"
-import PurchaseOrderList from "../Components/Purchase/PurchaseOrderList"
+import PurchaseOrderLists from "../Components/Admin/PurchaseOrderLists";
 
 function PurchaseOrderListPage() {
   return (
     <>
-    <NavBar/>
-    <PurchaseOrderList/>
+      <PurchaseOrderLists />
     </>
-  )
+  );
 }
 
-export default PurchaseOrderListPage
+export default PurchaseOrderListPage;

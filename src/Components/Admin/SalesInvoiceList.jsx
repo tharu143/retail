@@ -252,7 +252,7 @@ const SalesInvoiceList = () => {
           axios.get('/api/resource/Sales Invoice', {
             params: {
               fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
-              limit_page_length: 500,
+              limit_page_length: 2000,
               order_by: 'modified desc'
             }
           })
@@ -521,7 +521,7 @@ const SalesInvoiceList = () => {
       const invRes = await axios.get('/api/resource/Sales Invoice', {
         params: {
           fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
-          limit_page_length: 500,
+          limit_page_length: 2000,
           order_by: 'modified desc'
         }
       });
@@ -684,9 +684,9 @@ const SalesInvoiceList = () => {
         </div>
         <div className="so-layout" style={{ flexDirection: 'column' }}>
           {/* Top Filters Bar */}
-          <div className="so-filter-bar" style={{ 
-            background: 'white', 
-            padding: '1.25rem 1.5rem', 
+          <div className="so-filter-bar" style={{
+            background: 'white',
+            padding: '1.25rem 1.5rem',
             borderBottom: '1px solid var(--so-border)',
             display: 'flex',
             flexWrap: 'wrap',
@@ -794,7 +794,7 @@ const SalesInvoiceList = () => {
                   <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                     Showing {Math.min((currentPage - 1) * pageSize + 1, filteredInvoices.length)}–{Math.min(currentPage * pageSize, filteredInvoices.length)} of {filteredInvoices.length}
                   </span>
-                  
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
@@ -802,7 +802,7 @@ const SalesInvoiceList = () => {
                         <button key={num} onClick={() => { setPageSize(num); setCurrentPage(1); }} className={`so-page-btn ${pageSize === num ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{num}</button>
                       ))}
                     </div>
-                    
+
                     <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
                       <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
@@ -816,8 +816,8 @@ const SalesInvoiceList = () => {
         </div>
         {/* Modal */}
         {showModal && (
-          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())}>
-            <div className="so-modal">
+          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())} style={{ padding: 0 }}>
+            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }}>
               <div className="so-modal-header">
                 <h2 className="so-modal-title">
                   {isReturnMode ? (
@@ -1107,11 +1107,11 @@ const SalesInvoiceList = () => {
                   </div>
 
                   {/* Summary Card */}
-                  <div className="so-card" style={{ 
-                    background: isGreen 
-                      ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' 
-                      : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)', 
-                    color: 'white', 
+                  <div className="so-card" style={{
+                    background: isGreen
+                      ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
+                      : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)',
+                    color: 'white',
                     height: '100%'
                   }}>
                     <div className="so-card-header" style={{ borderBottomColor: 'rgba(255,255,255,0.1)' }}>
@@ -1126,10 +1126,10 @@ const SalesInvoiceList = () => {
                         <span>Total Taxes</span>
                         <span style={{ fontWeight: 700 }}>{getCurrencySymbol(form.currency)}{form.total_taxes_and_charges.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      
-                      <div style={{ 
-                        marginTop: '1rem', 
-                        paddingTop: '1rem', 
+
+                      <div style={{
+                        marginTop: '1rem',
+                        paddingTop: '1rem',
                         borderTop: '1px solid rgba(255,255,255,0.2)',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -1143,19 +1143,19 @@ const SalesInvoiceList = () => {
                         </div>
                       </div>
 
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        background: 'rgba(0,0,0,0.15)', 
-                        padding: '0.75rem 1rem', 
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'rgba(0,0,0,0.15)',
+                        padding: '0.75rem 1rem',
                         borderRadius: '0.5rem',
                         marginTop: '0.5rem'
                       }}>
                         <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.7 }}>Rounded</span>
                         <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>{getCurrencySymbol(form.currency)}{form.rounded_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      
+
                       {form.currency === 'INR' && form.in_words && (
                         <p style={{ fontSize: '0.65rem', fontStyle: 'italic', opacity: 0.6, marginTop: '0.5rem', textAlign: 'right', lineHeight: 1.4 }}>
                           {form.in_words}

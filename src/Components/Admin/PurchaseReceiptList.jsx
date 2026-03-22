@@ -218,7 +218,7 @@ function PurchaseReceiptList() {
   const fetchReceipts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_PATH}.get_purchase_receipts`, { withCredentials: true });
+      const res = await axios.get(`${API_PATH}.get_purchase_receipts`, { params: { limit: 2000, limit_page_length: 2000 }, withCredentials: true });
       if (res.data.message?.success) {
         setReceipts(res.data.message.data || []);
       }
@@ -811,13 +811,18 @@ function PurchaseReceiptList() {
     try {
       let name = docName;
       if (!name) {
-        // First save as draft
-        const createRes = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
+        // First save as draft using generic doc creator
+        const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
+        const createRes = await axios.post(GENERIC_API, {
+          doctype: "Purchase Receipt",
+          data: payload
+        }, {
           withCredentials: true,
           headers: { 'Content-Type': 'application/json' }
         });
-        if (!createRes.data?.data?.name) throw new Error('Create failed');
-        name = createRes.data.data.name;
+        const apiResp = createRes.data.message || createRes.data;
+        if (!apiResp.name) throw new Error('Create failed');
+        name = apiResp.name;
         setDocName(name);
       }
       // Submit
@@ -891,25 +896,28 @@ function PurchaseReceiptList() {
       rounded_total: parseFloat(formData.rounded_total || 0)
     };
     try {
-      // Create draft
-      const createRes = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
+      const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
+      const createRes = await axios.post(GENERIC_API, {
+        doctype: "Purchase Receipt",
+        data: payload
+      }, {
         withCredentials: true,
         headers: { 'Content-Type': 'application/json' }
       });
-      // ERPNext returns response in createRes.data.data
-      if (createRes.data?.data?.name) {
-        const docName = createRes.data.data.name;
-        // Submit using PUT (most reliable)
+
+      const apiResp = createRes.data.message || createRes.data;
+      if (apiResp.name) {
+        const createdName = apiResp.name;
+        // Submit immediately if this is manual create submit
         await axios.put(
-          `${RESOURCE_BASE}/Purchase Receipt/${docName}`,
+          `${RESOURCE_BASE}/Purchase Receipt/${createdName}`,
           { docstatus: 1 },
           { withCredentials: true }
         );
-        alert('Purchase Receipt Created & Submitted: ' + docName);
+        alert('Purchase Receipt Created & Submitted: ' + createdName);
         setIsModalOpen(false);
         fetchReceipts();
       } else {
-        console.error('Create failed - no name in response:', createRes.data);
         alert('Failed to create receipt. Check console.');
       }
     } catch (err) {
@@ -917,7 +925,7 @@ function PurchaseReceiptList() {
         err.response?.data?.message ||
         err.message || 'Unknown error';
       console.error('Create error:', err.response?.data || err);
-      alert('Error: ' + errorMsg);
+      alert('Save failed: ' + errorMsg);
     } finally {
       setSaving(false);
     }
@@ -952,6 +960,19 @@ function PurchaseReceiptList() {
     setFilterDateFrom('');
     setFilterDateTo('');
   };
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    const queryStart = hash.indexOf('?');
+    if (queryStart !== -1) {
+      const params = new URLSearchParams(hash.slice(queryStart));
+      const nameFromUrl = params.get('name');
+      if (nameFromUrl) {
+        setTimeout(() => fetchReceiptForEdit(nameFromUrl), 500);
+      }
+    }
+  }, []);
+
   return (
     <>
       <NavBar />
@@ -1138,7 +1159,7 @@ function PurchaseReceiptList() {
                       <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                         Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total}
                       </span>
-                      
+
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
@@ -1146,7 +1167,7 @@ function PurchaseReceiptList() {
                             <button key={s} onClick={() => { setPageSize(s); setCurrentPage(1); }} className={`so-page-btn ${pageSize === s ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{s}</button>
                           ))}
                         </div>
-                        
+
                         <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>‹</button>
                           <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem' }}>{currentPage} / {totalPages}</span>
@@ -1161,8 +1182,8 @@ function PurchaseReceiptList() {
           </div>
         </div>
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)}>
-            <div className="so-modal" style={{ maxWidth: '1200px', width: '95vw' }} onClick={e => e.stopPropagation()}>
+          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ padding: 0 }}>
+            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header">
                 <h2 className="so-modal-title">
                   <Package size={18} style={{ display: 'inline', marginRight: '0.4rem' }} />
@@ -1478,7 +1499,7 @@ function PurchaseReceiptList() {
                       <div className="so-card-body">
                         <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
                           <div className="so-field column-span-2">
-                             <label className="so-label">Apply Discount On</label>
+                            <label className="so-label">Apply Discount On</label>
                             <select
                               value={formData.apply_discount_on}
                               onChange={e => updateDiscount('apply_discount_on', e.target.value)}
@@ -1521,10 +1542,10 @@ function PurchaseReceiptList() {
                       </div>
                     </div>
 
-                    <div style={{ 
-                      background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColorHover} 100%)`, 
-                      color: 'white', 
-                      borderRadius: '0.75rem', 
+                    <div style={{
+                      background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColorHover} 100%)`,
+                      color: 'white',
+                      borderRadius: '0.75rem',
                       padding: '1.75rem',
                       boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
                     }}>
@@ -1557,7 +1578,7 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
-              </div> 
+              </div>
               <div className="so-modal-footer">
                 <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary">
                   Cancel

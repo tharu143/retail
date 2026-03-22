@@ -87,25 +87,25 @@ const DeliveryNoteList = () => {
         if (e.key === 'Enter' && barcodeInput.trim()) {
             e.preventDefault();
             const barcode = barcodeInput.trim();
-    
+
             try {
                 // Use safe backend method (bypasses child table permission)
                 const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
                     params: { barcode }
                 });
-    
+
                 if (checkRes.data.message.exists) {
                     const itemCode = checkRes.data.message.item;
-    
+
                     // Fetch full item details
                     const itemRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
                         params: { query: itemCode }
                     });
-    
+
                     const itemsList = itemRes.data.message || [];
                     if (itemsList.length > 0) {
                         const item = itemsList[0];
-    
+
                         // Fetch rate
                         let rate = 0;
                         try {
@@ -117,7 +117,7 @@ const DeliveryNoteList = () => {
                             });
                             rate = rateRes.data.rate || rateRes.data.message?.rate || 0;
                         } catch (err) { }
-    
+
                         // Add to table
                         setForm(prev => ({
                             ...prev,
@@ -131,7 +131,7 @@ const DeliveryNoteList = () => {
                                 income_account: defaultIncomeAccount
                             }]
                         }));
-    
+
                         calculateTotals();
                         setBarcodeInput('');
                         // Focus back
@@ -207,7 +207,7 @@ const DeliveryNoteList = () => {
                 axios.get('/api/resource/Delivery Note', {
                     params: {
                         fields: '["name","customer_name","posting_date","grand_total","status","title","company","modified","is_return","return_against","currency","issue_credit_note"]',
-                        limit_page_length: 500,
+                        limit_page_length: 2000,
                         order_by: 'modified desc'
                     }
                 }),
@@ -710,9 +710,9 @@ const DeliveryNoteList = () => {
 
                 <div className="so-layout" style={{ flexDirection: 'column' }}>
                     {/* Top Filters Bar */}
-                    <div className="so-filter-bar" style={{ 
-                        background: 'white', 
-                        padding: '1.25rem 1.5rem', 
+                    <div className="so-filter-bar" style={{
+                        background: 'white',
+                        padding: '1.25rem 1.5rem',
                         borderBottom: '1px solid var(--so-border)',
                         display: 'flex',
                         flexWrap: 'wrap',
@@ -855,7 +855,7 @@ const DeliveryNoteList = () => {
                                     <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                                         Showing {Math.min((currentPage - 1) * pageSize + 1, filteredNotes.length)}–{Math.min(currentPage * pageSize, filteredNotes.length)} of {filteredNotes.length}
                                     </span>
-                                    
+
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                             <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
@@ -863,7 +863,7 @@ const DeliveryNoteList = () => {
                                                 <button key={num} onClick={() => { setPageSize(num); setCurrentPage(1); }} className={`so-page-btn ${pageSize === num ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{num}</button>
                                             ))}
                                         </div>
-                                        
+
                                         <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                             <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
                                             <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
@@ -877,8 +877,8 @@ const DeliveryNoteList = () => {
                 </div>
                 {/* Modal */}
                 {showModal && (
-                    <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())}>
-                        <div className="so-modal">
+                    <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())} style={{ padding: 0 }}>
+                        <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }}>
                             <div className="so-modal-header">
                                 <h2 className="so-modal-title">
                                     {isReturnMode ? (

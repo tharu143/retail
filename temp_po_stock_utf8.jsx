@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
@@ -25,10 +25,7 @@ const POItemModel = {
   custom_box_price: 0,
   use_box_entry: false,
   last_buying_rate: 0,
-  custom_selling_price: 0,
-  received_qty: 0,
-  rejected_qty: 0,
-  rejected_warehouse: ''
+  custom_selling_price: 0
 };
 
 function PurchaseOrder() {
@@ -67,15 +64,12 @@ function PurchaseOrder() {
   const [activeDropdownRow, setActiveDropdownRow] = useState(null);
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false); // Shows if we are editing a draft
-  const [createdDocName, setCreatedDocName] = useState(null); // Store created PR/PI name
+  const [createdDocName, setCreatedDocName] = useState(''); // Store created PR/PI name
   const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
   const dropdownRef = useRef(null);
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [linkedDocs, setLinkedDocs] = useState({});
-  const [linkedDocStatuses, setLinkedDocStatuses] = useState({});
-  const [loadingLinks, setLoadingLinks] = useState(false);
   const videoRef = useRef(null);
   const codeReader = useRef(new BrowserMultiFormatReader());
 
@@ -360,17 +354,13 @@ function PurchaseOrder() {
         taxes: draft.taxes || [],
         tax_total: parseFloat(draft.total_taxes_and_charges) || 0,
         grand_total: parseFloat(draft.grand_total) || 0,
-        docstatus: parseInt(draft.docstatus) || 0,   // ✅ Use actual docstatus from ERPNext
-        per_billed: parseFloat(draft.per_billed) || 0,
-        per_received: parseFloat(draft.per_received) || 0,
-        status: draft.status || '',
+        docstatus: 0,
         quick_entry: false,
         naming_series: draft.naming_series || 'PO-'
       });
       setIsEditMode(true);
       setShowDraftsList(false);
       setSuccess(`Draft loaded: ${draftName}`);
-      fetchLinkedDocs(draftName);
     } catch (err) {
       setError(`Failed to load draft: ${err.message}`);
     } finally {
@@ -484,9 +474,9 @@ function PurchaseOrder() {
           } else {
             item.custom_box_qty = (item.custom_pieces_per_box > 0) ? Math.floor(item.qty / item.custom_pieces_per_box) : 0;
           }
-        } else if (['custom_box_qty', 'custom_pieces_per_box', 'custom_box_price', 'custom_selling_price', 'received_qty', 'rejected_qty'].includes(name)) {
+        } else if (['custom_box_qty', 'custom_pieces_per_box', 'custom_box_price', 'custom_selling_price'].includes(name)) {
           // Task: Box Qty must always be a whole number
-          const finalVal = (name === 'custom_box_qty' || name === 'received_qty' || name === 'rejected_qty') ? Math.round(val) : parseFloat(parseFloat(val).toFixed(2));
+          const finalVal = name === 'custom_box_qty' ? Math.round(val) : parseFloat(parseFloat(val).toFixed(2));
           item[name] = finalVal === '' ? 0 : finalVal;
 
           if (name === 'custom_box_price') {
@@ -495,17 +485,14 @@ function PurchaseOrder() {
             const boxQty = parseInt(val) || 0;
             item.custom_box_qty = boxQty;
             item.qty = parseFloat((boxQty * (item.custom_pieces_per_box || 1)).toFixed(2));
-            item.received_qty = item.qty; // Auto-sync received qty
           } else if (name === 'custom_pieces_per_box') {
             const pPerBox = parseFloat(parseFloat(val).toFixed(2)) || 1;
             item.custom_pieces_per_box = pPerBox;
             item.qty = parseFloat(((item.custom_box_qty || 0) * pPerBox).toFixed(2));
-            item.received_qty = item.qty; // Auto-sync received qty
             item.custom_box_price = parseFloat((item.rate * pPerBox).toFixed(2));
-          } else if (name === 'qty') {
-            item.received_qty = val; // Auto-sync received qty if regular qty changed
           }
-        } else if (name === 'schedule_date' || name === 'rejected_warehouse') {
+          item.amount = parseFloat(((item.qty || 0) * (item.rate || 0)).toFixed(2));
+        } else if (name === 'schedule_date') {
           item[name] = value;
         } else {
           item[name] = value;
@@ -576,101 +563,28 @@ function PurchaseOrder() {
   };
 
   const fetchHistory = async () => {
+    const itemCodes = formData.items.map(i => i.item_code).filter(Boolean);
+    if (!itemCodes.length) {
+      setHistory({});
+      return;
+    }
     try {
-      const KYLE_API = '/api/method/kyle_retail.retail_api.api';
-      const supplier = formData.supplier?.name || formData.supplier || '';
-      const res = await fetch(
-        `${KYLE_API}.get_purchase_order_history?company=${encodeURIComponent(formData.company)}&supplier=${encodeURIComponent(supplier)}&limit=50`,
-        { headers: { 'X-Frappe-SID': getSession() }, credentials: 'include' }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const msg = data.message;
-        // Handle both: direct array OR { status, data: [] }
-        if (Array.isArray(msg)) setHistory(msg);
-        else if (msg?.data) setHistory(msg.data);
-        else setHistory([]);
-      }
-    } catch (err) { console.error('fetchHistory err:', err); }
-  };
-
-  const fetchLinkedDocs = async (name) => {
-    setLoadingLinks(true);
-    try {
-      const KYLE_API = '/api/method/kyle_retail.retail_api.api';
-      const res = await fetch(`${KYLE_API}.get_linked_documents?doctype=Purchase Order&name=${name}`, {
+      const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const res = await fetch(`${OLD_API}.get_po_history?item_codes_json=${JSON.stringify(itemCodes)}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
-      if (res.ok) {
-        const data = await res.json();
-        const docs = data.message || {};
-        setLinkedDocs(docs);
-        // Fetch docstatus for each linked PR/PI
-        const statuses = {};
-        const allDocs = [
-          ...(docs.Purchase_Receipt || []).map(n => ({ name: n, type: 'Purchase Receipt' })),
-          ...(docs.Purchase_Invoice || []).map(n => ({ name: n, type: 'Purchase Invoice' }))
-        ];
-        await Promise.all(allDocs.map(async ({ name: docName, type }) => {
-          try {
-            const r = await fetch(`/api/resource/${encodeURIComponent(type)}/${docName}?fields=["docstatus","status"]`, {
-              headers: { 'X-Frappe-SID': getSession() }, credentials: 'include'
-            });
-            if (r.ok) {
-              const d = await r.json();
-              statuses[docName] = { docstatus: d.data?.docstatus ?? 0, status: d.data?.status || '' };
-            }
-          } catch (_) { }
-        }));
-        setLinkedDocStatuses(statuses);
-      }
-    } catch (err) { console.error(err); }
-    finally { setLoadingLinks(false); }
-  };
-
-  const handleSubmitDoc = async (docName, doctype) => {
-    if (!confirm(`Submit ${doctype}: ${docName}?`)) return;
-    try {
-      const res = await fetch(`/api/resource/${encodeURIComponent(doctype)}/${docName}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Frappe-SID': getSession(),
-          'X-Frappe-CSRF-Token': window.csrf_token || ''
-        },
-        credentials: 'include',
-        body: JSON.stringify({ docstatus: 1 })
-      });
-      if (res.ok) {
-        setSuccess(`✅ ${doctype} ${docName} submitted successfully!`);
-        setLinkedDocStatuses(prev => ({ ...prev, [docName]: { docstatus: 1, status: 'Submitted' } }));
-      } else {
-        const e = await res.json().catch(() => ({}));
-        setError(`Submit failed: ${e.message || res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setHistory(data.message || {});
     } catch (err) {
-      setError(`Submit failed: ${err.message}`);
+      console.error('History fetch error:', err);
     }
   };
 
-  // Auto-load PO from URL query param (e.g. /#/purchaseorder?name=PUR-ORD-2026-00035)
-  // Uses window.location.hash directly for reliable HashRouter support
   useEffect(() => {
-    const hash = window.location.hash; // e.g. #/purchaseorder?name=PUR-ORD-2026-00035
-    const queryStart = hash.indexOf('?');
-    if (queryStart !== -1) {
-      const params = new URLSearchParams(hash.slice(queryStart));
-      const nameFromUrl = params.get('name');
-      if (nameFromUrl) {
-        loadDraft(nameFromUrl);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (formData.company) fetchHistory();
-  }, [formData.supplier, formData.company]);
+    fetchHistory();
+  }, [formData.items]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -695,7 +609,7 @@ function PurchaseOrder() {
   }, [selectedProductIndex]);
 
   const validateForm = (isSubmitting = false) => {
-    if (!formData.supplier?.name && !formData.supplier) {
+    if (!formData.supplier?.name) {
       setError('Please select a Supplier / Vendor');
       return false;
     }
@@ -712,7 +626,7 @@ function PurchaseOrder() {
       setError('All items must have a quantity greater than zero');
       return false;
     }
-    if (isSubmitting && !formData.name && !formData.quick_entry) {
+    if (isSubmitting && !formData.name) {
       setError('Please Save as Draft before processing the order');
       return false;
     }
@@ -796,11 +710,13 @@ function PurchaseOrder() {
       if (updatedDoc) {
         setFormData(prev => ({
           ...prev,
-          ...data.data,
           name: docName,
-          supplier_name: data.data.supplier_name || data.data.supplier
+          docstatus: 0,
+          taxes: updatedDoc.taxes || prev.taxes,
+          grand_total: parseFloat(updatedDoc.grand_total || 0),
+          tax_total: parseFloat(updatedDoc.total_taxes_and_charges || updatedDoc.tax_total || 0),
+          total: parseFloat(updatedDoc.total || updatedDoc.net_total || 0)
         }));
-        fetchLinkedDocs(docName);
       }
       setIsEditMode(true);
       setSuccess(`Draft ${formData.name ? 'updated' : 'saved'}: ${docName}`);
@@ -895,7 +811,6 @@ function PurchaseOrder() {
 
         setSuccess(`Purchase Order ${formData.name} submitted successfully!`);
         setFormData(prev => ({ ...prev, docstatus: 1 }));
-        fetchLinkedDocs(formData.name);
       }
 
       setCreatedDocName(null);
@@ -912,86 +827,110 @@ function PurchaseOrder() {
     setLoading(true);
     setError('');
     setSuccess('');
-
-    const getCsrf = () => window.csrf_token || '';
-    const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
-
-    const buildBody = (overrides = {}) => ({
-      po_name: formData.name,
-      company: formData.company,
-      supplier: formData.supplier?.name || formData.supplier,
-      posting_date: new Date().toISOString().slice(0, 10),
-      set_warehouse: formData.set_warehouse,
-      taxes_and_charges: formData.taxes_and_charges,
-      taxes: formData.taxes,
-      total: formData.total,
-      tax_total: formData.tax_total,
-      total_qty: formData.total_qty,
-      grand_total: formData.grand_total,
-      submit_doc: false,
-      items: formData.items.filter(i => i.item_code).map(item => ({
-        item_code: item.item_code,
-        item_name: item.item_name,
-        qty: item.qty,
-        uom: item.uom,
-        rate: item.rate,
-        amount: item.amount,
-        purchase_order: formData.name,
-        custom_box_qty: item.custom_box_qty,
-        custom_pieces_per_box: item.custom_pieces_per_box,
-        custom_box_price: item.custom_box_price,
-        custom_selling_price: item.custom_selling_price,
-        new_selling_price: item.custom_selling_price,
-        custom_ref_sl_no: (item.custom_ref_sl_no || '').toString().slice(0, 140),
-        custom_supplier_sl_num: (item.custom_ref_sl_no || '').toString().slice(0, 140),
-        received_qty: parseFloat(item.received_qty) || item.qty,
-        rejected_qty: parseFloat(item.rejected_qty) || 0,
-        rejected_warehouse: item.rejected_warehouse || ''
-      })),
-      ...overrides
-    });
-
-    const postCreate = async (endpoint) => {
-      const res = await fetch(`${OLD_API}.${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Frappe-SID': getSession(),
-          'X-Frappe-CSRF-Token': getCsrf()   // ← Required for POST in Frappe
-        },
-        credentials: 'include',
-        body: JSON.stringify(buildBody())
-      });
-      const data = await res.json();
-      const msg = data.message || data;
-      if (msg.status === 'success') return msg.name;
-      throw new Error(msg.message || msg.exc_type || `Failed (HTTP ${res.status})`);
-    };
-
     try {
       if (type === 'both') {
-        const prName = await postCreate('create_purchase_receipt_from_po');
-        const piName = await postCreate('create_purchase_invoice_from_po');
-        setSuccess(`✅ Receipt: ${prName}   |   Invoice: ${piName}`);
+        const types = ['receipt', 'invoice'];
+        let results = [];
+        for (const t of types) {
+          const endpoint = t === 'receipt' ? 'create_purchase_receipt_from_po' : 'create_purchase_invoice_from_po';
+          const body = {
+            po_name: formData.name,
+            company: formData.company,
+            supplier: formData.supplier?.name || formData.supplier,
+            posting_date: new Date().toISOString().slice(0, 10),
+            set_warehouse: formData.set_warehouse,
+            taxes_and_charges: formData.taxes_and_charges,
+            taxes: formData.taxes,
+            total: formData.total,
+            tax_total: formData.tax_total,
+            total_qty: formData.total_qty,
+            grand_total: formData.grand_total,
+            items: formData.items.filter(i => i.item_code).map(item => ({
+              item_code: item.item_code,
+              item_name: item.item_name,
+              qty: item.qty,
+              uom: item.uom,
+              rate: item.rate,
+              amount: item.amount,
+              purchase_order: formData.name,
+              custom_box_qty: item.custom_box_qty,
+              custom_pieces_per_box: item.custom_pieces_per_box,
+              custom_box_price: item.custom_box_price,
+              custom_selling_price: item.custom_selling_price,
+              new_selling_price: item.custom_selling_price,
+              custom_ref_sl_no: item.custom_ref_sl_no,
+              custom_supplier_sl_num: item.custom_ref_sl_no
+            }))
+          };
+          const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+          const res = await fetch(`${OLD_API}.${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
+            credentials: 'include',
+            body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          const apiResp = data.message || data;
+          if (apiResp.status === 'success') {
+            results.push(`${t === 'receipt' ? 'Receipt' : 'Invoice'}: ${apiResp.name}`);
+          } else {
+            throw new Error(apiResp.message || `Failed to create ${t}`);
+          }
+        }
+        setSuccess(`Successfully created: ${results.join(' & ')}`);
         setCreatedDocName('BOTH_CREATED');
       } else {
-        const endpoint = type === 'receipt'
-          ? 'create_purchase_receipt_from_po'
-          : 'create_purchase_invoice_from_po';
-        const docName = await postCreate(endpoint);
-        setSuccess(`${type === 'receipt' ? '📦 Receipt' : '🧾 Invoice'} ${docName} created successfully (Draft)!`);
-        setCreatedDocName(docName);
+        const endpoint = type === 'receipt' ? 'create_purchase_receipt_from_po' : 'create_purchase_invoice_from_po';
+        const body = {
+          po_name: formData.name,
+          posting_date: new Date().toISOString().slice(0, 10),
+          set_warehouse: formData.set_warehouse,
+          items: formData.items.filter(i => i.item_code).map(item => ({
+            item_code: item.item_code,
+            item_name: item.item_name,
+            qty: item.qty,
+            uom: item.uom,
+            rate: item.rate,
+            amount: item.amount,
+            purchase_order: formData.name,
+            custom_box_qty: item.custom_box_qty,
+            custom_pieces_per_box: item.custom_pieces_per_box,
+            custom_box_price: item.custom_box_price,
+            custom_selling_price: item.custom_selling_price,
+            new_selling_price: item.custom_selling_price,
+            custom_ref_sl_no: item.custom_ref_sl_no,
+            custom_supplier_sl_num: item.custom_ref_sl_no
+          }))
+        };
+        body.company = formData.company;
+        body.supplier = formData.supplier?.name || formData.supplier;
+        body.taxes_and_charges = formData.taxes_and_charges;
+        body.taxes = formData.taxes;
+        body.total = formData.total;
+        body.tax_total = formData.tax_total;
+        body.total_qty = formData.total_qty;
+        body.grand_total = formData.grand_total;
 
-        // Route immediately to the respective draft details screen
-        if (type === 'receipt') {
-          window.location.href = `/#/purchasereceiptlist?name=${docName}`;
+
+        const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+        const res = await fetch(`${OLD_API}.${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
+          credentials: 'include',
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        const apiResp = data.message || data;
+        if (apiResp.status === 'success') {
+          setSuccess(`${type === 'receipt' ? 'Receipt' : 'Invoice'} ${apiResp.name} created successfully!`);
+          setCreatedDocName(apiResp.name);
         } else {
-          window.location.href = `/#/purchaseinvoicelist?name=${docName}`;
+          throw new Error(apiResp.message || 'Failed to create');
         }
       }
-      fetchLinkedDocs(formData.name);
     } catch (err) {
-      setError(`Create failed: ${err.message}`);
+      setError(`Transition failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -1175,109 +1114,6 @@ function PurchaseOrder() {
         </div>
 
         <div className="po-layout-container !pt-4 pb-20">
-          {/* Dashboard Connections (ERP Style) */}
-          {formData.name && (
-            <div className="mb-8 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm animate-fadeIn">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                    <History className="w-3.5 h-3.5 text-[var(--po-primary)]" />
-                    Dashboard / Connections
-                  </h3>
-                  <p className="text-[10px] font-bold mt-1 flex items-center gap-1">
-                    Status:&nbsp;
-                    <span style={{
-                      padding: '1px 8px', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 900,
-                      background: formData.docstatus === 1 ? '#dcfce7' : formData.docstatus === 2 ? '#fee2e2' : '#fef9c3',
-                      color: formData.docstatus === 1 ? '#16a34a' : formData.docstatus === 2 ? '#dc2626' : '#a16207',
-                    }}>
-                      {formData.docstatus === 1 ? '✓ Submitted' : formData.docstatus === 2 ? '✗ Cancelled' : '⏳ Draft'}
-                    </span>
-                    {formData.status && <span className="text-slate-400 ml-1">— {formData.status}</span>}
-                  </p>
-                </div>
-                {loadingLinks && <Loader2 className="w-4 h-4 animate-spin text-[var(--po-primary)]" />}
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                {/* Actions */}
-                <button
-                  onClick={() => handleCreateFlow('receipt')}
-                  disabled={loadingLinks || formData.docstatus !== 1}
-                  className="px-4 py-2 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 rounded-xl text-[11px] font-black transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-50 disabled:hover:text-slate-700"
-                  title={formData.docstatus !== 1 ? "⚠️ Submit this PO first to create a Receipt" : "Create Purchase Receipt"}
-                >
-                  <Plus size={14} className="opacity-60" /> Create Receipt
-                  {formData.docstatus !== 1 && <span style={{ fontSize: '0.6rem', marginLeft: '2px', opacity: 0.5 }}>🔒</span>}
-                </button>
-                <button
-                  onClick={() => handleCreateFlow('invoice')}
-                  disabled={loadingLinks || formData.docstatus !== 1}
-                  className="px-4 py-2 bg-slate-50 hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-200 hover:border-sky-200 rounded-xl text-[11px] font-black transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-50 disabled:hover:text-slate-700"
-                  title={formData.docstatus !== 1 ? "⚠️ Submit this PO first to create an Invoice" : "Create Purchase Invoice"}
-                >
-                  <Plus size={14} className="opacity-60" /> Create Invoice
-                  {formData.docstatus !== 1 && <span style={{ fontSize: '0.6rem', marginLeft: '2px', opacity: 0.5 }}>🔒</span>}
-                </button>
-
-                <button
-                  onClick={() => handleCreateFlow('both')}
-                  disabled={loadingLinks || formData.docstatus !== 1}
-                  className="px-4 py-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-xl text-[11px] font-black transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-indigo-50 disabled:hover:text-indigo-700"
-                  title={formData.docstatus !== 1 ? "⚠️ Submit this PO first" : "Create Both PR & PI directly (OneClick)"}
-                >
-                  <Zap size={14} className={formData.docstatus === 1 ? "fill-indigo-600 group-hover:fill-white" : "opacity-60"} /> OneClick PR & PI
-                  {formData.docstatus !== 1 && <span style={{ fontSize: '0.6rem', marginLeft: '2px', opacity: 0.5 }}>🔒</span>}
-                </button>
-
-                <div className="w-px h-8 bg-slate-100 mx-1" />
-
-                {/* Linked Badges — now with draft status + Submit button */}
-                {linkedDocs.Purchase_Receipt?.map(pr => {
-                  const s = linkedDocStatuses[pr];
-                  const isSubmitted = s?.docstatus === 1;
-                  return (
-                    <div key={pr} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: isSubmitted ? '#f0fdf4' : '#fffbeb', border: `1px solid ${isSubmitted ? '#bbf7d0' : '#fde68a'}`, borderRadius: '0.75rem', fontSize: '0.7rem', fontWeight: 800 }}>
-                      <Box size={13} style={{ color: isSubmitted ? '#16a34a' : '#d97706', opacity: 0.7 }} />
-                      <span style={{ color: isSubmitted ? '#15803d' : '#92400e' }}>PR: {pr}</span>
-                      <span style={{ padding: '1px 6px', borderRadius: '9999px', background: isSubmitted ? '#dcfce7' : '#fef3c7', color: isSubmitted ? '#16a34a' : '#b45309', fontSize: '0.6rem', fontWeight: 900 }}>
-                        {isSubmitted ? '✓ Submitted' : '⏳ Draft'}
-                      </span>
-                      {!isSubmitted && (
-                        <button onClick={() => handleSubmitDoc(pr, 'Purchase Receipt')} style={{ marginLeft: '0.25rem', padding: '2px 8px', background: '#16a34a', color: '#fff', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 900 }}>
-                          Submit
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-                {linkedDocs.Purchase_Invoice?.map(pi => {
-                  const s = linkedDocStatuses[pi];
-                  const isSubmitted = s?.docstatus === 1;
-                  return (
-                    <div key={pi} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: isSubmitted ? '#f0f9ff' : '#fffbeb', border: `1px solid ${isSubmitted ? '#bae6fd' : '#fde68a'}`, borderRadius: '0.75rem', fontSize: '0.7rem', fontWeight: 800 }}>
-                      <FileText size={13} style={{ color: isSubmitted ? '#0284c7' : '#d97706', opacity: 0.7 }} />
-                      <span style={{ color: isSubmitted ? '#0369a1' : '#92400e' }}>PI: {pi}</span>
-                      <span style={{ padding: '1px 6px', borderRadius: '9999px', background: isSubmitted ? '#e0f2fe' : '#fef3c7', color: isSubmitted ? '#0284c7' : '#b45309', fontSize: '0.6rem', fontWeight: 900 }}>
-                        {isSubmitted ? '✓ Submitted' : '⏳ Draft'}
-                      </span>
-                      {!isSubmitted && (
-                        <button onClick={() => handleSubmitDoc(pi, 'Purchase Invoice')} style={{ marginLeft: '0.25rem', padding: '2px 8px', background: '#0284c7', color: '#fff', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 900 }}>
-                          Submit
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {(!linkedDocs.Purchase_Receipt?.length && !linkedDocs.Purchase_Invoice?.length) && !loadingLinks && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[11px] font-bold italic border border-slate-100">
-                    No linked documents found
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
           {error && (
             <div className="mb-6 bg-red-50 border border-red-100 rounded-lg p-4 flex items-center gap-3 animate-fadeIn">
               <AlertCircle className="w-5 h-5 text-red-500" />
@@ -1287,16 +1123,29 @@ function PurchaseOrder() {
 
           {success && (
             <div className="mb-8 border-l-4 border-[var(--po-primary)] bg-white shadow-sm p-6 animate-fadeIn">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-6">
-                  <div className="flex items-center gap-4">
-                    <CheckCircle2 className="w-6 h-6 text-[var(--po-primary)]" />
-                    <div>
-                      <h4 className="text-base font-bold text-slate-900 leading-tight">{success}</h4>
-                      <p className="text-xs text-slate-500 font-medium mt-1">Transaction processed successfully</p>
-                    </div>
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <CheckCircle2 className="w-6 h-6 text-[var(--po-primary)]" />
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 leading-tight">{success}</h4>
+                    <p className="text-xs text-slate-500 font-medium mt-1">Transaction processed successfully</p>
                   </div>
                 </div>
+
+                {!createdDocName && formData.docstatus === 1 && (
+                  <div className="flex gap-3">
+                    <button onClick={() => handleCreateFlow('both')} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 active:translate-y-0.5 flex items-center gap-2">
+                      <Zap size={14} className="fill-white" /> Create PR & PI (OneClick)
+                    </button>
+                    <div className="w-[1px] h-10 bg-slate-200 mx-1"></div>
+                    <button onClick={() => handleCreateFlow('receipt')} className="px-4 py-2 bg-[var(--po-primary-light)] text-[var(--po-primary)] border border-[var(--po-primary-light)] rounded-lg text-xs font-bold uppercase hover:bg-[var(--po-primary)] hover:text-white transition-all">
+                      Create Receipt
+                    </button>
+                    <button onClick={() => handleCreateFlow('invoice')} className="px-4 py-2 bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-xs font-bold uppercase hover:bg-slate-900 hover:text-white transition-all">
+                      Create Invoice
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1479,13 +1328,6 @@ function PurchaseOrder() {
                         <th className="purchase-th w-[100px] text-center">Qty</th>
                         <th className="purchase-th w-[80px] text-center">UOM</th>
                         <th className="purchase-th w-[140px] text-center">Rate</th>
-                        {formData.docstatus === 1 && (
-                          <>
-                            <th className="purchase-th w-[100px] text-center bg-emerald-50 text-emerald-700 border-x border-emerald-100">Accepted</th>
-                            <th className="purchase-th w-[100px] text-center bg-rose-50 text-rose-700 border-x border-rose-100">Rejected</th>
-                            <th className="purchase-th w-[140px] text-center bg-slate-50">Rej. Wh</th>
-                          </>
-                        )}
                         <th className="purchase-th w-[170px] text-center !pr-3">Subtotal</th>
                         <th className="purchase-th w-[50px]"></th>
                       </tr>
@@ -1560,13 +1402,13 @@ function PurchaseOrder() {
                               {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
                                 <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
                                   {allItems.map((it, i) => (
-                                    <div
-                                      key={it.item_code}
-                                      onMouseDown={(e) => {
+                                    <div 
+                                      key={it.item_code} 
+                                      onMouseDown={(e) => { 
                                         e.preventDefault(); // Prevent blur
-                                        handleItemSelect(it, idx);
-                                        setActiveDropdownRow(null);
-                                      }}
+                                        handleItemSelect(it, idx); 
+                                        setActiveDropdownRow(null); 
+                                      }} 
                                       className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
                                     >
                                       <div className="flex justify-between items-center gap-3">
@@ -1603,19 +1445,6 @@ function PurchaseOrder() {
                           <td className="purchase-td text-right !text-center">
                             <input type="number" name="rate" step="0.01" value={item.rate ?? ''} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center" />
                           </td>
-                          {formData.docstatus === 1 && (
-                            <>
-                              <td className="purchase-td !bg-emerald-50/30 border-x border-emerald-50">
-                                <input type="number" name="received_qty" value={item.received_qty ?? item.qty} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-emerald-600 bg-transparent outline-none" />
-                              </td>
-                              <td className="purchase-td !bg-rose-50/30 border-x border-rose-50">
-                                <input type="number" name="rejected_qty" value={item.rejected_qty ?? 0} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-rose-600 bg-transparent outline-none" />
-                              </td>
-                              <td className="purchase-td !bg-slate-50/30">
-                                <input type="text" name="rejected_warehouse" value={item.rejected_warehouse ?? ''} onChange={(e) => handleInputChange(e, idx)} placeholder="Rej Wh..." className="w-full text-[10px] text-center bg-transparent outline-none" title="Warehouse for rejected items" />
-                              </td>
-                            </>
-                          )}
                           <td className="purchase-td text-right !pr-5 !text-center">
                             <span className="text-xs font-bold text-slate-900 tabular-nums">
                               {Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: item.amount % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}
@@ -1744,3 +1573,4 @@ function PurchaseOrder() {
 }
 
 export default PurchaseOrder;
+

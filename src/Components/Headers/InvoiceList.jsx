@@ -88,7 +88,7 @@ function InvoiceList() {
             if (navigator.onLine) {
                 const session = getSession();
                 const response = await fetch(
-                    "/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices",
+                    "/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices?limit=2000&limit_page_length=2000",
                     {
                         method: "GET",
                         headers: { "X-Frappe-SID": session },
@@ -116,7 +116,7 @@ function InvoiceList() {
 
     useEffect(() => {
         loadData();
-        const interval = setInterval(loadData, 30000); 
+        const interval = setInterval(loadData, 30000);
         return () => clearInterval(interval);
     }, []);
 
@@ -462,4 +462,4 @@ function InvoiceList() {
     );
 }
 
-export default InvoiceList;
+export default InvoiceList;

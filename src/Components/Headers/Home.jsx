@@ -35,6 +35,7 @@ function Home() {
   const posProfile = useSelector((state) => state.user.posProfile);
   const warehouse = useSelector((state) => state.user.warehouse);
   const branchPrefix = useSelector((state) => state.user.branchPrefix);
+  const isManager = useSelector((state) => state.user.is_manager);
   const loading = useSelector((state) => state.user.loading || false);
 
   const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
@@ -251,8 +252,8 @@ function Home() {
       navigate('/');
       return;
     }
-    if (!posOpeningEntry) setShowOpeningModal(true);
-  }, [user, session, posOpeningEntry, navigate]);
+    if (!posOpeningEntry && !isManager) setShowOpeningModal(true);
+  }, [user, session, posOpeningEntry, isManager, navigate]);
 
   const handleOpeningSuccess = (entryId) => {
     localStorage.setItem('posOpeningEntry', entryId);

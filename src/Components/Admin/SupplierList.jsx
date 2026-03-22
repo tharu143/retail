@@ -1,31 +1,32 @@
-import React, { useState, useEffect } from 'react';
+// src/Components/Admin/SupplierList.jsx
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Plus, ChevronDown, Search, Save, X, Loader2, Filter, MoreVertical, Edit2, Trash2, Palette, Building2, ChevronLeft, ChevronRight
+  Plus, Search, X, Save, Upload, Building2, ChevronLeft,
+  Users, AlertCircle, Trash2, Edit2,
+  ChevronDown, Palette, Loader2, ChevronRight,
+  ShoppingCart, Receipt, CreditCard, Tag, MapPin, Phone, Mail
 } from 'lucide-react';
+import axios from 'axios';
 import NavBar from '../Nav/NavBar';
-import '../Admin/SalesOrder.css';
 
-function SupplierList() {
+/* ==================== UI HELPERS ==================== */
+const StatusBadge = ({ isInactive, themeColor }) => (
+  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm" style={{
+    backgroundColor: !isInactive ? `${themeColor}15` : '#fee2e2',
+    color: !isInactive ? themeColor : '#ef4444',
+    border: `1px solid ${!isInactive ? `${themeColor}30` : '#fecaca'}`
+  }}>
+    {!isInactive ? 'Active' : 'Inactive'}
+  </span>
+);
+
+export default function SupplierList() {
   const [suppliers, setSuppliers] = useState([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
-  const [filterName, setFilterName] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingSupplierId, setEditingSupplierId] = useState('');
-  const [form, setForm] = useState({
-    supplier_name: '',
-    supplier_type: 'Company',
-    supplier_primary_address: '',
-    supplier_primary_contact: ''
-  });
-  const [saving, setSaving] = useState(false);
-  const [selectedSuppliers, setSelectedSuppliers] = useState(new Set());
-  const [showActionsDropdown, setShowActionsDropdown] = useState(null);
 
-  // Theme toggle (synced across pages)
+  // Theme toggle
   const [slTheme, setSlTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
   const isGreen = slTheme === 'green';
   const themeColor = isGreen ? '#10b981' : '#0ea5e9';
@@ -39,508 +40,471 @@ function SupplierList() {
     document.documentElement.style.setProperty('--so-primary-light', themeLight);
   }, [slTheme, themeColor, themeColorHover, themeLight]);
 
-  const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
-  const getSession = () => localStorage.getItem('session') || '';
+  // Filters
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterGroup, setFilterGroup] = useState('');
+  const [filterType, setFilterType] = useState('');
 
+  // Form states
+  const [showForm, setShowForm] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [editingSupplierName, setEditingSupplierName] = useState(null);
+
+  const [form, setForm] = useState({
+    supplier_name: '',
+    supplier_group: '',
+    supplier_type: 'Company',
+    disabled: false,
+    image: null,
+    imagePreview: null,
+    tax_id: '',
+    website: '',
+    email_id: '',
+    mobile_no: '',
+    address: ''
+  });
+
+  const [saving, setSaving] = useState(false);
+
+  // Dashboard states
+  const [activeTab, setActiveTab] = useState('Dashboard'); // Dashboard, General, Connections
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [expandedLinks, setExpandedLinks] = useState({});
+  const toggleLinkExpansion = (key) => setExpandedLinks(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const [supplierGroups, setSupplierGroups] = useState(['Distributor', 'Manufacturer', 'Service Provider', 'Wholesaler']);
+
+  /* ==================== FETCH DATA ==================== */
   useEffect(() => {
     fetchSuppliers();
-  }, [currentPage, pageSize, filterName]);
+  }, []);
 
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const start = (currentPage - 1) * pageSize;
-      const params = new URLSearchParams({
-        start: start.toString(),
-        page_size: pageSize.toString(),
-        ...(filterName && { search: filterName })
+      const res = await axios.get('/api/resource/Supplier', {
+        params: {
+          fields: JSON.stringify(['name', 'supplier_name', 'supplier_group', 'supplier_type', 'disabled', 'image']),
+          order_by: 'supplier_name asc',
+          limit_page_length: 1000
+        },
+        withCredentials: true
       });
-
-      const res = await fetch(`${API_PATH}.get_suppliers?${params.toString()}`, {
-        headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include'
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const { suppliers: rawSuppliers, total: totalCount } = data.message || { suppliers: [], total: 0 };
-
-      setSuppliers(rawSuppliers.map(s => ({
-        value: s.name,
-        label: s.supplier_name || s.name
-      })));
-      setTotal(totalCount);
+      setSuppliers(res.data.data || []);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load suppliers:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchSupplierForEdit = async (name) => {
+  const fetchDashboardDetails = async (supplierName) => {
     try {
-      const res = await fetch(`${API_PATH}.get_supplier?name=${name}`, {
-        headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include'
+      setLoadingDashboard(true);
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_supplier_dashboard_details', {
+        params: { supplier: supplierName },
+        withCredentials: true
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const msg = data.message;
-      if (msg.status === 'success') {
-        setForm({
-          supplier_name: msg.supplier_name,
-          supplier_type: msg.supplier_type,
-          supplier_primary_address: msg.primary_address ? `${msg.primary_address.address_line1}, ${msg.primary_address.city}` : '',
-          supplier_primary_contact: msg.primary_contact ? (msg.primary_contact.email_id || msg.primary_contact.phone || '') : ''
-        });
-        setEditingSupplierId(name);
-        setIsEditMode(true);
-        setShowForm(true);
-      } else {
-        alert(msg.message || 'Failed to load supplier');
-      }
+      const connRes = await axios.get(`/api/method/kyle_retail.retail_api.api.get_linked_documents?doctype=Supplier&name=${supplierName}`, { withCredentials: true });
+
+      setDashboardData({
+        ...(res.data.message || {}),
+        connections: connRes.data?.message || null
+      });
     } catch (err) {
-      alert('Failed to load supplier');
-      console.error(err);
+      console.error('Dashboard Error:', err);
+      setDashboardData({});
+    } finally {
+      setLoadingDashboard(false);
     }
   };
 
-  const totalPages = Math.ceil(total / pageSize);
+  const fetchSupplierDetails = async (name) => {
+    try {
+      const res = await axios.get(`/api/resource/Supplier/${name}`, {
+        withCredentials: true
+      });
+      const data = res.data.data;
+      setForm({
+        supplier_name: data.supplier_name,
+        supplier_group: data.supplier_group,
+        supplier_type: data.supplier_type,
+        disabled: data.disabled === 1,
+        tax_id: data.tax_id || '',
+        website: data.website || '',
+        email_id: data.email_id || '',
+        mobile_no: data.mobile_no || '',
+        address: data.address || '',
+        image: null,
+        imagePreview: data.image
+      });
+    } catch (err) {
+      console.error('Failed to load details:', err);
+    }
+  };
 
+  /* ==================== FILTERING ==================== */
+  const filteredSuppliers = useMemo(() => {
+    return suppliers.filter(s => {
+      const matchesSearch = !filterSearch ||
+        s.supplier_name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+        s.name.toLowerCase().includes(filterSearch.toLowerCase());
+      const matchesGroup = !filterGroup || s.supplier_group === filterGroup;
+      const matchesType = !filterType || s.supplier_type === filterType;
+      return matchesSearch && matchesGroup && matchesType;
+    });
+  }, [suppliers, filterSearch, filterGroup, filterType]);
+
+  const total = filteredSuppliers.length;
+  const paginatedSuppliers = filteredSuppliers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  /* ==================== ACTIONS ==================== */
   const handleSave = async () => {
-    if (!form.supplier_name.trim()) {
-      alert('Supplier Name is required.');
+    if (!form.supplier_name.trim() || !form.supplier_group) {
+      alert('Missing required fields');
       return;
     }
 
     setSaving(true);
     try {
-      let res;
+      const data = {
+        supplier_name: form.supplier_name,
+        supplier_group: form.supplier_group,
+        supplier_type: form.supplier_type,
+        disabled: form.disabled ? 1 : 0,
+        tax_id: form.tax_id,
+        website: form.website,
+        email_id: form.email_id,
+        mobile_no: form.mobile_no,
+        image: form.image || form.imagePreview || ''
+      };
+
       if (isEditMode) {
-        res = await fetch(`${API_PATH}.update_supplier`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
-          credentials: 'include',
-          body: JSON.stringify({ name: editingSupplierId, ...form })
-        });
+        await axios.put(`/api/resource/Supplier/${editingSupplierName}`, data, { withCredentials: true });
+        alert('Supplier updated!');
       } else {
-        res = await fetch(`${API_PATH}.create_supplier`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
-          credentials: 'include',
-          body: JSON.stringify(form)
-        });
+        await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc', { doctype: "Supplier", data }, { withCredentials: true });
+        alert('Supplier created!');
       }
-
-      const result = await res.json();
-
-      if (result.message?.status === 'success') {
-        setShowForm(false);
-        setIsEditMode(false);
-        setEditingSupplierId('');
-        setForm({ supplier_name: '', supplier_type: 'Company', supplier_primary_address: '', supplier_primary_contact: '' });
-        setCurrentPage(1);
-        setFilterName('');
-        await fetchSuppliers();
-      } else {
-        alert(result.message?.message || (isEditMode ? 'Failed to update supplier' : 'Failed to create supplier'));
-      }
+      setShowForm(false); resetForm(); fetchSuppliers();
     } catch (err) {
-      alert(isEditMode ? 'Failed to update supplier' : 'Failed to create supplier');
-      console.error(err);
+      alert(err.response?.data?.message || 'Save failed');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (namesToDelete = null) => {
-    const names = namesToDelete || Array.from(selectedSuppliers);
-    if (names.length === 0) { alert('No supplier selected.'); return; }
-    if (!confirm(`Delete ${names.length} supplier(s)? This cannot be undone.`)) return;
-
+  const handleDelete = async (name) => {
+    if (!window.confirm(`Are you sure you want to delete ${name}?`)) return;
     try {
-      const res = await fetch(`${API_PATH}.delete_supplier`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
-        credentials: 'include',
-        body: JSON.stringify({ names })
-      });
-      const result = await res.json();
-      if (result.message?.status === 'success') {
-        setSelectedSuppliers(new Set());
-        if (currentPage > 1 && suppliers.length <= names.length) setCurrentPage(currentPage - 1);
-        await fetchSuppliers();
-      } else {
-        alert(result.message?.message || 'Failed to delete supplier(s)');
-      }
+      await axios.delete(`/api/resource/Supplier/${name}`, { withCredentials: true });
+      alert('Supplier deleted'); setShowForm(false); fetchSuppliers();
     } catch (err) {
-      alert('Failed to delete supplier(s)');
-      console.error(err);
+      alert('Delete failed');
     }
   };
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedSuppliers(new Set(suppliers.map(s => s.value)));
-    } else {
-      setSelectedSuppliers(new Set());
-    }
+  const handleRowClick = async (supplier) => {
+    setIsViewMode(true); setIsEditMode(false); setEditingSupplierName(supplier.name);
+    setShowForm(true); setActiveTab('Dashboard');
+    await fetchSupplierDetails(supplier.name); fetchDashboardDetails(supplier.name);
   };
 
-  const handleSelectSupplier = (value) => {
-    const newSelected = new Set(selectedSuppliers);
-    if (newSelected.has(value)) { newSelected.delete(value); } else { newSelected.add(value); }
-    setSelectedSuppliers(newSelected);
+  const resetForm = () => {
+    setForm({
+      supplier_name: '', supplier_group: '', supplier_type: 'Company',
+      disabled: false, image: null, imagePreview: null,
+      tax_id: '', website: '', email_id: '', mobile_no: '', address: ''
+    });
+    setIsEditMode(false); setIsViewMode(false); setEditingSupplierName(null);
   };
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    setSelectedSuppliers(new Set());
+  const handleCloseForm = () => {
+    setShowForm(false); resetForm();
   };
 
-  const toggleActions = (value) => {
-    setShowActionsDropdown(showActionsDropdown === value ? null : value);
+  const clearFilters = () => {
+    setFilterSearch(''); setFilterGroup(''); setFilterType(''); setCurrentPage(1);
   };
 
-  useEffect(() => {
-    const handleClickOutside = () => setShowActionsDropdown(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-
+  /* ==================== RENDER ==================== */
   return (
     <>
       <NavBar />
       <div className="so-page">
-        {/* Page Header */}
         <div className="so-page-header">
-          <div>
-            <h1 className="so-page-title">
-              <Building2 size={20} /> Suppliers
-            </h1>
-            <p className="so-page-subtitle">Manage and track all suppliers</p>
+          <div className="so-page-left">
+            <h1 className="so-page-title"><Building2 size={20} /> Suppliers</h1>
+            <p className="so-page-subtitle">{total} supplier(s) found</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Theme Toggle */}
-            <button
-              onClick={() => setSlTheme(isGreen ? 'blue' : 'green')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.45rem 0.9rem', background: '#f8fafc',
-                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                cursor: 'pointer', transition: 'all 0.2s',
-                textTransform: 'uppercase', letterSpacing: '0.04em'
-              }}
-              title="Toggle Theme"
-            >
-              <Palette size={13} />
-              {slTheme.toUpperCase()}
+            <button onClick={() => setSlTheme(isGreen ? 'blue' : 'green')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', background: '#f8fafc', border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700, color: themeColor, cursor: 'pointer' }}>
+              <Palette size={13} /> {slTheme.toUpperCase()}
             </button>
-
-            {/* Delete Selected */}
-            {selectedSuppliers.size > 0 && (
-              <button
-                className="so-btn-secondary"
-                onClick={() => handleDelete()}
-                style={{ color: '#ef4444', borderColor: '#ef4444' }}
-              >
-                <Trash2 size={14} /> Delete ({selectedSuppliers.size})
-              </button>
-            )}
-
-            <button
-              className="so-btn-primary"
-              onClick={() => {
-                setIsEditMode(false);
-                setEditingSupplierId('');
-                setForm({ supplier_name: '', supplier_type: 'Company', supplier_primary_address: '', supplier_primary_contact: '' });
-                setShowForm(true);
-              }}
-            >
-              <Plus size={16} /> Add Supplier
-            </button>
+            <button onClick={() => { resetForm(); setShowForm(true); }} className="so-btn-primary"><Plus size={16} /> Add Supplier</button>
           </div>
         </div>
 
         <div className="so-layout" style={{ flexDirection: 'column' }}>
-          {/* Top Filters Bar */}
-          <div className="so-filter-bar" style={{ 
-            background: 'white', 
-            padding: '1.25rem 2rem', 
-            borderBottom: '1px solid var(--so-border)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '1.25rem',
-            alignItems: 'flex-end'
-          }}>
-            <div style={{ flex: '1 1 300px' }}>
-              <label className="so-filter-label">Search by Name</label>
-              <input
-                className="so-filter-input"
-                type="text"
-                value={filterName}
-                onChange={e => { setFilterName(e.target.value); setCurrentPage(1); }}
-                placeholder="Filter by name..."
-              />
+          <div className="so-filter-bar" style={{ background: 'white', padding: '1.25rem 2rem', borderBottom: '1px solid var(--so-border)', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end' }}>
+            <div style={{ flex: '1 1 250px' }}>
+              <label className="so-filter-label">Search Supplier</label>
+              <input type="text" placeholder="Name or ID..." value={filterSearch} onChange={e => { setFilterSearch(e.target.value); setCurrentPage(1); }} className="so-filter-input" />
             </div>
-            
-            <button
-              className="so-clear-btn"
-              onClick={() => { setFilterName(''); setCurrentPage(1); }}
-              style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1.5rem' }}
-            >
-              Clear Filters
-            </button>
+            <div style={{ flex: '1 1 180px' }}>
+              <label className="so-filter-label">Group</label>
+              <select value={filterGroup} onChange={e => { setFilterGroup(e.target.value); setCurrentPage(1); }} className="so-filter-input">
+                <option value="">All Groups</option>
+                {supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: '1 1 180px' }}>
+              <label className="so-filter-label">Type</label>
+              <select value={filterType} onChange={e => { setFilterType(e.target.value); setCurrentPage(1); }} className="so-filter-input">
+                <option value="">All Types</option>
+                <option value="Company">Company</option>
+                <option value="Individual">Individual</option>
+              </select>
+            </div>
+            <button onClick={clearFilters} className="so-clear-btn" style={{ height: '38px', margin: 0 }}>Clear</button>
           </div>
 
-          {/* Main Content */}
-          <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
-            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>
-              {selectedSuppliers.size > 0
-                ? `${selectedSuppliers.size} selected of ${total}`
-                : `${total} record(s) found`}
-            </p>
-            <div className="so-table-card">
-              <div className="so-table-wrapper">
+          <div className="so-content" style={{ padding: '2rem' }}>
+            {loading ? (
+              <div style={{ padding: '8rem 0', textAlign: 'center' }}>
+                <Loader2 size={40} className="so-spinner" style={{ margin: '0 auto', color: themeColor }} />
+                <p style={{ marginTop: '1.5rem', color: '#64748b', fontWeight: 600 }}>Gathering supplier data...</p>
+              </div>
+            ) : paginatedSuppliers.length === 0 ? (
+              <div style={{ padding: '8rem 0', textAlign: 'center', background: 'white', borderRadius: '1.5rem', border: '2px dashed #e2e8f0' }}>
+                <Building2 size={64} style={{ margin: '0 auto 1.5rem', opacity: 0.1, color: themeColor }} />
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>No suppliers found</h3>
+              </div>
+            ) : (
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '1rem', background: 'white', overflow: 'hidden' }}>
                 <table className="so-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }}>
-                        <input
-                          type="checkbox"
-                          checked={suppliers.length > 0 && selectedSuppliers.size === suppliers.length}
-                          onChange={handleSelectAll}
-                        />
-                      </th>
-                      <th>Supplier Name</th>
-                      <th style={{ width: '60px' }}></th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th style={{ padding: '1.25rem 2rem' }}>Supplier Name</th><th>Group</th><th>Type</th><th>Status</th><th style={{ textAlign: 'right', paddingRight: '2rem' }}>ID</th></tr></thead>
                   <tbody>
-                    {loading ? (
-                      <tr>
-                        <td colSpan="3" className="so-empty">
-                          <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
-                        </td>
-                      </tr>
-                    ) : suppliers.length === 0 ? (
-                      <tr>
-                        <td colSpan="3" className="so-empty">
-                          <Building2 size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
-                          <p>{filterName ? 'No suppliers found' : 'No suppliers yet'}</p>
-                          {filterName && (
-                            <button
-                              onClick={() => setFilterName('')}
-                              style={{ marginTop: '0.5rem', color: themeColor, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
-                            >
-                              Clear filter
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ) : (
-                      suppliers.map(s => (
-                        <tr key={s.value}>
-                          <td onClick={e => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={selectedSuppliers.has(s.value)}
-                              onChange={() => handleSelectSupplier(s.value)}
-                            />
-                          </td>
-                          <td style={{ fontWeight: 600 }}>
-                            <a
-                              href={`#/supplier/${s.value}`}
-                              style={{ color: themeColor, textDecoration: 'none', fontWeight: 700 }}
-                            >
-                              {s.label}
-                            </a>
-                          </td>
-                          <td onClick={e => e.stopPropagation()}>
-                            <div style={{ position: 'relative' }}>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); toggleActions(s.value); }}
-                                style={{
-                                  background: 'none', border: 'none', cursor: 'pointer',
-                                  padding: '0.25rem', borderRadius: '0.25rem',
-                                  color: '#64748b', display: 'flex', alignItems: 'center'
-                                }}
-                              >
-                                <MoreVertical size={16} />
-                              </button>
-                              {showActionsDropdown === s.value && (
-                                <div style={{
-                                  position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)',
-                                  zIndex: 50, background: '#fff', border: '1px solid var(--so-border)',
-                                  borderRadius: '0.5rem', boxShadow: 'var(--so-shadow)',
-                                  minWidth: '130px', overflow: 'hidden'
-                                }}>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); fetchSupplierForEdit(s.value); setShowActionsDropdown(null); }}
-                                    style={{
-                                      width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                      padding: '0.6rem 1rem', background: 'none', border: 'none',
-                                      cursor: 'pointer', fontSize: '0.85rem', color: '#1e293b'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--so-primary-light)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                  >
-                                    <Edit2 size={13} /> Edit
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleDelete([s.value]); setShowActionsDropdown(null); }}
-                                    style={{
-                                      width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                      padding: '0.6rem 1rem', background: 'none', border: 'none',
-                                      cursor: 'pointer', fontSize: '0.85rem', color: '#ef4444'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                  >
-                                    <Trash2 size={13} /> Delete
-                                  </button>
-                                </div>
-                              )}
+                    {paginatedSuppliers.map(s => (
+                      <tr key={s.name} onClick={() => handleRowClick(s)} style={{ cursor: 'pointer' }}>
+                        <td style={{ padding: '1.25rem 2rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ width: '40px', height: '40px', background: '#f1f5f9', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                              {s.image ? <img src={s.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Building2 size={20} style={{ color: '#94a3b8' }} />}
                             </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                            <span style={{ fontWeight: 800, color: '#1e293b' }}>{s.supplier_name}</span>
+                          </div>
+                        </td>
+                        <td style={{ fontWeight: 600, color: '#475569' }}>{s.supplier_group}</td>
+                        <td style={{ fontWeight: 600, color: '#475569' }}>{s.supplier_type}</td>
+                        <td><StatusBadge isInactive={s.disabled} themeColor={themeColor} /></td>
+                        <td style={{ textAlign: 'right', paddingRight: '2rem', fontFamily: 'monospace', color: '#64748b', fontWeight: 700 }}>{s.name}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
+            )}
 
-              {/* Pagination */}
-              {!loading && total > 0 && (
-                <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
-                    Showing {total === 0 ? 0 : Math.min((currentPage - 1) * pageSize + 1, total)}–{Math.min(currentPage * pageSize, total)} of {total}
-                  </span>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
-                      {[20, 100, 500].map(size => (
-                        <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); setSelectedSuppliers(new Set()); }} className={`so-page-btn ${pageSize === size ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{size}</button>
-                      ))}
-                    </div>
-                    
-                    <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <button className="so-page-btn" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
-                      <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages || 1}</span>
-                      <button className="so-page-btn" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages}><ChevronRight size={14} /></button>
-                    </div>
-                  </div>
+            {!loading && total > 0 && (
+              <div className="so-pagination" style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Page {currentPage} of {Math.ceil(total / pageSize)}</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="so-page-btn" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><ChevronLeft size={16} /></button>
+                  <button className="so-page-btn" disabled={currentPage >= Math.ceil(total / pageSize)} onClick={() => setCurrentPage(p => p + 1)}><ChevronRight size={16} /></button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* ────── ADD / EDIT SUPPLIER MODAL ────── */}
-        {showForm && (
-          <div
-            className="so-modal-overlay"
-            onClick={e => e.target === e.currentTarget && (setShowForm(false), setIsEditMode(false), setEditingSupplierId(''))}
-          >
-            <div className="so-modal" style={{ maxWidth: '560px' }}>
-              <div className="so-modal-header">
-                <h2 className="so-modal-title">
-                  <Building2 size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
-                  {isEditMode ? 'Edit Supplier' : 'New Supplier'}
-                </h2>
-                <button
-                  className="so-modal-close"
-                  onClick={() => { setShowForm(false); setIsEditMode(false); setEditingSupplierId(''); setForm({ supplier_name: '', supplier_type: 'Company', supplier_primary_address: '', supplier_primary_contact: '' }); }}
-                >
-                  <X size={20} />
-                </button>
+      {showForm && (
+        <div className="so-full-screen-view" style={{ position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', animation: 'soModalIn 0.3s ease-out' }}>
+          <div className="so-modal-header" style={{ padding: '1rem 2.5rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.6rem', borderRadius: '0.75rem' }}><ChevronLeft size={22} /></button>
+              <div>
+                <h2 className="so-modal-title" style={{ fontSize: '1.4rem', fontWeight: 900 }}>{isViewMode ? form.supplier_name : (isEditMode ? 'Edit Supplier Record' : 'Onboard New Supplier')}</h2>
+                {isViewMode && <p style={{ fontSize: '0.75rem', color: themeColor, fontWeight: 800, textTransform: 'uppercase' }}>{editingSupplierName}</p>}
               </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#fee2e2', color: '#ef4444', borderRadius: '0.75rem', padding: '0.6rem' }}><X size={22} /></button>
+            </div>
+          </div>
 
-              <div className="so-modal-body">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Supplier Name <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={form.supplier_name}
-                      onChange={e => setForm({ ...form, supplier_name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none"
-                      placeholder="Enter supplier name"
-                      autoFocus
-                    />
-                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>Enter the full name of the supplier</p>
+          <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', background: '#f8fafc', padding: '3.5rem' }}>
+            {isViewMode ? (
+              <div style={{ width: '100%', animation: 'fadeIn 0.5s ease' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '3.5rem', borderBottom: '2.5px solid #e2e8f0', marginBottom: '3.5rem', background: 'white', position: 'sticky', top: '-3.5rem', zIndex: 10, padding: '1rem 0' }}>
+                  {['Dashboard', 'General', 'Connections'].map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '1.25rem 2rem', fontWeight: 900, fontSize: '0.95rem', color: activeTab === tab ? themeColor : '#94a3b8', borderBottom: activeTab === tab ? `4px solid ${themeColor}` : '4px solid transparent', background: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px' }}>{tab}</button>
+                  ))}
+                </div>
+
+                <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 4rem' }}>
+                  {activeTab === 'Dashboard' && (
+                    <div style={{ animation: 'fadeIn 0.4s ease' }}>
+                      {loadingDashboard ? (
+                        <div style={{ padding: '10rem', textAlign: 'center' }}><Loader2 size={48} className="so-spinner" style={{ margin: '0 auto', color: themeColor }} /></div>
+                      ) : dashboardData?.connections ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
+                          {Object.entries(dashboardData.connections).map(([category, links]) => {
+                            const rows = [];
+                            if (typeof links === 'object' && links !== null) {
+                              Object.entries(links).forEach(([k, v]) => {
+                                if (Array.isArray(v)) {
+                                  rows.push({ label: k, data: v });
+                                } else if (typeof v === 'object' && v !== null) {
+                                  Object.entries(v).forEach(([k2, v2]) => {
+                                    if (Array.isArray(v2)) rows.push({ label: k2, data: v2 });
+                                  });
+                                }
+                              });
+                            }
+
+                            if (rows.length === 0) return null;
+
+                            return (
+                              <div key={category} className="so-card" style={{ borderRadius: '2rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', overflow: 'hidden' }}>
+                                <div className="so-card-header" style={{ padding: '1.25rem 2rem', background: '#f8fafc', borderBottom: `4px solid ${themeColor}20` }}>
+                                  <p className="so-card-title" style={{ fontWeight: 900, textTransform: 'uppercase', color: '#1e293b', fontSize: '0.85rem', letterSpacing: '1px' }}>{category}</p>
+                                </div>
+                                <div className="so-card-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                  {rows.map((row, idx) => {
+                                    const isExpanded = expandedLinks[row.label];
+                                    return (
+                                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <div onClick={() => toggleLinkExpansion(row.label)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.75rem', background: '#ffffff', borderRadius: '1.5rem', border: isExpanded ? `1.5px solid ${themeColor}` : '1px solid #f1f5f9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontWeight: 800, color: '#475569', fontSize: '0.9rem' }}>{row.label}</span>
+                                            {row.data[0]?.status && <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>Status: {row.data[0].status}</span>}
+                                          </div>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                            <span style={{ fontWeight: 900, color: themeColor, background: `${themeColor}10`, width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1rem', fontSize: '1.25rem' }}>
+                                              {row.data.length}
+                                            </span>
+                                            <ChevronDown size={18} style={{ color: '#94a3b8', transition: 'transform 0.3s', transform: isExpanded ? 'rotate(180deg)' : 'none' }} />
+                                          </div>
+                                        </div>
+                                        {isExpanded && (
+                                          <div style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderRadius: '1.25rem', border: '1px solid #e2e8f0', marginLeft: '1rem', animation: 'fadeIn 0.3s ease' }}>
+                                            {row.data.map((doc, dIdx) => (
+                                              <div key={dIdx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: dIdx < row.data.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: themeColor, fontFamily: 'monospace' }}>{doc.name || doc.item_code}</span>
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>{doc.status || ''}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{ padding: '8rem', textAlign: 'center' }}>No statistics available.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'General' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 450px', gap: '4rem', animation: 'fadeIn 0.4s ease' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+                        <div className="so-card" style={{ borderRadius: '2.5rem', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)' }}>
+                          <div className="so-card-header" style={{ padding: '2rem 3rem' }}><p className="so-card-title">Commercial & Legal Profile</p></div>
+                          <div className="so-card-body" style={{ padding: '3rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
+                              <div><label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>SUPPLIER GROUP</label><p style={{ fontWeight: 900, color: '#1e293b', fontSize: '1.25rem' }}>{form.supplier_group}</p></div>
+                              <div><label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>LEGAL TYPE</label><p style={{ fontWeight: 900, color: '#1e293b', fontSize: '1.25rem' }}>{form.supplier_type}</p></div>
+                              <div><label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>TAX ID (TRN)</label><p style={{ fontWeight: 900, color: '#1e293b', fontSize: '1.25rem' }}>{form.tax_id || 'NOT REGISTERED'}</p></div>
+                              <div><label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>ACCOUNT STATUS</label><StatusBadge isInactive={form.disabled} themeColor={themeColor} /></div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="so-card" style={{ borderRadius: '2.5rem', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)' }}>
+                          <div className="so-card-header" style={{ padding: '2rem 3rem' }}><p className="so-card-title">Communication Identity</p></div>
+                          <div className="so-card-body" style={{ padding: '3rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                                <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '1.5rem', border: '1px solid #f1f5f9' }}><Mail size={24} style={{ color: themeColor }} /></div>
+                                <div><p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8' }}>OPERATIONAL EMAIL</p><p style={{ fontWeight: 900, fontSize: '1.1rem', color: '#1e293b' }}>{form.email_id || 'NOT_SPECIFIED'}</p></div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                                <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '1.5rem', border: '1px solid #f1f5f9' }}><Phone size={24} style={{ color: themeColor }} /></div>
+                                <div><p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8' }}>DIRECT MOBILE</p><p style={{ fontWeight: 900, fontSize: '1.1rem', color: '#1e293b' }}>{form.mobile_no || 'NOT_SPECIFIED'}</p></div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                                <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '1.5rem', border: '1px solid #f1f5f9' }}><MapPin size={24} style={{ color: themeColor }} /></div>
+                                <div><p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8' }}>REGISTERED ADDRESS</p><p style={{ fontWeight: 900, fontSize: '1.1rem', color: '#1e293b' }}>{form.address || 'LOCAL_OFFICE'}</p></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+                        <div className="so-card" style={{ height: '450px', overflow: 'hidden', borderRadius: '3.5rem', boxShadow: '0 30px 60px -12px rgba(0,0,0,0.15)', border: '8px solid white' }}>
+                          {form.imagePreview ? <img src={form.imagePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9' }}><Building2 size={100} style={{ opacity: 0.1 }} /></div>}
+                        </div>
+                        <div style={{ display: 'grid', gap: '1.5rem' }}>
+                          <button onClick={() => { setIsViewMode(false); setIsEditMode(true); }} className="so-btn-primary" style={{ height: '5rem', borderRadius: '1.5rem', fontSize: '1.2rem', fontWeight: 900, justifyContent: 'center' }}><Edit2 size={24} /> Edit Partner Profile</button>
+                          <button onClick={() => handleDelete(editingSupplierName)} className="so-btn-danger" style={{ height: '5rem', borderRadius: '1.5rem', fontSize: '1.2rem', fontWeight: 900, justifyContent: 'center', background: '#fee2e2' }}><Trash2 size={24} /> Delete Partner</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'Connections' && (
+                    <div style={{ padding: '10rem', textAlign: 'center', background: 'white', borderRadius: '3rem', border: '3px dashed #e2e8f0' }}>
+                      <ShoppingCart size={80} style={{ margin: '0 auto 2rem', opacity: 0.05, color: themeColor }} />
+                      <p style={{ fontWeight: 900, color: '#94a3b8', fontSize: '1.5rem' }}>No Active Business Connections Found.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+                <div className="so-card" style={{ borderRadius: '2.5rem', marginBottom: '2.5rem' }}>
+                  <div className="so-card-header" style={{ padding: '1.5rem 3rem' }}><p className="so-card-title">Base Specifications</p></div>
+                  <div className="so-card-body" style={{ padding: '3rem' }}>
+                    <div className="so-form-grid" style={{ gap: '2rem' }}>
+                      <div className="so-field"><label className="so-label">Supplier Name *</label><input type="text" value={form.supplier_name} onChange={e => setForm({ ...form, supplier_name: e.target.value })} className="so-input" /></div>
+                      <div className="so-field"><label className="so-label">Supplier Group *</label><select value={form.supplier_group} onChange={e => setForm({ ...form, supplier_group: e.target.value })} className="so-input"><option value="">Select Group</option>{supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
+                      <div className="so-field"><label className="so-label">Entity Type</label><select value={form.supplier_type} onChange={e => setForm({ ...form, supplier_type: e.target.value })} className="so-input"><option value="Company">Company</option><option value="Individual">Individual</option></select></div>
+                      <div className="so-field"><label className="so-label">Tax TRN</label><input type="text" value={form.tax_id} onChange={e => setForm({ ...form, tax_id: e.target.value })} className="so-input" /></div>
+                    </div>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Supplier Type</label>
-                    <select
-                      value={form.supplier_type}
-                      onChange={e => setForm({ ...form, supplier_type: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none"
-                    >
-                      <option value="Company">Company</option>
-                      <option value="Individual">Individual</option>
-                      <option value="Partnership">Partnership</option>
-                      <option value="Proprietorship">Proprietorship</option>
-                    </select>
-                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>Select the type of supplier entity</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Primary Address</label>
-                    <input
-                      type="text"
-                      value={form.supplier_primary_address}
-                      onChange={e => setForm({ ...form, supplier_primary_address: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none"
-                      placeholder="e.g., 123 Main St, City"
-                    />
-                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>Enter the primary address of the supplier</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Primary Contact</label>
-                    <input
-                      type="text"
-                      value={form.supplier_primary_contact}
-                      onChange={e => setForm({ ...form, supplier_primary_contact: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none"
-                      placeholder="e.g., +1-123-456-7890 or email"
-                    />
-                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>Enter the primary contact details</p>
+                </div>
+                <div className="so-card" style={{ borderRadius: '2.5rem' }}>
+                  <div className="so-card-header" style={{ padding: '1.5rem 3rem' }}><p className="so-card-title">Location & Contact</p></div>
+                  <div className="so-card-body" style={{ padding: '3rem' }}>
+                    <div className="so-form-grid" style={{ gap: '2rem' }}>
+                      <div className="so-field"><label className="so-label">Email</label><input type="email" value={form.email_id} onChange={e => setForm({ ...form, email_id: e.target.value })} className="so-input" /></div>
+                      <div className="so-field"><label className="so-label">Mobile</label><input type="text" value={form.mobile_no} onChange={e => setForm({ ...form, mobile_no: e.target.value })} className="so-input" /></div>
+                      <div className="so-field" style={{ gridColumn: 'span 2' }}><label className="so-label">Full Address</label><textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="so-input" rows={3} style={{ minHeight: '120px' }} /></div>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <div className="so-modal-footer">
-                <button
-                  className="so-btn-secondary"
-                  onClick={() => { setShowForm(false); setIsEditMode(false); setEditingSupplierId(''); setForm({ supplier_name: '', supplier_type: 'Company', supplier_primary_address: '', supplier_primary_contact: '' }); }}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="so-btn-primary"
-                  onClick={handleSave}
-                  disabled={saving || !form.supplier_name.trim()}
-                  style={{ minWidth: '130px', opacity: (saving || !form.supplier_name.trim()) ? 0.5 : 1 }}
-                >
-                  {saving
-                    ? <><Loader2 size={14} className="so-spinner" /> {isEditMode ? 'Updating...' : 'Saving...'}</>
-                    : <><Save size={14} /> {isEditMode ? 'Update' : 'Save'}</>
-                  }
-                </button>
-              </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {!isViewMode && (
+            <div className="so-modal-footer" style={{ padding: '2rem 5rem', background: 'white', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '2rem' }}>
+              <button onClick={handleCloseForm} className="so-btn-secondary">Discard</button>
+              <button onClick={handleSave} disabled={saving} className="so-btn-primary" style={{ padding: '0 5rem', height: '4rem', fontSize: '1.1rem' }}>
+                {saving ? 'Processing...' : (isEditMode ? 'Commit Base Updates' : 'Authorize Partner')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
-
-export default SupplierList;
