@@ -20,6 +20,7 @@ const POItemModel = {
   amount: 0,
   custom_supplier_sl_num: '', // Legacy/Internal
   custom_ref_sl_no: '',       // NEW: REF / SL #
+  supplier_part_no: '',       // Standard ERPNext field
   custom_box_qty: 0,
   custom_pieces_per_box: 1,
   custom_box_price: 0,
@@ -75,6 +76,7 @@ function PurchaseOrder() {
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState({});
+  const [linkedCategories, setLinkedCategories] = useState({});
   const [linkedDocStatuses, setLinkedDocStatuses] = useState({});
   const [loadingLinks, setLoadingLinks] = useState(false);
   const videoRef = useRef(null);
@@ -174,6 +176,8 @@ function PurchaseOrder() {
             custom_pieces_per_box: piecesPerBox,
             custom_box_price: rate * piecesPerBox,
             custom_box_qty: 1,
+            custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
+            supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
             temp_barcode: ''
           };
         }
@@ -310,13 +314,13 @@ function PurchaseOrder() {
   const fetchDraftPOs = async () => {
     try {
       setLoadingDrafts(true);
-      const res = await fetch(`${RESOURCE_API}?filters=[["docstatus","=",0],["company","=","${encodeURIComponent(formData.company)}"]]&fields=["name","supplier","grand_total","transaction_date"]&order_by=creation desc&limit=20`, {
+      const res = await fetch(`${API_PATH}.get_purchase_orders?company=${encodeURIComponent(formData.company)}&docstatus=0`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Failed to fetch drafts');
       const data = await res.json();
-      setDrafts(data.data || []);
+      setDrafts(data.message || data.data || []);
     } catch (err) {
       console.error('Drafts fetch error:', err);
     } finally {
@@ -347,6 +351,9 @@ function PurchaseOrder() {
         items: (draft.items || []).map(it => ({
           ...POItemModel,
           ...it,
+          custom_ref_sl_no: it.custom_ref_sl_no || it.custom_supplier_sl_num || it.supplier_sl_no || '',
+          custom_supplier_sl_num: it.custom_supplier_sl_num || it.custom_ref_sl_no || it.supplier_sl_no || '',
+          supplier_part_no: it.supplier_part_no || it.custom_supplier_sl_num || '',
           custom_box_qty: parseFloat(it.custom_box_qty) || 0,
           custom_pieces_per_box: parseFloat(it.custom_pieces_per_box) || 1,
           custom_box_price: parseFloat(it.custom_box_price) || 0,
@@ -369,9 +376,10 @@ function PurchaseOrder() {
         naming_series: draft.naming_series || 'PO-'
       });
       setIsEditMode(true);
-      setIsViewOnly(true); // Default to View mode when loaded
+      // STRICT RULE: If submitted/cancelled, must be ViewOnly. If draft, default to view mode.
+      setIsViewOnly(true);
       setShowDraftsList(false);
-      setSuccess(`Record loaded: ${draftName}`);
+      // Removed setSuccess(`Record loaded: ${draftName}`); to avoid duplicate title
       fetchLinkedDocs(draftName);
     } catch (err) {
       setError(`Failed to load draft: ${err.message}`);
@@ -468,7 +476,7 @@ function PurchaseOrder() {
 
   const handleInputChange = (e, rowIndex = null) => {
     const { name, value } = e.target;
-    const val = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+    const val = value === '' ? '' : parseFloat(value) || 0;
 
     setFormData(prev => {
       const newState = { ...prev };
@@ -480,38 +488,34 @@ function PurchaseOrder() {
           item[name] = val === '' ? 0 : val;
           item.amount = (item.qty || 0) * (item.rate || 0);
 
-          // Sync box fields if relevant
+          // Sync box fields
           if (name === 'rate') {
             item.custom_box_price = parseFloat((item.rate * (item.custom_pieces_per_box || 1)).toFixed(2));
           } else {
             item.custom_box_qty = (item.custom_pieces_per_box > 0) ? Math.floor(item.qty / item.custom_pieces_per_box) : 0;
           }
-        } else if (['custom_box_qty', 'custom_pieces_per_box', 'custom_box_price', 'custom_selling_price', 'received_qty', 'rejected_qty'].includes(name)) {
-          // Task: Box Qty must always be a whole number
-          const finalVal = (name === 'custom_box_qty' || name === 'received_qty' || name === 'rejected_qty') ? Math.round(val) : parseFloat(parseFloat(val).toFixed(2));
-          item[name] = finalVal === '' ? 0 : finalVal;
-
-          if (name === 'custom_box_price') {
-            item.rate = parseFloat((item.custom_box_price / (item.custom_pieces_per_box || 1)).toFixed(2));
-          } else if (name === 'custom_box_qty') {
-            const boxQty = parseInt(val) || 0;
-            item.custom_box_qty = boxQty;
-            item.qty = parseFloat((boxQty * (item.custom_pieces_per_box || 1)).toFixed(2));
-            item.received_qty = item.qty; // Auto-sync received qty
-          } else if (name === 'custom_pieces_per_box') {
-            const pPerBox = parseFloat(parseFloat(val).toFixed(2)) || 1;
-            item.custom_pieces_per_box = pPerBox;
-            item.qty = parseFloat(((item.custom_box_qty || 0) * pPerBox).toFixed(2));
-            item.received_qty = item.qty; // Auto-sync received qty
-            item.custom_box_price = parseFloat((item.rate * pPerBox).toFixed(2));
-          } else if (name === 'qty') {
-            item.received_qty = val; // Auto-sync received qty if regular qty changed
-          }
-        } else if (name === 'schedule_date' || name === 'rejected_warehouse') {
-          item[name] = value;
+        } else if (name === 'custom_box_qty') {
+          const bQty = val === '' ? 0 : Math.round(val);
+          item.custom_box_qty = bQty;
+          item.qty = parseFloat((bQty * (item.custom_pieces_per_box || 1)).toFixed(2));
+          item.amount = (item.qty || 0) * (item.rate || 0);
+          item.received_qty = item.qty;
+        } else if (name === 'custom_pieces_per_box') {
+          const pPerBox = Math.max(1, val === '' ? 1 : parseFloat(val));
+          item.custom_pieces_per_box = pPerBox;
+          item.qty = parseFloat(((item.custom_box_qty || 0) * pPerBox).toFixed(2));
+          item.custom_box_price = parseFloat(((item.rate || 0) * pPerBox).toFixed(2));
+          item.amount = (item.qty || 0) * (item.rate || 0);
+          item.received_qty = item.qty;
+        } else if (name === 'custom_box_price') {
+          const bPrice = val === '' ? 0 : parseFloat(val);
+          item.custom_box_price = bPrice;
+          item.rate = parseFloat((bPrice / (item.custom_pieces_per_box || 1)).toFixed(2));
+          item.amount = (item.qty || 0) * (item.rate || 0);
         } else {
           item[name] = value;
         }
+
         items[rowIndex] = item;
         newState.items = items;
       } else {
@@ -606,14 +610,38 @@ function PurchaseOrder() {
       });
       if (res.ok) {
         const data = await res.json();
-        const docs = data.message || {};
-        setLinkedDocs(docs);
-        // Fetch docstatus for each linked PR/PI
+        const msg = data.message || {};
+        
+        // Store raw categories for ERP-style grouping in UI
+        setLinkedCategories(msg.categories || {});
+
+        // Flatten for easy access elsewhere (like creating receipts/invoices)
+        let flattened = {};
+        if (msg.categories) {
+          Object.values(msg.categories).forEach(cat => {
+            Object.entries(cat).forEach(([doctype, list]) => {
+              const key = doctype.replace(/ /g, '_');
+              flattened[key] = (list || []).map(item => typeof item === 'object' ? item.name : item);
+            });
+          });
+        } else {
+          // Fallback to direct mapping
+          Object.entries(msg).forEach(([k, v]) => { 
+            const list = Array.isArray(v) ? v : [];
+            flattened[k.replace(/ /g, '_')] = list.map(item => typeof item === 'object' ? item.name : item);
+          });
+        }
+
+        setLinkedDocs(flattened);
+
+        // Fetch docstatus for each linked document
         const statuses = {};
-        const allDocs = [
-          ...(docs.Purchase_Receipt || []).map(n => ({ name: n, type: 'Purchase Receipt' })),
-          ...(docs.Purchase_Invoice || []).map(n => ({ name: n, type: 'Purchase Invoice' }))
-        ];
+        const allDocs = [];
+        Object.keys(flattened).forEach(key => {
+          const type = key.replace(/_/g, ' ');
+          flattened[key].forEach(name => allDocs.push({ name, type }));
+        });
+
         await Promise.all(allDocs.map(async ({ name: docName, type }) => {
           try {
             const r = await fetch(`/api/resource/${encodeURIComponent(type)}/${docName}?fields=["docstatus","status"]`, {
@@ -751,8 +779,9 @@ function PurchaseOrder() {
           custom_box_price: parseFloat(item.custom_box_price || 0),
           custom_selling_price: parseFloat(item.custom_selling_price || 0),
           new_selling_price: parseFloat(item.custom_selling_price || 0),
-          custom_ref_sl_no: item.custom_ref_sl_no || "",
-          custom_supplier_sl_num: item.custom_ref_sl_no || ""
+          custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
+          custom_supplier_sl_num: item.custom_supplier_sl_num || item.custom_ref_sl_no || "",
+          supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || ""
         })),
         taxes_and_charges: formData.taxes_and_charges,
         taxes: (formData.taxes || []).map(t => ({
@@ -835,8 +864,8 @@ function PurchaseOrder() {
           tax_total: formData.tax_total,
           total_qty: formData.total_qty,
           grand_total: formData.grand_total,
-          supplier_sl_no: formData.items[0]?.custom_ref_sl_no || '',
-          custom_supplier_sl_num: formData.items[0]?.custom_ref_sl_no || '',
+          supplier_sl_no: formData.items[0]?.custom_supplier_sl_num || formData.items[0]?.custom_ref_sl_no || '',
+          custom_supplier_sl_num: formData.items[0]?.custom_supplier_sl_num || formData.items[0]?.custom_ref_sl_no || '',
           items: formData.items.filter(it => it.item_code).map(item => ({
             item_code: item.item_code,
             item_name: item.item_name,
@@ -847,8 +876,9 @@ function PurchaseOrder() {
             qty: item.qty,
             uom: item.uom,
             valuation_rate: item.rate,
-            custom_ref_sl_no: item.custom_ref_sl_no || '',
-            custom_supplier_sl_num: item.custom_ref_sl_no || ''
+            custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
+            custom_supplier_sl_num: item.custom_supplier_sl_num || item.custom_ref_sl_no || '',
+            supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || ''
           })),
         };
 
@@ -911,63 +941,47 @@ function PurchaseOrder() {
 
   const handleCreateFlow = async (type) => {
     if (!formData.name) return;
+
+    // VALIDATION: Check if already received
+    if (type === 'receipt' && formData.per_received >= 100) {
+      setError(`This Purchase Order has already been fully received. Please check existing Purchase Receipts below.`);
+      return;
+    }
+
+    // VALIDATION: Check if already billed
+    if (type === 'invoice' && formData.per_billed >= 100) {
+      setError(`This Purchase Order has already been fully billed. Please check existing Purchase Invoices below.`);
+      return;
+    }
+
+    // VALIDATION: Check status
+    if (['Closed', 'Cancelled'].includes(formData.status)) {
+      setError(`Cannot create transition for a ${formData.status} document.`);
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSuccess('');
 
-    const getCsrf = () => window.csrf_token || '';
     const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
-    const buildBody = (overrides = {}) => ({
-      po_name: formData.name,
-      company: formData.company,
-      supplier: formData.supplier?.name || formData.supplier,
-      posting_date: new Date().toISOString().slice(0, 10),
-      set_warehouse: formData.set_warehouse,
-      taxes_and_charges: formData.taxes_and_charges,
-      taxes: formData.taxes,
-      total: formData.total,
-      tax_total: formData.tax_total,
-      total_qty: formData.total_qty,
-      grand_total: formData.grand_total,
-      submit_doc: false,
-      items: formData.items.filter(i => i.item_code).map(item => ({
-        item_code: item.item_code,
-        item_name: item.item_name,
-        qty: item.qty,
-        uom: item.uom,
-        rate: item.rate,
-        amount: item.amount,
-        purchase_order: formData.name,
-        custom_box_qty: item.custom_box_qty,
-        custom_pieces_per_box: item.custom_pieces_per_box,
-        custom_box_price: item.custom_box_price,
-        custom_selling_price: item.custom_selling_price,
-        new_selling_price: item.custom_selling_price,
-        custom_ref_sl_no: (item.custom_ref_sl_no || '').toString().slice(0, 140),
-        custom_supplier_sl_num: (item.custom_ref_sl_no || '').toString().slice(0, 140),
-        received_qty: parseFloat(item.received_qty) || item.qty,
-        rejected_qty: parseFloat(item.rejected_qty) || 0,
-        rejected_warehouse: item.rejected_warehouse || ''
-      })),
-      ...overrides
-    });
-
     const postCreate = async (endpoint) => {
-      const res = await fetch(`${OLD_API}.${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Frappe-SID': getSession(),
-          'X-Frappe-CSRF-Token': getCsrf()   // ← Required for POST in Frappe
-        },
-        credentials: 'include',
-        body: JSON.stringify(buildBody())
-      });
-      const data = await res.json();
-      const msg = data.message || data;
-      if (msg.status === 'success') return msg.name;
-      throw new Error(msg.message || msg.exc_type || `Failed (HTTP ${res.status})`);
+      try {
+        const res = await axios.post(`${OLD_API}.${endpoint}`, {
+          po_name: formData.name
+        }, { withCredentials: true });
+        
+        const msg = res.data.message || res.data;
+        if (msg.status === 'success' || (msg.success && msg.name)) return msg.name;
+        throw new Error(msg.message || msg.exc_type || 'Failed to create document');
+      } catch (err) {
+        const errorMsg = err.response?.data?.message || err.message;
+        if (errorMsg.includes("No items to receive")) {
+          throw new Error("The stock for this PO has already been received or is currently being processed.");
+        }
+        throw new Error(errorMsg);
+      }
     };
 
     try {
@@ -1075,6 +1089,8 @@ function PurchaseOrder() {
           custom_box_qty: 1,
           temp_barcode: '',
           schedule_date: items[rowIndex].schedule_date || prev.transaction_date,
+          custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
+          supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
           custom_selling_price: parseFloat(item.selling_price || 0)
         };
       }
@@ -1122,10 +1138,10 @@ function PurchaseOrder() {
         <div className="bg-white px-6 py-2 border-b border-slate-100 flex items-center justify-between">
           <div className="flex flex-col text-left">
             <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
-              {formData.name ? `Edit PO: ${formData.name}` : 'New Purchase Order'}
+              {formData.docstatus === 1 ? `Purchase Order: ${formData.name}` : (formData.name ? (isViewOnly ? `View PO: ${formData.name}` : `Edit PO: ${formData.name}`) : 'New Purchase Order')}
             </h1>
             <p className="text-[11px] font-normal text-slate-400 mt-0.5">
-              Procurement & Inventory
+              {formData.docstatus === 1 ? 'Submitted Document' : 'Procurement & Inventory'}
             </p>
           </div>
 
@@ -1206,108 +1222,93 @@ function PurchaseOrder() {
 
         <div className="po-layout-container !pt-4 pb-20">
           {/* Dashboard Connections (ERP Style) */}
-          {formData.name && (
-            <div className="mb-8 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm animate-fadeIn">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                    <History className="w-3.5 h-3.5 text-[var(--po-primary)]" />
-                    Dashboard / Connections
-                  </h3>
-                  <p className="text-[10px] font-bold mt-1 flex items-center gap-1">
-                    Status:&nbsp;
-                    <span style={{
-                      padding: '1px 8px', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 900,
-                      background: formData.docstatus === 1 ? '#dcfce7' : formData.docstatus === 2 ? '#fee2e2' : '#fef9c3',
-                      color: formData.docstatus === 1 ? '#16a34a' : formData.docstatus === 2 ? '#dc2626' : '#a16207',
-                    }}>
-                      {formData.docstatus === 1 ? '✓ Submitted' : formData.docstatus === 2 ? '✗ Cancelled' : '⏳ Draft'}
-                    </span>
-                    {formData.status && <span className="text-slate-400 ml-1">— {formData.status}</span>}
-                  </p>
-                </div>
-                {loadingLinks && <Loader2 className="w-4 h-4 animate-spin text-[var(--po-primary)]" />}
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                {/* Actions */}
-                <button
-                  onClick={() => handleCreateFlow('receipt')}
-                  disabled={loadingLinks || formData.docstatus !== 1}
-                  className="px-4 py-2 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 rounded-xl text-[11px] font-black transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-50 disabled:hover:text-slate-700"
-                  title={formData.docstatus !== 1 ? "⚠️ Submit this PO first to create a Receipt" : "Create Purchase Receipt"}
-                >
-                  <Plus size={14} className="opacity-60" /> Create Receipt
-                  {formData.docstatus !== 1 && <span style={{ fontSize: '0.6rem', marginLeft: '2px', opacity: 0.5 }}>🔒</span>}
-                </button>
-                <button
-                  onClick={() => handleCreateFlow('invoice')}
-                  disabled={loadingLinks || formData.docstatus !== 1}
-                  className="px-4 py-2 bg-slate-50 hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-200 hover:border-sky-200 rounded-xl text-[11px] font-black transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-50 disabled:hover:text-slate-700"
-                  title={formData.docstatus !== 1 ? "⚠️ Submit this PO first to create an Invoice" : "Create Purchase Invoice"}
-                >
-                  <Plus size={14} className="opacity-60" /> Create Invoice
-                  {formData.docstatus !== 1 && <span style={{ fontSize: '0.6rem', marginLeft: '2px', opacity: 0.5 }}>🔒</span>}
-                </button>
-
-                <button
-                  onClick={() => handleCreateFlow('both')}
-                  disabled={loadingLinks || formData.docstatus !== 1}
-                  className="px-4 py-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-xl text-[11px] font-black transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-indigo-50 disabled:hover:text-indigo-700"
-                  title={formData.docstatus !== 1 ? "⚠️ Submit this PO first" : "Create Both PR & PI directly (OneClick)"}
-                >
-                  <Zap size={14} className={formData.docstatus === 1 ? "fill-indigo-600 group-hover:fill-white" : "opacity-60"} /> OneClick PR & PI
-                  {formData.docstatus !== 1 && <span style={{ fontSize: '0.6rem', marginLeft: '2px', opacity: 0.5 }}>🔒</span>}
-                </button>
-
-                <div className="w-px h-8 bg-slate-100 mx-1" />
-
-                {/* Linked Badges — now with draft status + Submit button */}
-                {linkedDocs.Purchase_Receipt?.map(pr => {
-                  const s = linkedDocStatuses[pr];
-                  const isSubmitted = s?.docstatus === 1;
-                  return (
-                    <div key={pr} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: isSubmitted ? '#f0fdf4' : '#fffbeb', border: `1px solid ${isSubmitted ? '#bbf7d0' : '#fde68a'}`, borderRadius: '0.75rem', fontSize: '0.7rem', fontWeight: 800 }}>
-                      <Box size={13} style={{ color: isSubmitted ? '#16a34a' : '#d97706', opacity: 0.7 }} />
-                      <span style={{ color: isSubmitted ? '#15803d' : '#92400e' }}>PR: {pr}</span>
-                      <span style={{ padding: '1px 6px', borderRadius: '9999px', background: isSubmitted ? '#dcfce7' : '#fef3c7', color: isSubmitted ? '#16a34a' : '#b45309', fontSize: '0.6rem', fontWeight: 900 }}>
-                        {isSubmitted ? '✓ Submitted' : '⏳ Draft'}
-                      </span>
-                      {!isSubmitted && (
-                        <button onClick={() => handleSubmitDoc(pr, 'Purchase Receipt')} style={{ marginLeft: '0.25rem', padding: '2px 8px', background: '#16a34a', color: '#fff', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 900 }}>
-                          Submit
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-                {linkedDocs.Purchase_Invoice?.map(pi => {
-                  const s = linkedDocStatuses[pi];
-                  const isSubmitted = s?.docstatus === 1;
-                  return (
-                    <div key={pi} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: isSubmitted ? '#f0f9ff' : '#fffbeb', border: `1px solid ${isSubmitted ? '#bae6fd' : '#fde68a'}`, borderRadius: '0.75rem', fontSize: '0.7rem', fontWeight: 800 }}>
-                      <FileText size={13} style={{ color: isSubmitted ? '#0284c7' : '#d97706', opacity: 0.7 }} />
-                      <span style={{ color: isSubmitted ? '#0369a1' : '#92400e' }}>PI: {pi}</span>
-                      <span style={{ padding: '1px 6px', borderRadius: '9999px', background: isSubmitted ? '#e0f2fe' : '#fef3c7', color: isSubmitted ? '#0284c7' : '#b45309', fontSize: '0.6rem', fontWeight: 900 }}>
-                        {isSubmitted ? '✓ Submitted' : '⏳ Draft'}
-                      </span>
-                      {!isSubmitted && (
-                        <button onClick={() => handleSubmitDoc(pi, 'Purchase Invoice')} style={{ marginLeft: '0.25rem', padding: '2px 8px', background: '#0284c7', color: '#fff', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 900 }}>
-                          Submit
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {(!linkedDocs.Purchase_Receipt?.length && !linkedDocs.Purchase_Invoice?.length) && !loadingLinks && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[11px] font-bold italic border border-slate-100">
-                    No linked documents found
-                  </div>
-                )}
+          <div className="mb-6 p-4 bg-white border border-slate-100 rounded-xl shadow-sm animate-fadeIn">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-50">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Zap className="w-3 h-3 text-indigo-500" />
+                Linked Documents & Actions
+              </h3>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg">
+                <span className="text-[10px] font-black text-slate-500 uppercase">Status:</span>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${formData.docstatus === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                  {formData.docstatus === 1 ? '✓ Submitted' : '⏳ Draft'}
+                </span>
               </div>
             </div>
-          )}
+            
+            <div className="flex flex-col gap-6">
+              {/* Primary Actions for Submitted POs */}
+              {formData.docstatus === 1 && (
+                <div className="flex flex-col gap-3 p-3 bg-slate-50/50 rounded-lg border border-slate-100">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Create New Record from PO</span>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => handleCreateFlow('receipt')}
+                      disabled={loadingLinks}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all shadow-emerald-200 active:scale-95 disabled:opacity-50"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create Purchase Receipt
+                    </button>
+                    <button
+                      onClick={() => handleCreateFlow('invoice')}
+                      disabled={loadingLinks}
+                      className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all shadow-sky-200 active:scale-95 disabled:opacity-50"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create Purchase Invoice
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Categorized Connections */}
+              {Object.entries(linkedCategories).length > 0 ? (
+                Object.entries(linkedCategories).map(([catName, doctypes]) => (
+                  <div key={catName} className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">{catName}</span>
+                      <div className="h-px flex-1 bg-slate-50" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {Object.entries(doctypes).map(([dt, list]) => {
+                        const count = list.length;
+                        if (count === 0) return null;
+                        return (
+                          <div key={dt} className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-700">
+                              {dt}
+                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[9px]">{count}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 ml-1">
+                              {list.map(item => {
+                                const id = typeof item === 'object' ? item.name : item;
+                                const s = linkedDocStatuses[id];
+                                const isSub = s?.docstatus === 1;
+                                return (
+                                  <div key={id} className={`px-2 py-0.5 rounded-md border text-[8px] font-black flex items-center gap-1.5 ${isSub ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
+                                    <Box size={8} className="opacity-50" />
+                                    {id}
+                                    {!isSub && (dt === 'Purchase Receipt' || dt === 'Purchase Invoice') && (
+                                      <button onClick={() => handleSubmitDoc(id, dt)} className="ml-1 px-1 bg-orange-500 text-white rounded hover:bg-orange-600">Submit</button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-center gap-3 py-2 text-slate-400 text-[10px] font-bold italic border-t border-slate-50 mt-2">
+                  No linked documents available
+                </div>
+              )}
+            </div>
+          </div>
           {error && (
             <div className="mb-6 bg-red-50 border border-red-100 rounded-lg p-4 flex items-center gap-3 animate-fadeIn">
               <AlertCircle className="w-5 h-5 text-red-500" />
@@ -1334,14 +1335,14 @@ function PurchaseOrder() {
           <div className="flex flex-col gap-6">
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="po-card lg:col-span-4">
-                  <div className="po-card-header">
+                <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-4'} animate-fadeIn`}>
+                  <div className="po-card-header !bg-slate-50/50">
                     <h3 className="po-card-title flex items-center gap-2">
                       <Users className="w-4 h-4 text-[var(--po-primary)]" />
                       Supplier Information
                     </h3>
                   </div>
-                  <div className="po-card-body grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-6`}>
                     <div>
                       <label className="po-label">Series</label>
                       <select
@@ -1350,16 +1351,16 @@ function PurchaseOrder() {
                         onChange={handleInputChange}
                         onKeyDown={handleNextFocus}
                         disabled={isViewOnly || formData.docstatus !== 0}
-                        className="po-input font-bold text-[var(--po-primary)] disabled:bg-slate-50 disabled:cursor-not-allowed"
+                        className="po-input font-bold text-[var(--po-primary)] disabled:bg-slate-50 disabled:cursor-not-allowed border-none shadow-none text-base"
                       >
                         <option value="PUR-ORD-.YYYY.-">PUR-ORD-.YYYY.-</option>
                       </select>
                     </div>
-                    <div>
+                    <div className={isViewOnly ? 'col-span-2 bg-slate-50/50 p-2 rounded-lg border border-dashed border-slate-100' : ''}>
                       <label className="po-label">Supplier / Vendor</label>
                       <div onKeyDown={handleNextFocus}>
                         {isViewOnly || formData.docstatus !== 0 ? (
-                          <div className="po-input bg-slate-50 text-slate-500 font-bold flex items-center h-[42px] border-slate-100">
+                          <div className="po-input bg-transparent border-none shadow-none text-slate-800 font-black flex items-center h-[42px] text-base px-0">
                             {formData.supplier?.supplier_name || formData.supplier || 'No Supplier'}
                           </div>
                         ) : (
@@ -1374,28 +1375,44 @@ function PurchaseOrder() {
                         )}
                       </div>
                     </div>
+                    {isViewOnly && (
+                      <div>
+                        <label className="po-label text-[var(--po-primary)]">Current Status</label>
+                        <div className="flex items-center h-[42px]">
+                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${formData.docstatus === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {formData.docstatus === 1 ? 'Submitted' : 'Draft Document'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="po-card lg:col-span-8">
-                  <div className="po-card-header">
+                <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-8'} animate-fadeIn`}>
+                  <div className="po-card-header !bg-slate-50/50">
                     <h3 className="po-card-title flex items-center gap-2">
                       <Package className="w-4 h-4 text-[var(--po-primary)]" />
-                      Logistics & Metadata
+                      Purchase Details & Warehouse
                     </h3>
                   </div>
-                  <div className="po-card-body grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-6`}>
                     <div>
                       <label className="po-label">Warehouse (Target)</label>
-                      <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="po-input font-bold disabled:bg-slate-50 disabled:border-slate-100 disabled:text-slate-500">
-                        <option value="">Choose warehouse...</option>
-                        {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
-                      </select>
+                      {isViewOnly ? (
+                        <div className="po-input border-none shadow-none bg-transparent font-black text-slate-800 h-[42px] flex items-center text-base">
+                          {warehouses.find(w => w.name === formData.set_warehouse)?.warehouse_name || formData.set_warehouse || 'Not Selected'}
+                        </div>
+                      ) : (
+                        <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="po-input font-bold disabled:bg-slate-50 disabled:border-slate-100 disabled:text-slate-500">
+                          <option value="">Choose warehouse...</option>
+                          {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
+                        </select>
+                      )}
                     </div>
                     <div>
                       <label className="po-label">Transaction Date</label>
-                      <div className="po-input bg-slate-50/50 border-slate-100 flex items-center justify-between text-slate-500 cursor-not-allowed h-[42px]">
-                        <span className="font-bold text-[13px]">
+                      <div className={`border-none shadow-none bg-transparent flex items-center text-slate-800 h-[42px] ${isViewOnly ? 'font-black text-base' : 'text-slate-500'}`}>
+                        <span>
                           {new Date(formData.transaction_date).toLocaleString('en-GB', {
                             day: '2-digit', month: '2-digit', year: 'numeric',
                             hour: '2-digit', minute: '2-digit', hour12: true
@@ -1405,10 +1422,18 @@ function PurchaseOrder() {
                     </div>
                     <div>
                       <label className="po-label">Entity / Company</label>
-                      <div className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-500 uppercase h-[42px] flex items-center">
+                      <div className="border-none shadow-none bg-transparent text-base font-black text-slate-800 uppercase h-[42px] flex items-center">
                         {formData.company}
                       </div>
                     </div>
+                    {isViewOnly && (
+                      <div>
+                        <label className="po-label">Currency</label>
+                        <div className="text-base font-black text-[var(--po-primary)] h-[42px] flex items-center">
+                          {formData.currency || 'AED'}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1514,17 +1539,10 @@ function PurchaseOrder() {
                         <th className="purchase-th w-[90px] text-center">Pcs/Box</th>
                         <th className="purchase-th w-[140px] text-center">Box Price</th>
                         <th className="purchase-th w-[140px] text-center">Selling Price</th>
-                        <th className="purchase-th w-[120px] text-center">Ref / SL #</th>
+                        <th className="purchase-th w-[160px] text-center">Ref / Supplier SL #</th>
                         <th className="purchase-th w-[100px] text-center">Qty</th>
                         <th className="purchase-th w-[80px] text-center">UOM</th>
                         <th className="purchase-th w-[140px] text-center">Rate</th>
-                        {formData.docstatus === 1 && (
-                          <>
-                            <th className="purchase-th w-[100px] text-center bg-emerald-50 text-emerald-700 border-x border-emerald-100">Accepted</th>
-                            <th className="purchase-th w-[100px] text-center bg-rose-50 text-rose-700 border-x border-rose-100">Rejected</th>
-                            <th className="purchase-th w-[140px] text-center bg-slate-50">Rej. Wh</th>
-                          </>
-                        )}
                         <th className="purchase-th w-[170px] text-center !pr-3">Subtotal</th>
                         <th className="purchase-th w-[50px]"></th>
                       </tr>
@@ -1637,7 +1655,16 @@ function PurchaseOrder() {
                             <input type="number" name="custom_selling_price" step="0.01" value={item.custom_selling_price ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />
                           </td>
                           <td className="purchase-td">
-                            <input type="text" name="custom_ref_sl_no" value={item.custom_ref_sl_no ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onKeyDown={handleNextFocus} placeholder="Serial..." className="w-full text-center text-[10px] outline-none" />
+                            <input 
+                              type="text" 
+                              name="custom_ref_sl_no" 
+                              value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''} 
+                              readOnly={isViewOnly || formData.docstatus !== 0} 
+                              onChange={(e) => handleInputChange(e, idx)} 
+                              onKeyDown={handleNextFocus} 
+                              placeholder={isViewOnly ? "" : "Serial..."} 
+                              className="w-full text-center text-[10px] outline-none" 
+                            />
                           </td>
                           <td className="purchase-td text-center">
                             <input type="number" name="qty" step="0.01" value={item.qty ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />
@@ -1648,19 +1675,6 @@ function PurchaseOrder() {
                           <td className="purchase-td text-right !text-center">
                             <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center outline-none" />
                           </td>
-                          {formData.docstatus === 1 && (
-                            <>
-                              <td className="purchase-td !bg-emerald-50/30 border-x border-emerald-50">
-                                <input type="number" name="received_qty" value={item.received_qty ?? item.qty} readOnly={isViewOnly || formData.docstatus === 1} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-emerald-600 bg-transparent outline-none" />
-                              </td>
-                              <td className="purchase-td !bg-rose-50/30 border-x border-rose-50">
-                                <input type="number" name="rejected_qty" value={item.rejected_qty ?? 0} readOnly={isViewOnly || formData.docstatus === 1} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-rose-600 bg-transparent outline-none" />
-                              </td>
-                              <td className="purchase-td !bg-slate-50/30">
-                                <input type="text" name="rejected_warehouse" value={item.rejected_warehouse ?? ''} readOnly={isViewOnly || formData.docstatus === 1} onChange={(e) => handleInputChange(e, idx)} placeholder="Rej Wh..." className="w-full text-[10px] text-center bg-transparent outline-none" title="Warehouse for rejected items" />
-                              </td>
-                            </>
-                          )}
                           <td className="purchase-td text-right !pr-5 !text-center">
                             <span className="text-xs font-bold text-slate-900 tabular-nums">
                               {Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: item.amount % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}

@@ -173,6 +173,12 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
+.so-table-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 250px);
+}
+
 .so-table {
   width: 100%;
   border-collapse: collapse;

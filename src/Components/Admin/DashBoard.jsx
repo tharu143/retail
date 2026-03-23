@@ -14,6 +14,7 @@ import {
   Receipt,
   Truck,
   FileText,
+  ArrowRightLeft,
   ClipboardList,
   PieChart,
   LayoutDashboard,
@@ -35,6 +36,7 @@ const routeMap = {
   'Purchase Order List': { path: '/purchaseorderlist', icon: FileText },
   'Purchase Receipt': { path: '/purchasereceiptlist', icon: Truck },
   'Purchase Invoice': { path: '/purchaseinvoicelist', icon: Receipt },
+  'Purchase Return': { path: '/purchasereturn', icon: ArrowRightLeft },
 
   // Sales
   'Customer': { path: '/customerlist', icon: UserCheck },
@@ -77,7 +79,7 @@ function Dashboard() {
       icon: ShoppingCart,
       colorClass: 'icon-purchase',
       cardClass: 'card-purchase',
-      items: ['Supplier', 'New Purchase Order', 'Purchase Order List', 'Purchase Receipt', 'Purchase Invoice'],
+      items: ['Supplier', 'New Purchase Order', 'Purchase Order List', 'Purchase Receipt', 'Purchase Invoice', 'Purchase Return'],
     },
     {
       title: 'Sales & Returns',

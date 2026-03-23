@@ -28,6 +28,7 @@ import SyncManagerPage from '../Pages/SyncManagerPage'
 import SettingsPage from '../Pages/SettingsPage'
 import PurchaseToolsPage from '../Pages/PurchaseToolsPage'
 import QuickStockInPage from '../Pages/QuickStockInPage'
+import PurchaseReturnPage from '../Pages/PurchaseReturnPage'
 
 
 function UserRouter() {
@@ -62,6 +63,7 @@ function UserRouter() {
         <Route path='settings' element={<SettingsPage />} />
         <Route path='purchasetools' element={<PurchaseToolsPage />} />
         <Route path='quickstockin' element={<QuickStockInPage />} />
+        <Route path='purchasereturn' element={<PurchaseReturnPage />} />
       </Routes>
     </>
   )

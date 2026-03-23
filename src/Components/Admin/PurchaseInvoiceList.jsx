@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
+import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
 
 // Custom APIs (kept for suppliers, items, warehouses, tax templates)
@@ -61,7 +62,8 @@ function PurchaseInvoiceList() {
     additional_discount_percentage: 0,
     discount_amount: 0,
     taxes_and_charges: '',
-    items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0 }]
+    items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0 }],
+    docstatus: 0
   });
 
   const [searchSupplier, setSearchSupplier] = useState('');
@@ -84,6 +86,8 @@ function PurchaseInvoiceList() {
   const [filterDateTo, setFilterDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showActions, setShowActions] = useState(null);
+  const [loadingLinks, setLoadingLinks] = useState(false);
+  const [linkedDocs, setLinkedDocs] = useState({});
 
   const supplierRef = useRef(null);
   const itemRefs = useRef({});
@@ -189,6 +193,18 @@ function PurchaseInvoiceList() {
     }
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    const nameParam = params.get('name');
+    if (nameParam) {
+      // Clear URL params after reading
+      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
+      fetchPurchaseInvoice(nameParam);
+      setIsViewMode(true);
+      setIsModalOpen(true);
+    }
+  }, [invoices]);
+
   const fetchInvoices = async () => {
     try {
       setLoading(true);
@@ -288,7 +304,8 @@ function PurchaseInvoiceList() {
       additional_discount_percentage: 0,
       discount_amount: 0,
       taxes_and_charges: '',
-      items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0 }]
+      items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: '' }],
+      docstatus: 0
     });
     setFormErrors({});
     setSearchSupplier('');
@@ -327,16 +344,252 @@ function PurchaseInvoiceList() {
             qty: i.qty || 1,
             uom: i.uom || '',
             rate: i.rate || 0,
-            amount: i.amount || 0
-          }))
+            amount: i.amount || 0,
+            custom_box_qty: parseFloat(i.custom_box_qty || 0),
+            custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+            custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
+            custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+          })),
+          total_qty: d.total_qty || 0,
+          net_total: d.net_total || 0,
+          total_taxes_and_charges: d.total_taxes_and_charges || 0,
+          discount_amount: d.discount_amount || 0,
+          additional_discount_percentage: d.additional_discount_percentage || 0,
+          grand_total: d.grand_total || 0,
+          rounded_total: d.rounded_total || 0,
+          outstanding_amount: d.outstanding_amount !== undefined ? d.outstanding_amount : (d.grand_total || 0)
         });
+        
+        // Populate tax preview for UI/Calculations
+        if (d.taxes && d.taxes.length > 0) {
+          setTaxPreview(d.taxes.map(t => ({
+            account_head: t.account_head,
+            rate: t.rate,
+            tax_amount: t.tax_amount,
+            description: t.description || t.account_head
+          })));
+        }
         setSearchSupplier(d.supplier_name || d.supplier);
         setDocName(d.name);
         setDocStatus(d.docstatus || 0); // Store docstatus
+        
+        // Fetch linked documents if it's already created
+        if (d.name) fetchLinkedDocuments(d.name);
       }
     } catch (err) {
       alert('Failed to load invoice');
     }
+  };
+
+  const fetchLinkedDocuments = async (name) => {
+    if (!name) return;
+    setLoadingLinks(true);
+    try {
+      const KYLE_API = '/api/method/kyle_retail.retail_api.api';
+      const res = await axios.get(`${KYLE_API}.get_linked_documents`, {
+        params: { doctype: 'Purchase Invoice', name },
+        withCredentials: true
+      });
+      if (res.data.message?.success || res.data.message?.status === 'success') {
+        const payload = res.data.message.data || res.data.message;
+        setLinkedDocs(payload.categories || payload || {});
+      }
+    } catch (err) {
+      console.error('Error fetching linked docs:', err);
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
+
+  const handleCreatePayment = async () => {
+    if (!docName) return;
+
+    try {
+      const { value: formValues } = await Swal.fire({
+        title: 'Make Payment',
+        html:
+          '<div style="text-align: left; padding: 10px; background: #f8fafc; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">' +
+            '<p style="margin: 0; font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Invoice: ' + docName + '</p>' +
+            '<p style="margin: 5px 0 0; font-size: 0.9rem; font-weight: 900; color: #1e293b;">' + (formData.supplier_name || formData.supplier) + '</p>' +
+            '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">' +
+              '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Outstanding:</span>' +
+              '<span style="font-size: 1rem; font-weight: 900; color: #10b981;">AED ' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div style="text-align: left; margin-bottom: 20px;">' +
+            '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Mode of Payment</label>' +
+            '<select id="swal-mode" class="swal2-select" style="margin: 0; width: 100%;">' +
+              '<option value="Cash">Cash</option>' +
+              '<option value="Bank">Bank Transfer</option>' +
+              '<option value="Cheque">Cheque</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="text-align: left; margin-bottom: 20px;">' +
+            '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Payment Date</label>' +
+            '<input id="swal-post-date" type="date" class="swal2-input" style="margin: 0; width: 100%;" value="' + new Date().toISOString().split('T')[0] + '">' +
+          '</div>' +
+          '<div style="text-align: left; margin-bottom: 20px;">' +
+            '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Amount to Pay (AED)</label>' +
+            '<input id="swal-amount" type="number" class="swal2-input" style="margin: 0; width: 100%;" value="' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toFixed(2) + '">' +
+          '</div>' +
+          '<div id="ref-fields-container" style="display: none;">' +
+            '<div style="text-align: left; margin-bottom: 20px;">' +
+              '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Reference Number (Chq/Trans ID)</label>' +
+              '<input id="swal-ref-no" class="swal2-input" style="margin: 0; width: 100%;" placeholder="e.g. TXN-123456">' +
+            '</div>' +
+            '<div style="text-align: left; margin-bottom: 20px;">' +
+              '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Reference Date</label>' +
+              '<input id="swal-ref-date" type="date" class="swal2-input" style="margin: 0; width: 100%;" value="' + new Date().toISOString().split('T')[0] + '">' +
+            '</div>' +
+          '</div>',
+        didOpen: () => {
+          const modeSelect = document.getElementById('swal-mode');
+          const refFields = document.getElementById('ref-fields-container');
+          modeSelect.addEventListener('change', () => {
+            refFields.style.display = (modeSelect.value === 'Bank' || modeSelect.value === 'Cheque') ? 'block' : 'none';
+          });
+        },
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Save Payment (Draft)',
+        confirmButtonColor: '#eab308',
+        preConfirm: () => {
+          const mode = document.getElementById('swal-mode').value;
+          const ref_no = document.getElementById('swal-ref-no').value;
+          const ref_date = document.getElementById('swal-ref-date').value;
+
+          if ((mode === 'Bank' || mode === 'Cheque') && !ref_no.trim()) {
+            Swal.showValidationMessage(`Reference Number is required for ${mode} payments.`);
+            return false;
+          }
+
+          return {
+            mode,
+            post_date: document.getElementById('swal-post-date').value,
+            amount: document.getElementById('swal-amount').value,
+            ref_no: (mode === 'Bank' || mode === 'Cheque') ? ref_no : '',
+            ref_date: (mode === 'Bank' || mode === 'Cheque') ? ref_date : ''
+          };
+        }
+      });
+
+      if (!formValues) return;
+
+      setSaving(true);
+      
+      const payload = {
+        purchase_invoice: docName,
+        mode_of_payment: formValues.mode,
+        posting_date: formValues.post_date,
+        amount: parseFloat(formValues.amount) || 0
+      };
+
+      if (formValues.mode !== 'Cash') {
+        payload.reference_no = formValues.ref_no;
+        payload.reference_date = formValues.ref_date;
+      }
+
+      const res = await axios.post(`${API_PATH}.create_payment_entry_from_pi`, payload, { withCredentials: true });
+      
+      const msg = res.data.message || res.data;
+      if ((msg.success || msg.status === 'success') && msg.name) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Payment Entry Created',
+          text: `Draft document ${msg.name} created successfully!`,
+          confirmButtonColor: '#10b981'
+        });
+        fetchLinkedDocuments(docName);
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Failed',
+          text: msg.message || 'Failed to create Payment Entry'
+        });
+      }
+    } catch (err) {
+      console.error('Error creating PE:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.response?.data?.message || err.message
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderConnectionsDashboard = () => {
+    if (!docName || docStatus === null) return null;
+
+    const categories = {
+      "Related": ["Purchase Order", "Purchase Receipt", "Payment Entry"],
+      "Reference": ["Journal Entry", "Asset", "Landed Cost Voucher"]
+    };
+
+    return (
+      <div className="so-card" style={{ marginBottom: '1.5rem', border: `1px solid ${themeColor}20`, background: `${themeColor}05` }}>
+        <div className="so-card-header" style={{ borderBottom: `1px solid ${themeColor}10`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Zap size={14} style={{ color: themeColor }} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Linked Documents & Dashboard</span>
+          </div>
+          {docStatus === 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <CheckCircle2 size={12} style={{ color: '#10b981' }} />
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>Submitted & Unpaid</span>
+            </div>
+          )}
+        </div>
+        <div className="so-card-body" style={{ padding: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Actions Section */}
+            {docStatus === 1 && (
+              <div style={{ padding: '0.75rem', background: 'white', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Actions</p>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button 
+                    onClick={handleCreatePayment}
+                    disabled={saving}
+                    className="so-btn-primary" 
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem', background: '#eab308', borderColor: '#eab308' }}
+                  >
+                    <Plus size={14} /> Create Payment Entry
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Links Section */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+              {Object.entries(categories).map(([catName, doctypes]) => {
+                const hasLinks = doctypes.some(dt => linkedDocs[dt] && linkedDocs[dt].length > 0);
+                if (!hasLinks && catName !== "Related") return null;
+
+                return (
+                  <div key={catName} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>{catName}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {doctypes.map(dt => {
+                        const links = linkedDocs[dt] || [];
+                        if (links.length === 0) return null;
+                        return (
+                          <div key={dt} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.6rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.7rem', fontWeight: 700 }}>
+                            <Link size={12} style={{ opacity: 0.5 }} />
+                            {dt}
+                            <span style={{ padding: '0.1rem 0.4rem', background: `${themeColor}15`, color: themeColor, borderRadius: '1rem', fontSize: '0.6rem' }}>{links.length}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const openEditModal = async (invoice) => {
@@ -366,12 +619,21 @@ function PurchaseInvoiceList() {
       const items = [...prev.items];
       items[index] = { ...items[index] }; // important: clone
 
-      if (field === 'qty' || field === 'rate') {
-        const qty = parseFloat(value) || 0;
-        const rate = field === 'rate' ? qty : (parseFloat(items[index].rate) || 0);
-        const qtyFinal = field === 'qty' ? qty : (parseFloat(items[index].qty) || 0);
-        items[index].amount = qtyFinal * rate; // number, not string!
-        items[index][field] = value === '' ? '' : qty; // keep empty string for input
+      if (field === 'custom_box_qty' || field === 'custom_pieces_per_box') {
+        const box_qty = parseFloat(field === 'custom_box_qty' ? value : items[index].custom_box_qty) || 0;
+        const pcs_per_box = parseFloat(field === 'custom_pieces_per_box' ? value : items[index].custom_pieces_per_box) || 1;
+        const total_qty = box_qty * pcs_per_box;
+        items[index].qty = total_qty;
+        items[index].amount = total_qty * parseFloat(items[index].rate || 0);
+        items[index][field] = value;
+      } else if (field === 'qty' || field === 'rate') {
+        const qty = parseFloat(field === 'qty' ? value : items[index].qty) || 0;
+        const rate = parseFloat(field === 'rate' ? value : items[index].rate) || 0;
+        items[index].amount = qty * rate;
+        items[index][field] = value;
+        // Back-calculate Box Qty if needed
+        const pcs_per_box = parseFloat(items[index].custom_pieces_per_box) || 1;
+        if (field === 'qty' && pcs_per_box > 0) items[index].custom_box_qty = qty / pcs_per_box;
       } else {
         items[index][field] = value;
       }
@@ -382,7 +644,7 @@ function PurchaseInvoiceList() {
 
   const addItemRow = () => setFormData(prev => ({
     ...prev,
-    items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0 }]
+    items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: '' }]
   }));
 
   const removeItemRow = (index) => setFormData(prev => ({
@@ -405,7 +667,11 @@ function PurchaseInvoiceList() {
         uom: item.stock_uom || 'Nos',
         qty: 1,
         rate: 0,
-        amount: 0
+        amount: 0,
+        custom_box_qty: 0,
+        custom_pieces_per_box: 1,
+        custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
+        custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || ''
       };
       return { ...prev, items };
     });
@@ -477,6 +743,10 @@ function PurchaseInvoiceList() {
           item_code: i.item_code,
           qty: parseFloat(i.qty) || 1,
           rate: parseFloat(i.rate || 0),
+          custom_box_qty: parseFloat(i.custom_box_qty || 0),
+          custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+          custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
+          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           warehouse: formData.update_stock ? formData.accepted_warehouse : '',
           target_warehouse: formData.update_stock ? formData.accepted_warehouse : ''
         }))
@@ -897,6 +1167,7 @@ function PurchaseInvoiceList() {
                 </button>
               </div>
               <div className="so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {renderConnectionsDashboard()}
                 {/* Basic Details Card */}
                 <div className="so-card">
                   <div className="so-card-header">
@@ -1092,7 +1363,10 @@ function PurchaseInvoiceList() {
                       <table className="so-items-table">
                         <thead>
                           <tr>
-                            <th>Item Description</th>
+                            <th>Item Details</th>
+                            <th style={{ width: '100px', textAlign: 'center' }}>Supplier SL #</th>
+                            <th style={{ width: '80px', textAlign: 'center' }}>Box Qty</th>
+                            <th style={{ width: '80px', textAlign: 'center' }}>Pcs/Box</th>
                             <th style={{ width: '100px', textAlign: 'center' }}>Accepted Qty</th>
                             <th style={{ width: '80px', textAlign: 'center' }}>UOM</th>
                             <th style={{ width: '120px', textAlign: 'right' }}>Rate (AED)</th>
@@ -1132,6 +1406,37 @@ function PurchaseInvoiceList() {
                                     )}
                                   </div>
                                 )}
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  value={item.custom_supplier_sl_num || ''}
+                                  onChange={e => updateItem(i, 'custom_supplier_sl_num', e.target.value)}
+                                  className="so-input"
+                                  style={{ height: '36px', fontSize: '0.75rem' }}
+                                  disabled={isViewMode}
+                                  placeholder="SL #"
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={item.custom_box_qty || 0}
+                                  onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
+                                  className="so-input"
+                                  style={{ height: '36px', textAlign: 'center' }}
+                                  disabled={isViewMode}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={item.custom_pieces_per_box || 1}
+                                  onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                  className="so-input"
+                                  style={{ height: '36px', textAlign: 'center' }}
+                                  disabled={isViewMode}
+                                />
                               </td>
                               <td style={{ textAlign: 'center' }}>
                                 <input

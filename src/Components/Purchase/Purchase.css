@@ -170,9 +170,10 @@ input[type=number] {
   background: var(--po-primary-light);
 }
 
-/* Table Styles */
 .purchase-table-container {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 350px);
   border-top: 1px solid var(--po-border);
 }
 

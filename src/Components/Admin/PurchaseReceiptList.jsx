@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, X, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
-  Trash2, Palette, Loader2, ChevronLeft, ChevronRight
+  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
@@ -54,7 +54,8 @@ function PurchaseReceiptList() {
     discount_amount: 0,
     rounded_total: 0,
     items: [{
-      item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00'
+      item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00',
+      custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: ''
     }],
     taxes: [{
       add_row: true,
@@ -71,7 +72,8 @@ function PurchaseReceiptList() {
     taxes_deducted: '0.00',
     total_taxes_and_charges: '0.00',
     discounted_amount: '0.00',
-    grand_total: '0.00'
+    grand_total: '0.00',
+    docstatus: 0
   });
   const [searchSupplier, setSearchSupplier] = useState('');
   const [suppliers, setSuppliers] = useState([]);
@@ -88,6 +90,8 @@ function PurchaseReceiptList() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [loadingLinks, setLoadingLinks] = useState(false);
+  const [linkedDocs, setLinkedDocs] = useState({});
   const supplierRef = useRef(null);
   const itemRefs = useRef({});
   const recalcTaxesAndTotals = useCallback((items, net_total, taxes, additional_discount_percentage, discount_amount, rounded_total, apply_discount_on = 'Net Total') => {
@@ -322,6 +326,49 @@ function PurchaseReceiptList() {
       setRateLoading(prev => ({ ...prev, [rowIndex]: false }));
     }
   }, [formData.supplier, formData.buying_price_list]);
+
+  const fetchLinkedDocuments = async (name) => {
+    if (!name) return;
+    setLoadingLinks(true);
+    try {
+      const KYLE_API = '/api/method/kyle_retail.retail_api.api';
+      const res = await axios.get(`${KYLE_API}.get_linked_documents`, {
+        params: { doctype: 'Purchase Receipt', name },
+        withCredentials: true
+      });
+      if (res.data.message?.success || res.data.message?.status === 'success') {
+        const payload = res.data.message.data || res.data.message;
+        setLinkedDocs(payload.categories || payload || {});
+      }
+    } catch (err) {
+      console.error('Error fetching linked docs:', err);
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!docName) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`${API_PATH}.create_purchase_invoice_from_pr`, {
+        purchase_receipt: docName
+      }, { withCredentials: true });
+      
+      const msg = res.data.message || res.data;
+      if ((msg.success || msg.status === 'success') && msg.name) {
+        window.location.hash = `#/purchaseinvoicelist?name=${msg.name}`;
+      } else {
+        alert(msg.message || 'Failed to create Invoice');
+      }
+    } catch (err) {
+      console.error('Error creating PI:', err);
+      const errorMsg = err.response?.data?.message || err.message;
+      alert('Error creating Purchase Invoice: ' + errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchSupplier.trim()) {
@@ -347,6 +394,16 @@ function PurchaseReceiptList() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    const nameParam = params.get('name');
+    if (nameParam) {
+      // Clear URL params after reading
+      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
+      fetchReceiptForEdit(nameParam);
+    }
+  }, []);
   const openCreateModal = useCallback(async () => {
     const companyData = await getDefaultCompany();
     const defaultWarehouse = warehouses.length > 0 ? warehouses[0].name : '';
@@ -367,7 +424,8 @@ function PurchaseReceiptList() {
       discount_amount: 0,
       rounded_total: 0,
       items: [{
-        item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00'
+        item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00',
+        custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: ''
       }],
       taxes: [{
         add_row: true,
@@ -401,13 +459,29 @@ function PurchaseReceiptList() {
     setFormData(prev => {
       const items = [...prev.items];
       items[index][field] = value;
-      if (field === 'accepted_qty' || field === 'rejected_qty' || field === 'rate') {
+
+      // Real-time calculation for Box Qty and Pieces per Box
+      if (field === 'custom_box_qty' || field === 'custom_pieces_per_box') {
+        const box_qty = parseFloat(items[index].custom_box_qty) || 0;
+        const pcs_per_box = parseFloat(items[index].custom_pieces_per_box) || 1;
+        const total_qty = box_qty * pcs_per_box;
+        items[index].accepted_qty = total_qty;
+        items[index].received_qty = total_qty + (parseFloat(items[index].rejected_qty) || 0);
+        items[index].qty = total_qty;
+        items[index].amount = (total_qty * (parseFloat(items[index].rate) || 0)).toFixed(2);
+      } else if (field === 'accepted_qty' || field === 'rejected_qty' || field === 'rate') {
         const accepted_qty = parseFloat(items[index].accepted_qty) || 0;
         const rejected_qty = parseFloat(items[index].rejected_qty) || 0;
         const rate = parseFloat(items[index].rate) || 0;
         items[index].received_qty = accepted_qty + rejected_qty;
         items[index].qty = accepted_qty;
         items[index].amount = (accepted_qty * rate).toFixed(2);
+        
+        // Back-calculate Box Qty if needed
+        const pcs_per_box = parseFloat(items[index].custom_pieces_per_box) || 1;
+        if (field === 'accepted_qty' && pcs_per_box > 0) {
+          items[index].custom_box_qty = accepted_qty / pcs_per_box;
+        }
       }
       const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
       const net_total = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
@@ -426,7 +500,8 @@ function PurchaseReceiptList() {
     setFormData(prev => {
       const newItems = [...prev.items, {
         item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0,
-        received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00'
+        received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00',
+        custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: ''
       }];
       const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
       const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
@@ -671,7 +746,11 @@ function PurchaseReceiptList() {
           qty: i.qty || 0,
           uom: i.uom || '',
           rate: i.rate || 0,
-          amount: i.amount?.toFixed(2) || '0.00'
+          amount: i.amount?.toFixed(2) || '0.00',
+          custom_box_qty: i.custom_box_qty || 0,
+          custom_pieces_per_box: i.custom_pieces_per_box || 1,
+          custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
+          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || ''
         })),
         taxes: (doc.taxes || []).map(t => ({
           add_row: t.add_deduct_tax === "Add",
@@ -688,17 +767,93 @@ function PurchaseReceiptList() {
         taxes_deducted: doc.taxes_deducted || '0.00',
         total_taxes_and_charges: doc.total_taxes_and_charges || '0.00',
         discounted_amount: doc.discounted_amount || '0.00',
-        grand_total: doc.grand_total || '0.00'
+        grand_total: doc.grand_total || '0.00',
+        docstatus: doc.docstatus || 0
       });
       setDocName(doc.name);
       setSearchSupplier(doc.supplier_name || '');
       setIsModalOpen(true);
+      if (doc.name) fetchLinkedDocuments(doc.name);
     } catch (err) {
       console.error('Error fetching receipt:', err);
       alert('Failed to load receipt for editing');
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderConnectionsDashboard = () => {
+    if (!docName || !formData.docstatus) return null;
+
+    const categories = {
+      "Related": ["Purchase Order", "Purchase Invoice", "Quality Inspection"],
+      "Payments": ["Payment Entry", "Journal Entry"],
+      "Reference": ["Stock Entry", "Landed Cost Voucher"]
+    };
+
+    return (
+      <div className="so-card" style={{ marginBottom: '1.5rem', border: `1px solid ${themeColor}20`, background: `${themeColor}05` }}>
+        <div className="so-card-header" style={{ borderBottom: `1px solid ${themeColor}10`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Zap size={14} style={{ color: themeColor }} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Linked Documents & Actions</span>
+          </div>
+          {formData.docstatus === 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <CheckCircle2 size={12} style={{ color: '#10b981' }} />
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>Submitted</span>
+            </div>
+          )}
+        </div>
+        <div className="so-card-body" style={{ padding: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Actions Section */}
+            {formData.docstatus === 1 && (
+              <div style={{ padding: '0.75rem', background: 'white', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Create New Record</p>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button 
+                    onClick={handleCreateInvoice}
+                    disabled={saving}
+                    className="so-btn-primary" 
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem' }}
+                  >
+                    <Plus size={14} /> Create Purchase Invoice
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Links Section */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+              {Object.entries(categories).map(([catName, doctypes]) => {
+                const hasLinks = doctypes.some(dt => linkedDocs[dt] && linkedDocs[dt].length > 0);
+                if (!hasLinks && catName !== "Related") return null;
+
+                return (
+                  <div key={catName} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>{catName}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {doctypes.map(dt => {
+                        const links = linkedDocs[dt] || [];
+                        if (links.length === 0) return null;
+                        return (
+                          <div key={dt} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.6rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.7rem', fontWeight: 700 }}>
+                            <Link size={12} style={{ opacity: 0.5 }} />
+                            {dt}
+                            <span style={{ padding: '0.1rem 0.4rem', background: `${themeColor}15`, color: themeColor, borderRadius: '1rem', fontSize: '0.6rem' }}>{links.length}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
   const getPayload = async () => {
     const companyData = await getDefaultCompany();
@@ -748,6 +903,10 @@ function PurchaseReceiptList() {
           base_rate: parseFloat(i.rate || 0),
           base_amount: parseFloat(i.amount || 0),
           uom: i.uom,
+          custom_box_qty: parseFloat(i.custom_box_qty || 0),
+          custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+          custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
+          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           warehouse: formData.set_warehouse,
           accepted_warehouse: formData.set_warehouse,
           rejected_warehouse: parseFloat(i.rejected_qty) > 0 ? formData.set_warehouse : ''
@@ -1195,6 +1354,7 @@ function PurchaseReceiptList() {
               </div>
 
               <div className="so-modal-body">
+                {renderConnectionsDashboard()}
                 {/* Basic Details Card */}
                 <div className="so-card">
                   <div className="so-card-header">
@@ -1334,10 +1494,13 @@ function PurchaseReceiptList() {
                           <tr>
                             <th style={{ width: '50px', textAlign: 'center' }}>No.</th>
                             <th>Item Details</th>
-                            <th style={{ width: '100px', textAlign: 'center' }}>Accepted</th>
-                            <th style={{ width: '100px', textAlign: 'center' }}>Rejected</th>
-                            <th style={{ width: '120px', textAlign: 'right' }}>Rate</th>
-                            <th style={{ width: '140px', textAlign: 'right' }}>Amount</th>
+                            <th style={{ width: '120px', textAlign: 'center' }}>Supplier SL #</th>
+                            <th style={{ width: '80px', textAlign: 'center' }}>Box Qty</th>
+                            <th style={{ width: '80px', textAlign: 'center' }}>Pcs/Box</th>
+                            <th style={{ width: '90px', textAlign: 'center' }}>Accepted</th>
+                            <th style={{ width: '90px', textAlign: 'center' }}>Rejected</th>
+                            <th style={{ width: '110px', textAlign: 'right' }}>Rate</th>
+                            <th style={{ width: '130px', textAlign: 'right' }}>Amount</th>
                             <th style={{ width: '50px' }}></th>
                           </tr>
                         </thead>
@@ -1372,6 +1535,34 @@ function PurchaseReceiptList() {
                                     </div>
                                   )}
                                 </div>
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  value={item.custom_supplier_sl_num || ''}
+                                  onChange={e => updateItem(i, 'custom_supplier_sl_num', e.target.value)}
+                                  className="so-input"
+                                  style={{ height: '36px', fontSize: '0.85rem' }}
+                                  placeholder="SL #"
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={item.custom_box_qty || 0}
+                                  onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
+                                  className="so-input"
+                                  style={{ textAlign: 'center', height: '36px' }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={item.custom_pieces_per_box || 1}
+                                  onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                  className="so-input"
+                                  style={{ textAlign: 'center', height: '36px' }}
+                                />
                               </td>
                               <td>
                                 <input
