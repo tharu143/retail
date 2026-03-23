@@ -67,6 +67,7 @@ function PurchaseOrder() {
   const [activeDropdownRow, setActiveDropdownRow] = useState(null);
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false); // Shows if we are editing a draft
+  const [isViewOnly, setIsViewOnly] = useState(false); // ERP-style View mode vs Edit mode
   const [createdDocName, setCreatedDocName] = useState(null); // Store created PR/PI name
   const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
@@ -368,8 +369,9 @@ function PurchaseOrder() {
         naming_series: draft.naming_series || 'PO-'
       });
       setIsEditMode(true);
+      setIsViewOnly(true); // Default to View mode when loaded
       setShowDraftsList(false);
-      setSuccess(`Draft loaded: ${draftName}`);
+      setSuccess(`Record loaded: ${draftName}`);
       fetchLinkedDocs(draftName);
     } catch (err) {
       setError(`Failed to load draft: ${err.message}`);
@@ -1128,17 +1130,37 @@ function PurchaseOrder() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setPoTheme(prev => prev === 'green' ? 'blue' : 'green')}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-tight text-slate-500 hover:bg-white transition-all focus:ring-0"
-              title="Toggle Theme Color"
-            >
-              <Palette className={`w-3.5 h-3.5 ${poTheme === 'green' ? 'text-emerald-500' : 'text-sky-500'}`} />
-            </button>
+            {/* ERP-style View/Edit Toggle */}
+            {formData.name && (
+              <div className="flex items-center gap-2">
+                {isViewOnly ? (
+                  formData.docstatus === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsViewOnly(false)}
+                      className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                      Edit Record
+                    </button>
+                  )
+                ) : (
+                  formData.docstatus === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsViewOnly(true)}
+                      className="flex items-center gap-2 px-4 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-black text-slate-500 hover:bg-white transition-all shadow-sm"
+                    >
+                      Cancel Edit
+                    </button>
+                  )
+                )}
+              </div>
+            )}
 
             <div className="h-6 w-px bg-slate-100 mx-1" />
 
-            <div className="flex items-center gap-2 mr-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 cursor-pointer" onClick={() => setFormData(p => ({ ...p, quick_entry: !p.quick_entry }))}>
+            <div className="flex items-center gap-2 mr-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 cursor-pointer" onClick={() => !isViewOnly && setFormData(p => ({ ...p, quick_entry: !p.quick_entry }))}>
               <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.quick_entry ? 'bg-[var(--po-primary)]' : 'bg-slate-300'}`}>
                 <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${formData.quick_entry ? 'left-4.5' : 'left-0.5'}`} />
               </div>
@@ -1148,28 +1170,36 @@ function PurchaseOrder() {
               {formData.quick_entry && <Zap className="w-3 h-3 text-[var(--po-primary)] animate-pulse ml-1" />}
             </div>
 
-            {formData.docstatus === 0 && !formData.name && !formData.quick_entry && (
-              <button
-                type="button"
-                onClick={handleSaveDraft}
-                disabled={saving || loading}
-                className="po-btn-secondary"
-              >
-                {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                Save Draft
-              </button>
+            {/* Standard Action Buttons - Hidden/Disabled in View Only or Submitted status */}
+            {!isViewOnly && formData.docstatus === 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={saving || loading || isViewOnly}
+                  className="po-btn-secondary"
+                >
+                  {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  {formData.name ? 'Update Draft' : 'Save Draft'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading || saving || !formData.supplier || formData.items.filter(i => i.item_code).length === 0 || isViewOnly}
+                  className={`po-btn-primary px-6 ${formData.quick_entry ? '!bg-[var(--po-primary)] border-[var(--po-primary)]' : ''}`}
+                >
+                  {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  {formData.quick_entry ? 'ZAP! Quick Stock In' : 'Submit Now'}
+                </button>
+              </>
             )}
 
-            {(formData.name || formData.quick_entry || formData.docstatus === 1) && (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={loading || saving || !formData.supplier || formData.items.filter(i => i.item_code).length === 0 || formData.docstatus === 1}
-                className={`po-btn-primary px-6 ${formData.quick_entry ? '!bg-[var(--po-primary)] border-[var(--po-primary)]' : ''}`}
-              >
-                {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                {formData.docstatus === 1 ? 'Submitted' : (formData.quick_entry ? 'ZAP! Quick Stock In' : 'Submit')}
-              </button>
+            {formData.docstatus === 1 && (
+              <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg text-[11px] font-black text-emerald-700 shadow-sm">
+                <CheckCircle2 className="w-4 h-4" />
+                Submitted
+              </div>
             )}
           </div>
         </div>
@@ -1319,7 +1349,8 @@ function PurchaseOrder() {
                         value={formData.naming_series}
                         onChange={handleInputChange}
                         onKeyDown={handleNextFocus}
-                        className="po-input font-bold text-[var(--po-primary)]"
+                        disabled={isViewOnly || formData.docstatus !== 0}
+                        className="po-input font-bold text-[var(--po-primary)] disabled:bg-slate-50 disabled:cursor-not-allowed"
                       >
                         <option value="PUR-ORD-.YYYY.-">PUR-ORD-.YYYY.-</option>
                       </select>
@@ -1327,14 +1358,20 @@ function PurchaseOrder() {
                     <div>
                       <label className="po-label">Supplier / Vendor</label>
                       <div onKeyDown={handleNextFocus}>
-                        <CustomSearchDropdown
-                          placeholder="Search supplier..."
-                          value={formData.supplier}
-                          onSelect={handleSupplierSelect}
-                          fetchData={fetchSuppliers}
-                          createOption={handleSupplierCreate}
-                          optionsLabel="supplier_name"
-                        />
+                        {isViewOnly || formData.docstatus !== 0 ? (
+                          <div className="po-input bg-slate-50 text-slate-500 font-bold flex items-center h-[42px] border-slate-100">
+                            {formData.supplier?.supplier_name || formData.supplier || 'No Supplier'}
+                          </div>
+                        ) : (
+                          <CustomSearchDropdown
+                            placeholder="Search supplier..."
+                            value={formData.supplier}
+                            onSelect={handleSupplierSelect}
+                            fetchData={fetchSuppliers}
+                            createOption={handleSupplierCreate}
+                            optionsLabel="supplier_name"
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1350,7 +1387,7 @@ function PurchaseOrder() {
                   <div className="po-card-body grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                       <label className="po-label">Warehouse (Target)</label>
-                      <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} onKeyDown={handleNextFocus} className="po-input font-bold">
+                      <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="po-input font-bold disabled:bg-slate-50 disabled:border-slate-100 disabled:text-slate-500">
                         <option value="">Choose warehouse...</option>
                         {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
                       </select>
@@ -1381,38 +1418,40 @@ function PurchaseOrder() {
                   <h3 className="po-card-title">Product Inventory Basket</h3>
                 </div>
 
-                <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-4 bg-white">
-                  <div className="relative flex-1 group">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#10b981] transition-colors">
-                      <Scan className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Enter Barcode / Scan here..."
-                      className="w-full pl-10 pr-12 h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#10b981] focus:bg-white transition-all shadow-sm"
-                      onKeyDown={async (e) => {
-                        if (e.key === 'Enter') {
-                          const barcode = e.target.value.trim();
-                          if (barcode) {
-                            await handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
-                            e.target.value = '';
+                {!isViewOnly && formData.docstatus === 0 && (
+                  <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-4 bg-white animate-fadeIn">
+                    <div className="relative flex-1 group">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#10b981] transition-colors">
+                        <Scan className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Enter Barcode / Scan here..."
+                        className="w-full pl-10 pr-12 h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#10b981] focus:bg-white transition-all shadow-sm"
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            const barcode = e.target.value.trim();
+                            if (barcode) {
+                              await handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
+                              e.target.value = '';
+                            }
                           }
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={startCameraScanner}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-[#10b981] hover:bg-emerald-50 rounded-lg transition-all"
-                      title="Start Camera Scanner"
-                    >
-                      <Camera className="w-4 h-4" />
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={startCameraScanner}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-[#10b981] hover:bg-emerald-50 rounded-lg transition-all"
+                        title="Start Camera Scanner"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <button type="button" onClick={addItemRow} className="po-btn-secondary h-[42px] px-8 rounded-xl flex items-center gap-2">
+                      <Plus className="w-4 h-4" /> Add Row
                     </button>
                   </div>
-                  <button type="button" onClick={addItemRow} className="po-btn-secondary h-[42px] px-8 rounded-xl flex items-center gap-2">
-                    <Plus className="w-4 h-4" /> Add Row
-                  </button>
-                </div>
+                )}
 
                 {isScannerOpen && createPortal(
                   <div
@@ -1497,7 +1536,8 @@ function PurchaseOrder() {
                             <input
                               type="text"
                               value={item.temp_barcode ?? ''}
-                              placeholder="Barcode"
+                              placeholder={isViewOnly ? "" : "Barcode"}
+                              readOnly={isViewOnly || formData.docstatus !== 0}
                               onChange={(e) => handleBarcodeScan(e, idx)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' && e.target.value) {
@@ -1506,7 +1546,7 @@ function PurchaseOrder() {
                                   handleNextFocus(e);
                                 }
                               }}
-                              className="w-full text-[11px] font-bold outline-none"
+                              className="w-full text-[11px] font-bold outline-none disabled:text-slate-400"
                             />
                           </td>
                           <td className="purchase-td">
@@ -1515,7 +1555,9 @@ function PurchaseOrder() {
                                 type="text"
                                 value={item.item_name ?? ''}
                                 placeholder="Search product..."
+                                readOnly={isViewOnly || formData.docstatus !== 0}
                                 onFocus={async (e) => {
+                                  if (isViewOnly || formData.docstatus !== 0) return;
                                   const q = e.target.value;
                                   const results = await fetchItems(q);
                                   setAllItems(results || []);
@@ -1526,6 +1568,7 @@ function PurchaseOrder() {
                                 }}
                                 onBlur={() => setTimeout(() => setActiveDropdownRow(null), 200)}
                                 onKeyDown={(e) => {
+                                  if (isViewOnly || formData.docstatus !== 0) return;
                                   if (e.key === 'ArrowDown') {
                                     e.preventDefault();
                                     setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev));
@@ -1543,6 +1586,7 @@ function PurchaseOrder() {
                                   }
                                 }}
                                 onChange={async (e) => {
+                                  if (isViewOnly || formData.docstatus !== 0) return;
                                   const q = e.target.value;
                                   setFormData(prev => {
                                     const its = [...prev.items];
@@ -1556,6 +1600,7 @@ function PurchaseOrder() {
                                   const rect = e.target.getBoundingClientRect();
                                   setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
                                 }}
+                                className="w-full outline-none disabled:bg-transparent"
                               />
                               {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
                                 <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
@@ -1580,39 +1625,39 @@ function PurchaseOrder() {
                             </div>
                           </td>
                           <td className="purchase-td">
-                            <input type="number" name="custom_box_qty" step="1" value={item.custom_box_qty ?? ''} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center font-bold" />
+                            <input type="number" name="custom_box_qty" step="1" value={item.custom_box_qty ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center font-bold outline-none" />
                           </td>
                           <td className="purchase-td">
-                            <input type="number" name="custom_pieces_per_box" step="1" value={item.custom_pieces_per_box ?? ''} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center" />
+                            <input type="number" name="custom_pieces_per_box" step="1" value={item.custom_pieces_per_box ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center outline-none" />
                           </td>
                           <td className="purchase-td text-right">
-                            <input type="number" name="custom_box_price" step="0.01" value={item.custom_box_price ?? ''} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right" />
+                            <input type="number" name="custom_box_price" step="0.01" value={item.custom_box_price ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />
                           </td>
                           <td className="purchase-td text-right">
-                            <input type="number" name="custom_selling_price" step="0.01" value={item.custom_selling_price ?? ''} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)]" />
+                            <input type="number" name="custom_selling_price" step="0.01" value={item.custom_selling_price ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />
                           </td>
                           <td className="purchase-td">
-                            <input type="text" name="custom_ref_sl_no" value={item.custom_ref_sl_no ?? ''} onChange={(e) => handleInputChange(e, idx)} onKeyDown={handleNextFocus} placeholder="Serial..." className="w-full text-center text-[10px]" />
+                            <input type="text" name="custom_ref_sl_no" value={item.custom_ref_sl_no ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onKeyDown={handleNextFocus} placeholder="Serial..." className="w-full text-center text-[10px] outline-none" />
                           </td>
                           <td className="purchase-td text-center">
-                            <input type="number" name="qty" step="0.01" value={item.qty ?? ''} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right" />
+                            <input type="number" name="qty" step="0.01" value={item.qty ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />
                           </td>
                           <td className="purchase-td text-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">{item.uom ?? 'UNIT'}</span>
                           </td>
                           <td className="purchase-td text-right !text-center">
-                            <input type="number" name="rate" step="0.01" value={item.rate ?? ''} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center" />
+                            <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center outline-none" />
                           </td>
                           {formData.docstatus === 1 && (
                             <>
                               <td className="purchase-td !bg-emerald-50/30 border-x border-emerald-50">
-                                <input type="number" name="received_qty" value={item.received_qty ?? item.qty} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-emerald-600 bg-transparent outline-none" />
+                                <input type="number" name="received_qty" value={item.received_qty ?? item.qty} readOnly={isViewOnly || formData.docstatus === 1} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-emerald-600 bg-transparent outline-none" />
                               </td>
                               <td className="purchase-td !bg-rose-50/30 border-x border-rose-50">
-                                <input type="number" name="rejected_qty" value={item.rejected_qty ?? 0} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-rose-600 bg-transparent outline-none" />
+                                <input type="number" name="rejected_qty" value={item.rejected_qty ?? 0} readOnly={isViewOnly || formData.docstatus === 1} onChange={(e) => handleInputChange(e, idx)} className="w-full text-center font-bold text-rose-600 bg-transparent outline-none" />
                               </td>
                               <td className="purchase-td !bg-slate-50/30">
-                                <input type="text" name="rejected_warehouse" value={item.rejected_warehouse ?? ''} onChange={(e) => handleInputChange(e, idx)} placeholder="Rej Wh..." className="w-full text-[10px] text-center bg-transparent outline-none" title="Warehouse for rejected items" />
+                                <input type="text" name="rejected_warehouse" value={item.rejected_warehouse ?? ''} readOnly={isViewOnly || formData.docstatus === 1} onChange={(e) => handleInputChange(e, idx)} placeholder="Rej Wh..." className="w-full text-[10px] text-center bg-transparent outline-none" title="Warehouse for rejected items" />
                               </td>
                             </>
                           )}
@@ -1622,7 +1667,9 @@ function PurchaseOrder() {
                             </span>
                           </td>
                           <td className="purchase-td text-center">
-                            <button type="button" onClick={() => removeItemRow(idx)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 className="w-4 h-4" /></button>
+                            {!isViewOnly && formData.docstatus === 0 && (
+                              <button type="button" onClick={() => removeItemRow(idx)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 className="w-4 h-4" /></button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1637,7 +1684,7 @@ function PurchaseOrder() {
                 <div className="summary-section tax-section">
                   <span className="summary-label">Tax Schedule</span>
                   <div className="relative mt-2">
-                    <select value={formData.taxes_and_charges || ''} onChange={(e) => onTaxChange(e.target.value)} onKeyDown={handleNextFocus} className="summary-select focus:border-[#10b981]">
+                    <select value={formData.taxes_and_charges || ''} onChange={(e) => onTaxChange(e.target.value)} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="summary-select focus:border-[#10b981] disabled:bg-slate-50 disabled:text-slate-500">
                       <option value="">No Tax Schedule...</option>
                       {taxTemplates.map((t) => <option key={t.name} value={t.name}>{t.title || t.name}</option>)}
                     </select>
