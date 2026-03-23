@@ -42,7 +42,7 @@ function CustomerList() {
     const fetchCustomers = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_PATH}.get_customers_list`, {
+        const res = await fetch(`${API_PATH}.get_customers_list?order_by=modified desc`, {
           headers: { 'X-Frappe-SID': getSession() },
           credentials: 'include'
         });
@@ -106,7 +106,7 @@ function CustomerList() {
         setForm({ customer_name: '', mobile_no: '', email_id: '' });
 
         // Refresh customers list
-        const refresh = await fetch(`${API_PATH}.get_customers_list`, {
+        const refresh = await fetch(`${API_PATH}.get_customers_list?order_by=modified desc`, {
           headers: { 'X-Frappe-SID': getSession() },
           credentials: 'include'
         });

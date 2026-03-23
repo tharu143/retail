@@ -181,6 +181,12 @@ function PurchaseInvoiceList() {
     }
   };
 
+  const formatPrice = (val) => {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
   const handleClickOutside = (e) => {
     if (supplierRef.current && !supplierRef.current.contains(e.target)) setShowSupplierDropdown(false);
     Object.keys(itemRefs.current).forEach(idx => {
@@ -208,7 +214,10 @@ function PurchaseInvoiceList() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_PATH}.get_purchase_invoices`, { params: { limit: 2000, limit_page_length: 2000 }, withCredentials: true });
+      const res = await axios.get(`${API_PATH}.get_purchase_invoices`, { 
+        params: { limit: 2000, limit_page_length: 2000, order_by: 'modified desc' }, 
+        withCredentials: true 
+      });
       if (res.data.message?.success) setInvoices(res.data.message.data || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -607,11 +616,7 @@ function PurchaseInvoiceList() {
   };
 
   const handleRowClick = (invoice) => {
-    if (invoice.status === 'Draft') {
-      openEditModal(invoice);
-    } else {
-      openViewModal(invoice);
-    }
+    openViewModal(invoice);
   };
 
   const updateItem = (index, field, value) => {
@@ -1157,12 +1162,33 @@ function PurchaseInvoiceList() {
         {isModalOpen && (
           <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0 }}>
             <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-              <div className="so-modal-header">
-                <h2 className="so-modal-title">
-                  <Package size={18} style={{ display: 'inline', marginRight: '0.4rem' }} />
-                  {isEditMode ? 'Edit' : isViewMode ? 'View' : 'New'} Purchase Invoice
-                </h2>
-                <button onClick={closeModal} className="so-modal-close">
+              <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                  <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Package size={20} style={{ color: themeColor }} />
+                    {isEditMode ? 'Modify' : isViewMode ? 'View' : 'New'} Purchase Invoice
+                    {formData.name && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginLeft: '0.5rem' }}>{formData.name}</span>}
+                  </h2>
+                  {isViewMode && formData.docstatus === 0 && (
+                    <button 
+                      onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
+                      className="so-btn-primary" 
+                      style={{ padding: '0.35rem 1rem', fontSize: '0.7rem', background: 'white', color: themeColor, border: `1.5px solid ${themeColor}` }}
+                    >
+                      <Edit2 size={14} /> Edit Draft
+                    </button>
+                  )}
+                  {isEditMode && formData.name && (
+                    <button 
+                      onClick={() => setIsViewMode(true)}
+                      className="so-btn-ghost" 
+                      style={{ padding: '0.35rem 1rem', fontSize: '0.7rem', color: '#64748b' }}
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+                <button onClick={closeModal} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
                   <X size={20} />
                 </button>
               </div>
@@ -1449,19 +1475,22 @@ function PurchaseInvoiceList() {
                                 />
                               </td>
                               <td style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 600 }}>{item.uom || '-'}</td>
-                              <td>
-                                <input
-                                  type="number"
-                                  value={item.rate}
-                                  onChange={e => updateItem(i, 'rate', e.target.value)}
-                                  className="so-input"
-                                  style={{ height: '36px', textAlign: 'right', fontWeight: 700 }}
-                                  disabled={isViewMode}
-                                  step="0.01"
-                                />
+                              <td style={{ textAlign: 'right' }}>
+                                {isViewMode ? (
+                                  <span style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>{formatPrice(item.rate)}</span>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={item.rate}
+                                    onChange={e => updateItem(i, 'rate', e.target.value)}
+                                    className="so-input"
+                                    style={{ height: '36px', textAlign: 'right', fontWeight: 700 }}
+                                    step="0.01"
+                                  />
+                                )}
                               </td>
-                              <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.8rem' }}>
-                                {(parseFloat(item.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              <td style={{ textAlign: 'right' }}>
+                                <span style={{ fontWeight: 900, color: '#1e293b', fontSize: '0.85rem' }}>{formatPrice(item.amount)}</span>
                               </td>
                               <td style={{ textAlign: 'center' }}>
                                 {!isViewMode && formData.items.length > 1 && (
@@ -1564,7 +1593,7 @@ function PurchaseInvoiceList() {
                                     <td style={{ fontSize: '0.75rem', fontWeight: 600 }}>{tax.account_head?.split(' - ')[0]}</td>
                                     <td style={{ textAlign: 'center', fontWeight: 700 }}>{tax.rate}%</td>
                                     <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                      {(netTotal * (parseFloat(tax.rate || 0) / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                                            {formatPrice(netTotal * (parseFloat(tax.rate || 0) / 100))}
                                     </td>
                                   </tr>
                                 ))}
@@ -1590,19 +1619,19 @@ function PurchaseInvoiceList() {
                     <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
                         <span>Subtotal</span>
-                        <span style={{ fontWeight: 700 }}>AED {subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <span style={{ fontWeight: 700 }}>AED {formatPrice(subtotal)}</span>
                       </div>
 
                       {discountAmount > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fda4af' }}>
                           <span>Total Discount</span>
-                          <span style={{ fontWeight: 700 }}>- AED {discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span style={{ fontWeight: 700 }}>- AED {formatPrice(discountAmount)}</span>
                         </div>
                       )}
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
                         <span>Tax Total</span>
-                        <span style={{ fontWeight: 700 }}>AED {taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <span style={{ fontWeight: 700 }}>AED {formatPrice(taxTotal)}</span>
                       </div>
 
                       <div style={{
@@ -1616,7 +1645,7 @@ function PurchaseInvoiceList() {
                         <span style={{ fontSize: '1rem', fontWeight: 500 }}>Grand Total</span>
                         <div style={{ textAlign: 'right' }}>
                           <span style={{ fontSize: '1.75rem', fontWeight: 900, display: 'block', lineHeight: 1 }}>
-                            AED {parseFloat(grandTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            AED {formatPrice(grandTotal)}
                           </span>
                           <span style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inc. All Taxes</span>
                         </div>

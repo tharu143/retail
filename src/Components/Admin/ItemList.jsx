@@ -61,6 +61,12 @@ export default function ItemList() {
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const formatPrice = (val) => {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
   // Theme toggle
   const [itTheme, setItTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
   const isGreen = itTheme === 'green';
@@ -171,7 +177,7 @@ export default function ItemList() {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/resource/Item?limit_page_length=2000&fields=["item_code","item_name","item_group","stock_uom","image","description","disabled","has_variants","standard_rate"]&order_by=item_name asc', { withCredentials: true });
+      const res = await axios.get('/api/resource/Item?limit_page_length=2000&fields=["item_code","item_name","item_group","stock_uom","image","description","disabled","has_variants","standard_rate"]&order_by=modified desc', { withCredentials: true });
       const data = res.data?.data || [];
       setItems(data);
     } catch (err) {
@@ -395,7 +401,7 @@ export default function ItemList() {
                       <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.5rem' }}>{item.item_name}</h3>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
                         <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{item.stock_uom}</span>
-                        <span style={{ fontSize: '1.25rem', fontWeight: 900, color: themeColor }}>AED {Number(item.standard_rate || 0).toFixed(2)}</span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 900, color: themeColor }}>AED {formatPrice(item.standard_rate || 0)}</span>
                       </div>
                     </div>
                   </div>
@@ -459,7 +465,7 @@ export default function ItemList() {
                                 {dashboardData?.item_details?.prices ? Object.entries(dashboardData.item_details.prices).map(([uom, price]) => (
                                   <div key={uom} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '1.5rem', border: '1px solid #f1f5f9', textAlign: 'center' }}>
                                     <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', display: 'block', marginBottom: '0.5rem' }}>{uom.toUpperCase()}</label>
-                                    <p style={{ fontWeight: 900, fontSize: '1.5rem', color: themeColor }}>{Number(price).toFixed(2)}</p>
+                                    <p style={{ fontWeight: 900, fontSize: '1.5rem', color: themeColor }}>{formatPrice(price)}</p>
                                   </div>
                                 )) : <p style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', gridColumn: 'span 2' }}>No price records found.</p>}
                               </div>

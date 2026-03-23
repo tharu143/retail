@@ -38,7 +38,7 @@ const PurchaseOrderList = ({ onNew }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_PATH}.get_purchase_orders?searchTerm=${searchTerm || ''}&status=${filterStatus === 'All' ? '' : filterStatus}`, {
+      const res = await fetch(`${API_PATH}.get_purchase_orders?searchTerm=${searchTerm || ''}&status=${filterStatus === 'All' ? '' : filterStatus}&order_by=modified desc`, {
         headers: {
           'X-Frappe-SID': getSession(),
           'Content-Type': 'application/json'

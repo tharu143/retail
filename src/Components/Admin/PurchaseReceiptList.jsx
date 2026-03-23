@@ -20,8 +20,16 @@ function PurchaseReceiptList() {
   const [formErrors, setFormErrors] = useState({});
   const [rateLoading, setRateLoading] = useState({});
   const [docName, setDocName] = useState('');
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const theme = useSelector(state => state.user.theme);
   const [barcodeInput, setBarcodeInput] = useState('');
+
+  const formatPrice = (val) => {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
 
   // Theme toggle (synced across pages)
   const [prTheme, setPrTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
@@ -222,7 +230,10 @@ function PurchaseReceiptList() {
   const fetchReceipts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_PATH}.get_purchase_receipts`, { params: { limit: 2000, limit_page_length: 2000 }, withCredentials: true });
+      const res = await axios.get(`${API_PATH}.get_purchase_receipts`, { 
+        params: { limit: 2000, limit_page_length: 2000, order_by: 'modified desc' }, 
+        withCredentials: true 
+      });
       if (res.data.message?.success) {
         setReceipts(res.data.message.data || []);
       }
@@ -772,11 +783,13 @@ function PurchaseReceiptList() {
       });
       setDocName(doc.name);
       setSearchSupplier(doc.supplier_name || '');
+      setIsViewMode(true);
+      setIsEditMode(false);
       setIsModalOpen(true);
       if (doc.name) fetchLinkedDocuments(doc.name);
     } catch (err) {
       console.error('Error fetching receipt:', err);
-      alert('Failed to load receipt for editing');
+      alert('Failed to load receipt');
     } finally {
       setLoading(false);
     }
@@ -1343,12 +1356,33 @@ function PurchaseReceiptList() {
         {isModalOpen && (
           <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ padding: 0 }}>
             <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-              <div className="so-modal-header">
-                <h2 className="so-modal-title">
-                  <Package size={18} style={{ display: 'inline', marginRight: '0.4rem' }} />
-                  {docName ? 'Edit' : 'New'} Purchase Receipt
-                </h2>
-                <button onClick={() => setIsModalOpen(false)} className="so-modal-close">
+              <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                  <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Package size={20} style={{ color: themeColor }} />
+                    {isEditMode ? 'Modify' : isViewMode ? 'View' : 'New'} Purchase Receipt
+                    {docName && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginLeft: '0.5rem' }}>{docName}</span>}
+                  </h2>
+                  {isViewMode && formData.docstatus === 0 && (
+                    <button 
+                      onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
+                      className="so-btn-primary" 
+                      style={{ padding: '0.35rem 1rem', fontSize: '0.7rem', background: 'white', color: themeColor, border: `1.5px solid ${themeColor}` }}
+                    >
+                      <Edit3 size={14} /> Edit Draft
+                    </button>
+                  )}
+                  {isEditMode && docName && (
+                    <button 
+                      onClick={() => setIsViewMode(true)}
+                      className="so-btn-ghost" 
+                      style={{ padding: '0.35rem 1rem', fontSize: '0.7rem', color: '#64748b' }}
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+                <button onClick={() => setIsModalOpen(false)} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
                   <X size={20} />
                 </button>
               </div>
@@ -1582,21 +1616,25 @@ function PurchaseReceiptList() {
                                   style={{ textAlign: 'center', height: '36px' }}
                                 />
                               </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  value={item.rate}
-                                  onChange={e => updateItem(i, 'rate', e.target.value)}
-                                  className="so-input"
-                                  style={{ textAlign: 'right', height: '36px' }}
-                                  step="0.01"
-                                  placeholder={rateLoading[i] ? "..." : "0.00"}
-                                  disabled={rateLoading[i]}
-                                />
+                              <td style={{ textAlign: 'right' }}>
+                                {isViewMode ? (
+                                  <span style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>{formatPrice(item.rate)}</span>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={item.rate}
+                                    onChange={e => updateItem(i, 'rate', e.target.value)}
+                                    className="so-input"
+                                    style={{ textAlign: 'right', height: '36px' }}
+                                    step="0.01"
+                                    placeholder={rateLoading[i] ? "..." : "0.00"}
+                                    disabled={rateLoading[i]}
+                                  />
+                                )}
                                 {rateLoading[i] && <div style={{ fontSize: '0.6rem', color: themeColor, textAlign: 'right', fontWeight: 700 }}>Fetching...</div>}
                               </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.85rem' }}>
-                                {(parseFloat(item.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.85rem' }}>
+                                {formatPrice(item.amount)}
                               </td>
                               <td style={{ textAlign: 'center' }}>
                                 <button onClick={() => removeItemRow(i)} className="so-btn-danger" style={{ padding: '0.25rem' }}>
@@ -1743,24 +1781,24 @@ function PurchaseReceiptList() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
                           <span>Net Total</span>
-                          <span style={{ fontWeight: 700 }}>AED {(parseFloat(formData.net_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span style={{ fontWeight: 700 }}>AED {formatPrice(formData.net_total)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
                           <span>Total Tax</span>
-                          <span style={{ fontWeight: 700 }}>AED {(parseFloat(formData.total_taxes_and_charges) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span style={{ fontWeight: 700 }}>AED {formatPrice(formData.total_taxes_and_charges)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
                           <span>Less Discount</span>
-                          <span style={{ fontWeight: 700 }}>AED {(parseFloat(formData.discounted_amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span style={{ fontWeight: 700 }}>AED {formatPrice(formData.discounted_amount)}</span>
                         </div>
                         <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '0.5rem 0' }}></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '1rem', fontWeight: 600 }}>Grand Total</span>
-                          <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>AED {(parseFloat(formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>AED {formatPrice(formData.grand_total)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '0.5rem' }}>
                           <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Rounded Total</span>
-                          <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>AED {(parseFloat(formData.rounded_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>AED {formatPrice(formData.rounded_total)}</span>
                         </div>
                         <p style={{ fontSize: '0.65rem', opacity: 0.7, fontStyle: 'italic', marginTop: '0.5rem', textAlign: 'center' }}>
                           * Rounding Adjustment: AED {((parseFloat(formData.rounded_total) || 0) - (parseFloat(formData.grand_total) || 0)).toFixed(2)}

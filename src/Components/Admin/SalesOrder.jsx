@@ -173,7 +173,8 @@ function SalesOrder() {
       const res = await axios.get('/api/resource/Sales Order', {
         params: {
           limit_page_length: 2000,
-          fields: JSON.stringify(['name', 'customer', 'customer_name', 'transaction_date', 'grand_total', 'docstatus'])
+          fields: JSON.stringify(['name', 'customer', 'customer_name', 'transaction_date', 'grand_total', 'docstatus']),
+          order_by: 'modified desc'
         },
         withCredentials: true
       });

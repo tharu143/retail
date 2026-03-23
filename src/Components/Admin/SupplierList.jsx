@@ -87,7 +87,7 @@ export default function SupplierList() {
       const res = await axios.get('/api/resource/Supplier', {
         params: {
           fields: JSON.stringify(['name', 'supplier_name', 'supplier_group', 'supplier_type', 'disabled', 'image']),
-          order_by: 'supplier_name asc',
+          order_by: 'modified desc',
           limit_page_length: 1000
         },
         withCredentials: true
@@ -375,31 +375,32 @@ export default function SupplierList() {
                                 </div>
                                 <div className="so-card-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                   {rows.map((row, idx) => {
-                                    const isExpanded = expandedLinks[row.label];
+                                    const routeMap = {
+                                      'Purchase Order': 'purchaseorderlist',
+                                      'Purchase Receipt': 'purchasereceiptlist',
+                                      'Purchase Invoice': 'purchaseinvoicelist',
+                                      'Payment Entry': 'paymententrylist',
+                                      'Journal Entry': 'journalentrylist',
+                                      'Item Price': 'itempricelist',
+                                      'Pricing Rule': 'pricingrulelist',
+                                      'Contact': 'contactlist',
+                                      'Address': 'addresslist'
+                                    };
+                                    const routeName = routeMap[row.label] || '';
+
                                     return (
                                       <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        <div onClick={() => toggleLinkExpansion(row.label)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.75rem', background: '#ffffff', borderRadius: '1.5rem', border: isExpanded ? `1.5px solid ${themeColor}` : '1px solid #f1f5f9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', cursor: 'pointer', transition: 'all 0.2s' }}>
-                                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontWeight: 800, color: '#475569', fontSize: '0.9rem' }}>{row.label}</span>
-                                            {row.data[0]?.status && <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>Status: {row.data[0].status}</span>}
+                                        <div onClick={() => { if (routeName) window.location.href = `/#/${routeName}?supplier=${encodeURIComponent(editingSupplierName)}`; }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.75rem', background: '#ffffff', borderRadius: '1.5rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', cursor: routeName ? 'pointer' : 'default', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = themeColor} onMouseLeave={e => e.currentTarget.style.borderColor = '#e2e8f0'}>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                            <span style={{ fontWeight: 900, color: '#1e293b', fontSize: '0.9rem' }}>{row.label}</span>
+                                            {routeName ? <span style={{ fontSize: '0.7rem', color: themeColor, fontWeight: 700 }}>View List →</span> : <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>Unmapped</span>}
                                           </div>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                            <span style={{ fontWeight: 900, color: themeColor, background: `${themeColor}10`, width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1rem', fontSize: '1.25rem' }}>
+                                            <span style={{ fontWeight: 900, color: 'white', background: themeColor, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1rem', fontSize: '1rem', boxShadow: `0 4px 10px ${themeColor}40` }}>
                                               {row.data.length}
                                             </span>
-                                            <ChevronDown size={18} style={{ color: '#94a3b8', transition: 'transform 0.3s', transform: isExpanded ? 'rotate(180deg)' : 'none' }} />
                                           </div>
                                         </div>
-                                        {isExpanded && (
-                                          <div style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderRadius: '1.25rem', border: '1px solid #e2e8f0', marginLeft: '1rem', animation: 'fadeIn 0.3s ease' }}>
-                                            {row.data.map((doc, dIdx) => (
-                                              <div key={dIdx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: dIdx < row.data.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: themeColor, fontFamily: 'monospace' }}>{doc.name || doc.item_code}</span>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>{doc.status || ''}</span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
                                       </div>
                                     );
                                   })}

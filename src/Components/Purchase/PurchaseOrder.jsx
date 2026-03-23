@@ -104,6 +104,12 @@ function PurchaseOrder() {
     document.documentElement.style.setProperty('--po-primary-light', light);
   }, [poTheme]);
 
+  const formatPrice = (val) => {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
   const handleBarcodeScan = (e, rowIndex) => {
     const value = e.target.value;
     const items = [...formData.items];
@@ -1649,10 +1655,18 @@ function PurchaseOrder() {
                             <input type="number" name="custom_pieces_per_box" step="1" value={item.custom_pieces_per_box ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center outline-none" />
                           </td>
                           <td className="purchase-td text-right">
-                            <input type="number" name="custom_box_price" step="0.01" value={item.custom_box_price ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />
+                            {isViewOnly ? (
+                              <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.custom_box_price)}</span>
+                            ) : (
+                              <input type="number" name="custom_box_price" step="0.01" value={item.custom_box_price ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />
+                            )}
                           </td>
                           <td className="purchase-td text-right">
-                            <input type="number" name="custom_selling_price" step="0.01" value={item.custom_selling_price ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />
+                            {isViewOnly ? (
+                              <span className="text-[11px] font-bold text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</span>
+                            ) : (
+                              <input type="number" name="custom_selling_price" step="0.01" value={item.custom_selling_price ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />
+                            )}
                           </td>
                           <td className="purchase-td">
                             <input 
@@ -1673,11 +1687,15 @@ function PurchaseOrder() {
                             <span className="text-[10px] font-bold text-slate-400 uppercase">{item.uom ?? 'UNIT'}</span>
                           </td>
                           <td className="purchase-td text-right !text-center">
-                            <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center outline-none" />
+                            {isViewOnly ? (
+                              <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span>
+                            ) : (
+                              <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center outline-none" />
+                            )}
                           </td>
                           <td className="purchase-td text-right !pr-5 !text-center">
                             <span className="text-xs font-bold text-slate-900 tabular-nums">
-                              {Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: item.amount % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}
+                              {formatPrice(item.amount)}
                             </span>
                           </td>
                           <td className="purchase-td text-center">
@@ -1714,18 +1732,18 @@ function PurchaseOrder() {
                     </div>
                     <div className="text-center">
                       <span className="summary-label">Tax</span>
-                      <p className="detail-value text-[var(--po-primary)] font-black">{(formData.tax_total || 0).toFixed(2)}</p>
+                      <p className="detail-value text-[var(--po-primary)] font-black">{formatPrice(formData.tax_total)}</p>
                     </div>
                     <div className="text-center">
                       <span className="summary-label">Gross Total</span>
-                      <p className="detail-value text-[var(--po-primary)] font-black">{(formData.total || 0).toFixed(2)}</p>
+                      <p className="detail-value text-[var(--po-primary)] font-black">{formatPrice(formData.total)}</p>
                     </div>
                   </div>
 
                   <div className="summary-section grand-total-section border-l border-slate-200 pl-12">
                     <div className="text-right">
                       <span className="summary-label block">Grand Total</span>
-                      <p className="grand-total-value"><span className="currency-label-large">AED</span> {(formData.grand_total || 0).toFixed(2)}</p>
+                      <p className="grand-total-value"><span className="currency-label-large">AED</span> {formatPrice(formData.grand_total)}</p>
                     </div>
                   </div>
                 </div>
