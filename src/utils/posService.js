@@ -1,4 +1,4 @@
-﻿import { frappeCall } from './frappe';
+import { frappeCall } from './frappe';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -64,6 +64,13 @@ const POSService = {
             method: 'kyle_retail.retail_api.api.get_suppliers_po',
             args: { query: '', ...args },
             type: 'GET'
+        });
+    },
+
+    createSupplier: async (name) => {
+        return await frappeCall({
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.create_supplier',
+            args: { supplier_name: name.trim(), supplier_type: "Company" }
         });
     },
 

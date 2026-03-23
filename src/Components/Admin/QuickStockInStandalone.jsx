@@ -11,8 +11,31 @@ import { BrowserMultiFormatReader } from '@zxing/library';
 import { createPortal } from 'react-dom';
 import '../Admin/SalesOrder.css';
 import NavBar from '../Nav/NavBar';
+import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 
 const QuickStockInStandalone = () => {
+    const handleSupplierCreate = async (name) => {
+        try {
+            const res = await POSService.createSupplier(name);
+            if (res?.status === 'success' && res?.message) {
+                const s = res.message;
+                return { name: s.name, supplier_name: s.supplier_name || s.name };
+            }
+            throw new Error('Failed to create supplier');
+        } catch (err) {
+            Swal.fire('Error', err.message, 'error');
+            throw err;
+        }
+    };
+
+    const fetchSuppliersAPI = async (query) => {
+        try {
+            const res = await POSService.getSuppliers({ query });
+            return (res || []).map(s => ({ name: s.name, supplier_name: s.supplier_name || s.name }));
+        } catch (err) {
+            return [];
+        }
+    };
     // Basic States
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
@@ -476,15 +499,14 @@ const QuickStockInStandalone = () => {
                     <div style={{ position: 'relative' }}>
                         <User size={12} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                         {form.entry_type === 'Purchase' ? (
-                            <select 
-                                value={selectedSupplier} 
-                                onChange={(e) => setSelectedSupplier(e.target.value)} 
-                                className="so-filter-select" 
-                                style={{ paddingLeft: '2.25rem', height: '38px' }}
-                            >
-                                <option value="">Select Vendor...</option>
-                                {suppliers.map(s => <option key={s.name} value={s.name}>{s.supplier_name || s.name}</option>)}
-                            </select>
+                            <CustomSearchDropdown
+                                placeholder="Select Vendor..."
+                                value={selectedSupplier ? { name: selectedSupplier, supplier_name: suppliers.find(s => s.name === selectedSupplier)?.supplier_name || selectedSupplier } : null}
+                                onSelect={(s) => setSelectedSupplier(s.name)}
+                                fetchData={fetchSuppliersAPI}
+                                createOption={handleSupplierCreate}
+                                optionsLabel="supplier_name"
+                            />
                         ) : (
                             <select 
                                 value={form.from_warehouse} 

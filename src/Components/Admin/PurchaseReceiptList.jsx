@@ -8,6 +8,7 @@ import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
 import '../Admin/SalesOrder.css';
+import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const RESOURCE_BASE = '/api/resource';
 function PurchaseReceiptList() {
@@ -595,6 +596,40 @@ function PurchaseReceiptList() {
     // Fetch rate (non-blocking)
     fetchItemRate(rowIndex, item.item_code);
   };
+  const handleSupplierCreate = async (name) => {
+    try {
+      const res = await fetch(`${API_PATH}.create_supplier`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': localStorage.getItem('session') },
+        credentials: 'include',
+        body: JSON.stringify({ supplier_name: name.trim(), supplier_type: "Company" })
+      });
+      const result = await res.json();
+      if (result.message?.status === 'success' && result.message?.message) {
+        const s = result.message.message;
+        return { name: s.name, supplier_name: s.supplier_name || s.name };
+      }
+      throw new Error('Invalid response');
+    } catch (err) {
+      alert(`Cannot create supplier: ${err.message}`);
+      throw err;
+    }
+  };
+
+  const fetchSuppliersAPI = async (query) => {
+    try {
+      const res = await fetch(`${API_PATH}.get_suppliers_po?query=${encodeURIComponent(query)}`, {
+        headers: { 'X-Frappe-SID': localStorage.getItem('session') },
+        credentials: 'include'
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.message || []).map(s => ({ name: s.name, supplier_name: s.supplier_name || s.name }));
+    } catch (err) {
+      return [];
+    }
+  };
+
   const handleItemSearch = (index, value) => {
     setItemSearches(prev => ({ ...prev, [index]: value }));
     if (value.trim().length > 1) {
@@ -1407,26 +1442,14 @@ function PurchaseReceiptList() {
                       </div>
                       <div className="so-field">
                         <label className="so-label">Supplier <span style={{ color: 'var(--so-danger)' }}>*</span></label>
-                        <div className="relative" ref={supplierRef}>
-                          <input
-                            type="text"
-                            value={searchSupplier}
-                            onChange={e => setSearchSupplier(e.target.value)}
-                            onFocus={() => searchSupplier && setShowSupplierDropdown(true)}
-                            placeholder="Search and select supplier..."
-                            className="so-input"
-                          />
-                          {showSupplierDropdown && suppliers.length > 0 && (
-                            <div className="so-dropdown" style={{ left: 0, right: 0 }}>
-                              {suppliers.map(s => (
-                                <div key={s.name} onClick={() => selectSupplier(s)} className="so-dropdown-item">
-                                  <div style={{ fontWeight: 700 }}>{s.supplier_name}</div>
-                                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{s.name}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <CustomSearchDropdown
+                          placeholder="Search and select supplier..."
+                          value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
+                          onSelect={selectSupplier}
+                          fetchData={fetchSuppliersAPI}
+                          createOption={handleSupplierCreate}
+                          optionsLabel="supplier_name"
+                        />
                         {formErrors.supplier && <span style={{ color: 'var(--so-danger)', fontSize: '0.7rem', fontWeight: 600 }}>{formErrors.supplier}</span>}
                       </div>
                       <div className="so-field">

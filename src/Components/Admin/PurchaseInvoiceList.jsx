@@ -6,6 +6,7 @@ import {
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
+import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
@@ -46,6 +47,40 @@ function PurchaseInvoiceList() {
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [loadingTaxTemplates, setLoadingTaxTemplates] = useState(false);
   const [taxPreview, setTaxPreview] = useState([]);
+
+  const handleSupplierCreate = async (name) => {
+    try {
+      const res = await fetch(`${API_PATH}.create_supplier`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': localStorage.getItem('session') },
+        credentials: 'include',
+        body: JSON.stringify({ supplier_name: name.trim(), supplier_type: "Company" })
+      });
+      const result = await res.json();
+      if (result.message?.status === 'success' && result.message?.message) {
+        const s = result.message.message;
+        return { name: s.name, supplier_name: s.supplier_name || s.name };
+      }
+      throw new Error('Invalid response');
+    } catch (err) {
+      alert(`Cannot create supplier: ${err.message}`);
+      throw err;
+    }
+  };
+
+  const fetchSuppliersAPI = async (query) => {
+    try {
+      const res = await fetch(`${API_PATH}.get_suppliers_po?query=${encodeURIComponent(query)}`, {
+        headers: { 'X-Frappe-SID': localStorage.getItem('session') },
+        credentials: 'include'
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.message || []).map(s => ({ name: s.name, supplier_name: s.supplier_name || s.name }));
+    } catch (err) {
+      return [];
+    }
+  };
 
   // NEW: Warehouses State (filtered for non-group)
   const [warehouses, setWarehouses] = useState([]);
@@ -1201,31 +1236,16 @@ function PurchaseInvoiceList() {
                   </div>
                   <div className="so-card-body">
                     <div className="so-form-grid">
-                      <div className="so-field" ref={supplierRef} style={{ position: 'relative' }}>
+                      <div className="so-field">
                         <label className="so-label">Supplier {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
-                        <div style={{ position: 'relative' }}>
-                          <Building2 size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
-                          <input
-                            type="text"
-                            value={searchSupplier}
-                            onChange={e => setSearchSupplier(e.target.value)}
-                            onFocus={() => !isViewMode && searchSupplier && setShowSupplierDropdown(true)}
-                            placeholder="Search supplier..."
-                            className="so-input"
-                            style={{ paddingLeft: '2.5rem' }}
-                            disabled={isViewMode}
-                          />
-                        </div>
-                        {showSupplierDropdown && suppliers.length > 0 && !isViewMode && (
-                          <div className="so-dropdown" style={{ top: '100%', left: 0, right: 0, zIndex: 100 }}>
-                            {suppliers.map(s => (
-                              <div key={s.name} onClick={() => selectSupplier(s)} className="so-dropdown-item">
-                                <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{s.supplier_name}</div>
-                                <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{s.name}</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <CustomSearchDropdown
+                          placeholder="Search and select supplier..."
+                          value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
+                          onSelect={selectSupplier}
+                          fetchData={fetchSuppliersAPI}
+                          createOption={handleSupplierCreate}
+                          optionsLabel="supplier_name"
+                        />
                         {formErrors.supplier && <span className="so-error-text">{formErrors.supplier}</span>}
                       </div>
 

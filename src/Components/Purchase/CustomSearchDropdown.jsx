@@ -167,7 +167,7 @@ const CustomSearchDropdown = ({
           )}
         </div>
 
-        {createOption && (
+        {createOption && results.length === 0 && query.trim().length >= 2 && !loading && (
           <button
             onClick={handleCreate}
             disabled={loading || !query.trim()}
