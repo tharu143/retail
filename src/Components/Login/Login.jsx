@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../Redux/Slices/userSlice';
@@ -31,29 +31,35 @@ function Login() {
     setErrorMessage("");
 
     try {
-      // 1. Core Login Call (using the exact method and parameter names from stockDev1.0)
       const response = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login", {
         method: "POST",
         headers: { "Accept": "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-        credentials: window.location.protocol === 'file:' ? "include" : "omit"
+        body: JSON.stringify({ username, password, usr: username, pwd: password }),
+        credentials: "omit"
       });
 
       if (!response.ok) {
-        // Fallback for offline mode or 500 errors
+        // Fallback for offline mode or proxy unavailability
         if (!navigator.onLine || response.status >= 500) {
           const cachedUser = localStorage.getItem("user");
           if (cachedUser && username.trim().toLowerCase() === cachedUser.toLowerCase()) {
-            const cachedData = {
-              user: cachedUser,
-              session: localStorage.getItem("session"),
-              pos_profile: localStorage.getItem("pos_profile"),
-              company: localStorage.getItem("company"),
-              warehouse: localStorage.getItem("warehouse"),
-              branch_prefix: localStorage.getItem("branch_prefix")
-            };
+            const cachedSession = localStorage.getItem("session");
+            const cachedProfile = localStorage.getItem("pos_profile");
+            const cachedCompany = localStorage.getItem("company");
+            const cachedWarehouse = localStorage.getItem("warehouse");
+            const cachedBranch = localStorage.getItem("branch_prefix");
 
-            dispatch(loginSuccess(cachedData));
+            dispatch(loginSuccess({
+              user: cachedUser,
+              session: cachedSession,
+              pos_profile: cachedProfile,
+              company: cachedCompany,
+              warehouse: cachedWarehouse,
+              branch_prefix: cachedBranch,
+              is_manager: localStorage.getItem("is_manager") === "true",
+              user_roles: JSON.parse(localStorage.getItem("user_roles") || "[]")
+            }));
+
             Swal.fire({
               icon: 'info',
               title: 'Offline Mode',
@@ -67,10 +73,12 @@ function Login() {
         }
 
         let err;
-        try { err = await response.json(); } catch (e) {
-          throw new Error(`Server unreachable. Please check connection.`);
+        try {
+          err = await response.json();
+        } catch (e) {
+          throw new Error("Unable to connect to the server. Please check your internet.");
         }
-        throw new Error(err.message || `Login failed (HTTP ${response.status})`);
+        throw new Error(err.message || "Invalid credentials provided.");
       }
 
       const data = await response.json();
@@ -78,69 +86,30 @@ function Login() {
 
       let { user, session, pos_profile, company, warehouse, branch_prefix } = resp;
 
-      // Force cookie for Electron
-      if (window.location.protocol === 'file:') {
-        document.cookie = `sid=${session}; path=/;`;
-      }
-
-      // 2. Fetch Employee for correct Company (Critical for stockDev1.0)
-      try {
-        const filters = encodeURIComponent(JSON.stringify([["user_id", "=", user]]));
-        const fields = encodeURIComponent(JSON.stringify(["name", "company"]));
-        const empRes = await fetch(`/api/resource/Employee?filters=${filters}&fields=${fields}&sid=${session}`, {
-          headers: { "X-Frappe-SID": session },
-          credentials: window.location.protocol === 'file:' ? "include" : "omit"
-        });
-        if (empRes.ok) {
-          const empData = await empRes.json();
-          if (empData.data?.[0]) {
-            company = empData.data[0].company || company;
-          }
-        }
-      } catch (ex) { console.warn("Employee fetch failed", ex); }
-
-      // 3. Check for Open Shift
+      // Check for Active Shift
       let existingOpeningEntry = "";
       try {
         const openRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries?sid=${session}`, {
           headers: { "X-Frappe-SID": session },
-          credentials: window.location.protocol === 'file:' ? "include" : "omit"
+          credentials: "omit"
         });
         if (openRes.ok) {
           const openData = await openRes.json();
           const openEntry = openData.message?.data?.[0];
-          if (openEntry?.status === "Open") {
+          if (openEntry && openEntry.status === "Open") {
             existingOpeningEntry = openEntry.name;
           }
         }
-      } catch (ex) { console.warn("Shift check failed", ex); }
+      } catch (ex) {
+        console.warn("Shift check failed:", ex);
+      }
 
-      // 4. Fetch Offline Seed Data
-      try {
-        const healthRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_health_data?sid=${session}`, {
-          headers: { "X-Frappe-SID": session },
-          credentials: window.location.protocol === 'file:' ? "include" : "omit"
-        });
-        if (healthRes.ok) {
-          const healthData = await healthRes.json();
-          const lastId = healthData.message?.last_offline_id;
-          if (lastId?.includes('-OFF-')) {
-            const parts = lastId.split('-');
-            const lastSeq = parseInt(parts[parts.length - 1]);
-            localStorage.setItem("offline_seq", lastSeq + 1);
-          } else if (!localStorage.getItem("offline_seq")) {
-            localStorage.setItem("offline_seq", "1");
-          }
-        }
-      } catch (ex) { console.warn("Health data failed", ex); }
-
-      // 5. Finalize Login and Store Roles
+      // Store in Redux + localStorage
       dispatch(loginSuccess({
         user, session, pos_profile, company, warehouse, branch_prefix,
         is_manager: resp.is_manager,
-        user_roles: resp.user_roles || []
+        user_roles: resp.user_roles
       }));
-
       localStorage.setItem("session", session);
       localStorage.setItem("user", user);
       localStorage.setItem("pos_profile", pos_profile);
@@ -151,29 +120,25 @@ function Login() {
       localStorage.setItem("user_roles", JSON.stringify(resp.user_roles || []));
       localStorage.setItem("posOpeningEntry", existingOpeningEntry);
 
-      if (window.electronAPI?.setSession) {
-        window.electronAPI.setSession(session);
-      }
-
-      await Swal.fire({
+      Swal.fire({
         icon: 'success',
-        title: 'Login Successful',
-        text: `Welcome, ${user}`,
+        title: 'Welcome Back!',
+        text: `Signed in as ${user}`,
         timer: 1500,
         showConfirmButton: false,
         toast: true,
         position: 'top-end'
       });
 
-      navigate("/homepage");
+      // Navigate based on ROLE or Shift
+      if (resp.is_manager) {
+        navigate("/dashboard");
+      } else {
+        navigate("/homepage");
+      }
 
     } catch (err) {
       setErrorMessage(err.message);
-      Swal.fire({
-        icon: 'error',
-        title: 'Login Failed',
-        text: err.message
-      });
     } finally {
       setIsLoading(false);
     }
@@ -184,23 +149,23 @@ function Login() {
       <div className="login-card">
         <div className="login-header">
           <div className="login-logo-container">
-            <ShieldCheck size={32} strokeWidth={2.5} />
+            <ShieldCheck size={32} />
           </div>
-          <h1 className="login-title">Welcome Back</h1>
-          <p className="login-subtitle">Sign in to your retail dashboard</p>
+          <h1 className="login-title">POS8 Cloud</h1>
+          <p className="login-subtitle">Sign in to manage your retail empire</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="login-form-group">
-            <label className="login-label">Username / Email</label>
+            <label className="login-label">Username</label>
             <div className="login-input-wrapper">
-              <User className="login-input-icon" size={20} />
+              <User className="login-input-icon" size={18} />
               <input
                 type="text"
-                placeholder="Enter your username"
                 className="login-input"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                placeholder="Manager or Cashier ID"
                 required
               />
             </div>
@@ -209,50 +174,51 @@ function Login() {
           <div className="login-form-group">
             <label className="login-label">Password</label>
             <div className="login-input-wrapper">
-              <Lock className="login-input-icon" size={20} />
+              <Lock className="login-input-icon" size={18} />
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
                 className="login-input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Secure Access Key"
                 required
               />
               <button
-                className="login-password-toggle"
+                className="password-toggle"
                 onClick={togglePasswordVisibility}
                 type="button"
+                title={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
+          <button type="submit" className="login-submit-btn" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="animate-spin" size={18} />
+                Verifying...
+              </>
+            ) : (
+              <>
+                Login to Portal
+                <ArrowRight size={18} />
+              </>
+            )}
+          </button>
+
           {errorMessage && (
             <div className="login-error-message">
               {errorMessage}
             </div>
           )}
-
-          <button
-            type="submit"
-            className="login-submit-btn"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="animate-spin" size={20} />
-            ) : (
-              <>
-                <span>Sign In</span>
-                <ArrowRight size={20} />
-              </>
-            )}
-          </button>
         </form>
 
-        <div className="login-footer">
-          <p>© 2024 Kyle Solutions Private Limited</p>
-          <p className="login-version">Retail POS v1.0.5</p>
+        <div style={{ marginTop: '2.5rem', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>
+            Powered by Kyle Solutions v8.2.1
+          </p>
         </div>
       </div>
     </div>
