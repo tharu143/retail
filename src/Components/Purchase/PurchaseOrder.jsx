@@ -92,6 +92,7 @@ function PurchaseOrder() {
   const [drafts, setDrafts] = useState([]);
   const [showDraftsList, setShowDraftsList] = useState(false);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('legacySubTheme', poTheme);
@@ -483,6 +484,99 @@ function PurchaseOrder() {
       setFormData(prev => ({ ...prev, taxes_and_charges: templateName }));
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* ==================== ADVANCED WORKFLOW HANDLERS ==================== */
+  const handleCancelEntry = async () => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "Do you want to CANCEL this Purchase Order? Status will change to Cancelled.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'Yes, Cancel it!'
+    });
+
+    if (!result.isConfirmed) return;
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_PATH}.cancel_retail_doc`, null, {
+        params: { doctype: 'Purchase Order', name: formData.name },
+        withCredentials: true
+      });
+      Swal.fire('Cancelled', 'Document status updated to Cancelled', 'success');
+      loadDraft(formData.name); 
+    } catch (err) {
+      Swal.fire('Failed', err.response?.data?.message || 'Cancel failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAmendEntry = async () => {
+    const result = await Swal.fire({
+      title: 'Amend Document?',
+      text: "This will create a new Draft based on this cancelled PO.",
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonColor: '#0ea5e9',
+      confirmButtonText: 'Yes, Amend'
+    });
+
+    if (!result.isConfirmed) return;
+
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_PATH}.amend_retail_doc`, null, {
+        params: { doctype: 'Purchase Order', name: formData.name },
+        withCredentials: true
+      });
+      const newDraftName = res.data.message.name;
+      Swal.fire('Amended!', `New draft created: ${newDraftName}`, 'success');
+      loadDraft(newDraftName);
+      setIsViewOnly(false); 
+      setIsUpdateMode(false);
+    } catch (err) {
+      Swal.fire('Failed', err.response?.data?.message || 'Amend failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateItems = async () => {
+    const result = await Swal.fire({
+      title: 'Save Changes?',
+      text: "Update Quantities and Rates for this Submitted PO?",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      confirmButtonText: 'Yes, Update'
+    });
+
+    if (!result.isConfirmed) return;
+
+    setSaving(true);
+    try {
+      const itemData = formData.items.map(it => ({
+        name: it.name, 
+        qty: parseFloat(it.qty) || 0,
+        rate: parseFloat(it.rate) || 0
+      }));
+      await axios.post(`${API_PATH}.update_purchase_order_items`, {
+        name: formData.name,
+        item_data: itemData
+      }, { withCredentials: true });
+      Swal.fire('Updated!', 'Quantities and Rates updated successfully', 'success');
+      setIsUpdateMode(false);
+      setIsViewOnly(true);
+      loadDraft(formData.name);
+    } catch (err) {
+      Swal.fire('Failed', err.response?.data?.message || 'Update failed', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1162,7 +1256,7 @@ function PurchaseOrder() {
             {formData.name && (
               <div className="flex items-center gap-2">
                 {isViewOnly ? (
-                  formData.docstatus === 0 && (
+                  formData.docstatus === 0 ? (
                     <button
                       type="button"
                       onClick={() => setIsViewOnly(false)}
@@ -1171,7 +1265,44 @@ function PurchaseOrder() {
                       <Edit2 className="w-3.5 h-3.5 text-blue-500" />
                       Edit Record
                     </button>
-                  )
+                  ) : formData.docstatus === 1 ? (
+                    <div className="flex items-center gap-2">
+                      {!isUpdateMode ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setIsUpdateMode(true)}
+                            className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-black text-amber-700 hover:bg-amber-100 transition-all shadow-sm"
+                          >
+                            <Box className="w-3.5 h-3.5" />
+                            Update Items
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEntry}
+                            className="flex items-center gap-2 px-4 py-1.5 bg-red-50 border border-red-200 rounded-lg text-[11px] font-black text-red-700 hover:bg-red-100 transition-all shadow-sm"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Cancel PO
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button onClick={handleUpdateItems} className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-[11px] font-bold">Save Updates</button>
+                          <button onClick={() => setIsUpdateMode(false)} className="px-4 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">Cancel</button>
+                        </div>
+                      )}
+                    </div>
+                  ) : formData.docstatus === 2 ? (
+                    <button
+                      type="button"
+                      onClick={handleAmendEntry}
+                      className="flex items-center gap-2 px-4 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-[11px] font-black text-sky-700 hover:bg-sky-100 transition-all shadow-sm"
+                    >
+                      <History className="w-3.5 h-3.5" />
+                      Amend PO
+                    </button>
+                  ) : null
                 ) : (
                   formData.docstatus === 0 && (
                     <button
@@ -1681,16 +1812,16 @@ function PurchaseOrder() {
                             />
                           </td>
                           <td className="purchase-td text-center">
-                            <input type="number" name="qty" step="0.01" value={item.qty ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />
+                            <input type="number" name="qty" step="0.01" value={item.qty ?? ''} readOnly={!isUpdateMode && (isViewOnly || formData.docstatus !== 0)} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className={`w-full text-right outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`} />
                           </td>
                           <td className="purchase-td text-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">{item.uom ?? 'UNIT'}</span>
                           </td>
                           <td className="purchase-td text-right !text-center">
-                            {isViewOnly ? (
+                            {isViewOnly && !isUpdateMode ? (
                               <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span>
                             ) : (
-                              <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center outline-none" />
+                              <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={!isUpdateMode && formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className={`w-full text-center outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`} />
                             )}
                           </td>
                           <td className="purchase-td text-right !pr-5 !text-center">
