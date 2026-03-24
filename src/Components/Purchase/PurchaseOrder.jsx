@@ -1273,14 +1273,16 @@ function PurchaseOrder() {
                     <div className="flex items-center gap-2">
                       {!isUpdateMode ? (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => setIsUpdateMode(true)}
-                            className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-black text-amber-700 hover:bg-amber-100 transition-all shadow-sm"
-                          >
-                            <Box className="w-3.5 h-3.5" />
-                            Update Items
-                          </button>
+                          {(formData.per_received === 0 && formData.per_billed === 0) && (
+                            <button
+                              type="button"
+                              onClick={() => setIsUpdateMode(true)}
+                              className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-black text-amber-700 hover:bg-amber-100 transition-all shadow-sm"
+                            >
+                              <Box className="w-3.5 h-3.5" />
+                              Update Items
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={handleCancelEntry}
