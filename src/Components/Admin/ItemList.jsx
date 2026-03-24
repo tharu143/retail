@@ -568,7 +568,7 @@ export default function ItemList() {
             {/* Integrated Tabs in Header */}
             {isViewMode && (
                 <div style={{ display: 'flex', gap: '10px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
-                    {['Dashboard', 'General', 'Prices', 'Stock'].map(t => (
+                    {['General', 'Prices', 'Stock', 'Dashboard'].map(t => (
                         <button
                             key={t}
                             onClick={() => {
