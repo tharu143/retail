@@ -107,7 +107,7 @@ export default function ItemList() {
   const [activeTab, setActiveTab] = useState('General');
   const [dashboardData, setDashboardData] = useState(null);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [priceData, setPriceData] = useState({ prices: [], average_buying_price: 0 });
+  const [priceData, setPriceData] = useState({ prices: [], metrics: {} });
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [showPriceForm, setShowPriceForm] = useState(false);
   const [priceForm, setPriceForm] = useState({
@@ -227,11 +227,11 @@ export default function ItemList() {
       const result = res.data.message;
       setPriceData({
         prices: result?.data || [],
-        average_buying_price: result?.average_buying_price || 0
+        metrics: result?.metrics || {}
       });
     } catch (err) {
       console.error('Fetch Prices Error:', err);
-      setPriceData({ prices: [], average_buying_price: 0 });
+      setPriceData({ prices: [], metrics: {} });
     } finally {
       setLoadingPrices(false);
     }
@@ -668,30 +668,56 @@ export default function ItemList() {
 
                   {activeTab === 'Prices' && (
                     <div style={{ animation: 'fadeIn 0.4s ease', padding: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                        {/* Avg Buying Card */}
+                        <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: `6px solid ${themeColor}` }}>
+                          <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Average Buying</p>
+                          <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1e293b' }}>
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
+                            {Number(priceData.metrics?.average_buying_price || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        {/* Last Buying Card */}
+                        <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #f59e0b' }}>
+                          <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Last Buying Price</p>
+                          <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f59e0b' }}>
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
+                            {Number(priceData.metrics?.last_buying_price || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        {/* Total Stock Card */}
+                        <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #3b82f6' }}>
+                          <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Total Inventory</p>
+                          <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1e293b' }}>
+                            {priceData.metrics?.total_stock || 0}
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginLeft: '6px' }}>{form.default_uom}</span>
+                          </p>
+                        </div>
+                        {/* Stock Value Card */}
+                        <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #10b981' }}>
+                          <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Inventory Value</p>
+                          <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981' }}>
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
+                            {Number(priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <div>
-                          <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1e293b' }}>Price List Registry</h3>
-                          <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>{(priceData?.prices || []).length} Active Records</p>
+                          <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b' }}>Standard Rates List</h3>
+                          <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8' }}>{priceData.prices?.length || 0} definitions retrieved</p>
                         </div>
-                        <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                          <div style={{ textAlign: 'right', borderRight: '1px solid #e2e8f0', paddingRight: '2rem' }}>
-                            <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Avg Buying Price</p>
-                            <p style={{ fontSize: '1.25rem', fontWeight: 900, color: themeColor }}>
-                              <span style={{ fontSize: '0.7rem', marginRight: '4px' }}>AED</span>
-                              {Number(priceData.average_buying_price || 0).toFixed(2)}
-                            </p>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              setPriceForm({ price_list: 'Standard Selling', uom: form.default_uom, price_list_rate: 0, buying: 0, selling: 1, name: '' });
-                              setShowPriceForm(true);
-                            }}
-                            className="so-btn-primary" 
-                            style={{ height: '3.5rem', padding: '0 2rem', borderRadius: '1rem', background: themeColor, fontSize: '0.8rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '10px' }}
-                          >
-                            <Plus size={20} /> ADD NEW PRICE
-                          </button>
-                        </div>
+                        <button 
+                          onClick={() => {
+                            setPriceForm({ price_list: 'Standard Selling', uom: form.default_uom, price_list_rate: 0, buying: 0, selling: 1, name: '' });
+                            setShowPriceForm(true);
+                          }}
+                          className="so-btn-primary" 
+                          style={{ height: '3rem', padding: '0 1.5rem', borderRadius: '0.8rem', background: themeColor, fontSize: '0.75rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                          <Plus size={18} /> ADD PRICE LIST
+                        </button>
                       </div>
 
                       <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden' }}>
