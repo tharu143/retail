@@ -43,6 +43,36 @@ function ItemPriceList() {
     price_list_rate: 0, currency: 'AED'
   });
 
+  // Search Items (for new selection)
+  const [items, setItems] = useState([]);
+  const [itemLoading, setItemLoading] = useState(false);
+  const [itemSearch, setItemSearch] = useState('');
+  const [showItemDropdown, setShowItemDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (itemSearch.trim().length >= 2) fetchItems(itemSearch);
+      else setItems([]);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [itemSearch]);
+
+  const fetchItems = async (q) => {
+    setItemLoading(true);
+    try {
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items', { params: { q }, withCredentials: true });
+      setItems(res.data.message || []);
+    } catch (err) { console.error(err); }
+    finally { setItemLoading(false); }
+  };
+
+  const handleItemSelect = (it) => {
+    setForm({ ...form, item_code: it.item_code, item_name: it.item_name, uom: it.stock_uom || 'Nos' });
+    setItemSearch('');
+    setShowItemDropdown(false);
+  };
+
   // Fetch Metadata
   useEffect(() => {
     const fetchMeta = async () => {
@@ -331,8 +361,49 @@ function ItemPriceList() {
                    <div style={{ display: 'grid', gap: '1.5rem' }}>
                       <div className="so-field">
                         <label className="so-label">Target Item / SKU</label>
-                        <input type="text" className="so-input" value={form.item_name} disabled style={{ background: '#f8fafc', fontWeight: 800 }} />
-                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '4px', fontWeight: 700 }}>Code: {form.item_code}</p>
+                        {!isEditMode ? (
+                          <div ref={dropdownRef} style={{ position: 'relative' }}>
+                             <div 
+                               onClick={() => setShowItemDropdown(!showItemDropdown)}
+                               className="so-input"
+                               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontWeight: 800 }}
+                             >
+                                <span style={{ color: form.item_code ? '#1e293b' : '#94a3b8' }}>{form.item_code ? `${form.item_name} (${form.item_code})` : 'Select Product...'}</span>
+                                <ChevronDown size={18} />
+                             </div>
+                             {showItemDropdown && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', borderRadius: '1rem', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 100, marginTop: '8px', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+                                   <div style={{ padding: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>
+                                      <input 
+                                         type="text" 
+                                         className="so-input" 
+                                         style={{ height: '2.5rem', fontSize: '0.8rem' }}
+                                         placeholder="Search items..." 
+                                         autoFocus 
+                                         value={itemSearch} 
+                                         onChange={e => setItemSearch(e.target.value)} 
+                                      />
+                                   </div>
+                                   <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                      {itemLoading ? <div style={{ padding: '1.5rem', textAlign: 'center' }}><Loader2 size={16} className="animate-spin" /></div> : 
+                                       items.length === 0 ? <div style={{ padding: '1.5rem', textAlign: 'center', fontSize: '0.7rem', color: '#94a3b8' }}>No results</div> :
+                                       items.map(it => (
+                                          <div key={it.item_code} onClick={() => handleItemSelect(it)} style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} className="hover:bg-slate-50">
+                                             <p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.8rem' }}>{it.item_name}</p>
+                                             <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>{it.item_code}</p>
+                                          </div>
+                                       ))
+                                      }
+                                   </div>
+                                </div>
+                             )}
+                          </div>
+                        ) : (
+                          <>
+                            <input type="text" className="so-input" value={form.item_name} disabled style={{ background: '#f8fafc', fontWeight: 800 }} />
+                            <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '4px', fontWeight: 700 }}>Code: {form.item_code}</p>
+                          </>
+                        )}
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
