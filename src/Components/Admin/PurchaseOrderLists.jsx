@@ -255,7 +255,8 @@ function PurchaseOrderLists() {
                     <th>Status</th>
                     <th>Date</th>
                     <th style={{ textAlign: 'right' }}>Grand Total</th>
-                    <th>Progress</th>
+                    <th>Billed %</th>
+                    <th>Received %</th>
                     <th>Last Updated</th>
                     <th style={{ width: '48px' }}></th>
                   </tr>
@@ -263,7 +264,7 @@ function PurchaseOrderLists() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="8" className="so-empty">
+                      <td colSpan="9" className="so-empty">
                         <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
                       </td>
                     </tr>
@@ -306,21 +307,19 @@ function PurchaseOrderLists() {
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 700 }}>AED {parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                         <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <span style={{ fontSize: '0.65rem', color: '#64748b', minWidth: '40px' }}>Billed:</span>
-                              <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
-                                <div style={{ width: `${po.per_billed || 0}%`, height: '100%', background: themeColor }} />
-                              </div>
-                              <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{po.per_billed || 0}%</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '80px' }}>
+                            <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                              <div style={{ width: `${po.per_billed || 0}%`, height: '100%', background: themeColor }} />
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <span style={{ fontSize: '0.65rem', color: '#64748b', minWidth: '40px' }}>Rcvd:</span>
-                              <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
-                                <div style={{ width: `${po.per_received || 0}%`, height: '100%', background: themeColor }} />
-                              </div>
-                              <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{po.per_received || 0}%</span>
+                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{Math.round(po.per_billed || 0)}%</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '80px' }}>
+                            <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                              <div style={{ width: `${po.per_received || 0}%`, height: '100%', background: themeColor }} />
                             </div>
+                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{Math.round(po.per_received || 0)}%</span>
                           </div>
                         </td>
                         <td style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
