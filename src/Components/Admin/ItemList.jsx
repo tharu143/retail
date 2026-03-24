@@ -664,6 +664,7 @@ export default function ItemList() {
                                 <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Brand</label><p style={{ fontWeight: 800, color: themeColor, fontSize: '0.9rem' }}>{form.brand || 'No Brand'}</p></div>
                                 <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Base UOM</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.default_uom}</p></div>
                                 <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Type</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.is_variant ? `Variant of ${form.variant_of}` : 'Template'}</p></div>
+                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Valuation Rate</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{Number(form.valuation_rate || 0).toFixed(2)}</p></div>
                               </div>
                             </div>
 
