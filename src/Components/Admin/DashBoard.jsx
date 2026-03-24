@@ -79,7 +79,7 @@ function Dashboard() {
       icon: ShoppingCart,
       colorClass: 'icon-purchase',
       cardClass: 'card-purchase',
-      items: ['Supplier', 'New Purchase Order', 'Purchase Order List', 'Purchase Receipt', 'Purchase Invoice', 'Purchase Return'],
+      items: ['Supplier', 'Purchase Order List', 'Purchase Receipt', 'Purchase Invoice', 'Purchase Return'],
     },
     {
       title: 'Sales & Returns',
