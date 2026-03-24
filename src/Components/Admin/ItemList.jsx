@@ -436,6 +436,13 @@ export default function ItemList() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
+            <button 
+              onClick={() => navigate('/itempricelist')}
+              style={{ padding: '10px 24px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', fontWeight: 900, color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
+              className="hover:border-blue-500 hover:text-blue-500"
+            >
+              <Scale size={16} /> PRICE MASTER
+            </button>
             <button onClick={() => setItTheme(isGreen ? 'blue' : 'green')} style={{ padding: '10px 24px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', fontWeight: 700, color: '#777', cursor: 'pointer', textTransform: 'uppercase' }}>{itTheme}</button>
             <button onClick={() => { resetForm(); setShowForm(true); fetchItemGroups(); }} style={{ padding: '10px 24px', background: themeColor, color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}><Plus size={18} /> ADD ITEM</button>
           </div>

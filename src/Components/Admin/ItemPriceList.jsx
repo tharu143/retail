@@ -1,508 +1,363 @@
-// src/pages/ItemPriceList.jsx
+// src/Components/Admin/ItemPriceList.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Plus, Search, X, Save, ChevronLeft, Tag, AlertCircle,
-  ChevronDown, Palette, Loader2, Filter, Eye, Edit2, Trash2
+  Plus, Search, X, Tag, Filter, Eye, Edit2, Trash2, 
+  Loader2, ChevronLeft, ChevronRight, Warehouse, Scale,
+  Box, ShieldCheck, MapPin, Calculator, Barcode
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import NavBar from '../Nav/NavBar';
-import '../Admin/SalesOrder.css'; // Reuse SalesOrder styles for consistency
 
 function ItemPriceList() {
   const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Theme toggle (synced across pages)
-  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-  const isGreen = polTheme === 'green';
+  // Theme Sync (consistent with ItemList)
+  const [pollTheme, setPollTheme] = useState(localStorage.getItem('legacySubTheme') || 'blue');
+  const isGreen = pollTheme === 'green';
   const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
   const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
 
   useEffect(() => {
-    localStorage.setItem('legacySubTheme', polTheme);
-    document.documentElement.style.setProperty('--so-primary', themeColor);
-    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-    document.documentElement.style.setProperty('--so-primary-light', themeLight);
-  }, [polTheme, themeColor, themeColorHover, themeLight]);
+     localStorage.setItem('legacySubTheme', pollTheme);
+  }, [pollTheme]);
 
-  // Filters
-  const [filterItemCode, setFilterItemCode] = useState('');
-  const [filterItemName, setFilterItemName] = useState('');
-  const [filterPriceList, setFilterPriceList] = useState('');
+  // Filter Warehouse State
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Form
+  // Form State
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    item_code: '',
-    item_name: '',
-    uom: 'Nos',
-    packing_unit: 0,
-    price_list: 'Standard Selling',
-    buying: false,
-    selling: true,
-    customer: '',
-    batch_no: '',
-    currency: 'AED',
-    rate: 0,
-    valid_from: '',
-    valid_upto: '',
-    lead_time_days: 0,
-    note: ''
-  });
+  const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: '', item_code: '', item_name: '', uom: 'Nos', 
+    price_list: 'Standard Selling', buying: 0, selling: 1, 
+    price_list_rate: 0, currency: 'AED'
+  });
 
-  // Item Search
-  const [items, setItems] = useState([]);
-  const [itemSearch, setItemSearch] = useState('');
-  const [itemLoading, setItemLoading] = useState(false);
-  const [showItemDropdown, setShowItemDropdown] = useState(false);
-  const dropdownRef = useRef(null);
-
-  /* ==================== FETCH PRICES ==================== */
+  // Fetch Metadata
   useEffect(() => {
-    const fetch = async () => {
+    const fetchMeta = async () => {
       try {
-        setLoading(true);
-        const res = await axios.get(
-          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_price_list',
-          { withCredentials: true }
-        );
-        setPrices(res.data.message || []);
+        const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_warehouses', { withCredentials: true });
+        setWarehouses(res.data.message || []);
       } catch (err) {
-        Swal.fire('Error', 'Failed to load item prices', 'error');
-      } finally {
-        setLoading(false);
+        console.error("Meta fetch error", err);
       }
     };
-    fetch();
+    fetchMeta();
   }, []);
 
-  /* ==================== ITEM SEARCH ==================== */
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (itemSearch.trim().length >= 2) {
-        fetchItems(itemSearch);
-      } else {
-        setItems([]);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [itemSearch]);
-
-  const fetchItems = async (q) => {
-    setItemLoading(true);
+  /* ==================== CORE API FETCH ==================== */
+  const fetchPriceRecords = async () => {
     try {
-      const res = await axios.get(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items',
-        { params: { q }, withCredentials: true }
-      );
-      setItems(res.data.message || []);
+      setLoading(true);
+      const params = {
+        start: (currentPage - 1) * pageSize,
+        page_length: pageSize,
+        search: searchTerm || '',
+        filters: JSON.stringify({ warehouse: selectedWarehouse || null })
+      };
+
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_price_list_all', {
+        params,
+        withCredentials: true
+      });
+      
+      const result = res.data.message;
+      setPrices(result?.data || []);
+      setTotalCount(result?.total_count || 0);
     } catch (err) {
-      console.error(err);
-      setItems([]);
+      console.error("Prices Load Error", err);
+      setPrices([]);
     } finally {
-      setItemLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleItemSelect = (item) => {
+  useEffect(() => {
+    fetchPriceRecords();
+  }, [currentPage, pageSize, selectedWarehouse]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+       if (currentPage === 1) fetchPriceRecords();
+       else setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  /* ==================== FORM ACTIONS ==================== */
+  const handleEdit = (p) => {
     setForm({
-      ...form,
-      item_code: item.item_code,
-      item_name: item.item_name,
-      uom: item.uom || 'Nos'
+      name: p.name,
+      item_code: p.item_code,
+      item_name: p.item_name,
+      uom: p.uom,
+      price_list: p.price_list,
+      buying: p.buying,
+      selling: p.selling,
+      price_list_rate: p.price_list_rate,
+      currency: p.currency || 'AED'
     });
-    setItemSearch('');
-    setShowItemDropdown(false);
+    setIsEditMode(true);
+    setShowForm(true);
   };
 
-  /* ==================== FILTERING ==================== */
-  const filteredPrices = useMemo(() => {
-    return prices.filter(p => {
-      const code = !filterItemCode || p.item_code.toLowerCase().includes(filterItemCode.toLowerCase());
-      const name = !filterItemName || p.item_name.toLowerCase().includes(filterItemName.toLowerCase());
-      const list = !filterPriceList || p.price_list.toLowerCase().includes(filterPriceList.toLowerCase());
-      return code && name && list;
-    });
-  }, [prices, filterItemCode, filterItemName, filterPriceList]);
-
-  const total = filteredPrices.length;
-  const paginated = filteredPrices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  /* ==================== SAVE ==================== */
   const handleSave = async () => {
-    if (!form.item_code || !form.price_list || !form.rate || form.rate <= 0) {
-      alert('Please fill required fields: Item, Price List, and valid Rate.');
-      return;
+    if (!form.item_code || !form.price_list || form.price_list_rate <= 0) {
+       Swal.fire('Oops!', 'Please ensure item, price list, and a valid rate are provided.', 'warning');
+       return;
     }
 
     setSaving(true);
     try {
-      const payload = {
-        item_code: form.item_code,
-        price_list: form.price_list,
-        price_list_rate: parseFloat(form.rate),
-        buying: form.buying ? 1 : 0,
-        selling: form.selling ? 1 : 0,
-        currency: form.currency,
-        uom: form.uom,
-        valid_from: form.valid_from || null,
-        valid_upto: form.valid_upto || null,
-        batch_no: form.batch_no || null,
-        customer: form.customer || null,
-        lead_time_days: parseInt(form.lead_time_days) || 0,
-        packing_unit: parseInt(form.packing_unit) || 0,
-        note: form.note || null
-      };
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+         item_code: form.item_code,
+         data: form
+      }, { withCredentials: true });
 
-      const res = await axios.post(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_item_price',
-        payload,
-        { withCredentials: true }
-      );
-
-      if (res.data.success || res.data.message?.success) {
-        Swal.fire({ icon: 'success', title: 'Saved!', text: 'Item price saved successfully!', timer: 1500 });
-        setShowForm(false);
-        resetForm();
-        // Refresh list
-        const refresh = await axios.get(
-          '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_price_list',
-          { withCredentials: true }
-        );
-        setPrices(refresh.data.message || []);
-        setCurrentPage(1);
-      } else {
-        Swal.fire('Error', res.data.message || 'Failed to save', 'error');
+      if (res.data.message?.status === 'success') {
+         Swal.fire({ icon: 'success', title: 'Registry Updated!', timer: 1500, showConfirmButton: false });
+         setShowForm(false);
+         fetchPriceRecords();
       }
     } catch (err) {
-      Swal.fire('Error', err.response?.data?.message || 'Network error. Please try again.', 'error');
+      console.error("Save Error", err);
+      Swal.fire('Error', 'Targeted update failed. Please verify ERPNext constraints.', 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const resetForm = () => {
-    setForm({
-      item_code: '', item_name: '', uom: 'Nos', packing_unit: 0,
-      price_list: 'Standard Selling', buying: false, selling: true,
-      customer: '', batch_no: '', currency: 'AED', rate: 0,
-      valid_from: '', valid_upto: '', lead_time_days: 0, note: ''
-    });
-  };
-
-  const handleCloseForm = () => {
-    const hasChanges = form.item_code || form.rate > 0 || form.price_list !== 'Standard Selling';
-    if (hasChanges && !window.confirm('Discard unsaved changes?')) return;
-    setShowForm(false);
-    resetForm();
-  };
-
   return (
-    <>
-    <div className="so-page">
+    <div className="so-page" style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
       <NavBar />
-      
-      {/* Page Header */}
-      <div className="so-page-header">
-        <div>
-          <h1 className="so-page-title">
-            <Tag size={20} /> Item Price Catalog
-          </h1>
-          <p className="so-page-subtitle">Manage item rates and price lists</p>
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {/* Theme Toggle */}
-          <button
-            onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.45rem 0.9rem', background: '#f8fafc',
-              border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-              fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-              cursor: 'pointer', transition: 'all 0.2s',
-              textTransform: 'uppercase', letterSpacing: '0.04em'
-            }}
-            title="Toggle Theme"
-          >
-            <Palette size={13} />
-            {polTheme.toUpperCase()}
-          </button>
 
-          <button className="so-btn-primary" onClick={() => setShowForm(true)}>
-            <Plus size={16} /> Add New Price
-          </button>
+      {/* Modern Report Header */}
+      <div style={{ padding: '2.5rem 3rem', background: 'white', borderBottom: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1600px', margin: '0 auto' }}>
+           <div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ padding: '10px', background: `${themeColor}10`, color: themeColor, borderRadius: '12px' }}><Scale size={24} /></div>
+                <div>
+                   <h1 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1e293b', margin: 0, tracking: '-0.02em' }}>PRICE MASTER</h1>
+                   <p style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 700, marginTop: '2px' }}>Global Pricing Reports & Inventory Valuation</p>
+                </div>
+             </div>
+           </div>
+
+           <div style={{ display: 'flex', gap: '1rem' }}>
+              <button 
+                onClick={() => setPollTheme(isGreen ? 'blue' : 'green')}
+                style={{ padding: '0 1.5rem', height: '3.5rem', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '14px', fontSize: '0.75rem', fontWeight: 900, cursor: 'pointer', textTransform: 'uppercase' }}
+              >
+                THEME: {pollTheme}
+              </button>
+              <button onClick={() => { setForm({ item_code: '', item_name: '', uom: 'Nos', price_list: 'Standard Selling', buying: 0, selling: 1, price_list_rate: 0, currency: 'AED' }); setIsEditMode(false); setShowForm(true); }} className="so-btn-primary" style={{ padding: '0 2rem', height: '3.5rem', background: themeColor, gap: '10px', boxShadow: `0 10px 20px ${themeColor}20` }}>
+                <Plus size={20} /> INITIALIZE NEW RATE
+              </button>
+           </div>
         </div>
       </div>
 
-      <div className="so-layout" style={{ flexDirection: 'column' }}>
-        {/* Horizontal Filters Bar */}
-        <div className="so-filter-bar" style={{
-          background: 'white',
-          padding: '1.25rem 2rem',
-          borderBottom: '1px solid var(--so-border)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '1.5rem',
-          alignItems: 'flex-end'
-        }}>
-          <div style={{ flex: '1 1 200px' }}>
-            <label className="so-filter-label">Item Code</label>
-            <input 
-              className="so-filter-input" 
-              placeholder="Search code..."
-              value={filterItemCode}
-              onChange={(e) => { setFilterItemCode(e.target.value); setCurrentPage(1); }}
-            />
-          </div>
-          <div style={{ flex: '1 1 250px' }}>
-            <label className="so-filter-label">Item Name</label>
-            <input 
-              className="so-filter-input" 
-              placeholder="Search name..."
-              value={filterItemName}
-              onChange={(e) => { setFilterItemName(e.target.value); setCurrentPage(1); }}
-            />
-          </div>
-          <div style={{ flex: '1 1 200px' }}>
-            <label className="so-filter-label">Price List</label>
-            <select 
-              className="so-filter-select"
-              value={filterPriceList}
-              onChange={(e) => { setFilterPriceList(e.target.value); setCurrentPage(1); }}
+      <div style={{ padding: '2rem 3rem', maxWidth: '1600px', margin: '0 auto' }}>
+         {/* Advanced Filters */}
+         <div style={{ background: 'white', borderRadius: '20px', padding: '1.5rem', border: '1px solid #e2e8f0', marginBottom: '2rem', display: 'flex', gap: '1.5rem', alignItems: 'flex-end', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ flex: 1 }}>
+               <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Search Catalog</label>
+               <div style={{ position: 'relative' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }} />
+                  <input 
+                    type="text" 
+                    placeholder="Search by code, name or brand..." 
+                    className="so-filter-input" 
+                    style={{ paddingLeft: '45px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', width: '100%', height: '3.5rem', fontSize: '0.9rem' }}
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
+               </div>
+            </div>
+
+            <div style={{ width: '300px' }}>
+               <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Warehouse Inventory View</label>
+               <div style={{ position: 'relative' }}>
+                  <Warehouse size={18} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }} />
+                  <select 
+                    className="so-filter-input" 
+                    style={{ paddingLeft: '45px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', width: '100%', height: '3.5rem', appearance: 'none', cursor: 'pointer' }}
+                    value={selectedWarehouse}
+                    onChange={e => setSelectedWarehouse(e.target.value)}
+                  >
+                     <option value="">Global (Total Stock)</option>
+                     {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
+                  </select>
+               </div>
+            </div>
+
+            <button 
+              onClick={() => { setSearchTerm(''); setSelectedWarehouse(''); setCurrentPage(1); }}
+              style={{ background: '#fef2f2', color: '#ef4444', padding: '0 1.5rem', height: '3.5rem', border: 'none', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
             >
-              <option value="">All Lists</option>
-              <option value="Standard Selling">Standard Selling</option>
-              <option value="Standard Buying">Standard Buying</option>
-            </select>
-          </div>
-          
-          <button 
-            className="so-clear-btn"
-            onClick={() => { setFilterItemCode(''); setFilterItemName(''); setFilterPriceList(''); setCurrentPage(1); }}
-            style={{ width: 'auto', margin: 0, padding: '0 1.5rem', height: '38px', fontWeight: 600 }}
-          >
-            Clear Filters
-          </button>
-        </div>
+              RESET
+            </button>
+         </div>
 
-        {/* Main Content */}
-        <main className="so-content" style={{ padding: '1.5rem 2rem' }}>
-          <div className="so-list-meta">
-            Showing <b>{paginated.length}</b> of <b>{total}</b> price records
-          </div>
-
-          <div className="so-table-card">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-                <p className="mt-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Fetching Prices...</p>
-              </div>
-            ) : paginated.length === 0 ? (
-              <div className="so-empty">
-                <Tag size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-                <p>No pricing records found</p>
-              </div>
-            ) : (
-              <table className="so-table">
-                <thead>
-                  <tr>
-                    <th>Item Details</th>
-                    <th>Price List</th>
-                    <th style={{ textAlign: 'right' }}>Rate (AED)</th>
-                    <th style={{ textAlign: 'center' }}>Valid Range</th>
-                    <th style={{ textAlign: 'center' }}>Last Updated</th>
-                    <th style={{ textAlign: 'center' }}>Action</th>
+         {/* Report Table */}
+         <div style={{ background: 'white', borderRadius: '24px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.03)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+               <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
+                     <th style={{ padding: '1.5rem 2rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Item Identification</th>
+                     <th style={{ padding: '1.5rem 2rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Registry Info</th>
+                     <th style={{ padding: '1.5rem 2rem', textAlign: 'center', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>On-Hand Stock</th>
+                     <th style={{ padding: '1.5rem 2rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Valuation (AED)</th>
+                     <th style={{ padding: '1.5rem 2rem', width: '100px' }}></th>
                   </tr>
-                </thead>
-                <tbody>
-                  {paginated.map(p => (
-                    <tr key={p.name}>
-                      <td>
-                        <div className="so-item-display-name">{p.item_name}</div>
-                        <div className="so-item-display-code">{p.item_code}</div>
-                      </td>
-                      <td>
-                        <span className="so-badge so-badge-submitted" style={{ 
-                          background: p.price_list.includes('Selling') ? themeLight : '#f1f5f9',
-                          color: p.price_list.includes('Selling') ? themeColor : '#475569'
-                        }}>
-                          {p.price_list}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
-                        {parseFloat(p.price_list_rate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ textAlign: 'center', fontSize: '11px', color: '#64748b' }}>
-                        {p.valid_from ? new Date(p.valid_from).toLocaleDateString() : '∞'} - {p.valid_upto ? new Date(p.valid_upto).toLocaleDateString() : '∞'}
-                      </td>
-                      <td style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
-                        {new Date(p.modified).toLocaleDateString()}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                          <button className="so-btn-ghost"><Eye size={14} /></button>
-                          <button className="so-btn-ghost"><Edit2 size={14} /></button>
-                        </div>
-                      </td>
-                    </tr>
+               </thead>
+               <tbody>
+                  {loading ? (
+                     <tr><td colSpan="5" style={{ padding: '10rem', textAlign: 'center' }}><Loader2 size={48} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} /></td></tr>
+                  ) : prices.length === 0 ? (
+                     <tr><td colSpan="5" style={{ padding: '10rem', textAlign: 'center' }}>
+                        <Calculator size={64} style={{ margin: '0 auto', opacity: 0.1, marginBottom: '1.5rem' }} />
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b' }}>Zero results for current criteria</h3>
+                        <p style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 700 }}>Try broadening your search or switching warehouses.</p>
+                     </td></tr>
+                  ) : prices.map(p => (
+                     <tr key={p.name} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s' }} className="hover:bg-slate-50">
+                        <td style={{ padding: '1.5rem 2rem' }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <div style={{ width: '48px', height: '48px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Box size={20} style={{ color: '#94a3b8' }} /></div>
+                              <div>
+                                 <p style={{ fontSize: '1rem', fontWeight: 900, color: '#1e293b', marginBottom: '2px' }}>{p.item_name}</p>
+                                 <div style={{ display: 'flex', gap: '10px' }}>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700 }}>{p.item_code}</span>
+                                    {p.brand && <span style={{ fontSize: '0.7rem', color: themeColor, fontWeight: 900, background: `${themeColor}10`, padding: '1px 6px', borderRadius: '4px' }}>{p.brand}</span>}
+                                 </div>
+                              </div>
+                           </div>
+                        </td>
+                        <td style={{ padding: '1.5rem 2rem' }}>
+                           <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 800, color: '#475569', fontSize: '0.9rem' }}>{p.price_list}</span>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>{p.uom} Units</span>
+                           </div>
+                        </td>
+                        <td style={{ padding: '1.5rem 2rem', textAlign: 'center' }}>
+                           <span style={{ 
+                             padding: '6px 16px', 
+                             borderRadius: '12px', 
+                             background: p.actual_qty > 0 ? '#dcfce7' : '#fee2e2', 
+                             color: p.actual_qty > 0 ? '#166534' : '#ef4444',
+                             fontSize: '1.1rem',
+                             fontWeight: 950
+                           }}>
+                              {p.actual_qty || 0}
+                           </span>
+                        </td>
+                        <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
+                           <p style={{ fontSize: '1.25rem', fontWeight: 950, color: themeColor, margin: 0 }}>
+                              {Number(p.price_list_rate || 0).toFixed(2)}
+                           </p>
+                           <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>Standard Core Rate</p>
+                        </td>
+                        <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
+                           <button onClick={() => handleEdit(p)} style={{ width: '40px', height: '40px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="hover:border-blue-500 hover:text-blue-500">
+                             <Edit2 size={16} />
+                           </button>
+                        </td>
+                     </tr>
                   ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+               </tbody>
+            </table>
 
-          {/* Pagination */}
-          <div className="so-pagination">
-            <div>
-              Page <b>{currentPage}</b> of <b>{Math.ceil(total / pageSize)}</b>
+            {/* Pagination UI */}
+            <div style={{ padding: '1.5rem 2rem', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Showing <b>{(currentPage - 1) * pageSize + 1}</b> to <b>{Math.min(currentPage * pageSize, totalCount)}</b> of {totalCount} price records</span>
+               <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} style={{ width: '40px', height: '40px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', cursor: currentPage === 1 ? 'default' : 'pointer' }}><ChevronLeft size={20} /></button>
+                  <button onClick={() => setCurrentPage(prev => prev + 1)} disabled={currentPage * pageSize >= totalCount} style={{ width: '40px', height: '40px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', cursor: currentPage * pageSize >= totalCount ? 'default' : 'pointer' }}><ChevronRight size={20} /></button>
+               </div>
             </div>
-            <div className="so-pagination-btns">
-              <button 
-                className="so-page-btn" 
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => prev - 1)}
-              >
-                Previous
-              </button>
-              <button 
-                className="so-page-btn"
-                disabled={currentPage * pageSize >= total}
-                onClick={() => setCurrentPage(prev => prev + 1)}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </main>
+         </div>
       </div>
 
-        {/* ==================== ADD PRICE MODAL ==================== */}
-        {showForm && (
-          <div className="so-modal-overlay">
-            <div className="so-modal-container" style={{ maxWidth: '700px' }}>
-              <div className="so-modal-header">
-                <h2 className="so-modal-title">New Item Price</h2>
-                <button onClick={handleCloseForm} className="so-modal-close">
-                  <X size={20} />
-                </button>
-              </div>
+      {/* Modern Modal View (Page-like) */}
+      {showForm && (
+         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
+            <div style={{ background: 'white', width: '550px', borderRadius: '2rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden' }}>
+                <div style={{ padding: '2rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ padding: '8px', background: `${themeColor}15`, color: themeColor, borderRadius: '8px' }}><Edit2 size={20} /></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b', margin: 0 }}>{isEditMode ? 'Modify Price Registry' : 'New Price Definition'}</h3>
+                   </div>
+                   <button onClick={() => setShowForm(false)} style={{ color: '#94a3b8', border: 'none', background: 'none', cursor: 'pointer' }}><X size={24} /></button>
+                </div>
 
-              <div className="so-modal-body">
-                <div className="so-price-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  {/* Item Selection */}
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <label className="so-form-label">Item / Product <span style={{ color: '#ef4444' }}>*</span></label>
-                    <div ref={dropdownRef} style={{ position: 'relative' }}>
-                      <div 
-                        onClick={() => setShowItemDropdown(!showItemDropdown)}
-                        className="so-form-input"
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                      >
-                        <span style={{ color: form.item_code ? '#1e293b' : '#94a3b8', fontWeight: form.item_code ? 700 : 400 }}>
-                          {form.item_code ? `${form.item_code} - ${form.item_name}` : 'Select an item...'}
-                        </span>
-                        <ChevronDown size={16} />
+                <div style={{ padding: '2.5rem' }}>
+                   <div style={{ display: 'grid', gap: '1.5rem' }}>
+                      <div className="so-field">
+                        <label className="so-label">Target Item / SKU</label>
+                        <input type="text" className="so-input" value={form.item_name} disabled style={{ background: '#f8fafc', fontWeight: 800 }} />
+                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '4px', fontWeight: 700 }}>Code: {form.item_code}</p>
                       </div>
 
-                      {showItemDropdown && (
-                        <div className="so-dropdown-portal" style={{ width: '100%', top: '100%', left: 0 }}>
-                          <div style={{ padding: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>
-                            <input 
-                              type="text" 
-                              className="so-filter-input" 
-                              placeholder="Search item code/name..."
-                              autoFocus
-                              value={itemSearch}
-                              onChange={e => setItemSearch(e.target.value)}
-                            />
-                          </div>
-                          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                            {itemLoading ? (
-                              <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '11px' }}>Searching...</div>
-                            ) : items.length === 0 ? (
-                              <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '11px' }}>No items found</div>
-                            ) : (
-                              items.map(it => (
-                                <div key={it.name} onClick={() => handleItemSelect(it)} className="so-dropdown-item">
-                                  <div className="so-item-display-name">{it.item_name}</div>
-                                  <div className="so-item-display-code">{it.item_code}</div>
-                                </div>
-                              ))
-                            )}
-                          </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="so-field">
+                          <label className="so-label">Price List</label>
+                          <select className="so-input" value={form.price_list} onChange={e => setForm({...form, price_list: e.target.value})}>
+                             <option value="Standard Selling">Standard Selling</option>
+                             <option value="Standard Buying">Standard Buying</option>
+                          </select>
                         </div>
-                      )}
-                    </div>
-                  </div>
+                        <div className="so-field">
+                          <label className="so-label">Unit (UOM)</label>
+                          <input type="text" className="so-input" value={form.uom} onChange={e => setForm({...form, uom: e.target.value})} />
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="so-form-label">Price List</label>
-                    <select 
-                      className="so-form-input" 
-                      value={form.price_list}
-                      onChange={e => setForm({...form, price_list: e.target.value})}
-                    >
-                      <option value="Standard Selling">Standard Selling</option>
-                      <option value="Standard Buying">Standard Buying</option>
-                    </select>
-                  </div>
+                      <div className="so-field">
+                        <label className="so-label">Price Rate (AED)</label>
+                        <input 
+                           type="number" 
+                           className="so-input" 
+                           style={{ height: '5rem', fontSize: '2.5rem', fontWeight: 950, color: themeColor, textAlign: 'center' }} 
+                           value={form.price_list_rate} 
+                           onChange={e => setForm({...form, price_list_rate: e.target.value})} 
+                        />
+                      </div>
 
-                  <div>
-                    <label className="so-form-label">Rate (AED) <span style={{ color: '#ef4444' }}>*</span></label>
-                    <input 
-                      type="number" 
-                      className="so-form-input" 
-                      style={{ fontSize: '1.1rem', fontWeight: 800, color: themeColor }}
-                      value={form.rate}
-                      onChange={e => setForm({...form, rate: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="so-form-label">Valid From</label>
-                    <input 
-                      type="date" 
-                      className="so-form-input" 
-                      value={form.valid_from}
-                      onChange={e => setForm({...form, valid_from: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="so-form-label">Valid Upto</label>
-                    <input 
-                      type="date" 
-                      className="so-form-input" 
-                      value={form.valid_upto}
-                      onChange={e => setForm({...form, valid_upto: e.target.value})}
-                    />
-                  </div>
+                      <div style={{ display: 'flex', gap: '1rem' }}>
+                         <div style={{ flex: 1, padding: '1.5rem', borderRadius: '1.5rem', border: `2px solid ${form.buying ? '#fef3c7' : '#f1f5f9'}`, background: form.buying ? '#fefce8' : 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: form.buying ? '#d97706' : '#94a3b8' }}>BUYING</span>
+                            <input type="checkbox" checked={form.buying === 1} onChange={e => setForm({...form, buying: e.target.checked ? 1 : 0})} />
+                         </div>
+                         <div style={{ flex: 1, padding: '1.5rem', borderRadius: '1.5rem', border: `2px solid ${form.selling ? '#dcfce7' : '#f1f5f9'}`, background: form.selling ? '#f0fdf4' : 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: form.selling ? '#166534' : '#94a3b8' }}>SELLING</span>
+                            <input type="checkbox" checked={form.selling === 1} onChange={e => setForm({...form, selling: e.target.checked ? 1 : 0})} />
+                         </div>
+                      </div>
+                   </div>
                 </div>
-              </div>
 
-              <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={handleCloseForm}>Discard</button>
-                <button 
-                  className="so-btn-primary" 
-                  disabled={saving || !form.item_code || form.rate <= 0}
-                  onClick={handleSave}
-                  style={{ background: themeColor, borderColor: themeColor }}
-                >
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  {saving ? 'Processing...' : 'Secure & Save Price'}
-                </button>
-              </div>
+                <div style={{ padding: '2rem', background: '#f8fafc', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                   <button onClick={() => setShowForm(false)} className="so-btn-secondary" style={{ padding: '0 2rem', height: '3.5rem' }}>Cancel</button>
+                   <button onClick={handleSave} className="so-btn-primary" style={{ padding: '0 2rem', height: '3.5rem', background: themeColor, fontWeight: 900 }} disabled={saving}>
+                      {saving ? 'Syncing...' : 'Commit Changes'}
+                   </button>
+                </div>
             </div>
-          </div>
-        )}
-      </div>
-    </>
+         </div>
+      )}
+    </div>
   );
 }
 
