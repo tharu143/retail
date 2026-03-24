@@ -20,7 +20,8 @@ import PosProfileList from '../Components/Admin/PosProfileList'
 import PurchaseInvoiceList from '../Components/Admin/PurchaseInvoiceList'
 import PurchaseReceiptList from '../Components/Admin/PurchaseReceiptList'
 import SupplierList from '../Components/Admin/SupplierList'
-import SalesOrder from '../Components/Admin/SalesOrder'
+import SalesOrderList from '../Components/Admin/SalesOrderList'
+import SalesOrderDetailsPage from '../Pages/SalesOrderDetailsPage'
 import SalesInvoiceList from '../Components/Admin/SalesInvoiceList'
 import DeliveryNoteList from '../Components/Admin/DeliveryNoteList'
 import PurchaseOrderLists from '../Components/Admin/PurchaseOrderLists'
@@ -57,7 +58,9 @@ function UserRouter() {
         <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
         <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />
         <Route path='supplierlist' element={<SupplierList />} />
-        <Route path='salesorderlist' element={<SalesOrder />} />
+        <Route path='salesorderlist' element={<SalesOrderList />} />
+        <Route path='salesorder-details/:name' element={<SalesOrderDetailsPage />} />
+        <Route path='salesorder/create' element={<SalesOrderDetailsPage />} />
         <Route path='salesinvoice' element={<SalesInvoiceList />} />
         <Route path='deliverynote' element={<DeliveryNoteList />} />
         <Route path='syncmanager' element={<SyncManagerPage />} />
