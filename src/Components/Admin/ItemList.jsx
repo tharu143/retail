@@ -537,7 +537,9 @@ export default function ItemList() {
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
                                 {dashboardData?.item_prices && dashboardData.item_prices.length > 0 ? dashboardData.item_prices.map((priceObj, idx) => (
                                   <div key={idx} style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '0.85rem', border: '1px solid #f1f5f9', textAlign: 'center' }}>
-                                    <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={priceObj.price_list}>{priceObj.price_list}</label>
+                                    <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={priceObj.price_list}>
+                                      {priceObj.price_list} <span style={{ color: themeColor }}>({priceObj.uom || 'Nos'})</span>
+                                    </label>
                                     <p style={{ fontWeight: 900, fontSize: '1rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><span style={{ fontSize: '0.6rem', color: '#64748b' }}>{priceObj.currency || 'AED'}</span>{Number(priceObj.price_list_rate || 0).toFixed(2)}</p>
                                   </div>
                                 )) : <p style={{ color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center', gridColumn: 'span 2' }}>No price records found.</p>}
