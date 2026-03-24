@@ -7,7 +7,6 @@ import {
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
-import NavBar from '../Nav/NavBar';
 
 /* ==================== UI COMPONENTS ==================== */
 const StatCard = ({ label, value, currency, icon: Icon, color, trend }) => (
@@ -65,8 +64,21 @@ const SupplierDetails = () => {
     const [supplier, setSupplier] = useState(null);
     const [dashboardData, setDashboardData] = useState(null);
     const [activeTab, setActiveTab] = useState('Dashboard');
-    const [isEditing, setIsEditing] = useState(false);
-    const [editData, setEditData] = useState({});
+    const [showEditModal, setShowEditModal] = useState(false);
+    
+    const [form, setForm] = useState({
+        supplier_name: '',
+        supplier_group: '',
+        supplier_type: 'Company',
+        tax_id: '',
+        email_id: '',
+        mobile_no: '',
+        address_line1: '',
+        city: '',
+        country: 'United Arab Emirates'
+    });
+
+    const [supplierGroups] = useState(['Distributor', 'Manufacturer', 'Service Provider', 'Wholesaler']);
 
     // Theme Support
     const [legacySubTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
@@ -89,11 +101,11 @@ const SupplierDetails = () => {
             const data = detailRes.data.message?.data || detailRes.data.data;
             if (data) {
                 setSupplier(data);
-                setEditData({
+                setForm({
                     supplier_name: data.supplier_name,
                     supplier_group: data.supplier_group,
                     supplier_type: data.supplier_type,
-                    tax_id: data.tax_id,
+                    tax_id: data.tax_id || '',
                     email_id: data.contact_details?.email_id || '',
                     mobile_no: data.contact_details?.mobile_no || '',
                     address_line1: data.address_details?.address_line1 || '',
@@ -112,26 +124,14 @@ const SupplierDetails = () => {
     const handleSave = async () => {
         try {
             setSaving(true);
-            const payload = {
-                supplier_name: editData.supplier_name,
-                supplier_group: editData.supplier_group,
-                supplier_type: editData.supplier_type,
-                tax_id: editData.tax_id,
-                email_id: editData.email_id,
-                mobile_no: editData.mobile_no,
-                address_line1: editData.address_line1,
-                city: editData.city,
-                country: editData.country
-            };
-
             const res = await axios.post('/api/method/kyle_retail.retail_api.api.update_retail_supplier', {
                 supplier_name: name,
-                data: payload
+                data: form
             }, { withCredentials: true });
 
             if (res.data.message?.status === 'success') {
                 Swal.fire({ icon: 'success', title: 'Profile Updated', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
-                setIsEditing(false);
+                setShowEditModal(false);
                 fetchData();
             } else {
                 throw new Error(res.data.message?.message || 'Update failed');
@@ -162,7 +162,6 @@ const SupplierDetails = () => {
 
     return (
         <>
-        <NavBar />
         <div className="min-h-screen bg-[#f8fafc] pb-20 pt-8 px-6 lg:px-12">
             
             {/* 1. Header Identity Card */}
@@ -185,7 +184,7 @@ const SupplierDetails = () => {
                             {isActive ? 'Active' : 'Inactive'}
                         </span>
                     </div>
-                    <h1 className="text-4xl font-extrabold text-gray-900 leading-tight mb-2">{supplier.supplier_name}</h1>
+                    <h1 className="text-4xl font-extrabold text-gray-900 leading-tight mb-2 tracking-tight">{supplier.supplier_name}</h1>
                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-5 text-gray-400">
                         <div className="flex items-center gap-2">
                             <MapPin size={14} className="opacity-60" />
@@ -199,22 +198,12 @@ const SupplierDetails = () => {
                 </div>
 
                 <div className="md:ml-auto">
-                    {!isEditing ? (
-                        <button 
-                            onClick={() => setIsEditing(true)} 
-                            className="px-8 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-2 shadow-sm"
-                        >
-                            <Users size={14} /> Edit Profile
-                        </button>
-                    ) : (
-                        <div className="flex gap-3">
-                            <button onClick={() => setIsEditing(false)} className="px-6 py-2.5 bg-gray-100 text-gray-500 rounded-xl text-[10px] font-bold uppercase tracking-widest">Discard</button>
-                            <button onClick={handleSave} disabled={saving} className="px-8 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 shadow-lg hover:shadow-gray-900/20">
-                                {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                                Commit Changes
-                            </button>
-                        </div>
-                    )}
+                    <button 
+                        onClick={() => setShowEditModal(true)} 
+                        className="px-8 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-2 shadow-sm"
+                    >
+                        <Edit2 size={14} /> Edit Profile
+                    </button>
                 </div>
             </div>
 
@@ -297,19 +286,11 @@ const SupplierDetails = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Supplier Name</label>
-                                        {isEditing ? (
-                                            <input type="text" value={editData.supplier_name} onChange={e => setEditData({...editData, supplier_name: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                                        ) : (
-                                            <p className="text-sm font-extrabold text-gray-800">{supplier.supplier_name}</p>
-                                        )}
+                                        <p className="text-sm font-extrabold text-gray-800">{supplier.supplier_name}</p>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Supplier Group</label>
-                                        {isEditing ? (
-                                            <input type="text" value={editData.supplier_group} onChange={e => setEditData({...editData, supplier_group: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                                        ) : (
-                                            <p className="text-sm font-extrabold text-gray-800">{supplier.supplier_group}</p>
-                                        )}
+                                        <p className="text-sm font-extrabold text-gray-800">{supplier.supplier_group}</p>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Entity Type</label>
@@ -317,11 +298,7 @@ const SupplierDetails = () => {
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">TRN Registration</label>
-                                        {isEditing ? (
-                                            <input type="text" value={editData.tax_id} onChange={e => setEditData({...editData, tax_id: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                                        ) : (
-                                            <p className="text-sm font-extrabold text-gray-800">{supplier.tax_id || 'NONE'}</p>
-                                        )}
+                                        <p className="text-sm font-extrabold text-gray-800">{supplier.tax_id || 'NONE'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -342,22 +319,14 @@ const SupplierDetails = () => {
                                             <div className="p-3 bg-blue-50 rounded-xl"><Mail size={20} className="text-blue-500" /></div>
                                             <div className="space-y-1.5 flex-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Operational Email</label>
-                                                {isEditing ? (
-                                                    <input type="email" value={editData.email_id} onChange={e => setEditData({...editData, email_id: e.target.value})} className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm font-bold" />
-                                                ) : (
-                                                    <p className="text-sm font-extrabold text-gray-800">{supplier.contact_details?.email_id || 'N/A'}</p>
-                                                )}
+                                                <p className="text-sm font-extrabold text-gray-800">{supplier.contact_details?.email_id || 'N/A'}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-4">
                                             <div className="p-3 bg-indigo-50 rounded-xl"><Phone size={20} className="text-indigo-500" /></div>
                                             <div className="space-y-1.5 flex-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Direct Mobile</label>
-                                                {isEditing ? (
-                                                    <input type="text" value={editData.mobile_no} onChange={e => setEditData({...editData, mobile_no: e.target.value})} className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm font-bold" />
-                                                ) : (
-                                                    <p className="text-sm font-extrabold text-gray-800">{supplier.contact_details?.mobile_no || 'N/A'}</p>
-                                                )}
+                                                <p className="text-sm font-extrabold text-gray-800">{supplier.contact_details?.mobile_no || 'N/A'}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -367,14 +336,10 @@ const SupplierDetails = () => {
                                             <MapPin size={18} className="text-blue-600" />
                                             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Physical Address</p>
                                         </div>
-                                        {isEditing ? (
-                                            <textarea rows={3} value={editData.address_line1} onChange={e => setEditData({...editData, address_line1: e.target.value})} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm font-bold resize-none" />
-                                        ) : (
-                                            <p className="text-sm font-extrabold text-gray-800 leading-relaxed">
-                                                {supplier.address_details?.address_line1 || 'No Registered Address'}
-                                                {supplier.address_details?.city && <span className="block italic mt-1 text-gray-500 text-xs">{supplier.address_details.city}</span>}
-                                            </p>
-                                        )}
+                                        <p className="text-sm font-extrabold text-gray-800 leading-relaxed">
+                                            {supplier.address_details?.address_line1 || 'No Registered Address'}
+                                            {supplier.address_details?.city && <span className="block italic mt-1 text-gray-500 text-xs">{supplier.address_details.city}</span>}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -395,6 +360,83 @@ const SupplierDetails = () => {
                 )}
             </div>
         </div>
+
+        {/* Edit Modal Reused from SupplierList */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-gray-50/95 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 lg:p-12">
+            <div className="bg-white w-full max-w-5xl h-full lg:h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-white">
+              
+              <div className="px-10 py-8 flex justify-between items-center border-b border-gray-50 shrink-0">
+                 <div className="flex items-center gap-6">
+                    <button onClick={() => setShowEditModal(false)} className="p-3 hover:bg-gray-50 rounded-2xl text-gray-400 transition-colors">
+                      <ChevronLeft size={24} />
+                    </button>
+                    <h2 className="text-3xl font-black text-gray-900 tracking-tight">Modify Partner Profile</h2>
+                 </div>
+                 <button onClick={() => setShowEditModal(false)} className="p-3 hover:bg-gray-50 rounded-2xl text-gray-400 transition-colors">
+                    <X size={24} />
+                 </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-10 bg-gray-50/50">
+                 <div className="max-w-4xl mx-auto space-y-8 pb-12">
+                    <div className="bg-white p-10 rounded-[2rem] border border-white shadow-sm space-y-8">
+                      <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                        <div className="w-2 h-6 bg-blue-600 rounded-full" />
+                        Base Specifications
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Supplier Name *</label>
+                          <input type="text" value={form.supplier_name} onChange={e => setForm({...form, supplier_name: e.target.value})} className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Supplier Group *</label>
+                          <select value={form.supplier_group} onChange={e => setForm({...form, supplier_group: e.target.value})} className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800">
+                            {supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Tax TRN</label>
+                          <input type="text" value={form.tax_id} onChange={e => setForm({...form, tax_id: e.target.value})} className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-10 rounded-[2rem] border border-white shadow-sm space-y-8">
+                      <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                        <div className="w-2 h-6 bg-blue-600 rounded-full" />
+                        Location & Contact
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Operational Email</label>
+                          <input type="email" value={form.email_id} onChange={e => setForm({...form, email_id: e.target.value})} className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Direct Mobile</label>
+                          <input type="text" value={form.mobile_no} onChange={e => setForm({...form, mobile_no: e.target.value})} className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800" />
+                        </div>
+                        <div className="md:col-span-2 space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Full Registered Address</label>
+                          <textarea rows={3} value={form.address_line1} onChange={e => setForm({...form, address_line1: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-[1.5rem] font-bold text-gray-800 resize-none" />
+                        </div>
+                      </div>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="px-10 py-8 border-t border-gray-50 flex justify-end items-center gap-5 shrink-0 bg-white">
+                 <button onClick={() => setShowEditModal(false)} className="px-8 py-3.5 text-xs font-black text-gray-400 uppercase tracking-widest">Discard</button>
+                 <button onClick={handleSave} disabled={saving} className="px-10 py-3.5 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.1em] flex items-center gap-3 shadow-lg disabled:opacity-50">
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    {saving ? 'Syncing...' : 'Authorize Updates'}
+                 </button>
+              </div>
+
+            </div>
+          </div>
+        )}
         </>
     );
 };
