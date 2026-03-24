@@ -77,6 +77,7 @@ function PurchaseOrder() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState({});
   const [linkedCategories, setLinkedCategories] = useState({});
+  const [linkedConnections, setLinkedConnections] = useState([]); // New state for dashboard connections
   const [linkedDocStatuses, setLinkedDocStatuses] = useState({});
   const [loadingLinks, setLoadingLinks] = useState(false);
   const videoRef = useRef(null);
@@ -711,10 +712,10 @@ function PurchaseOrder() {
   };
 
   const fetchLinkedDocs = async (name) => {
+    if (!name) return;
     setLoadingLinks(true);
     try {
-      const KYLE_API = '/api/method/kyle_retail.retail_api.api';
-      const res = await fetch(`${KYLE_API}.get_linked_documents?doctype=Purchase Order&name=${name}`, {
+      const res = await fetch(`${API_PATH}.get_purchase_order_dashboard?purchase_order=${name}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -722,51 +723,50 @@ function PurchaseOrder() {
         const data = await res.json();
         const msg = data.message || {};
         
-        // Store raw categories for ERP-style grouping in UI
-        setLinkedCategories(msg.categories || {});
+        // Use the new connections structure
+        if (msg.status === 'success' || msg.connections) {
+          const connections = msg.connections || [];
+          setLinkedConnections(connections);
 
-        // Flatten for easy access elsewhere (like creating receipts/invoices)
-        let flattened = {};
-        if (msg.categories) {
-          Object.values(msg.categories).forEach(cat => {
-            Object.entries(cat).forEach(([doctype, list]) => {
-              const key = doctype.replace(/ /g, '_');
-              flattened[key] = (list || []).map(item => typeof item === 'object' ? item.name : item);
+          // Flatten for easy access elsewhere
+          let flattened = {};
+          let allDocs = [];
+          
+          connections.forEach(group => {
+            group.items.forEach(item => {
+              const key = item.label.replace(/ /g, '_');
+              flattened[key] = item.names || [];
+              if (item.names) {
+                item.names.forEach(n => allDocs.push({ name: n, type: item.doctype || item.label }));
+              }
             });
           });
-        } else {
-          // Fallback to direct mapping
-          Object.entries(msg).forEach(([k, v]) => { 
-            const list = Array.isArray(v) ? v : [];
-            flattened[k.replace(/ /g, '_')] = list.map(item => typeof item === 'object' ? item.name : item);
-          });
+          setLinkedDocs(flattened);
+
+          // Fetch statuses for these docs
+          const statuses = {};
+          await Promise.all(allDocs.map(async ({ name: docName, type }) => {
+            try {
+              const r = await fetch(`/api/resource/${encodeURIComponent(type)}/${docName}?fields=["docstatus","status"]`, {
+                headers: { 'X-Frappe-SID': getSession() }, credentials: 'include'
+              });
+              if (r.ok) {
+                const docData = await r.json();
+                statuses[docName] = { 
+                  docstatus: docData.data?.docstatus ?? 0, 
+                  status: docData.data?.status || (docData.data?.docstatus === 1 ? 'Submitted' : 'Draft') 
+                };
+              }
+            } catch (err) { console.error('fetchDocStatus err:', err); }
+          }));
+          setLinkedDocStatuses(statuses);
         }
-
-        setLinkedDocs(flattened);
-
-        // Fetch docstatus for each linked document
-        const statuses = {};
-        const allDocs = [];
-        Object.keys(flattened).forEach(key => {
-          const type = key.replace(/_/g, ' ');
-          flattened[key].forEach(name => allDocs.push({ name, type }));
-        });
-
-        await Promise.all(allDocs.map(async ({ name: docName, type }) => {
-          try {
-            const r = await fetch(`/api/resource/${encodeURIComponent(type)}/${docName}?fields=["docstatus","status"]`, {
-              headers: { 'X-Frappe-SID': getSession() }, credentials: 'include'
-            });
-            if (r.ok) {
-              const d = await r.json();
-              statuses[docName] = { docstatus: d.data?.docstatus ?? 0, status: d.data?.status || '' };
-            }
-          } catch (_) { }
-        }));
-        setLinkedDocStatuses(statuses);
       }
-    } catch (err) { console.error(err); }
-    finally { setLoadingLinks(false); }
+    } catch (err) {
+      console.error('fetchLinkedDocs err:', err);
+    } finally {
+      setLoadingLinks(false);
+    }
   };
 
   const handleSubmitDoc = async (docName, doctype) => {
@@ -1403,27 +1403,26 @@ function PurchaseOrder() {
                 </div>
               )}
 
-              {/* Categorized Connections */}
-              {Object.entries(linkedCategories).length > 0 ? (
-                Object.entries(linkedCategories).map(([catName, doctypes]) => (
-                  <div key={catName} className="flex flex-col gap-2.5">
+              {/* Categorized Connections from the API connections array */}
+              {linkedConnections.length > 0 ? (
+                linkedConnections.map((group) => (
+                  <div key={group.group} className="flex flex-col gap-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">{catName}</span>
+                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">{group.group}</span>
                       <div className="h-px flex-1 bg-slate-50" />
                     </div>
                     <div className="flex flex-col gap-2">
-                      {Object.entries(doctypes).map(([dt, list]) => {
-                        const count = list.length;
-                        if (count === 0) return null;
+                      {group.items.filter(item => item.count > 0).map((item) => {
+                        const dt = item.label;
+                        const list = item.names || [];
                         return (
                           <div key={dt} className="flex items-center justify-between gap-4 px-3 py-2 bg-white border border-slate-100 rounded-lg hover:border-slate-200 transition-all">
                             <div className="flex items-center gap-2 text-[10px] font-black text-slate-700">
                               {dt}
-                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px]">{count}</span>
+                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px]">{item.count}</span>
                             </div>
                             <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
-                              {list.map(item => {
-                                const id = typeof item === 'object' ? item.name : item;
+                              {list.map(id => {
                                 const s = linkedDocStatuses[id];
                                 const isSub = s?.docstatus === 1;
                                 return (
