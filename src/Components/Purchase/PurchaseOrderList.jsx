@@ -172,7 +172,8 @@ const PurchaseOrderList = ({ onNew }) => {
                 <th>Identity #</th>
                 <th>Supplier &amp; Location</th>
                 <th>Posting Matrix</th>
-                <th>Total Qty</th>
+                <th>RCVD %</th>
+                <th>BILL %</th>
                 <th>Commitment Value</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'center' }}>Controls</th>
@@ -181,7 +182,7 @@ const PurchaseOrderList = ({ onNew }) => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="so-empty">
+                  <td colSpan="8" className="so-empty">
                     <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto 0.5rem' }} />
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                       Processing Directory...
@@ -190,7 +191,7 @@ const PurchaseOrderList = ({ onNew }) => {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan="7" className="so-empty">
+                  <td colSpan="8" className="so-empty">
                     <AlertCircle size={36} style={{ margin: '0 auto 0.5rem', color: '#ef4444' }} />
                     <div style={{ fontWeight: 700, color: '#1e293b' }}>{error}</div>
                     <button
@@ -203,7 +204,7 @@ const PurchaseOrderList = ({ onNew }) => {
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="so-empty">
+                  <td colSpan="8" className="so-empty">
                     <FileText size={36} style={{ margin: '0 auto 0.75rem', color: '#e2e8f0' }} />
                     <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>No Transactions Found</div>
                     <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.3rem' }}>
@@ -268,27 +269,28 @@ const PurchaseOrderList = ({ onNew }) => {
                       </div>
                     </td>
 
-                    {/* Analytics / Progress */}
+                    {/* RCVD Progress */}
                     <td>
-                      <div className="flex flex-row items-center gap-6 min-w-[240px]">
-                        <div className="flex-1 flex flex-col gap-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Received</span>
-                            <span className="text-[9px] font-black text-slate-700">{Math.round(po.per_received || 0)}%</span>
-                          </div>
-                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${po.per_received || 0}%` }} />
-                          </div>
+                      <div className="flex flex-col gap-1 min-w-[100px]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black text-emerald-600 uppercase">Received</span>
+                          <span className="text-[9px] font-black text-slate-700">{Math.round(po.per_received || 0)}%</span>
                         </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${po.per_received || 0}%` }} />
+                        </div>
+                      </div>
+                    </td>
 
-                        <div className="flex-1 flex flex-col gap-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-black text-sky-600 uppercase tracking-tighter">Billed</span>
-                            <span className="text-[9px] font-black text-slate-700">{Math.round(po.per_billed || 0)}%</span>
-                          </div>
-                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-sky-500 rounded-full" style={{ width: `${po.per_billed || 0}%` }} />
-                          </div>
+                    {/* BILL Progress */}
+                    <td>
+                      <div className="flex flex-col gap-1 min-w-[100px]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black text-sky-600 uppercase">Billed</span>
+                          <span className="text-[9px] font-black text-slate-700">{Math.round(po.per_billed || 0)}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-sky-500 rounded-full" style={{ width: `${po.per_billed || 0}%` }} />
                         </div>
                       </div>
                     </td>
