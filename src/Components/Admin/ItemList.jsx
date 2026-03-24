@@ -729,13 +729,24 @@ export default function ItemList() {
                               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '1rem', overflow: 'hidden', padding: '0.5rem' }}>
                                 {form.imagePreview ? <img src={form.imagePreview} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Package size={48} style={{ opacity: 0.1 }} />}
                               </div>
-                              <div style={{ display: 'flex', gap: '0.65rem', marginTop: '1rem' }}>
-                                <button onClick={() => { setIsViewMode(false); setIsEditMode(true); }} className="so-btn-primary" style={{ flex: 1, height: '2.5rem', borderRadius: '1.5rem', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 800 }}>
-                                  <Edit2 size={14} /> Edit
-                                </button>
-                                <button onClick={() => handleDelete(form.item_code)} className="so-btn-danger" style={{ flex: 1, height: '2.5rem', borderRadius: '1.5rem', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 800 }}>
-                                  <Trash2 size={14} /> Delete
-                                </button>
+                              <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                                <div style={{ 
+                                  padding: '0.75rem', 
+                                  borderRadius: '1rem', 
+                                  background: form.disabled ? '#fee2e2' : '#f0fdf4',
+                                  color: form.disabled ? '#ef4444' : '#15803d',
+                                  border: `1px solid ${form.disabled ? '#fecaca' : '#bbf7d0'}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  fontSize: '0.9rem',
+                                  fontWeight: 900,
+                                  textTransform: 'uppercase'
+                                }}>
+                                  <AlertCircle size={18} />
+                                  {form.disabled ? 'DISABLED IN ERP' : 'ENABLED / ACTIVE'}
+                                </div>
                               </div>
                             </div>
 
