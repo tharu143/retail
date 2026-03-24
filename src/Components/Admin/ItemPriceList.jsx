@@ -1,15 +1,18 @@
-// src/Components/Admin/ItemPriceList.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import {
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { 
   Plus, Search, X, Tag, Filter, Eye, Edit2, Trash2, 
   Loader2, ChevronLeft, ChevronRight, Warehouse, Scale,
-  Box, ShieldCheck, MapPin, Calculator, Barcode
+  Box, ShieldCheck, MapPin, Calculator, Barcode, Palette
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import NavBar from '../Nav/NavBar';
 
 function ItemPriceList() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -34,7 +37,7 @@ function ItemPriceList() {
   const [selectedPriceList, setSelectedPriceList] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [itemCodeFilter, setItemCodeFilter] = useState('');
+  const [itemCodeFilter, setItemCodeFilter] = useState(searchParams.get('item_code') || '');
 
   // Form State
   const [showForm, setShowForm] = useState(false);
@@ -59,7 +62,7 @@ function ItemPriceList() {
       else setItems([]);
     }, 300);
     return () => clearTimeout(timer);
-  }, [itemSearch]);
+  }, [itemSearch, searchParams]);
 
   const fetchItems = async (q) => {
     setItemLoading(true);

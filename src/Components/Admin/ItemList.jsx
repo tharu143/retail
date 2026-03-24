@@ -841,7 +841,7 @@ export default function ItemList() {
                                     <p style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700 }}>Initialize a price list entry to start trading.</p>
                                   </td></tr>
                                 ) : priceData?.prices?.map((p, idx) => (
-                                  <tr key={p.name || idx} onClick={() => { setPriceForm({ ...p }); setIsPriceDetailView(true); }} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s', cursor: 'pointer' }} className="hover:bg-slate-50">
+                                  <tr key={p.name || idx} onClick={() => navigate(`/itempricelist?item_code=${editingItemCode}`)} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s', cursor: 'pointer' }} className="hover:bg-slate-50">
                                     <td style={{ padding: '1.5rem 2rem' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                                         <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '1rem' }}>{p.price_list}</span>
