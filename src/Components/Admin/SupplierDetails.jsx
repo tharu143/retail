@@ -108,7 +108,7 @@ const SupplierDetails = () => {
                     tax_id: data.tax_id || '',
                     email_id: data.contact_details?.email_id || '',
                     mobile_no: data.contact_details?.mobile_no || '',
-                    address_line1: data.address_details?.address_line1 || '',
+                    address: data.address || data.address_details?.address_line1 || '',
                     city: data.address_details?.city || '',
                     country: data.country || 'United Arab Emirates'
                 });
@@ -337,7 +337,7 @@ const SupplierDetails = () => {
                                             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Physical Address</p>
                                         </div>
                                         <p className="text-sm font-extrabold text-gray-800 leading-relaxed">
-                                            {supplier.address_details?.address_line1 || 'No Registered Address'}
+                                            {supplier.address || supplier.address_details?.address_line1 || 'No Registered Address'}
                                             {supplier.address_details?.city && <span className="block italic mt-1 text-gray-500 text-xs">{supplier.address_details.city}</span>}
                                         </p>
                                     </div>
@@ -419,7 +419,7 @@ const SupplierDetails = () => {
                         </div>
                         <div className="md:col-span-2 space-y-2">
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Full Registered Address</label>
-                          <textarea rows={3} value={form.address_line1} onChange={e => setForm({...form, address_line1: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-[1.5rem] font-bold text-gray-800 resize-none" />
+                          <textarea rows={3} value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-[1.5rem] font-bold text-gray-800 resize-none" />
                         </div>
                       </div>
                     </div>
