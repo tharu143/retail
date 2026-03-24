@@ -64,14 +64,14 @@ function ItemPriceList() {
   const fetchItems = async (q) => {
     setItemLoading(true);
     try {
-      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items', { params: { q }, withCredentials: true });
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_items_for_dropdown', { params: { search: q }, withCredentials: true });
       setItems(res.data.message || []);
     } catch (err) { console.error(err); }
     finally { setItemLoading(false); }
   };
 
   const handleItemSelect = (it) => {
-    setForm({ ...form, item_code: it.item_code, item_name: it.item_name, uom: it.stock_uom || 'Nos' });
+    setForm({ ...form, item_code: it.value, item_name: it.label, uom: it.stock_uom || 'Nos' });
     setItemSearch('');
     setShowItemDropdown(false);
   };
@@ -83,7 +83,7 @@ function ItemPriceList() {
         const [wRes, pRes, bRes] = await Promise.all([
            axios.get('/api/method/kyle_retail.retail_api.api.get_warehouses', { withCredentials: true }).catch(() => ({ data: { message: [] } })),
            axios.get('/api/method/kyle_retail.retail_api.api.get_price_lists', { withCredentials: true }).catch(() => ({ data: { message: [] } })),
-           axios.get('/api/method/custom_retailpos.custom_retailpos.util.api.get_item_brands', { withCredentials: true }).catch(() => ({ data: { message: [] } }))
+           axios.get('/api/method/kyle_retail.retail_api.api.get_item_brands', { withCredentials: true }).catch(() => ({ data: { message: [] } }))
         ]);
         setWarehouses(wRes.data?.message || []);
         setPriceLists(pRes.data?.message || []);
@@ -424,9 +424,14 @@ function ItemPriceList() {
                                       {itemLoading ? <div style={{ padding: '1.5rem', textAlign: 'center' }}><Loader2 size={16} className="animate-spin" /></div> : 
                                        items.length === 0 ? <div style={{ padding: '1.5rem', textAlign: 'center', fontSize: '0.7rem', color: '#94a3b8' }}>No results</div> :
                                        items.map(it => (
-                                          <div key={it.item_code} onClick={() => handleItemSelect(it)} style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} className="hover:bg-slate-50">
-                                             <p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.8rem' }}>{it.item_name}</p>
-                                             <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>{it.item_code}</p>
+                                          <div key={it.value} onClick={() => handleItemSelect(it)} style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} className="hover:bg-slate-50">
+                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                {it.image && <img src={it.image} style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover' }} />}
+                                                <div>
+                                                   <p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.8rem', margin: 0 }}>{it.label}</p>
+                                                   <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700, margin: 0 }}>{it.value}</p>
+                                                </div>
+                                             </div>
                                           </div>
                                        ))
                                       }
