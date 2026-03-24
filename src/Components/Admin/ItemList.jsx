@@ -110,6 +110,7 @@ export default function ItemList() {
   const [priceData, setPriceData] = useState({ prices: [], metrics: {}, warehouse_breakdown: [] });
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [showPriceForm, setShowPriceForm] = useState(false);
+  const [isPriceDetailView, setIsPriceDetailView] = useState(false);
   const [priceForm, setPriceForm] = useState({
     price_list: '', uom: '', price_list_rate: 0, buying: 0, selling: 1, name: ''
   });
@@ -532,11 +533,11 @@ export default function ItemList() {
       {showForm && (
         <div className="so-full-screen-view" style={{ position: 'fixed', top: '70px', left: 0, right: 0, bottom: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', animation: 'soModalIn 0.3s ease-out' }}>
           <div className="so-modal-header" style={{ padding: '1rem 2rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}><ChevronLeft size={22} /></button>
-              <div>
-                <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, marginBottom: '2px' }}>{isViewMode ? form.item_name : (isEditMode ? 'Edit Item Master' : 'New Item Master')}</h2>
-                {isViewMode && <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>{editingItemCode}</p>}
+            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', minWidth: 0, flexShrink: 1 }}>
+              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem', flexShrink: 0 }}><ChevronLeft size={22} /></button>
+              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isViewMode ? form.item_name : (isEditMode ? 'Edit Item Master' : 'New Item Master')}</h2>
+                {isViewMode && <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis' }}>{editingItemCode}</p>}
               </div>
             </div>
 
@@ -546,7 +547,10 @@ export default function ItemList() {
                     {['Dashboard', 'General', 'Prices', 'Stock'].map(t => (
                         <button
                             key={t}
-                            onClick={() => setActiveTab(t)}
+                            onClick={() => {
+                                setActiveTab(t);
+                                if (t !== 'Prices') setIsPriceDetailView(false);
+                            }}
                             style={{
                                 padding: '8px 24px',
                                 background: activeTab === t ? 'white' : 'transparent',
@@ -558,7 +562,8 @@ export default function ItemList() {
                                 textTransform: 'uppercase',
                                 cursor: 'pointer',
                                 boxShadow: activeTab === t ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                flexShrink: 0
                             }}
                         >
                             {t}
@@ -707,70 +712,134 @@ export default function ItemList() {
 
                   {activeTab === 'Prices' && (
                     <div style={{ animation: 'fadeIn 0.4s ease', padding: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                        <div>
-                          <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b' }}>Standard Rates List</h3>
-                          <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8' }}>{priceData.prices?.length || 0} definitions retrieved</p>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            setPriceForm({ price_list: 'Standard Selling', uom: form.default_uom, price_list_rate: 0, buying: 0, selling: 1, name: '' });
-                            setShowPriceForm(true);
-                          }}
-                          className="so-btn-primary" 
-                          style={{ height: '3rem', padding: '0 1.5rem', borderRadius: '0.8rem', background: themeColor, fontSize: '0.75rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px' }}
-                        >
-                          <Plus size={18} /> ADD PRICE LIST
-                        </button>
-                      </div>
+                      {!isPriceDetailView ? (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <div>
+                              <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b' }}>Standard Rates Registry</h3>
+                              <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8' }}>{priceData.prices?.length || 0} active definitions for {editingItemCode}</p>
+                            </div>
+                            <button 
+                              onClick={() => {
+                                setPriceForm({ price_list: 'Standard Selling', uom: form.default_uom, price_list_rate: 0, buying: 0, selling: 1, name: '' });
+                                setIsPriceDetailView(true);
+                              }}
+                              className="so-btn-primary" 
+                              style={{ height: '3rem', padding: '0 1.5rem', borderRadius: '0.8rem', background: themeColor, fontSize: '0.75rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px' }}
+                            >
+                              <Plus size={18} /> INITIALIZE RECORD
+                            </button>
+                          </div>
 
-                      <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                              <th style={{ padding: '1.25rem 2rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Price List / UOM</th>
-                              <th style={{ padding: '1.25rem 2rem', textAlign: 'center', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Type</th>
-                              <th style={{ padding: '1.25rem 2rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Rate (AED)</th>
-                              <th style={{ padding: '1.25rem 2rem', width: '100px' }}></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {loadingPrices ? (
-                              <tr><td colSpan="4" style={{ padding: '5rem', textAlign: 'center' }}><Loader2 className="animate-spin" style={{ margin: '0 auto', color: themeColor }} /></td></tr>
-                            ) : (priceData?.prices || []).length === 0 ? (
-                              <tr><td colSpan="4" style={{ padding: '5rem', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No prices defined for this item.</td></tr>
-                            ) : priceData?.prices?.map((p, idx) => (
-                              <tr key={p.name || idx} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s' }} className="hover:bg-slate-50">
-                                <td style={{ padding: '1.5rem 2rem' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '1rem' }}>{p.price_list}</span>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: themeColor }}>{p.uom}</span>
-                                  </div>
-                                </td>
-                                <td style={{ padding: '1.5rem 2rem', textAlign: 'center' }}>
-                                  {p.buying === 1 && <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '100px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase' }}>Buying</span>}
-                                  {p.selling === 1 && <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '100px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', marginLeft: p.buying ? '8px' : 0 }}>Selling</span>}
-                                </td>
-                                <td style={{ padding: '1.5rem 2rem', textAlign: 'right', fontWeight: 900, color: '#1e293b', fontSize: '1.1rem' }}>
-                                  {Number(p.price_list_rate || 0).toFixed(2)}
-                                </td>
-                                <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
-                                  <button 
-                                    onClick={() => {
-                                      setPriceForm({ ...p });
-                                      setShowPriceForm(true);
-                                    }}
-                                    style={{ color: '#94a3b8', border: 'none', background: 'transparent', cursor: 'pointer' }}
-                                    className="hover:text-blue-500"
+                          <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.03)' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                                  <th style={{ padding: '1.25rem 2rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Price List / UOM</th>
+                                  <th style={{ padding: '1.25rem 2rem', textAlign: 'center', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Type</th>
+                                  <th style={{ padding: '1.25rem 2rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Rate (AED)</th>
+                                  <th style={{ padding: '1.25rem 2rem', width: '100px' }}></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {loadingPrices ? (
+                                  <tr><td colSpan="4" style={{ padding: '5rem', textAlign: 'center' }}><Loader2 className="animate-spin" style={{ margin: '0 auto', color: themeColor }} /></td></tr>
+                                ) : (priceData?.prices || []).length === 0 ? (
+                                  <tr><td colSpan="4" style={{ padding: '10rem', textAlign: 'center' }}>
+                                    <div style={{ opacity: 0.1, marginBottom: '1rem' }}><Scale size={64} style={{ margin: '0 auto' }} /></div>
+                                    <h4 style={{ fontWeight: 900, color: '#1e293b' }}>No definitions detected</h4>
+                                    <p style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700 }}>Initialize a price list entry to start trading.</p>
+                                  </td></tr>
+                                ) : priceData?.prices?.map((p, idx) => (
+                                  <tr key={p.name || idx} onClick={() => { setPriceForm({ ...p }); setIsPriceDetailView(true); }} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s', cursor: 'pointer' }} className="hover:bg-slate-50">
+                                    <td style={{ padding: '1.5rem 2rem' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '1rem' }}>{p.price_list}</span>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: themeColor }}>{p.uom}</span>
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '1.5rem 2rem', textAlign: 'center' }}>
+                                      {p.buying === 1 && <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '100px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase' }}>Buying</span>}
+                                      {p.selling === 1 && <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '100px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', marginLeft: p.buying ? '8px' : 0 }}>Selling</span>}
+                                    </td>
+                                    <td style={{ padding: '1.5rem 2rem', textAlign: 'right', fontWeight: 900, color: '#1e293b', fontSize: '1.1rem' }}>
+                                      {Number(p.price_list_rate || 0).toFixed(2)}
+                                    </td>
+                                    <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
+                                      <ChevronRight size={18} style={{ color: '#cbd5e1' }} />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ animation: 'slideInRight 0.3s ease' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
+                             <button onClick={() => setIsPriceDetailView(false)} style={{ padding: '0.75rem', background: 'white', borderRadius: '1rem', border: '1px solid #e2e8f0', color: '#64748b' }}><ChevronLeft size={20} /></button>
+                             <div>
+                               <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1e293b' }}>Record Details</h3>
+                               <p style={{ fontSize: '0.75rem', color: themeColor, fontWeight: 900 }}>{priceForm.name || 'NEW DRAFT ENTRY'}</p>
+                             </div>
+                          </div>
+
+                          <div className="so-card" style={{ borderRadius: '2rem', padding: '3.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.05)' }}>
+                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2.5rem' }}>
+                                <div className="so-field">
+                                  <label className="so-label">Price List</label>
+                                  <select 
+                                    className="so-input" 
+                                    value={priceForm.price_list} 
+                                    onChange={e => setPriceForm({ ...priceForm, price_list: e.target.value, buying: e.target.value.toLowerCase().includes('buying') ? 1 : 0, selling: e.target.value.toLowerCase().includes('selling') ? 1 : 0 })}
                                   >
-                                    <Edit2 size={18} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                    <option value="Standard Selling">Standard Selling</option>
+                                    <option value="Standard Buying">Standard Buying</option>
+                                  </select>
+                                </div>
+                                <div className="so-field">
+                                  <label className="so-label">UOM (Unit of Measure)</label>
+                                  <input type="text" className="so-input" value={priceForm.uom} onChange={e => setPriceForm({ ...priceForm, uom: e.target.value })} placeholder="e.g. Nos" />
+                                </div>
+                                <div className="so-field" style={{ gridColumn: 'span 2' }}>
+                                  <label className="so-label">Price List Rate ({(priceForm.currency || 'AED')})</label>
+                                  <input 
+                                    type="number" 
+                                    className="so-input" 
+                                    style={{ height: '5rem', fontSize: '2rem', fontWeight: 900, color: themeColor }}
+                                    value={priceForm.price_list_rate} 
+                                    onChange={e => setPriceForm({ ...priceForm, price_list_rate: e.target.value })} 
+                                  />
+                                </div>
+                                <div style={{ display: 'flex', gap: '1.5rem', gridColumn: 'span 2' }}>
+                                  <div style={{ flex: 1, padding: '1.5rem', border: '2px solid #f1f5f9', borderRadius: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div><p style={{ fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Buying Permitted</p><p style={{ fontWeight: 800, color: priceForm.buying ? '#d97706' : '#64748b' }}>{priceForm.buying ? 'ALLOWED' : 'DISABLED'}</p></div>
+                                    <input type="checkbox" checked={priceForm.buying} onChange={e => setPriceForm({ ...priceForm, buying: e.target.checked ? 1 : 0 })} />
+                                  </div>
+                                  <div style={{ flex: 1, padding: '1.5rem', border: '2px solid #f1f5f9', borderRadius: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div><p style={{ fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Selling Permitted</p><p style={{ fontWeight: 800, color: priceForm.selling ? '#16a34a' : '#64748b' }}>{priceForm.selling ? 'ALLOWED' : 'DISABLED'}</p></div>
+                                    <input type="checkbox" checked={priceForm.selling} onChange={e => setPriceForm({ ...priceForm, selling: e.target.checked ? 1 : 0 })} />
+                                  </div>
+                                </div>
+                             </div>
+
+                             <div style={{ marginTop: '4rem', display: 'flex', gap: '1.5rem', justifyContent: 'flex-end' }}>
+                               <button onClick={() => setIsPriceDetailView(false)} className="so-btn-secondary" style={{ padding: '0 3rem', height: '3.5rem' }}>Discard</button>
+                               <button 
+                                 className="so-btn-primary" 
+                                 style={{ padding: '0 4rem', height: '3.5rem', background: themeColor, fontWeight: 900, fontSize: '0.9rem' }}
+                                 onClick={async () => {
+                                   await handleSavePrice();
+                                   setIsPriceDetailView(false);
+                                 }}
+                                 disabled={saving}
+                               >
+                                 {saving ? 'Synchronizing...' : (priceForm.name ? 'Commit Changes' : 'Publish Detail')}
+                               </button>
+                             </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
