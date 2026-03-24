@@ -249,6 +249,22 @@ export default function ItemList() {
     }
   };
 
+  const fetchItemDashboardDetails = async (code) => {
+    try {
+      setLoadingDashboard(true);
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', {
+        params: { item_code: code },
+        withCredentials: true
+      });
+      setDashboardData(res.data?.message || {});
+    } catch (err) {
+      console.error('Fetch Dashboard Error:', err);
+      setDashboardData({});
+    } finally {
+      setLoadingDashboard(false);
+    }
+  };
+
   const handleSavePrice = async () => {
     try {
       setSaving(true);
@@ -361,6 +377,7 @@ export default function ItemList() {
     setWarehouseDetails([]); setShowForm(true); setActiveTab('General');
     fetchUltimateItemDetails(item.item_code);
     fetchPriceList(item.item_code);
+    fetchItemDashboardDetails(item.item_code);
   };
 
   const resetForm = () => {
@@ -898,68 +915,97 @@ export default function ItemList() {
                     <div style={{ animation: 'fadeIn 0.4s ease' }}>
                       {loadingDashboard ? (
                         <div style={{ padding: '10rem', textAlign: 'center' }}><Loader2 size={48} className="so-spinner" style={{ margin: '0 auto', color: themeColor }} /></div>
-                      ) : dashboardData?.connections ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
-                          {Object.entries(dashboardData.connections).map(([category, links]) => {
-                            // Extract all actual document lists from this category
-                            const rows = [];
-                            if (typeof links === 'object' && links !== null) {
-                              Object.entries(links).forEach(([k, v]) => {
-                                if (Array.isArray(v)) {
-                                  rows.push({ label: k, data: v });
-                                } else if (typeof v === 'object' && v !== null) {
-                                  // Handle double nested like { Pricing: { "Item Price": [...] } }
-                                  Object.entries(v).forEach(([k2, v2]) => {
-                                    if (Array.isArray(v2)) rows.push({ label: k2, data: v2 });
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                          {/* Summary Statistics */}
+                          {dashboardData?.summary && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                               <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: `6px solid ${themeColor}` }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Sales Volume</p>
+                                  <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1e293b' }}>
+                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '6px' }}>AED</span>
+                                    {Number(dashboardData.summary.total_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                               </div>
+                               <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #f59e0b' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Purchase Volume</p>
+                                  <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f59e0b' }}>
+                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '6px' }}>AED</span>
+                                    {Number(dashboardData.summary.total_purchase || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                               </div>
+                               <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #8b5cf6' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Total Stock Value</p>
+                                  <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#8b5cf6' }}>
+                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '6px' }}>AED</span>
+                                    {Number(dashboardData.summary.total_stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                               </div>
+                            </div>
+                          )}
+
+                          {dashboardData?.connections ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
+                              {Object.entries(dashboardData.connections).map(([category, links]) => {
+                                const rows = [];
+                                if (typeof links === 'object' && links !== null) {
+                                  Object.entries(links).forEach(([k, v]) => {
+                                    if (Array.isArray(v)) rows.push({ label: k, data: v });
+                                    else if (typeof v === 'object' && v !== null) {
+                                      Object.entries(v).forEach(([k2, v2]) => {
+                                        if (Array.isArray(v2)) rows.push({ label: k2, data: v2 });
+                                      });
+                                    }
                                   });
                                 }
-                              });
-                            }
-
-                            if (rows.length === 0) return null;
-
-                            return (
-                              <div key={category} className="so-card" style={{ borderRadius: '2rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', overflow: 'hidden' }}>
-                                <div className="so-card-header" style={{ padding: '1.25rem 2rem', background: '#f8fafc', borderBottom: `4px solid ${themeColor}20` }}>
-                                  <p className="so-card-title" style={{ fontWeight: 900, textTransform: 'uppercase', color: '#1e293b', fontSize: '0.85rem', letterSpacing: '1px' }}>{category}</p>
-                                </div>
-                                <div className="so-card-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                  {rows.map((row, idx) => {
-                                    const isExpanded = expandedLinks[row.label];
-                                    return (
-                                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        <div onClick={() => toggleLinkExpansion(row.label)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.75rem', background: '#ffffff', borderRadius: '1.5rem', border: isExpanded ? `1.5px solid ${themeColor}` : '1px solid #f1f5f9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', cursor: 'pointer', transition: 'all 0.2s' }}>
-                                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontWeight: 800, color: '#475569', fontSize: '0.9rem' }}>{row.label}</span>
-                                            {row.data[0]?.status && <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>Status: {row.data[0].status}</span>}
-                                          </div>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                            <span style={{ fontWeight: 900, color: themeColor, background: `${themeColor}10`, width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1rem', fontSize: '1.25rem' }}>
-                                              {row.data.length}
-                                            </span>
-                                            <ChevronDown size={18} style={{ color: '#94a3b8', transition: 'transform 0.3s', transform: isExpanded ? 'rotate(180deg)' : 'none' }} />
-                                          </div>
-                                        </div>
-                                        {isExpanded && (
-                                          <div style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderRadius: '1.25rem', border: '1px solid #e2e8f0', marginLeft: '1rem', animation: 'fadeIn 0.3s ease' }}>
-                                            {row.data.map((doc, dIdx) => (
-                                              <div key={dIdx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: dIdx < row.data.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: themeColor, fontFamily: 'monospace' }}>{doc.name || doc.item_code}</span>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>{doc.status || ''}</span>
+                                if (rows.length === 0) return null;
+                                return (
+                                  <div key={category} className="so-card" style={{ borderRadius: '2.5rem', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', overflow: 'hidden' }}>
+                                    <div className="so-card-header" style={{ padding: '1.5rem 2rem', background: '#f8fafc', borderBottom: `4px solid ${themeColor}20` }}>
+                                      <p className="so-card-title" style={{ fontWeight: 900, textTransform: 'uppercase', color: '#1e293b', fontSize: '0.85rem' }}>{category}</p>
+                                    </div>
+                                    <div className="so-card-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                      {rows.map((row, idx) => {
+                                        const isExpanded = expandedLinks[row.label];
+                                        return (
+                                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            <div onClick={() => toggleLinkExpansion(row.label)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.75rem', background: '#ffffff', borderRadius: '1.5rem', border: isExpanded ? `1.5px solid ${themeColor}` : '1px solid #f1f5f9', cursor: 'pointer' }}>
+                                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontWeight: 800, color: '#475569', fontSize: '0.85rem' }}>{row.label}</span>
+                                                {row.data[0]?.status && <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>Sync Active</span>}
                                               </div>
-                                            ))}
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                <span style={{ fontWeight: 900, color: themeColor, background: `${themeColor}10`, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', fontSize: '1rem' }}>
+                                                  {row.data.length}
+                                                </span>
+                                                <ChevronDown size={14} style={{ color: '#94a3b8', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                                              </div>
+                                            </div>
+                                            {isExpanded && (
+                                              <div style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderRadius: '1.25rem', border: '1px solid #e2e8f0', marginLeft: '1rem' }}>
+                                                {row.data.map((doc, dIdx) => (
+                                                  <div key={dIdx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: dIdx < row.data.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: themeColor }}>{doc.name || doc.item_code}</span>
+                                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>{doc.status || 'Active'}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{ padding: '6rem', textAlign: 'center', background: 'white', borderRadius: '2rem', border: '2px dashed #e2e8f0' }}>
+                              <Activity size={40} style={{ color: '#cbd5e1', margin: '0 auto 1rem' }} />
+                              <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#94a3b8' }}>NO LIVE CONNECTIONS FOUND</p>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div style={{ padding: '8rem', textAlign: 'center' }}>No statistics available.</div>
                       )}
                     </div>
                   )}
