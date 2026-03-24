@@ -534,7 +534,11 @@ function PurchaseOrder() {
         params: { doctype: 'Purchase Order', name: formData.name },
         withCredentials: true
       });
-      const newDraftName = res.data.message.name;
+      // Extract name robustly from varied response structures
+      const newDraftName = res.data?.message?.data?.name || res.data?.data?.name || res.data?.message?.name;
+      
+      if (!newDraftName) throw new Error("Could not extract new document name from response.");
+
       Swal.fire('Amended!', `New draft created: ${newDraftName}`, 'success');
       loadDraft(newDraftName);
       setIsViewOnly(false); 
