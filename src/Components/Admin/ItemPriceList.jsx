@@ -143,7 +143,7 @@ function ItemPriceList() {
       price_list: p.price_list,
       buying: p.buying,
       selling: p.selling,
-      price_list_rate: p.price_list_rate,
+      price_list_rate: p.rate ?? p.price_list_rate ?? 0,
       currency: p.currency || 'AED'
     });
     setIsEditMode(true);
@@ -287,7 +287,12 @@ function ItemPriceList() {
                         <p style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 700 }}>Try broadening your search or switching warehouses.</p>
                      </td></tr>
                   ) : prices.map(p => (
-                     <tr key={p.name} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s' }} className="hover:bg-slate-50">
+                     <tr 
+                       key={p.name} 
+                       style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s', cursor: 'pointer' }} 
+                       className="hover:bg-slate-50"
+                       onClick={() => handleEdit(p)}
+                     >
                         <td style={{ padding: '1.5rem 2rem' }}>
                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                               <div style={{ width: '48px', height: '48px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Box size={20} style={{ color: '#94a3b8' }} /></div>
@@ -306,21 +311,21 @@ function ItemPriceList() {
                               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>{p.uom} Units</span>
                            </div>
                         </td>
-                        <td style={{ padding: '1.5rem 2rem', textAlign: 'center' }}>
+                         <td style={{ padding: '1.5rem 2rem', textAlign: 'center' }}>
                            <span style={{ 
                              padding: '6px 16px', 
                              borderRadius: '12px', 
-                             background: p.actual_qty > 0 ? '#dcfce7' : '#fee2e2', 
-                             color: p.actual_qty > 0 ? '#166534' : '#ef4444',
+                             background: (p.stock || p.actual_qty) > 0 ? '#dcfce7' : '#fee2e2', 
+                             color: (p.stock || p.actual_qty) > 0 ? '#166534' : '#ef4444',
                              fontSize: '1.1rem',
                              fontWeight: 950
                            }}>
-                              {p.actual_qty || 0}
+                              {p.stock ?? p.actual_qty ?? 0}
                            </span>
                         </td>
                         <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
                            <p style={{ fontSize: '1.25rem', fontWeight: 950, color: themeColor, margin: 0 }}>
-                              {Number(p.price_list_rate || 0).toFixed(2)}
+                              {Number(p.rate ?? p.price_list_rate ?? 0).toFixed(2)}
                            </p>
                            <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>Standard Core Rate</p>
                         </td>
