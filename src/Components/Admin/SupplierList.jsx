@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
+import { useNavigate } from 'react-router-dom';
 
 /* ==================== UI HELPERS ==================== */
 const StatusBadge = ({ isInactive, themeColor }) => (
@@ -21,6 +22,7 @@ const StatusBadge = ({ isInactive, themeColor }) => (
 );
 
 export default function SupplierList() {
+  const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -207,9 +209,7 @@ export default function SupplierList() {
   };
 
   const handleRowClick = async (supplier) => {
-    setIsViewMode(true); setIsEditMode(false); setEditingSupplierName(supplier.name);
-    setShowForm(true); setActiveTab('Dashboard');
-    await fetchSupplierDetails(supplier.name); fetchDashboardDetails(supplier.name);
+    navigate(`/supplier-details/${encodeURIComponent(supplier.name)}`);
   };
 
   const resetForm = () => {

@@ -1,4 +1,4 @@
-// src/pages/ItemList.jsx
+// src/Components/Admin/ItemList.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, Save, Upload, Package, Camera, ChevronLeft,
@@ -60,12 +60,7 @@ export default function ItemList() {
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
-
-  const formatPrice = (val) => {
-    const n = parseFloat(val);
-    if (isNaN(n)) return '0.00';
-    return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  };
+  const [viewType, setViewType] = useState('card');
 
   // Theme toggle
   const [itTheme, setItTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
@@ -177,7 +172,14 @@ export default function ItemList() {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/resource/Item?limit_page_length=2000&fields=["item_code","item_name","item_group","stock_uom","image","description","disabled","has_variants","standard_rate"]&order_by=modified desc', { withCredentials: true });
+      const res = await axios.get('/api/resource/Item', {
+        params: {
+          limit_page_length: 5000,
+          fields: JSON.stringify(["item_code", "item_name", "item_group", "stock_uom", "image", "description", "disabled", "has_variants", "standard_rate"]),
+          order_by: 'item_name asc'
+        },
+        withCredentials: true
+      });
       const data = res.data?.data || [];
       setItems(data);
     } catch (err) {
@@ -188,33 +190,23 @@ export default function ItemList() {
     }
   };
 
-  const fetchDashboardDetails = async (code) => {
+  const fetchUltimateItemDetails = async (code) => {
     try {
       setLoadingDashboard(true);
-      const res = await axios.get(`/api/method/kyle_retail.retail_api.api.get_item_dashboard_details?item_code=${code}`, { withCredentials: true });
-      const connRes = await axios.get(`/api/method/kyle_retail.retail_api.api.get_linked_documents?doctype=Item&name=${code}`, { withCredentials: true });
-      setDashboardData({
-        ...(res.data?.message || {}),
-        connections: connRes.data?.message || null
-      });
-    } catch (err) {
-      console.error('Dashboard Error:', err);
-      setDashboardData({});
-    } finally {
-      setLoadingDashboard(false);
-    }
-  };
-
-  const fetchStockDetails = async (code) => {
-    try {
       setLoadingWarehouse(true);
-      const res = await axios.get(`/api/method/kyle_retail.retail_api.api.get_retail_item_details?search_term=${code}`, { withCredentials: true });
-      const itemData = Array.isArray(res.data?.message) ? res.data.message[0] : res.data?.message;
-      setWarehouseDetails(itemData?.warehouse_details || []);
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', {
+        params: { item_code: code },
+        withCredentials: true
+      });
+      const result = res.data?.message || {};
+      setDashboardData(result);
+      setWarehouseDetails(result.stock_status?.warehouse_details || []);
     } catch (err) {
-      console.error('Stock Details Error:', err);
+      console.error('Ultimate Fetch Error:', err);
+      setDashboardData({});
       setWarehouseDetails([]);
     } finally {
+      setLoadingDashboard(false);
       setLoadingWarehouse(false);
     }
   };
@@ -307,7 +299,7 @@ export default function ItemList() {
       imagePreview: item.image, image: null
     });
     setWarehouseDetails([]); setShowForm(true); setActiveTab('General');
-    fetchStockDetails(item.item_code); fetchDashboardDetails(item.item_code);
+    fetchUltimateItemDetails(item.item_code);
   };
 
   const resetForm = () => {
@@ -320,7 +312,7 @@ export default function ItemList() {
   };
 
   const handleCloseForm = () => {
-    const hasChanges = form.item_code || form.item_name || form.item_group || barcodes.length > 0 || form.image;
+    const hasChanges = !isViewMode && (form.item_code || form.item_name || form.item_group || barcodes.length > 0 || form.image);
     if (hasChanges && !window.confirm('Discard unsaved changes?')) return;
     setShowForm(false); setBarcodes([]);
     setForm(prev => ({ ...prev, item_code: '', item_name: '', item_group: '', image: null, imagePreview: null }));
@@ -329,98 +321,157 @@ export default function ItemList() {
   const clearFilters = () => {
     setFilterId(''); setFilterName(''); setFilterGroup(''); setFilterStatus(''); setFilterHasVariants(''); setCurrentPage(1);
   };
+  const ItemCard = ({ item, themeColor, onClick }) => (
+    <div
+      onClick={() => onClick(item)}
+      style={{
+        background: 'white',
+        borderRadius: '14px',
+        overflow: 'hidden',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        border: '1px solid #f1f5f9'
+      }}
+      className="group hover:shadow-lg hover:-translate-y-1"
+    >
+      <div style={{ height: '150px', background: '#f8fafc', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        {item.image ? (
+          <img src={item.image} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt={item.item_name} />
+        ) : (
+          <div style={{ textAlign: 'center', opacity: 0.2 }}>
+            <Package size={48} />
+            <p style={{ fontSize: '9px', fontWeight: 900, marginTop: '4px', textTransform: 'uppercase' }}>NO IMAGE</p>
+          </div>
+        )}
+        <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+          <span style={{ background: '#e0f2fe', color: '#0ea5e9', padding: '4px 10px', borderRadius: '100px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase' }}>
+            ENABLED
+          </span>
+        </div>
+      </div>
+      <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <p style={{ fontSize: '11px', fontWeight: 800, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: '0.025em' }}>{item.item_group || 'ADHESIVES & TAPES'}</p>
+        <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#333', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: '42px' }}>{item.item_name}</h3>
+      </div>
+      <div style={{ padding: '0 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: '#f1f5f9', padding: '4px 10px', borderRadius: '4px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>{item.stock_uom || 'Nos'}</span>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ fontSize: '16px', fontWeight: 900, color: '#0ea5e9' }}><span style={{ fontSize: '11px', marginRight: '4px', fontWeight: 800 }}>AED</span>{Number(item.standard_rate || 0).toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
       <NavBar />
-      <div className="so-page">
-        <div className="so-page-header">
-          <div className="so-page-left">
-            <h1 className="so-page-title"><Package size={20} /> Items</h1>
-            <p className="so-page-subtitle">{total} record(s) found</p>
+      <div className="so-page" style={{ background: '#f5f6f8', minHeight: '100vh', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column', overflowY: 'visible' }}>
+        {/* Header Section */}
+        <div style={{ padding: '24px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
+            <div>
+              <h1 style={{ fontSize: '20px', fontWeight: 900, color: '#333', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}><Package size={22} style={{ color: '#0ea5e9' }} /> ITEMS</h1>
+              <p style={{ fontSize: '12px', color: '#777', fontWeight: 600, marginTop: '2px', margin: 0 }}>{total} record(s) found</p>
+            </div>
+            <div style={{ background: '#e2e8f0', padding: '4px', borderRadius: '8px', display: 'flex', gap: '4px' }}>
+              <button onClick={() => setViewType('card')} style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, color: viewType === 'card' ? '#0ea5e9' : '#64748b', background: viewType === 'card' ? 'white' : 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: viewType === 'card' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}><Tag size={13} /> IMAGE VIEW</button>
+              <button onClick={() => setViewType('list')} style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, color: viewType === 'list' ? '#0ea5e9' : '#64748b', background: viewType === 'list' ? 'white' : 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: viewType === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}><Users size={13} /> LIST VIEW</button>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button onClick={() => setItTheme(isGreen ? 'blue' : 'green')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', background: '#f8fafc', border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700, color: themeColor, cursor: 'pointer' }}>
-              <Palette size={13} /> {itTheme.toUpperCase()}
-            </button>
-            <button onClick={() => { setShowForm(true); fetchItemGroups(); }} className="so-btn-primary"><Plus size={16} /> Add Item</button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={() => setItTheme(isGreen ? 'blue' : 'green')} style={{ padding: '10px 24px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', fontWeight: 700, color: '#777', cursor: 'pointer', textTransform: 'uppercase' }}>{itTheme}</button>
+            <button onClick={() => { resetForm(); setShowForm(true); fetchItemGroups(); }} style={{ padding: '10px 24px', background: themeColor, color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}><Plus size={18} /> ADD ITEM</button>
           </div>
         </div>
 
-        <div className="so-layout" style={{ flexDirection: 'column' }}>
-          <div className="so-filter-bar" style={{ background: 'white', padding: '1.25rem 2rem', borderBottom: '1px solid var(--so-border)', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end' }}>
-            <div style={{ flex: '1 1 220px' }}>
-              <label className="so-filter-label">Search / Code</label>
-              <input type="text" placeholder="Search code or name..." value={filterName || filterId} onChange={(e) => { const val = e.target.value; setFilterId(val); setFilterName(val); setCurrentPage(1); }} className="so-filter-input" />
+        <div className="so-layout" style={{ flexDirection: 'column', display: 'flex', flex: '1 0 auto', minHeight: 0, overflowY: 'visible' }}>
+          {/* Filters Bar */}
+          <div style={{ padding: '0 40px 24px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '10px', fontWeight: 800, color: '#777', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Search Items</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
+                <input type="text" placeholder="Search by name or code..." value={filterName || filterId} onChange={(e) => { const val = e.target.value; setFilterId(val); setFilterName(val); setCurrentPage(1); }} style={{ width: '100%', padding: '12px 12px 12px 40px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', outline: 'none', fontSize: '14px' }} />
+              </div>
             </div>
-            <div style={{ flex: '1 1 180px' }}>
-              <label className="so-filter-label">Item Group</label>
-              <input type="text" placeholder="Filter by group..." value={filterGroup} onChange={e => { setFilterGroup(e.target.value); setCurrentPage(1); }} className="so-filter-input" />
+            <div style={{ width: '220px' }}>
+              <label style={{ fontSize: '10px', fontWeight: 800, color: '#777', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Item Group</label>
+              <input type="text" placeholder="Filter group..." value={filterGroup} onChange={e => { setFilterGroup(e.target.value); setCurrentPage(1); }} style={{ width: '100%', padding: '12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} />
             </div>
-            <div style={{ flex: '1 1 140px' }}>
-              <label className="so-filter-label">Status</label>
-              <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }} className="so-filter-input" style={{ padding: '0.45rem' }}>
-                <option value="">All Statuses</option>
-                <option value="Enabled">Enabled</option>
-                <option value="Disabled">Disabled</option>
-              </select>
+            <div style={{ width: '160px' }}>
+              <label style={{ fontSize: '10px', fontWeight: 800, color: '#777', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Status</label>
+              <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }} style={{ width: '100%', padding: '12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }}><option value="">All</option><option value="Enabled">Enabled</option><option value="Disabled">Disabled</option></select>
             </div>
-            <div style={{ flex: '1 1 140px' }}>
-              <label className="so-filter-label">Has Variants</label>
-              <select value={filterHasVariants} onChange={e => { setFilterHasVariants(e.target.value); setCurrentPage(1); }} className="so-filter-input" style={{ padding: '0.45rem' }}>
-                <option value="">All</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-              </select>
+            <div style={{ width: '160px' }}>
+              <label style={{ fontSize: '10px', fontWeight: 800, color: '#777', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Variants</label>
+              <select value={filterHasVariants} onChange={e => { setFilterHasVariants(e.target.value); setCurrentPage(1); }} style={{ width: '100%', padding: '12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }}><option value="">All</option><option value="Yes">Yes</option><option value="No">No</option></select>
             </div>
-            <button onClick={clearFilters} className="so-clear-btn" style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1.5rem' }}>Clear</button>
+            <button onClick={clearFilters} style={{ padding: '12px 24px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', fontWeight: 700, color: '#777', cursor: 'pointer' }}>Reset Filters</button>
           </div>
 
-          <div className="so-content" style={{ padding: '2rem' }}>
+          {/* Grid Section */}
+          <div style={{ padding: '0 40px 40px' }}>
             {loading ? (
-              <div style={{ padding: '8rem 0', textAlign: 'center' }}>
-                <Loader2 size={40} className="so-spinner" style={{ margin: '0 auto', color: themeColor }} />
-                <p style={{ marginTop: '1.5rem', color: '#64748b', fontWeight: 600 }}>Bringing your items to life...</p>
-              </div>
+              <div style={{ padding: '8rem 0', textAlign: 'center' }}><Loader2 size={40} className="so-spinner" style={{ color: '#0ea5e9' }} /></div>
             ) : paginatedItems.length === 0 ? (
-              <div style={{ padding: '8rem 0', textAlign: 'center', background: 'white', borderRadius: '1.5rem', border: '2px dashed #e2e8f0' }}>
-                <Package size={64} style={{ margin: '0 auto 1.5rem', opacity: 0.1, color: themeColor }} />
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{total === 0 ? 'No items found' : 'No match found'}</h3>
-                {total === 0 && <button onClick={() => { setShowForm(true); fetchItemGroups(); }} className="so-btn-primary" style={{ marginTop: '2rem' }}><Plus size={16} /> Create First Item</button>}
+              <div style={{ padding: '8rem 0', textAlign: 'center', background: 'white', borderRadius: '1rem', border: '2px dashed #e2e8f0' }}>
+                <Package size={64} style={{ margin: '0 auto 1.5rem', opacity: 0.1, color: '#0ea5e9' }} /><h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>No items found</h3>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
-                {paginatedItems.map(item => (
-                  <div key={item.item_code} onClick={() => handleRowClick(item)} className="so-item-card" style={{ background: 'white', borderRadius: '1.5rem', overflow: 'hidden', border: '1px solid #f1f5f9', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', cursor: 'pointer', transition: 'transform 0.2s' }}>
-                    <div style={{ height: '200px', background: '#f8fafc', position: 'relative' }}>
-                      {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={64} style={{ opacity: 0.05 }} /></div>}
-                      <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}><StatusBadge disabled={item.disabled} themeColor={themeColor} /></div>
-                    </div>
-                    <div style={{ padding: '1.5rem' }}>
-                      <p style={{ fontSize: '0.7rem', fontWeight: 800, color: themeColor, textTransform: 'uppercase', marginBottom: '0.25rem' }}>{item.item_group}</p>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.5rem' }}>{item.item_name}</h3>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{item.stock_uom}</span>
-                        <span style={{ fontSize: '1.25rem', fontWeight: 900, color: themeColor }}>AED {formatPrice(item.standard_rate || 0)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              viewType === 'card' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
+                  {paginatedItems.map(item => <ItemCard key={item.item_code} item={item} themeColor={themeColor} onClick={handleRowClick} />)}
+                </div>
+              ) : (
+                <div style={{ background: 'white', borderRadius: '1rem', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                        <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Item</th>
+                        <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Group</th>
+                        <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Status</th>
+                        <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedItems.map(item => (
+                        <tr key={item.item_code} onClick={() => handleRowClick(item)} style={{ borderBottom: '1px solid #f8fafc', cursor: 'pointer' }}>
+                          <td style={{ padding: '1.25rem 1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <div style={{ width: '40px', height: '40px', background: '#f1f5f9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>{item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Package size={20} style={{ opacity: 0.1 }} />}</div>
+                              <div><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{item.item_name}</p><p style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>{item.item_code}</p></div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#64748b' }}>{item.item_group}</td>
+                          <td style={{ padding: '1.25rem 1.5rem' }}><StatusBadge disabled={item.disabled} themeColor={themeColor} /></td>
+                          <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontWeight: 900, color: themeColor, fontSize: '1rem' }}>AED {Number(item.standard_rate || 0).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
             )}
           </div>
 
+          {/* Sticky Pagination Section */}
           {!loading && total > 0 && (
-            <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total}</span>
-              <div style={{ display: 'flex', gap: '1.5rem' }}>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  {[20, 50, 100].map(size => <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); }} className={`so-page-btn ${pageSize === size ? 'active' : ''}`}>{size}</button>)}
+            <div style={{ position: 'sticky', bottom: 0, padding: '16px 40px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', boxShadow: '0 -4px 12px rgba(0,0,0,0.03)', zIndex: 20 }}>
+              <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>Showing <b style={{ color: '#1e293b' }}>{(currentPage - 1) * pageSize + 1}</b> to <b style={{ color: '#1e293b' }}>{Math.min(currentPage * pageSize, total)}</b> of <b style={{ color: '#1e293b' }}>{total}</b> records</span>
+              <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '8px', background: '#f8fafc', padding: '4px', borderRadius: '8px' }}>
+                  {[20, 50, 100].map(size => <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); }} style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, background: pageSize === size ? 'white' : 'transparent', color: pageSize === size ? '#0ea5e9' : '#94a3b8', boxShadow: pageSize === size ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: 'none', cursor: 'pointer' }}>{size}</button>)}
                 </div>
-                <div className="so-pagination-btns" style={{ display: 'flex', gap: '0.4rem' }}>
-                  <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
-                  <span style={{ fontWeight: 700, fontSize: '0.75rem' }}>{currentPage} / {Math.ceil(total / pageSize)}</span>
-                  <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(Math.ceil(total / pageSize), p + 1))} disabled={currentPage >= Math.ceil(total / pageSize)}><ChevronRight size={14} /></button>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: currentPage === 1 ? '#cbd5e1' : '#64748b', cursor: currentPage === 1 ? 'default' : 'pointer' }}><ChevronLeft size={18} /></button>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b', padding: '0 10px' }}>Page <span style={{ color: '#0ea5e9' }}>{currentPage}</span> of {Math.ceil(total / pageSize)}</div>
+                  <button onClick={() => setCurrentPage(p => Math.min(Math.ceil(total / pageSize), p + 1))} disabled={currentPage >= Math.ceil(total / pageSize)} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: currentPage >= Math.ceil(total / pageSize) ? '#cbd5e1' : '#64748b', cursor: currentPage >= Math.ceil(total / pageSize) ? 'default' : 'pointer' }}><ChevronRight size={18} /></button>
                 </div>
               </div>
             </div>
@@ -429,84 +480,136 @@ export default function ItemList() {
       </div>
 
       {showForm && (
-        <div className="so-full-screen-view" style={{ position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', animation: 'soModalIn 0.3s ease-out' }}>
+        <div className="so-full-screen-view" style={{ position: 'fixed', top: '70px', left: 0, right: 0, bottom: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', animation: 'soModalIn 0.3s ease-out' }}>
           <div className="so-modal-header" style={{ padding: '1rem 2rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
             <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
               <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}><ChevronLeft size={22} /></button>
               <div>
-                <h2 className="so-modal-title" style={{ fontSize: '1.25rem', fontWeight: 900 }}>{isViewMode ? form.item_name : (isEditMode ? 'Edit Item Master' : 'New Item Master')}</h2>
-                {isViewMode && <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>{editingItemCode}</p>}
+                <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, marginBottom: '2px' }}>{isViewMode ? form.item_name : (isEditMode ? 'Edit Item Master' : 'New Item Master')}</h2>
+                {isViewMode && <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>{editingItemCode}</p>}
               </div>
             </div>
+
+            {/* Integrated Tabs in Header */}
+            {isViewMode && (
+              <div style={{ display: 'flex', gap: '10px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
+                {['Dashboard', 'General', 'Stock'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setActiveTab(t)}
+                    style={{
+                      padding: '8px 24px',
+                      background: activeTab === t ? 'white' : 'transparent',
+                      borderRadius: '8px',
+                      border: 'none',
+                      color: activeTab === t ? '#0ea5e9' : '#64748b',
+                      fontWeight: 800,
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      boxShadow: activeTab === t ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#fee2e2', color: '#ef4444' }}><X size={22} /></button>
             </div>
           </div>
-          <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '3rem', background: '#f8fafc' }}>
+          <div className="so-modal-body" style={{ flex: 1, padding: '1.25rem 2rem', background: '#f8fafc', overflow: 'hidden' }}>
             {isViewMode ? (
               <div style={{ width: '100%', animation: 'fadeIn 0.5s ease' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '3rem', marginBottom: '4rem', borderBottom: '1px solid #e2e8f0', background: 'white', position: 'sticky', top: '-3rem', zIndex: 10, padding: '1rem 0' }}>
-                  {['Dashboard', 'General', 'Stock'].map(t => (
-                    <button key={t} onClick={() => setActiveTab(t)} style={{ padding: '1rem 3rem', background: 'transparent', border: 'none', borderBottom: activeTab === t ? `4px solid ${themeColor}` : '4px solid transparent', color: activeTab === t ? themeColor : '#64748b', fontWeight: 900, cursor: 'pointer', transition: 'all 0.3s', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '2px' }}>{t}</button>
-                  ))}
-                </div>
-
-                <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 4rem' }}>
+                <div style={{ width: '100%', padding: '0 0.5rem' }}>
                   {activeTab === 'General' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 450px', gap: '4rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2.5rem' }}>
-                          <div className="so-card" style={{ borderRadius: '2.5rem', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)' }}>
-                            <div className="so-card-header" style={{ padding: '2rem 2.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                              <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '1rem' }}><Tag size={20} style={{ color: themeColor }} /> Pricing Details</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'stretch' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                          <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                            <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                              <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Tag size={15} style={{ color: '#0ea5e9' }} /> Pricing Details</p>
                             </div>
-                            <div className="so-card-body" style={{ padding: '2rem' }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                                {dashboardData?.item_details?.prices ? Object.entries(dashboardData.item_details.prices).map(([uom, price]) => (
-                                  <div key={uom} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '1.5rem', border: '1px solid #f1f5f9', textAlign: 'center' }}>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', display: 'block', marginBottom: '0.5rem' }}>{uom.toUpperCase()}</label>
-                                    <p style={{ fontWeight: 900, fontSize: '1.5rem', color: themeColor }}>{formatPrice(price)}</p>
+                            <div className="so-card-body" style={{ padding: '0.85rem' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                                {dashboardData?.item_prices && dashboardData.item_prices.length > 0 ? dashboardData.item_prices.map((priceObj, idx) => (
+                                  <div key={idx} style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '0.85rem', border: '1px solid #f1f5f9', textAlign: 'center' }}>
+                                    <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={priceObj.price_list}>{priceObj.price_list}</label>
+                                    <p style={{ fontWeight: 900, fontSize: '1rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><span style={{ fontSize: '0.6rem', color: '#64748b' }}>{priceObj.currency || 'AED'}</span>{Number(priceObj.price_list_rate || 0).toFixed(2)}</p>
                                   </div>
-                                )) : <p style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', gridColumn: 'span 2' }}>No price records found.</p>}
+                                )) : <p style={{ color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center', gridColumn: 'span 2' }}>No price records found.</p>}
                               </div>
                             </div>
                           </div>
-                          <div className="so-card" style={{ borderRadius: '2.5rem', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)' }}>
-                            <div className="so-card-header" style={{ padding: '2rem 2.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                              <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '1rem' }}><Info size={20} style={{ color: themeColor }} /> Catalog Info</p>
+                          <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                            <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                              <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Info size={15} style={{ color: '#0ea5e9' }} /> Catalog Info</p>
                             </div>
-                            <div className="so-card-body" style={{ padding: '2.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
-                              <div><label style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', display: 'block' }}>GROUP</label><p style={{ fontWeight: 900, color: '#1e293b', fontSize: '1.25rem' }}>{form.item_group}</p></div>
-                              <div><label style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', display: 'block' }}>BASE UOM</label><p style={{ fontWeight: 900, color: '#1e293b', fontSize: '1.25rem' }}>{form.default_uom}</p></div>
+                            <div className="so-card-body" style={{ padding: '0.85rem 1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                              <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Group</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.item_group}</p></div>
+                              <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Base UOM</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.default_uom}</p></div>
                             </div>
                           </div>
                         </div>
-                        <div className="so-card" style={{ borderRadius: '2.5rem', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)' }}>
-                          <div className="so-card-header" style={{ padding: '2rem 2.5rem', borderBottom: '1px solid #f1f5f9' }}><p className="so-card-title">Technical Description</p></div>
-                          <div className="so-card-body" style={{ padding: '3rem' }}>
-                            <p style={{ color: '#475569', lineHeight: '2', fontSize: '1.1rem' }}>{dashboardData?.item_details?.description || 'Extended description not available.'}</p>
-                            <div style={{ marginTop: '3rem', display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-                              {['Active Stock Tracking', 'Multi-UOM Converison', 'Loyalty Eligible', 'ERP Listing'].map(feat => (
-                                <div key={feat} style={{ background: '#f0fdf4', padding: '0.75rem 1.5rem', borderRadius: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', border: '1px solid #bbf7d0' }}>
-                                  <ShieldCheck size={18} style={{ color: '#15803d' }} /><span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#166534' }}>{feat}</span>
+                        <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                          <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}><p className="so-card-title" style={{ fontSize: '0.8rem' }}>Technical Description</p></div>
+                          <div className="so-card-body" style={{ padding: '1rem', flex: 1 }}>
+                            <p style={{ color: '#475569', lineHeight: '1.4', fontSize: '0.85rem' }}>{dashboardData?.item_details?.description || 'Extended description not available.'}</p>
+                            <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+                              {['Active Stock Tracking', 'Multi-UOM Converison', 'Loyalty Eligible'].map(feat => (
+                                <div key={feat} style={{ background: '#f0fdf4', padding: '0.35rem 0.65rem', borderRadius: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid #bbf7d0' }}>
+                                  <ShieldCheck size={12} style={{ color: '#15803d' }} /><span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#166534' }}>{feat}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                        <div className="so-card" style={{ borderRadius: '3rem', overflow: 'hidden', height: '550px', boxShadow: '0 30px 60px -12px rgba(0,0,0,0.15)', border: '8px solid white' }}>
-                          {form.imagePreview ? <img src={form.imagePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9' }}><Package size={100} style={{ opacity: 0.1 }} /></div>}
-                        </div>
-                        <div className="so-card" style={{ borderRadius: '2rem', background: '#0f172a', padding: '3rem', textAlign: 'center' }}>
-                          <label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', marginBottom: '1.5rem', display: 'block' }}>Identification</label>
-                          {dashboardData?.item_details?.custom_barcode_image ? <img src={dashboardData.item_details.custom_barcode_image} style={{ width: '100%', height: '80px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} /> : <Barcode size={60} style={{ opacity: 0.1, margin: '0 auto', color: 'white' }} />}
-                          <p style={{ marginTop: '1.5rem', fontWeight: 900, letterSpacing: '5px', fontSize: '1.5rem', fontFamily: 'monospace', color: 'white' }}>{dashboardData?.item_details?.barcodes?.[0]?.barcode || 'UNLINKED'}</p>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                          <button onClick={() => { setIsViewMode(false); setIsEditMode(true); }} className="so-btn-primary" style={{ height: '4.5rem', borderRadius: '1.5rem', fontSize: '1.1rem', fontWeight: 900, justifyContent: 'center' }}><Edit2 size={22} /> Edit Master</button>
-                          <button onClick={() => handleDelete(form.item_code)} className="so-btn-danger" style={{ height: '4.5rem', borderRadius: '1.5rem', fontSize: '1.1rem', fontWeight: 900, justifyContent: 'center', background: '#fee2e2' }}><Trash2 size={22} /> Delete</button>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+                        <div className="so-card" style={{ borderRadius: '1.5rem', overflow: 'hidden', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', background: 'white', height: '100%', justifyContent: 'space-between' }}>
+                          {/* Left: Image & Actions */}
+                          <div style={{ display: 'flex', flex: 1 }}>
+                            <div style={{ width: '220px', display: 'flex', flexDirection: 'column', padding: '1rem', borderRight: '1px solid #f1f5f9' }}>
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '1rem', overflow: 'hidden', padding: '0.5rem' }}>
+                                {form.imagePreview ? <img src={form.imagePreview} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Package size={48} style={{ opacity: 0.1 }} />}
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.65rem', marginTop: '1rem' }}>
+                                <button onClick={() => { setIsViewMode(false); setIsEditMode(true); }} className="so-btn-primary" style={{ flex: 1, height: '2.5rem', borderRadius: '1.5rem', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 800 }}>
+                                  <Edit2 size={14} /> Edit
+                                </button>
+                                <button onClick={() => handleDelete(form.item_code)} className="so-btn-danger" style={{ flex: 1, height: '2.5rem', borderRadius: '1.5rem', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 800 }}>
+                                  <Trash2 size={14} /> Delete
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Right: Identification */}
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '2rem 1rem', textAlign: 'center', justifyContent: 'center' }}>
+                              <h3 style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>Item Identification</h3>
+                              <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700, marginBottom: '1.5rem' }}>Consistency Verified</p>
+
+                              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                {dashboardData?.item_details?.custom_barcode_image ? (
+                                  <img src={dashboardData.item_details.custom_barcode_image} style={{ width: '100%', maxWidth: '120px', height: 'auto', marginBottom: '0.75rem' }} />
+                                ) : (
+                                  <div style={{ marginBottom: '0.75rem', opacity: 0.15 }}><Barcode size={40} /></div>
+                                )}
+                                <p style={{ fontSize: '0.8rem', fontWeight: 900, color: '#64748b', letterSpacing: '3px', fontFamily: 'monospace' }}>
+                                  {dashboardData?.item_details?.barcodes?.[0]?.barcode || 'UNLINKED'}
+                                </p>
+                              </div>
+
+                              <div style={{ marginTop: 'auto', padding: '1rem 0 0 0' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: '#10b981', fontWeight: 800, fontSize: '0.7rem' }}>
+                                  <ShieldCheck size={14} /> Certified Master
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -583,7 +686,7 @@ export default function ItemList() {
                   )}
 
                   {activeTab === 'Stock' && (
-                    <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden', maxWidth: '1000px', margin: '0 auto' }}>
+                    <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden', width: '100%' }}>
                       <div className="so-card-header" style={{ padding: '1.5rem 2rem', background: '#f8fafc' }}><p className="so-card-title">Warehouse Inventory</p></div>
                       <div className="so-card-body" style={{ padding: 0 }}>
                         <table className="so-table">
@@ -604,7 +707,7 @@ export default function ItemList() {
                 </div>
               </div>
             ) : (
-              <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+              <div style={{ width: '100%' }}>
                 <div className="so-card" style={{ borderRadius: '2rem', marginBottom: '2rem' }}>
                   <div className="so-card-header"><p className="so-card-title">Specifications</p></div>
                   <div className="so-card-body" style={{ padding: '2.5rem' }}>

@@ -67,7 +67,10 @@ const PurchaseOrderList = ({ onNew }) => {
       'Submitted': 'bg-blue-50 text-blue-600 border border-blue-100',
       'Closed': 'bg-slate-200 text-slate-700',
       'Completed': 'bg-emerald-50 text-emerald-600 border border-emerald-100',
-      'Partially Received': 'bg-amber-50 text-amber-600 border border-amber-100'
+      'Partially Received': 'bg-amber-50 text-amber-600 border border-amber-100',
+      'To Bill': 'bg-rose-50 text-rose-600 border border-rose-100',
+      'To Receive and Bill': 'bg-indigo-50 text-indigo-600 border border-indigo-100',
+      'To Receive': 'bg-sky-50 text-sky-600 border border-sky-100',
     };
 
     return (
@@ -77,7 +80,7 @@ const PurchaseOrderList = ({ onNew }) => {
     );
   };
 
-  const STATUS_TABS = ['All', 'Draft', 'Submitted', 'Partially Received', 'Completed'];
+  const STATUS_TABS = ['All', 'Draft', 'Submitted', 'To Bill', 'To Receive and Bill', 'Completed'];
 
   return (
     <div className="so-page" style={{ minHeight: '100vh' }}>
@@ -168,7 +171,7 @@ const PurchaseOrderList = ({ onNew }) => {
                 <th>Identity #</th>
                 <th>Supplier &amp; Location</th>
                 <th>Posting Matrix</th>
-                <th>Analytics</th>
+                <th>Total Qty</th>
                 <th>Commitment Value</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'center' }}>Controls</th>

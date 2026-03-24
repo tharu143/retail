@@ -1546,7 +1546,7 @@ function PurchaseOrder() {
                         <th className="purchase-th w-[140px] text-center">Box Price</th>
                         <th className="purchase-th w-[140px] text-center">Selling Price</th>
                         <th className="purchase-th w-[160px] text-center">Ref / Supplier SL #</th>
-                        <th className="purchase-th w-[100px] text-center">Qty</th>
+                        <th className="purchase-th w-[100px] text-center">Total Qty</th>
                         <th className="purchase-th w-[80px] text-center">UOM</th>
                         <th className="purchase-th w-[140px] text-center">Rate</th>
                         <th className="purchase-th w-[170px] text-center !pr-3">Subtotal</th>

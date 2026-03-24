@@ -90,6 +90,8 @@ function PurchaseOrderLists() {
     const colors = {
       'Draft': 'bg-orange-100 text-orange-800',
       'To Receive': 'bg-blue-100 text-blue-800',
+      'To Bill': 'bg-rose-100 text-rose-800',
+      'To Receive and Bill': 'bg-indigo-100 text-indigo-800',
       'Completed': 'bg-green-100 text-green-800',
       'Cancelled': 'bg-red-100 text-red-800'
     };
@@ -209,8 +211,11 @@ function PurchaseOrderLists() {
               <option value="">All Statuses</option>
               <option value="Draft">Draft</option>
               <option value="To Receive">To Receive</option>
+              <option value="To Bill">To Bill</option>
+              <option value="To Receive and Bill">To Receive and Bill</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
+              <option value="Closed">Closed</option>
             </select>
           </div>
           <div style={{ flex: '1 1 150px' }}>
@@ -289,9 +294,9 @@ function PurchaseOrderLists() {
                         </td>
                         <td>
                           <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
-                            backgroundColor: (po.status === 'Completed' || po.status === 'To Receive') ? `${themeColor}20` : (po.status === 'Draft' ? '#f1f5f9' : '#fee2e2'),
-                            color: (po.status === 'Completed' || po.status === 'To Receive') ? themeColor : (po.status === 'Draft' ? '#64748b' : '#ef4444'),
-                            border: `1px solid ${(po.status === 'Completed' || po.status === 'To Receive') ? `${themeColor}40` : (po.status === 'Draft' ? '#e2e8f0' : '#fecaca')}`
+                            backgroundColor: (po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? `${themeColor}20` : (po.status === 'Draft' ? '#f1f5f9' : '#fee2e2'),
+                            color: (po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? themeColor : (po.status === 'Draft' ? '#64748b' : '#ef4444'),
+                            border: `1px solid ${(po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? `${themeColor}40` : (po.status === 'Draft' ? '#e2e8f0' : '#fecaca')}`
                           }}>
                             {po.status}
                           </span>
