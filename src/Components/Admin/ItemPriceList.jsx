@@ -122,7 +122,7 @@ function ItemPriceList() {
 
   useEffect(() => {
     fetchPriceRecords();
-  }, [currentPage, pageSize, selectedWarehouse]);
+  }, [currentPage, pageSize, selectedWarehouse, selectedPriceList]);
 
   // Debounced search
   useEffect(() => {
