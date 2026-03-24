@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, Save, Upload, Package, Camera, ChevronLeft,
   Users, AlertCircle, Trash2, ChevronDown, Palette, Loader2, ChevronRight,
-  Edit2, ShoppingCart, Barcode, Tag, Box, Info, ShieldCheck, Scale, MapPin
+  Edit2, ShoppingCart, Barcode, Tag, Box, Info, ShieldCheck, Scale, MapPin, Activity
 } from 'lucide-react';
 import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/library';
