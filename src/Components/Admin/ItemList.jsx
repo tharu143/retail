@@ -198,70 +198,40 @@ export default function ItemList() {
     }
   };
 
-  const fetchUltimateItemDetails = async (code) => {
+  const fetchItemDashboardDetails = async (code) => {
     try {
       setLoadingDashboard(true);
       setLoadingWarehouse(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', {
         params: { item_code: code },
         withCredentials: true
       });
       const result = res.data?.message || {};
       setDashboardData(result);
-      setForm(prev => ({
-        ...prev,
-        brand: result.brand || '',
-        valuation_rate: result.valuation_rate || 0,
-        is_variant: result.is_variant === 1,
-        variant_of: result.variant_of || '',
-        uoms: result.uoms || [],
-        description: result.description || prev.description
-      }));
-      setWarehouseDetails(result.stock_status?.warehouse_details || []);
-    } catch (err) {
-      console.error('Ultimate Fetch Error:', err);
-      setDashboardData({});
-      setWarehouseDetails([]);
-    } finally {
-      setLoadingDashboard(false);
-      setLoadingWarehouse(false);
-    }
-  };
-
-  const fetchPriceList = async (code) => {
-    try {
-      setLoadingPrices(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_prices', {
-        params: { item_code: code },
-        withCredentials: true
-      });
-      const result = res.data.message;
-      setPriceData({
-        prices: result?.data || [],
-        metrics: result?.metrics || {},
-        warehouse_breakdown: result?.warehouse_breakdown || []
-      });
-    } catch (err) {
-      console.error('Fetch Prices Error:', err);
-      setPriceData({ prices: [], metrics: {}, warehouse_breakdown: [] });
-    } finally {
-      setLoadingPrices(false);
-    }
-  };
-
-  const fetchItemDashboardDetails = async (code) => {
-    try {
-      setLoadingDashboard(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', {
-        params: { item_code: code },
-        withCredentials: true
-      });
-      setDashboardData(res.data?.message || {});
+      
+      // Sync form with fresh item details from dashboard call
+      if (result.item_details) {
+        const item = result.item_details;
+        setForm(prev => ({
+          ...prev,
+          brand: item.brand || '',
+          valuation_rate: item.valuation_rate || 0,
+          is_variant: item.has_variants === 1,
+          variant_of: item.variant_of || '',
+          uoms: item.uoms || [],
+          description: item.description || prev.description
+        }));
+      }
+      
+      if (result.stock_status?.warehouse_details) {
+        setWarehouseDetails(result.stock_status.warehouse_details);
+      }
     } catch (err) {
       console.error('Fetch Dashboard Error:', err);
       setDashboardData({});
     } finally {
       setLoadingDashboard(false);
+      setLoadingWarehouse(false);
     }
   };
 
@@ -375,7 +345,6 @@ export default function ItemList() {
       imagePreview: item.image, image: null
     });
     setWarehouseDetails([]); setShowForm(true); setActiveTab('General');
-    fetchUltimateItemDetails(item.item_code);
     fetchPriceList(item.item_code);
     fetchItemDashboardDetails(item.item_code);
   };
@@ -565,7 +534,7 @@ export default function ItemList() {
       </div>
 
       {showForm && (
-        <div className="so-full-screen-view" style={{ position: 'fixed', top: '70px', left: 0, right: 0, bottom: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', animation: 'soModalIn 0.3s ease-out' }}>
+        <div className="so-full-screen-view" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', animation: 'soModalIn 0.3s ease-out' }}>
           <div className="so-modal-header" style={{ padding: '1rem 2rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
             <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', minWidth: 0, flexShrink: 1 }}>
               <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem', flexShrink: 0 }}><ChevronLeft size={22} /></button>
@@ -918,33 +887,38 @@ export default function ItemList() {
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                           {/* Summary Statistics */}
-                          {dashboardData?.summary && (
+                          {dashboardData?.analytics && (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
                                <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: `6px solid ${themeColor}` }}>
                                   <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Sales Volume</p>
                                   <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1e293b' }}>
                                     <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '6px' }}>AED</span>
-                                    {Number(dashboardData.summary.total_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {Number(dashboardData.analytics.gross_sales?.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </p>
+                                  <p style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700, marginTop: '4px' }}>Qty: {dashboardData.analytics.gross_sales?.total_qty || 0}</p>
                                </div>
                                <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #f59e0b' }}>
                                   <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Purchase Volume</p>
                                   <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f59e0b' }}>
                                     <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '6px' }}>AED</span>
-                                    {Number(dashboardData.summary.total_purchase || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {Number(dashboardData.analytics.gross_purchasing?.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </p>
+                                  <p style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700, marginTop: '4px' }}>Qty: {dashboardData.analytics.gross_purchasing?.total_qty || 0}</p>
                                </div>
                                <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #8b5cf6' }}>
-                                  <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Total Stock Value</p>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Global Stock Status</p>
                                   <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#8b5cf6' }}>
-                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '6px' }}>AED</span>
-                                    {Number(dashboardData.summary.total_stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {dashboardData.stock_status?.total_qty || 0}
+                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginLeft: '6px' }}>{form.default_uom}</span>
                                   </p>
+                                  <p style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700, marginTop: '4px' }}>Across {dashboardData.stock_status?.warehouse_details?.length || 0} Warehouses</p>
                                </div>
                             </div>
                           )}
 
-                          {dashboardData?.connections ? (
+                          {dashboardData?.connections && Object.values(dashboardData.connections).some(category => 
+                            Object.values(category).some(docs => Array.isArray(docs) && docs.length > 0)
+                          ) ? (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
                               {Object.entries(dashboardData.connections).map(([category, links]) => {
                                 const rows = [];
