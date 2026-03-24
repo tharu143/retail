@@ -1365,9 +1365,9 @@ function PurchaseOrder() {
             {formData.name && (
               <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
                 <div className="sticky top-24 space-y-4 bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl p-4 shadow-sm">
-                  <div className="flex flex-col items-center justify-center py-2 border-b border-slate-100 mb-5">
-                    <Zap className="w-4 h-4 text-indigo-500 mb-1.5 opacity-80" />
-                    <h3 className="text-[8px] font-black text-slate-400 uppercase tracking-[0.25em]">
+                  <div className="flex flex-col items-center justify-center py-4 border-b border-slate-100 mb-6">
+                    <Zap className="w-4 h-4 text-indigo-500 mb-1.5 opacity-80 shrink-0" />
+                    <h3 className="font-black text-slate-400 uppercase leading-none whitespace-nowrap" style={{ fontSize: '8px', letterSpacing: '0.2em' }}>
                        Connections
                     </h3>
                   </div>
