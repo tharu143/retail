@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/library';
+import { useNavigate } from 'react-router-dom';
 import NavBar from '../Nav/NavBar';
 
 /* ==================== UI HELPERS ==================== */
@@ -56,6 +57,7 @@ const CameraScanner = ({ onScan, onClose }) => {
 };
 
 export default function ItemList() {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
