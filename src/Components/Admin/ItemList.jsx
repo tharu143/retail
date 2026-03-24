@@ -783,7 +783,7 @@ export default function ItemList() {
                                   <div style={{ marginBottom: '0.75rem', opacity: 0.15 }}><Barcode size={40} /></div>
                                 )}
                                 <p style={{ fontSize: '0.8rem', fontWeight: 900, color: '#64748b', letterSpacing: '3px', fontFamily: 'monospace' }}>
-                                  {dashboardData?.item_details?.barcodes?.[0]?.barcode || 'UNLINKED'}
+                                  {dashboardData?.item_details?.barcodes?.[0]?.barcode || dashboardData?.item_details?.item_code || 'UNLINKED'}
                                 </p>
                               </div>
 
