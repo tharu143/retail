@@ -1405,27 +1405,27 @@ function PurchaseOrder() {
                           <span className="text-[9px] font-black text-slate-300 uppercase tracking-tight">{group.group}</span>
                           <div className="flex flex-col gap-1.5">
                             {group.items.filter(item => item.count > 0).map((item) => (
-                              <div key={item.label} className="bg-white border border-slate-100 rounded-xl p-2.5 hover:border-slate-200 transition-all">
+                              <div key={item.label} className="bg-slate-50/50 rounded-xl p-3 border border-slate-100/50">
                                 <div className="flex items-center justify-between mb-2">
-                                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-tight">{item.label}</span>
-                                  <span className="w-4 h-4 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-[8px] font-black">{item.count}</span>
+                                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{item.label}</span>
+                                  <span className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded-md font-bold">{item.count}</span>
                                 </div>
-                                <div className="flex flex-col gap-1.5">
+                                <div className="space-y-1.5">
                                   {(item.names || []).map(id => {
                                     const s = linkedDocStatuses[id];
                                     const isSub = s?.docstatus === 1;
                                     return (
-                                      <div key={id} className={`group/id px-2 py-1.5 rounded-lg border text-[8.5px] font-black flex items-center justify-between gap-2 overflow-hidden ${isSub ? 'bg-emerald-50/50 border-emerald-100 text-emerald-700' : 'bg-orange-50/50 border-orange-100 text-orange-700'}`}>
-                                        <div className="flex items-center gap-1.5 truncate">
-                                          <Box size={9} className="opacity-40" />
-                                          <span className="truncate">{id}</span>
+                                      <div key={id} className="group/id flex items-center justify-between gap-2 p-1 hover:bg-white rounded-md transition-all">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
+                                          <span className="text-[10px] font-bold text-slate-700 tabular-nums truncate" title={id}>{id}</span>
                                         </div>
                                         {!isSub && (item.label === 'Purchase Receipt' || item.label === 'Purchase Invoice') && (
                                           <button 
                                             onClick={() => handleSubmitDoc(id, item.label)} 
-                                            className="px-1.5 py-0.5 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-[7px] font-bold shadow-sm whitespace-nowrap"
+                                            className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[7px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                                           >
-                                            SUBMIT
+                                            Submit
                                           </button>
                                         )}
                                       </div>
