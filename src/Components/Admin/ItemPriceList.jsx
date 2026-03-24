@@ -28,7 +28,9 @@ function ItemPriceList() {
 
   // Filter Warehouse State
   const [warehouses, setWarehouses] = useState([]);
+  const [priceLists, setPriceLists] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
+  const [selectedPriceList, setSelectedPriceList] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Form State
@@ -45,8 +47,12 @@ function ItemPriceList() {
   useEffect(() => {
     const fetchMeta = async () => {
       try {
-        const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_warehouses', { withCredentials: true });
-        setWarehouses(res.data.message || []);
+        const [wRes, pRes] = await Promise.all([
+           axios.get('/api/method/kyle_retail.retail_api.api.get_warehouses', { withCredentials: true }),
+           axios.get('/api/method/kyle_retail.retail_api.api.get_price_lists', { withCredentials: true })
+        ]);
+        setWarehouses(wRes.data.message || []);
+        setPriceLists(pRes.data.message || []);
       } catch (err) {
         console.error("Meta fetch error", err);
       }
@@ -62,7 +68,10 @@ function ItemPriceList() {
         start: (currentPage - 1) * pageSize,
         page_length: pageSize,
         search: searchTerm || '',
-        filters: JSON.stringify({ warehouse: selectedWarehouse || null })
+        filters: JSON.stringify({ 
+           warehouse: selectedWarehouse || undefined, 
+           price_list: selectedPriceList || undefined 
+        })
       };
 
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_price_list_all', {
@@ -202,8 +211,24 @@ function ItemPriceList() {
                </div>
             </div>
 
+            <div style={{ width: '250px' }}>
+               <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Rate Strategy (Price List)</label>
+               <div style={{ position: 'relative' }}>
+                  <Tag size={18} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }} />
+                  <select 
+                    className="so-filter-input" 
+                    style={{ paddingLeft: '45px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', width: '100%', height: '3.5rem', appearance: 'none', cursor: 'pointer' }}
+                    value={selectedPriceList}
+                    onChange={e => { setSelectedPriceList(e.target.value); setCurrentPage(1); }}
+                  >
+                     <option value="">All Catalog Rates</option>
+                     {priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                  </select>
+               </div>
+            </div>
+
             <button 
-              onClick={() => { setSearchTerm(''); setSelectedWarehouse(''); setCurrentPage(1); }}
+              onClick={() => { setSearchTerm(''); setSelectedWarehouse(''); setSelectedPriceList(''); setCurrentPage(1); }}
               style={{ background: '#fef2f2', color: '#ef4444', padding: '0 1.5rem', height: '3.5rem', border: 'none', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
             >
               RESET
@@ -313,9 +338,12 @@ function ItemPriceList() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div className="so-field">
                           <label className="so-label">Price List</label>
-                          <select className="so-input" value={form.price_list} onChange={e => setForm({...form, price_list: e.target.value})}>
-                             <option value="Standard Selling">Standard Selling</option>
-                             <option value="Standard Buying">Standard Buying</option>
+                          <select 
+                             className="so-input" 
+                             value={form.price_list} 
+                             onChange={e => setForm({...form, price_list: e.target.value, buying: e.target.value.toLowerCase().includes('buying') ? 1 : 0, selling: e.target.value.toLowerCase().includes('selling') ? 1 : 0})}
+                          >
+                             {priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
                           </select>
                         </div>
                         <div className="so-field">
