@@ -29,9 +29,12 @@ function ItemPriceList() {
   // Filter Warehouse State
   const [warehouses, setWarehouses] = useState([]);
   const [priceLists, setPriceLists] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [selectedPriceList, setSelectedPriceList] = useState('');
+  const [selectedBrand, setSelectedBrand] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [itemCodeFilter, setItemCodeFilter] = useState('');
 
   // Form State
   const [showForm, setShowForm] = useState(false);
@@ -77,12 +80,14 @@ function ItemPriceList() {
   useEffect(() => {
     const fetchMeta = async () => {
       try {
-        const [wRes, pRes] = await Promise.all([
-           axios.get('/api/method/kyle_retail.retail_api.api.get_warehouses', { withCredentials: true }),
-           axios.get('/api/method/kyle_retail.retail_api.api.get_price_lists', { withCredentials: true })
+        const [wRes, pRes, bRes] = await Promise.all([
+           axios.get('/api/method/kyle_retail.retail_api.api.get_warehouses', { withCredentials: true }).catch(() => ({ data: { message: [] } })),
+           axios.get('/api/method/kyle_retail.retail_api.api.get_price_lists', { withCredentials: true }).catch(() => ({ data: { message: [] } })),
+           axios.get('/api/method/custom_retailpos.custom_retailpos.util.api.get_item_brands', { withCredentials: true }).catch(() => ({ data: { message: [] } }))
         ]);
-        setWarehouses(wRes.data.message || []);
-        setPriceLists(pRes.data.message || []);
+        setWarehouses(wRes.data?.message || []);
+        setPriceLists(pRes.data?.message || []);
+        setBrands(bRes.data?.message || []);
       } catch (err) {
         console.error("Meta fetch error", err);
       }
@@ -100,7 +105,9 @@ function ItemPriceList() {
         search: searchTerm || '',
         filters: JSON.stringify({ 
            warehouse: selectedWarehouse || undefined, 
-           price_list: selectedPriceList || undefined 
+           price_list: selectedPriceList || undefined,
+           brand: selectedBrand || undefined,
+           item_code: itemCodeFilter || undefined
         })
       };
 
@@ -122,7 +129,7 @@ function ItemPriceList() {
 
   useEffect(() => {
     fetchPriceRecords();
-  }, [currentPage, pageSize, selectedWarehouse, selectedPriceList]);
+  }, [currentPage, pageSize, selectedWarehouse, selectedPriceList, selectedBrand, itemCodeFilter]);
 
   // Debounced search
   useEffect(() => {
@@ -208,61 +215,85 @@ function ItemPriceList() {
       </div>
 
       <div style={{ padding: '2rem 3rem', maxWidth: '1600px', margin: '0 auto' }}>
-         {/* Advanced Filters */}
-         <div style={{ background: 'white', borderRadius: '20px', padding: '1.5rem', border: '1px solid #e2e8f0', marginBottom: '2rem', display: 'flex', gap: '1.5rem', alignItems: 'flex-end', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-            <div style={{ flex: 1 }}>
-               <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Search Catalog</label>
-               <div style={{ position: 'relative' }}>
-                  <Search size={18} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }} />
+         {/* ERPNext Style Multi-Column Filters */}
+         <div style={{ background: 'white', borderRadius: '20px', padding: '1.25rem', border: '1px solid #e2e8f0', marginBottom: '2rem', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
+               
+               <div>
+                  <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Search Item Name</label>
+                  <div style={{ position: 'relative' }}>
+                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }} />
+                     <input 
+                       type="text" 
+                       placeholder="Item name..." 
+                       className="so-filter-input" 
+                       style={{ paddingLeft: '38px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', width: '100%', height: '3rem', fontSize: '0.85rem' }}
+                       value={searchTerm}
+                       onChange={e => setSearchTerm(e.target.value)}
+                     />
+                  </div>
+               </div>
+
+               <div>
+                  <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Item Code</label>
                   <input 
                     type="text" 
-                    placeholder="Search by code, name or brand..." 
+                    placeholder="Code..." 
                     className="so-filter-input" 
-                    style={{ paddingLeft: '45px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', width: '100%', height: '3.5rem', fontSize: '0.9rem' }}
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
+                    style={{ paddingLeft: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', width: '100%', height: '3rem', fontSize: '0.85rem' }}
+                    value={itemCodeFilter}
+                    onChange={e => setItemCodeFilter(e.target.value)}
                   />
                </div>
-            </div>
 
-            <div style={{ width: '300px' }}>
-               <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Warehouse Inventory View</label>
-               <div style={{ position: 'relative' }}>
-                  <Warehouse size={18} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }} />
+               <div>
+                  <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Brand</label>
                   <select 
                     className="so-filter-input" 
-                    style={{ paddingLeft: '45px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', width: '100%', height: '3.5rem', appearance: 'none', cursor: 'pointer' }}
-                    value={selectedWarehouse}
-                    onChange={e => setSelectedWarehouse(e.target.value)}
+                    style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', width: '100%', height: '3rem', fontSize: '0.85rem', cursor: 'pointer' }}
+                    value={selectedBrand}
+                    onChange={e => setSelectedBrand(e.target.value)}
                   >
-                     <option value="">Global (Total Stock)</option>
-                     {Array.isArray(warehouses) && warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
+                     <option value="">All Brands</option>
+                     {Array.isArray(brands) && brands.map(b => <option key={b.name || b} value={b.name || b}>{b.name || b}</option>)}
                   </select>
                </div>
-            </div>
 
-            <div style={{ width: '250px' }}>
-               <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Rate Strategy (Price List)</label>
-               <div style={{ position: 'relative' }}>
-                  <Tag size={18} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }} />
+               <div>
+                  <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Price List</label>
                   <select 
                     className="so-filter-input" 
-                    style={{ paddingLeft: '45px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', width: '100%', height: '3.5rem', appearance: 'none', cursor: 'pointer' }}
+                    style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', width: '100%', height: '3rem', fontSize: '0.85rem', cursor: 'pointer' }}
                     value={selectedPriceList}
-                    onChange={e => { setSelectedPriceList(e.target.value); setCurrentPage(1); }}
+                    onChange={e => setSelectedPriceList(e.target.value)}
                   >
-                     <option value="">All Catalog Rates</option>
+                     <option value="">All Price Lists</option>
                      {Array.isArray(priceLists) && priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
                   </select>
                </div>
-            </div>
 
-            <button 
-              onClick={() => { setSearchTerm(''); setSelectedWarehouse(''); setSelectedPriceList(''); setCurrentPage(1); }}
-              style={{ background: '#fef2f2', color: '#ef4444', padding: '0 1.5rem', height: '3.5rem', border: 'none', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
-            >
-              RESET
-            </button>
+               <div>
+                  <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Warehouse (Stock)</label>
+                  <select 
+                    className="so-filter-input" 
+                    style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', width: '100%', height: '3rem', fontSize: '0.85rem', cursor: 'pointer', borderLeft: `3px solid ${themeColor}` }}
+                    value={selectedWarehouse}
+                    onChange={e => setSelectedWarehouse(e.target.value)}
+                  >
+                     <option value="">Global (Total)</option>
+                     {Array.isArray(warehouses) && warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
+                  </select>
+               </div>
+
+               <div style={{ width: '100px' }}>
+                  <button 
+                    onClick={() => { setSearchTerm(''); setItemCodeFilter(''); setSelectedWarehouse(''); setSelectedPriceList(''); setSelectedBrand(''); setCurrentPage(1); }}
+                    style={{ background: '#fee2e2', color: '#ef4444', width: '100%', height: '3rem', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                    CLEAR
+                  </button>
+               </div>
+            </div>
          </div>
 
          {/* Report Table */}
