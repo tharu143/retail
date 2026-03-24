@@ -236,7 +236,7 @@ function ItemPriceList() {
                     onChange={e => setSelectedWarehouse(e.target.value)}
                   >
                      <option value="">Global (Total Stock)</option>
-                     {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
+                     {Array.isArray(warehouses) && warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
                   </select>
                </div>
             </div>
@@ -252,7 +252,7 @@ function ItemPriceList() {
                     onChange={e => { setSelectedPriceList(e.target.value); setCurrentPage(1); }}
                   >
                      <option value="">All Catalog Rates</option>
-                     {priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                     {Array.isArray(priceLists) && priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
                   </select>
                </div>
             </div>
@@ -336,7 +336,7 @@ function ItemPriceList() {
 
             {/* Pagination UI */}
             <div style={{ padding: '1.5rem 2rem', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Showing <b>{(currentPage - 1) * pageSize + 1}</b> to <b>{Math.min(currentPage * pageSize, totalCount)}</b> of {totalCount} price records</span>
+               <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Showing <b>{totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0}</b> to <b>{Math.min(currentPage * pageSize, totalCount)}</b> of {totalCount} price records</span>
                <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} style={{ width: '40px', height: '40px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', cursor: currentPage === 1 ? 'default' : 'pointer' }}><ChevronLeft size={20} /></button>
                   <button onClick={() => setCurrentPage(prev => prev + 1)} disabled={currentPage * pageSize >= totalCount} style={{ width: '40px', height: '40px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', cursor: currentPage * pageSize >= totalCount ? 'default' : 'pointer' }}><ChevronRight size={20} /></button>
@@ -414,7 +414,7 @@ function ItemPriceList() {
                              value={form.price_list} 
                              onChange={e => setForm({...form, price_list: e.target.value, buying: e.target.value.toLowerCase().includes('buying') ? 1 : 0, selling: e.target.value.toLowerCase().includes('selling') ? 1 : 0})}
                           >
-                             {priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                             {Array.isArray(priceLists) && priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
                           </select>
                         </div>
                         <div className="so-field">
