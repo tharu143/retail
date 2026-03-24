@@ -224,7 +224,11 @@ export default function ItemList() {
         params: { item_code: code },
         withCredentials: true
       });
-      setPriceData(res.data.message || { prices: [], average_buying_price: 0 });
+      const result = res.data.message;
+      setPriceData({
+        prices: result?.data || [],
+        average_buying_price: result?.average_buying_price || 0
+      });
     } catch (err) {
       console.error('Fetch Prices Error:', err);
       setPriceData({ prices: [], average_buying_price: 0 });
