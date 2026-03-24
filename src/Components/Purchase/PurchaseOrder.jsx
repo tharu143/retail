@@ -6,7 +6,7 @@ import Swal from 'sweetalert2';
 import {
   AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, Users,
   DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
-  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette
+  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2
 } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import CustomSearchDropdown from './CustomSearchDropdown';
@@ -1360,123 +1360,123 @@ function PurchaseOrder() {
         </div>
 
         <div className="po-layout-container !pt-4 pb-20">
-          {/* Dashboard Connections (ERP Style) */}
-          <div className="mb-6 p-4 bg-white border border-slate-100 rounded-xl shadow-sm animate-fadeIn">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-50">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Zap className="w-3 h-3 text-indigo-500" />
-                Linked Documents & Actions
-              </h3>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg">
-                <span className="text-[10px] font-black text-slate-500 uppercase">Status:</span>
-                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${formData.docstatus === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                  {formData.docstatus === 1 ? '✓ Submitted' : '⏳ Draft'}
-                </span>
-              </div>
-            </div>
-            
-            <div className="flex flex-col gap-6">
-              {/* Primary Actions for Submitted POs */}
-              {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
-                <div className="flex flex-col gap-3 p-3 bg-slate-50/50 rounded-lg border border-slate-100">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Create New Record from PO</span>
-                  <div className="flex flex-wrap gap-3">
-                    {formData.per_received < 100 && (
-                      <button
-                        onClick={() => handleCreateFlow('receipt')}
-                        disabled={loadingLinks}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all shadow-emerald-200 active:scale-95 disabled:opacity-50"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Create Purchase Receipt
-                      </button>
-                    )}
-                    {formData.per_billed < 100 && (
-                      <button
-                        onClick={() => handleCreateFlow('invoice')}
-                        disabled={loadingLinks}
-                        className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all shadow-sky-200 active:scale-95 disabled:opacity-50"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Create Purchase Invoice
-                      </button>
-                    )}
+          <div className="flex flex-col lg:flex-row gap-6 relative">
+            {/* STICKY SIDEBAR: Linked Documents Dashboard */}
+            {formData.name && (
+              <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
+                <div className="sticky top-24 space-y-4 bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl p-4 shadow-sm">
+                  <div className="pb-3 border-b border-slate-100 mb-4">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                       <Zap className="w-3 h-3 text-indigo-500" />
+                       Connections
+                    </h3>
                   </div>
-                </div>
-              )}
 
-              {/* Categorized Connections from the API connections array */}
-              {linkedConnections.length > 0 ? (
-                linkedConnections.map((group) => (
-                  <div key={group.group} className="flex flex-col gap-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">{group.group}</span>
-                      <div className="h-px flex-1 bg-slate-50" />
+                  {/* Primary Workflow Actions */}
+                  {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
+                    <div className="flex flex-col gap-2 mb-6">
+                      {formData.per_received < 100 && (
+                        <button
+                          onClick={() => handleCreateFlow('receipt')}
+                          disabled={loadingLinks}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          <Plus className="w-4 h-4" />
+                          GET RECEIPTS
+                        </button>
+                      )}
+                      {formData.per_billed < 100 && (
+                        <button
+                          onClick={() => handleCreateFlow('invoice')}
+                          disabled={loadingLinks}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-sky-200 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          <Plus className="w-4 h-4" />
+                          GET INVOICE
+                        </button>
+                      )}
                     </div>
-                    <div className="flex flex-col gap-2">
-                      {group.items.filter(item => item.count > 0).map((item) => {
-                        const dt = item.label;
-                        const list = item.names || [];
-                        return (
-                          <div key={dt} className="flex items-center justify-between gap-4 px-3 py-2 bg-white border border-slate-100 rounded-lg hover:border-slate-200 transition-all">
-                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-700">
-                              {dt}
-                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px]">{item.count}</span>
-                            </div>
-                            <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
-                              {list.map(id => {
-                                const s = linkedDocStatuses[id];
-                                const isSub = s?.docstatus === 1;
-                                return (
-                                  <div key={id} className={`px-2 py-0.5 rounded-md border text-[8.5px] font-black flex items-center gap-1.5 ${isSub ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
-                                    <Box size={9} className="opacity-50" />
-                                    {id}
-                                    {!isSub && (dt === 'Purchase Receipt' || dt === 'Purchase Invoice') && (
-                                      <button onClick={() => handleSubmitDoc(id, dt)} className="ml-1 px-1.5 bg-orange-500 text-white rounded hover:bg-orange-600 text-[8px]">SUBMIT</button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                  )}
+
+                  <div className="flex flex-col gap-5 overflow-y-auto max-h-[70vh] pr-1 po-sidebar-scroll">
+                    {linkedConnections.length > 0 ? (
+                      linkedConnections.filter(g => g.items.some(i => i.count > 0)).map((group) => (
+                        <div key={group.group} className="flex flex-col gap-2.5">
+                          <span className="text-[9px] font-black text-slate-300 uppercase tracking-tight">{group.group}</span>
+                          <div className="flex flex-col gap-1.5">
+                            {group.items.filter(item => item.count > 0).map((item) => (
+                              <div key={item.label} className="bg-white border border-slate-100 rounded-xl p-2.5 hover:border-slate-200 transition-all">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-tight">{item.label}</span>
+                                  <span className="w-4 h-4 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-[8px] font-black">{item.count}</span>
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  {(item.names || []).map(id => {
+                                    const s = linkedDocStatuses[id];
+                                    const isSub = s?.docstatus === 1;
+                                    return (
+                                      <div key={id} className={`group/id px-2 py-1.5 rounded-lg border text-[8.5px] font-black flex items-center justify-between gap-2 overflow-hidden ${isSub ? 'bg-emerald-50/50 border-emerald-100 text-emerald-700' : 'bg-orange-50/50 border-orange-100 text-orange-700'}`}>
+                                        <div className="flex items-center gap-1.5 truncate">
+                                          <Box size={9} className="opacity-40" />
+                                          <span className="truncate">{id}</span>
+                                        </div>
+                                        {!isSub && (item.label === 'Purchase Receipt' || item.label === 'Purchase Invoice') && (
+                                          <button 
+                                            onClick={() => handleSubmitDoc(id, item.label)} 
+                                            className="px-1.5 py-0.5 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-[7px] font-bold shadow-sm whitespace-nowrap"
+                                          >
+                                            SUBMIT
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="flex items-center gap-3 py-2 text-slate-400 text-[10px] font-bold italic border-t border-slate-50 mt-2">
-                  No linked documents available
-                </div>
-              )}
-            </div>
-          </div>
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-100 rounded-lg p-4 flex items-center gap-3 animate-fadeIn">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              <span className="text-sm font-semibold text-red-800">{error}</span>
-            </div>
-          )}
-
-          {success && (
-            <div className="mb-8 border-l-4 border-[var(--po-primary)] bg-white shadow-sm p-6 animate-fadeIn">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-6">
-                  <div className="flex items-center gap-4">
-                    <CheckCircle2 className="w-6 h-6 text-[var(--po-primary)]" />
-                    <div>
-                      <h4 className="text-base font-bold text-slate-900 leading-tight">{success}</h4>
-                      <p className="text-xs text-slate-500 font-medium mt-1">Transaction processed successfully</p>
-                    </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-4 text-center">
+                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 opacity-50">
+                           <Box size={16} className="text-slate-300" />
+                        </div>
+                        <p className="text-[9px] font-bold text-slate-400 italic">No connections yet</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex flex-col gap-6">
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* MAIN CONTENT AREA */}
+            <div className="flex-1 min-w-0 flex flex-col gap-6">
+              {error && (
+                <div className="mb-6 bg-red-50 border border-red-100 rounded-lg p-4 flex items-center gap-3 animate-fadeIn">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  <span className="text-sm font-semibold text-red-800">{error}</span>
+                </div>
+              )}
+
+              {success && (
+                <div className="mb-8 border-l-4 border-[var(--po-primary)] bg-white shadow-sm p-6 animate-fadeIn">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-6">
+                      <div className="flex items-center gap-4">
+                        <CheckCircle2 className="w-6 h-6 text-[var(--po-primary)]" />
+                        <div>
+                          <h4 className="text-base font-bold text-slate-900 leading-tight">{success}</h4>
+                          <p className="text-xs text-slate-500 font-medium mt-1">Transaction processed successfully</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-4'} animate-fadeIn`}>
                   <div className="po-card-header !bg-slate-50/50">
                     <h3 className="po-card-title flex items-center gap-2">
@@ -1884,10 +1884,11 @@ function PurchaseOrder() {
                   </div>
                 </div>
               </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
       {/* Drafts List Sidebar/Overlay */}
       {showDraftsList && createPortal(
