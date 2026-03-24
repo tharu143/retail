@@ -596,8 +596,30 @@ export default function ItemList() {
                 </div>
             )}
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#fee2e2', color: '#ef4444' }}><X size={22} /></button>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              {isViewMode && (
+                <button 
+                  onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    background: '#f1f5f9',
+                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                    fontWeight: 900,
+                    fontSize: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase'
+                  }}
+                  className="hover:bg-slate-100"
+                >
+                  <Edit2 size={13} /> Edit Master
+                </button>
+              )}
+              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#fee2e2', color: '#ef4444', marginLeft: '0.5rem' }}><X size={22} /></button>
             </div>
           </div>
           <div className="so-modal-body" style={{ flex: 1, padding: '1.25rem 2rem', background: '#f8fafc', overflowY: 'auto' }}>
