@@ -107,7 +107,7 @@ export default function ItemList() {
   const [activeTab, setActiveTab] = useState('General');
   const [dashboardData, setDashboardData] = useState(null);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [priceData, setPriceData] = useState({ prices: [], metrics: {} });
+  const [priceData, setPriceData] = useState({ prices: [], metrics: {}, warehouse_breakdown: [] });
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [showPriceForm, setShowPriceForm] = useState(false);
   const [priceForm, setPriceForm] = useState({
@@ -227,11 +227,12 @@ export default function ItemList() {
       const result = res.data.message;
       setPriceData({
         prices: result?.data || [],
-        metrics: result?.metrics || {}
+        metrics: result?.metrics || {},
+        warehouse_breakdown: result?.warehouse_breakdown || []
       });
     } catch (err) {
       console.error('Fetch Prices Error:', err);
-      setPriceData({ prices: [], metrics: {} });
+      setPriceData({ prices: [], metrics: {}, warehouse_breakdown: [] });
     } finally {
       setLoadingPrices(false);
     }
@@ -844,19 +845,54 @@ export default function ItemList() {
                   )}
 
                   {activeTab === 'Stock' && (
-                    <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden', width: '100%' }}>
-                      <div className="so-card-header" style={{ padding: '1.5rem 2rem', background: '#f8fafc' }}><p className="so-card-title">Warehouse Inventory</p></div>
+                    <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden', width: '100%', boxShadow: '0 10px 30px rgba(0,0,0,0.04)' }}>
+                      <div className="so-card-header" style={{ padding: '1.5rem 2rem', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <p className="so-card-title" style={{ fontSize: '1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Package size={20} style={{ color: themeColor }} /> Detailed Warehouse Inventory
+                        </p>
+                        <div style={{ padding: '4px 12px', background: `${themeColor}15`, color: themeColor, borderRadius: '100px', fontSize: '10px', fontWeight: 900 }}>REAL-TIME SYNC</div>
+                      </div>
                       <div className="so-card-body" style={{ padding: 0 }}>
-                        <table className="so-table">
-                          <thead><tr style={{ background: '#f1f5f9' }}><th>Warehouse</th><th>Actual Qty</th><th>UOM</th></tr></thead>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                              <th style={{ padding: '1.25rem 2.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Warehouse Location</th>
+                              <th style={{ padding: '1.25rem 1rem', textAlign: 'center', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>On Hand Stock</th>
+                              <th style={{ padding: '1.25rem 1rem', textAlign: 'center', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Avg Buying Price</th>
+                              <th style={{ padding: '1.25rem 2.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Inventory Value</th>
+                            </tr>
+                          </thead>
                           <tbody>
-                            {warehouseDetails.map((w, idx) => (
-                              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '1.5rem 2.5rem', fontWeight: 700 }}>{w.warehouse}</td>
-                                <td style={{ textAlign: 'center' }}><span style={{ fontWeight: 900, color: themeColor }}>{w.actual_qty}</span></td>
-                                <td style={{ textAlign: 'right', paddingRight: '2rem' }}>{form.default_uom}</td>
-                              </tr>
-                            ))}
+                            {loadingPrices ? (
+                               <tr><td colSpan="4" style={{ padding: '4rem', textAlign: 'center' }}><Loader2 className="animate-spin" style={{ margin: '0 auto', color: themeColor }} /></td></tr>
+                            ) : priceData.warehouse_breakdown?.length > 0 ? (
+                              priceData.warehouse_breakdown.map((w, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'all 0.2s' }} className="hover:bg-slate-50">
+                                  <td style={{ padding: '1.5rem 2.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <MapPin size={16} style={{ color: '#94a3b8' }} />
+                                      </div>
+                                      <span style={{ fontWeight: 800, color: '#1e293b' }}>{w.warehouse}</span>
+                                    </div>
+                                  </td>
+                                  <td style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                                    <span style={{ fontWeight: 900, color: themeColor, fontSize: '1.1rem' }}>{w.stock}</span>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: '4px', fontWeight: 700 }}>{form.default_uom}</span>
+                                  </td>
+                                  <td style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginRight: '4px' }}>AED</span>
+                                    <span style={{ fontWeight: 800, color: '#475569' }}>{Number(w.avg_buying_price || 0).toFixed(2)}</span>
+                                  </td>
+                                  <td style={{ textAlign: 'right', padding: '1.5rem 2.5rem' }}>
+                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginRight: '4px', fontWeight: 700 }}>AED</span>
+                                    <span style={{ fontWeight: 900, color: '#10b981', fontSize: '1.1rem' }}>{Number(w.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                               <tr><td colSpan="4" style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8', fontWeight: 800 }}>No stock locations identified for this item.</td></tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
