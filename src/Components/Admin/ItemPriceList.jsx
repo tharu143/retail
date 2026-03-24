@@ -85,9 +85,9 @@ function ItemPriceList() {
            axios.get('/api/method/kyle_retail.retail_api.api.get_price_lists', { withCredentials: true }).catch(() => ({ data: { message: [] } })),
            axios.get('/api/method/kyle_retail.retail_api.api.get_item_brands', { withCredentials: true }).catch(() => ({ data: { message: [] } }))
         ]);
-        setWarehouses(wRes.data?.message || []);
-        setPriceLists(pRes.data?.message || []);
-        setBrands(bRes.data?.message || []);
+        setWarehouses(wRes.data?.message?.data || []);
+        setPriceLists(pRes.data?.message?.data || []);
+        setBrands(bRes.data?.message?.data || bRes.data?.message || []);
       } catch (err) {
         console.error("Meta fetch error", err);
       }
@@ -268,7 +268,7 @@ function ItemPriceList() {
                     onChange={e => setSelectedPriceList(e.target.value)}
                   >
                      <option value="">All Price Lists</option>
-                     {Array.isArray(priceLists) && priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                     {Array.isArray(priceLists) && priceLists.map(pl => <option key={pl.name} value={pl.name}>{pl.name}</option>)}
                   </select>
                </div>
 
@@ -455,7 +455,7 @@ function ItemPriceList() {
                              value={form.price_list} 
                              onChange={e => setForm({...form, price_list: e.target.value, buying: e.target.value.toLowerCase().includes('buying') ? 1 : 0, selling: e.target.value.toLowerCase().includes('selling') ? 1 : 0})}
                           >
-                             {Array.isArray(priceLists) && priceLists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                             {Array.isArray(priceLists) && priceLists.map(pl => <option key={pl.name} value={pl.name}>{pl.name}</option>)}
                           </select>
                         </div>
                         <div className="so-field">
