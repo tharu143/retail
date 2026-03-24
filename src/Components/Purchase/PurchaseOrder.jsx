@@ -1186,17 +1186,7 @@ function PurchaseOrder() {
               </div>
             )}
 
-            <div className="h-6 w-px bg-slate-100 mx-1" />
 
-            <div className="flex items-center gap-2 mr-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 cursor-pointer" onClick={() => !isViewOnly && setFormData(p => ({ ...p, quick_entry: !p.quick_entry }))}>
-              <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.quick_entry ? 'bg-[var(--po-primary)]' : 'bg-slate-300'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${formData.quick_entry ? 'left-4.5' : 'left-0.5'}`} />
-              </div>
-              <span className={`text-[10px] font-bold uppercase tracking-tight ${formData.quick_entry ? 'text-[var(--po-primary)]' : 'text-slate-400'}`}>
-                {formData.quick_entry ? 'Direct Stock In ON' : 'Standard PO Only'}
-              </span>
-              {formData.quick_entry && <Zap className="w-3 h-3 text-[var(--po-primary)] animate-pulse ml-1" />}
-            </div>
 
             {/* Standard Action Buttons - Hidden/Disabled in View Only or Submitted status */}
             {!isViewOnly && formData.docstatus === 0 && (
