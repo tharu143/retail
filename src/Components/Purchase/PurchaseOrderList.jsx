@@ -270,20 +270,25 @@ const PurchaseOrderList = ({ onNew }) => {
 
                     {/* Analytics / Progress */}
                     <td>
-                      <div className="flex flex-col gap-1.5 min-w-[120px]">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-slate-400 w-8">RCVD:</span>
-                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="flex flex-row items-center gap-6 min-w-[240px]">
+                        <div className="flex-1 flex flex-col gap-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Received</span>
+                            <span className="text-[9px] font-black text-slate-700">{Math.round(po.per_received || 0)}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${po.per_received || 0}%` }} />
                           </div>
-                          <span className="text-[9px] font-bold text-slate-600">{Math.round(po.per_received || 0)}%</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-slate-400 w-8">BILL:</span>
-                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+
+                        <div className="flex-1 flex flex-col gap-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-sky-600 uppercase tracking-tighter">Billed</span>
+                            <span className="text-[9px] font-black text-slate-700">{Math.round(po.per_billed || 0)}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div className="h-full bg-sky-500 rounded-full" style={{ width: `${po.per_billed || 0}%` }} />
                           </div>
-                          <span className="text-[9px] font-bold text-slate-600">{Math.round(po.per_billed || 0)}%</span>
                         </div>
                       </div>
                     </td>
