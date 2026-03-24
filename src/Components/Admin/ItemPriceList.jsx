@@ -3,7 +3,7 @@ import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { 
   Plus, Search, X, Tag, Filter, Eye, Edit2, Trash2, 
   Loader2, ChevronLeft, ChevronRight, Warehouse, Scale,
-  Box, ShieldCheck, MapPin, Calculator, Barcode, Palette
+  Box, ShieldCheck, MapPin, Calculator, Barcode, Palette, ChevronDown
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';

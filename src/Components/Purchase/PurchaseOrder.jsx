@@ -73,6 +73,7 @@ function PurchaseOrder() {
   const [showHistoryOverlay, setShowHistoryOverlay] = useState(null); // Row index for history popup
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
   const dropdownRef = useRef(null);
+  const [lastSavedData, setLastSavedData] = useState(null); // Added for dirty check
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState({});
@@ -384,6 +385,8 @@ function PurchaseOrder() {
         naming_series: draft.naming_series || 'PO-'
       });
       setIsEditMode(true);
+      setLastSavedData(JSON.stringify(draft)); // Base point for dirty check
+
       // STRICT RULE: If submitted/cancelled, must be ViewOnly. If draft, default to view mode.
       setIsViewOnly(true);
       setShowDraftsList(false);
@@ -436,9 +439,12 @@ function PurchaseOrder() {
       const templates = data.message || [];
       setTaxTemplates(templates);
       
-      // Default to UAE VAT 5% for new POs if not already set
-      if (!formData.name && !formData.taxes_and_charges && templates.some(t => t.name === 'UAE VAT 5%')) {
-        onTaxChange('UAE VAT 5%');
+      // Auto-set default 5% tax for NEW documents if nothing selected
+      if (!formData.name && !formData.taxes_and_charges && templates.length > 0) {
+        const defaultTax = templates.find(t => t.name === 'UAE VAT 5%') || templates.find(t => t.name.includes('5%'));
+        if (defaultTax) {
+          onTaxChange(defaultTax.name);
+        }
       }
     } catch (err) {
       console.error('Tax templates error:', err);
@@ -1324,30 +1330,51 @@ function PurchaseOrder() {
             )}
 
 
-
             {/* Standard Action Buttons - Hidden/Disabled in View Only or Submitted status */}
             {!isViewOnly && formData.docstatus === 0 && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleSaveDraft}
-                  disabled={saving || loading || isViewOnly}
-                  className="po-btn-secondary"
-                >
-                  {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                  {formData.name ? 'Update Draft' : 'Save Draft'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={loading || saving || !formData.supplier || formData.items.filter(i => i.item_code).length === 0 || isViewOnly}
-                  className={`po-btn-primary px-6 ${formData.quick_entry ? '!bg-[var(--po-primary)] border-[var(--po-primary)]' : ''}`}
-                >
-                  {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                  {formData.quick_entry ? 'ZAP! Quick Stock In' : 'Submit Now'}
-                </button>
-              </>
+              <div className="flex items-center gap-2">
+                {!formData.name ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSaveDraft();
+                      setLastSavedData(JSON.stringify(formData));
+                    }}
+                    disabled={saving || loading}
+                    className="po-btn-primary px-8"
+                  >
+                    {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    Save as Draft
+                  </button>
+                ) : (
+                  <>
+                    {JSON.stringify(formData) !== lastSavedData ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const name = await handleSaveDraft();
+                          if (name) setLastSavedData(JSON.stringify(formData));
+                        }}
+                        disabled={saving || loading}
+                        className="po-btn-primary px-8"
+                      >
+                        {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                        Update Draft
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={loading || saving || !formData.supplier || formData.items.filter(i => i.item_code).length === 0}
+                        className={`po-btn-primary px-6 ${formData.quick_entry ? '!bg-[var(--po-primary)] border-[var(--po-primary)]' : ''}`}
+                      >
+                        {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                        {formData.quick_entry ? 'ZAP! Quick Stock In' : 'Submit Now'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             )}
 
             {formData.docstatus === 1 && (

@@ -23,6 +23,8 @@ function PurchaseReceiptList() {
   const [docName, setDocName] = useState('');
   const [isViewMode, setIsViewMode] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [lastSavedData, setLastSavedData] = useState(null); // Added for dirty check
+
   const theme = useSelector(state => state.user.theme);
   const [barcodeInput, setBarcodeInput] = useState('');
 
@@ -64,7 +66,7 @@ function PurchaseReceiptList() {
     rounded_total: 0,
     items: [{
       item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00',
-      custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: ''
+      custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: ''
     }],
     taxes: [{
       add_row: true,
@@ -287,7 +289,16 @@ function PurchaseReceiptList() {
         params: { company: companyData.company },
         withCredentials: true
       });
-      setTaxesTemplates(res.data.message || []);
+      const templates = res.data.message || [];
+      setTaxesTemplates(templates);
+
+      // Auto-set default 5% tax for NEW documents if nothing selected
+      if (!docName && !formData.taxes_and_charges && templates.length > 0) {
+        const defaultTax = templates.find(t => t.name.toUpperCase() === 'UAE VAT 5%') || templates.find(t => t.name.includes('5%'));
+        if (defaultTax) {
+          handleTaxesTemplateChange(defaultTax.name);
+        }
+      }
     } catch (err) {
       console.error('Taxes templates fetch error:', err);
     }
@@ -437,7 +448,7 @@ function PurchaseReceiptList() {
       rounded_total: 0,
       items: [{
         item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00',
-        custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: ''
+        custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: ''
       }],
       taxes: [{
         add_row: true,
@@ -465,7 +476,8 @@ function PurchaseReceiptList() {
     setShowItemDropdowns({});
     setRateLoading({}); // Reset loading
     setIsModalOpen(true);
-  }, [warehouses]);
+    setLastSavedData(JSON.stringify(formData)); // Set base point for dirty check
+  }, [warehouses, formData]);
   // UPDATED: Combined recalc for items update
   const updateItem = (index, field, value) => {
     setFormData(prev => {
@@ -513,7 +525,7 @@ function PurchaseReceiptList() {
       const newItems = [...prev.items, {
         item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0,
         received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00',
-        custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: ''
+        custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: ''
       }];
       const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
       const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
@@ -578,6 +590,7 @@ function PurchaseReceiptList() {
         accepted_qty: newAccepted,
         received_qty: newAccepted + currentRejected,
         qty: newAccepted,
+        custom_selling_price: item.custom_selling_price || 0,
         amount: (newAccepted * currentRate).toFixed(2)
       };
       const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
@@ -795,8 +808,11 @@ function PurchaseReceiptList() {
           amount: i.amount?.toFixed(2) || '0.00',
           custom_box_qty: i.custom_box_qty || 0,
           custom_pieces_per_box: i.custom_pieces_per_box || 1,
+          custom_selling_price: i.custom_selling_price || 0,
           custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
-          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || ''
+          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+          purchase_order: i.purchase_order || '', // Mapping PO ref
+          purchase_order_item: i.purchase_order_item || '' // Mapping PO Item ref
         })),
         taxes: (doc.taxes || []).map(t => ({
           add_row: t.add_deduct_tax === "Add",
@@ -821,6 +837,7 @@ function PurchaseReceiptList() {
       setIsViewMode(true);
       setIsEditMode(false);
       setIsModalOpen(true);
+      setLastSavedData(JSON.stringify(doc)); // Set base point for dirty check
       if (doc.name) fetchLinkedDocuments(doc.name);
     } catch (err) {
       console.error('Error fetching receipt:', err);
@@ -1003,6 +1020,7 @@ function PurchaseReceiptList() {
           throw new Error('Failed to create draft');
         }
       }
+      setLastSavedData(JSON.stringify(formData)); // Reset dirty check after save
       // Refresh list to show updated status
       fetchReceipts();
     } catch (err) {
@@ -1389,7 +1407,7 @@ function PurchaseReceiptList() {
           </div>
         </div>
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ padding: 0 }}>
+          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ padding: 0, zIndex: 9999 }}>
             <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -1422,7 +1440,7 @@ function PurchaseReceiptList() {
                 </button>
               </div>
 
-              <div className="so-modal-body">
+              <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
                 {renderConnectionsDashboard()}
                 {/* Basic Details Card */}
                 <div className="so-card">
@@ -1540,9 +1558,12 @@ function PurchaseReceiptList() {
                 <div className="so-card">
                   <div className="so-card-header">
                     <p className="so-card-title">Items</p>
-                    <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
-                      <Plus size={14} /> Add Row
-                    </button>
+                    {/* Hide Add Row if mapped from PO */}
+                    {!formData.items.some(i => i.purchase_order) && (
+                      <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
+                        <Plus size={14} /> Add Row
+                      </button>
+                    )}
                   </div>
                   <div className="so-card-body" style={{ padding: 0 }}>
                     <div className="so-table-wrapper" style={{ boxShadow: 'none' }}>
@@ -1555,8 +1576,8 @@ function PurchaseReceiptList() {
                             <th style={{ width: '80px', textAlign: 'center' }}>Box Qty</th>
                             <th style={{ width: '80px', textAlign: 'center' }}>Pcs/Box</th>
                             <th style={{ width: '90px', textAlign: 'center' }}>Accepted</th>
-                            <th style={{ width: '90px', textAlign: 'center' }}>Rejected</th>
-                            <th style={{ width: '110px', textAlign: 'right' }}>Rate</th>
+                            <th style={{ width: '100px', textAlign: 'right' }}>Selling (AED)</th>
+                            <th style={{ width: '110px', textAlign: 'right' }}>Rate (AED)</th>
                             <th style={{ width: '130px', textAlign: 'right' }}>Amount</th>
                             <th style={{ width: '50px' }}></th>
                           </tr>
@@ -1633,10 +1654,12 @@ function PurchaseReceiptList() {
                               <td>
                                 <input
                                   type="number"
-                                  value={item.rejected_qty}
-                                  onChange={e => updateItem(i, 'rejected_qty', e.target.value)}
+                                  value={item.custom_selling_price || 0}
+                                  onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
                                   className="so-input"
-                                  style={{ textAlign: 'center', height: '36px' }}
+                                  style={{ textAlign: 'right', height: '36px', color: '#6366f1', fontWeight: 'bold' }}
+                                  placeholder="Selling"
+                                  readOnly={isViewMode}
                                 />
                               </td>
                               <td style={{ textAlign: 'right' }}>
@@ -1836,16 +1859,25 @@ function PurchaseReceiptList() {
                   Cancel
                 </button>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button onClick={handleSaveDraft} disabled={saving} className="so-btn-secondary" style={{ background: 'white' }}>
-                    {saving ? 'Saving...' : (docName ? 'Update Draft' : 'Save Draft')}
-                  </button>
-                  <button onClick={handleSubmit} disabled={saving} className="so-btn-primary">
-                    {saving ? (
-                      <><Loader2 className="so-spinner" size={16} /> Processing...</>
-                    ) : (
-                      docName ? 'Submit' : 'Save & Submit'
-                    )}
-                  </button>
+                  {!docName ? (
+                    <button onClick={handleSaveDraft} disabled={saving} className="so-btn-primary" style={{ minWidth: '180px' }}>
+                      {saving ? 'Saving...' : 'Save as Draft'}
+                    </button>
+                  ) : (
+                    <>
+                      {JSON.stringify(formData) !== lastSavedData ? (
+                        <button onClick={handleSaveDraft} disabled={saving} className="so-btn-primary" style={{ minWidth: '180px' }}>
+                          {saving ? 'Saving...' : 'Update Draft'}
+                        </button>
+                      ) : (
+                        <button onClick={handleSubmit} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px' }}>
+                          {saving ? (
+                            <><Loader2 className="so-spinner" size={16} /> Processing...</>
+                          ) : 'Submit Receipt'}
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

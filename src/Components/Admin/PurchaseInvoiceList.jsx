@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Edit2
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
@@ -24,6 +24,7 @@ function PurchaseInvoiceList() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
+  const [lastSavedData, setLastSavedData] = useState(null); // Dirty Check Base
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [docName, setDocName] = useState('');
@@ -97,7 +98,7 @@ function PurchaseInvoiceList() {
     additional_discount_percentage: 0,
     discount_amount: 0,
     taxes_and_charges: '',
-    items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0 }],
+    items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_selling_price: 0 }],
     docstatus: 0
   });
 
@@ -241,7 +242,8 @@ function PurchaseInvoiceList() {
       // Clear URL params after reading
       window.history.replaceState(null, '', window.location.hash.split('?')[0]);
       fetchPurchaseInvoice(nameParam);
-      setIsViewMode(true);
+      setIsViewMode(false);
+      setIsEditMode(true);
       setIsModalOpen(true);
     }
   }, [invoices]);
@@ -262,7 +264,16 @@ function PurchaseInvoiceList() {
     setLoadingTaxTemplates(true);
     try {
       const res = await axios.get(`${API_PATH}.get_purchase_taxes_templates_pi`, { withCredentials: true });
-      setTaxTemplates(Array.isArray(res.data.message) ? res.data.message : []);
+      const templates = Array.isArray(res.data.message) ? res.data.message : [];
+      setTaxTemplates(templates);
+
+      // Auto-set default 5% tax for NEW documents if nothing selected
+      if (!docName && !formData.taxes_and_charges && templates.length > 0) {
+        const defaultTax = templates.find(t => t.name.toUpperCase() === 'UAE VAT 5%') || templates.find(t => t.name.includes('5%'));
+        if (defaultTax) {
+          setFormData(prev => ({ ...prev, taxes_and_charges: defaultTax.name }));
+        }
+      }
     } catch (err) { console.error(err); }
     finally { setLoadingTaxTemplates(false); }
   };
@@ -348,7 +359,7 @@ function PurchaseInvoiceList() {
       additional_discount_percentage: 0,
       discount_amount: 0,
       taxes_and_charges: '',
-      items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: '' }],
+      items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: '' }],
       docstatus: 0
     });
     setFormErrors({});
@@ -360,6 +371,7 @@ function PurchaseInvoiceList() {
     setIsEditMode(false);
     setIsViewMode(false);
     setIsModalOpen(true);
+    setLastSavedData(JSON.stringify(formData));
   };
 
   const fetchPurchaseInvoice = async (name) => {
@@ -391,8 +403,11 @@ function PurchaseInvoiceList() {
             amount: i.amount || 0,
             custom_box_qty: parseFloat(i.custom_box_qty || 0),
             custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+            custom_selling_price: parseFloat(i.custom_selling_price || 0),
             custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+            purchase_order: i.purchase_order || '',
+            purchase_order_item: i.purchase_order_item || ''
           })),
           total_qty: d.total_qty || 0,
           net_total: d.net_total || 0,
@@ -419,6 +434,7 @@ function PurchaseInvoiceList() {
         
         // Fetch linked documents if it's already created
         if (d.name) fetchLinkedDocuments(d.name);
+        setLastSavedData(JSON.stringify(d)); // Set base point for dirty check
       }
     } catch (err) {
       alert('Failed to load invoice');
@@ -684,7 +700,7 @@ function PurchaseInvoiceList() {
 
   const addItemRow = () => setFormData(prev => ({
     ...prev,
-    items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_supplier_sl_num: '', custom_ref_sl_no: '' }]
+    items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: '' }]
   }));
 
   const removeItemRow = (index) => setFormData(prev => ({
@@ -710,6 +726,7 @@ function PurchaseInvoiceList() {
         amount: 0,
         custom_box_qty: 0,
         custom_pieces_per_box: 1,
+        custom_selling_price: item.custom_selling_price || 0,
         custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
         custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || ''
       };
@@ -785,6 +802,7 @@ function PurchaseInvoiceList() {
           rate: parseFloat(i.rate || 0),
           custom_box_qty: parseFloat(i.custom_box_qty || 0),
           custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+          custom_selling_price: parseFloat(i.custom_selling_price || 0),
           custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           warehouse: formData.update_stock ? formData.accepted_warehouse : '',
@@ -828,6 +846,7 @@ function PurchaseInvoiceList() {
         }
       }
       setDocStatus(0); // Set as draft after save
+      setLastSavedData(JSON.stringify(formData));
       fetchInvoices();
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.exception || 'Save failed';
@@ -1195,7 +1214,7 @@ function PurchaseInvoiceList() {
         </div>
 
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0 }}>
+          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0, zIndex: 9999 }}>
             <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -1227,7 +1246,7 @@ function PurchaseInvoiceList() {
                   <X size={20} />
                 </button>
               </div>
-              <div className="so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
                 {renderConnectionsDashboard()}
                 {/* Basic Details Card */}
                 <div className="so-card">
@@ -1414,6 +1433,7 @@ function PurchaseInvoiceList() {
                             <th style={{ width: '80px', textAlign: 'center' }}>Box Qty</th>
                             <th style={{ width: '80px', textAlign: 'center' }}>Pcs/Box</th>
                             <th style={{ width: '100px', textAlign: 'center' }}>Accepted Qty</th>
+                            <th style={{ width: '100px', textAlign: 'right' }}>Selling Price</th>
                             <th style={{ width: '80px', textAlign: 'center' }}>UOM</th>
                             <th style={{ width: '120px', textAlign: 'right' }}>Rate (AED)</th>
                             <th style={{ width: '120px', textAlign: 'right' }}>Amount (AED)</th>
@@ -1491,6 +1511,17 @@ function PurchaseInvoiceList() {
                                   onChange={e => updateItem(i, 'qty', e.target.value)}
                                   className="so-input"
                                   style={{ height: '36px', textAlign: 'center', fontWeight: 700 }}
+                                  disabled={isViewMode}
+                                />
+                              </td>
+                              <td style={{ textAlign: 'right' }}>
+                                <input
+                                  type="number"
+                                  value={item.custom_selling_price || 0}
+                                  onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                  className="so-input"
+                                  style={{ textAlign: 'right', height: '36px', color: '#6366f1', fontWeight: 'bold' }}
+                                  placeholder="Selling"
                                   disabled={isViewMode}
                                 />
                               </td>
@@ -1678,25 +1709,40 @@ function PurchaseInvoiceList() {
                 <div className="so-modal-footer">
                   <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
                     {(docStatus === 0 || docStatus === null) ? (
-                      <>
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
                         <button onClick={closeModal} className="so-btn-secondary">Cancel</button>
-                        <button
-                          onClick={handleSaveDraft}
-                          disabled={saving}
-                          className="so-btn-secondary"
-                          style={{ minWidth: '140px' }}
-                        >
-                          {saving ? <Loader2 size={16} className="so-spinner" /> : (docName ? 'Update Draft' : 'Save Draft')}
-                        </button>
-                        <button
-                          onClick={handleSubmit}
-                          disabled={saving}
-                          className="so-btn-primary"
-                          style={{ minWidth: '180px' }}
-                        >
-                          {saving ? <Loader2 size={16} className="so-spinner" /> : 'Submit Invoice'}
-                        </button>
-                      </>
+                        {!docName ? (
+                          <button
+                            onClick={handleSaveDraft}
+                            disabled={saving}
+                            className="so-btn-primary"
+                            style={{ minWidth: '180px' }}
+                          >
+                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'Save as Draft'}
+                          </button>
+                        ) : (
+                          <>
+                            {JSON.stringify(formData) !== lastSavedData ? (
+                              <button
+                                onClick={handleSaveDraft}
+                                disabled={saving}
+                                className="so-btn-primary"
+                                style={{ minWidth: '180px' }}
+                              >
+                                {saving ? <Loader2 size={16} className="so-spinner" /> : 'Update Draft'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={handleSubmit}
+                                disabled={saving}
+                                className="so-btn-primary"
+                              >
+                                {saving ? <Loader2 size={16} className="so-spinner" /> : 'Submit Invoice'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     ) : (
                       <button onClick={closeModal} className="so-btn-primary" style={{ minWidth: '120px' }}>Done</button>
                     )}

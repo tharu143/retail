@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, Save, Upload, Package, Camera, ChevronLeft,
   Users, AlertCircle, Trash2, ChevronDown, Palette, Loader2, ChevronRight,
-  Edit2, ShoppingCart, Barcode, Tag, Box, Info, ShieldCheck, Scale, MapPin, Activity
+  Edit2, ShoppingCart, Barcode, Tag, Box, Info, ShieldCheck, Scale, MapPin, Activity, FileText
 } from 'lucide-react';
 import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/library';
@@ -281,11 +281,11 @@ export default function ItemList() {
   };
 
   useEffect(() => {
-    if (showForm) {
+    if (showForm || isEditMode) {
       const t = setTimeout(() => fetchItemGroups(groupSearch), 300);
       return () => clearTimeout(t);
     }
-  }, [groupSearch, showForm]);
+  }, [groupSearch, showForm, isEditMode]);
 
   const fetchItemGroups = async (search = '') => {
     try {
@@ -293,8 +293,14 @@ export default function ItemList() {
         params: { search },
         withCredentials: true
       });
-      if (res.data.message.success) setItemGroups(res.data.message.data);
-    } catch (err) { console.error(err); }
+      if (res.data.message && (res.data.message.status === 'success' || res.data.message.success || res.data.message.data)) {
+        const rawData = res.data.message.data || res.data.message;
+        const groups = (Array.isArray(rawData) ? rawData : []).map(g => typeof g === 'string' ? { label: g, value: g } : g);
+        setItemGroups(groups);
+      }
+    } catch (err) { 
+      console.error("Fetch Item Groups Error:", err); 
+    }
   };
 
   /* ==================== FILTERING ==================== */
@@ -631,173 +637,139 @@ export default function ItemList() {
                     <div style={{ animation: 'fadeIn 0.5s ease', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                       {/* Metric Summary Bar */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
-                        {/* Avg Buying Card */}
-                        <div className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: `6px solid ${themeColor}`, boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                          <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Average Buying</p>
-                          <p style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1e293b' }}>
-                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
-                            {Number(priceData.metrics?.average_buying_price || 0).toFixed(2)}
-                          </p>
-                        </div>
-                        {/* Last Buying Card */}
-                        <div className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: '6px solid #f59e0b', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                          <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Last Buying Price</p>
-                          <p style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f59e0b' }}>
-                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
-                            {Number(priceData.metrics?.last_buying_price || 0).toFixed(2)}
-                          </p>
-                        </div>
-                        {/* Total Stock Card */}
-                        <div className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: '6px solid #3b82f6', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                          <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Total Inventory</p>
-                          <p style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1e293b' }}>
-                            {priceData.metrics?.total_stock || 0}
-                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: '6px' }}>{form.default_uom}</span>
-                          </p>
-                        </div>
-                        {/* Stock Value Card */}
-                        <div className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: '6px solid #10b981', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                          <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Inventory Value</p>
-                          <p style={{ fontSize: '1.25rem', fontWeight: 900, color: '#10b981' }}>
-                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
-                            {Number(priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </p>
-                        </div>
+                        {[
+                          { label: 'Average Buying', val: `${priceData.metrics?.currency || 'AED'} ${Number(priceData.metrics?.average_buying_price || 0).toFixed(2)}`, border: themeColor, text: '#1e293b' },
+                          { label: 'Last Buying Price', val: `${priceData.metrics?.currency || 'AED'} ${Number(priceData.metrics?.last_buying_price || 0).toFixed(2)}`, border: '#f59e0b', text: '#f59e0b' },
+                          { label: 'Total Inventory', val: `${priceData.metrics?.total_stock || 0} ${form.default_uom}`, border: '#3b82f6', text: '#1e293b' },
+                          { label: 'Inventory Value', val: `${priceData.metrics?.currency || 'AED'} ${Number(priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, border: '#10b981', text: '#10b981' }
+                        ].map((m, i) => (
+                          <div key={i} className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: `6px solid ${m.border}`, boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                            <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>{m.label}</p>
+                            <p style={{ fontSize: '1.25rem', fontWeight: 900, color: m.text }}>{m.val}</p>
+                          </div>
+                        ))}
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'stretch' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-                            <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                              <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
-                                <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Tag size={15} style={{ color: '#0ea5e9' }} /> Pricing Details</p>
-                              </div>
-                              <div className="so-card-body" style={{ padding: '0.85rem' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
-                                  {dashboardData?.item_prices && dashboardData.item_prices.length > 0 ? dashboardData.item_prices.map((priceObj, idx) => (
-                                    <div key={idx} style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '0.85rem', border: '1px solid #f1f5f9', textAlign: 'center' }}>
-                                      <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={priceObj.price_list}>
-                                        {priceObj.price_list} <span style={{ color: themeColor }}>({priceObj.uom || 'Nos'})</span>
-                                      </label>
-                                      <p style={{ fontWeight: 900, fontSize: '1rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><span style={{ fontSize: '0.6rem', color: '#64748b' }}>{priceObj.currency || 'AED'}</span>{Number(priceObj.price_list_rate || 0).toFixed(2)}</p>
-                                    </div>
-                                  )) : <p style={{ color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center', gridColumn: 'span 2' }}>No price records found.</p>}
+                      {/* Master Item Dashboard Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', alignItems: 'stretch' }}>
+                        {/* 1. PRICING DETAILS */}
+                        <div className="so-card" style={{ borderRadius: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column' }}>
+                          <div className="so-card-header" style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                            <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Tag size={15} style={{ color: '#0ea5e9' }} /> Pricing Details</p>
+                          </div>
+                          <div className="so-card-body" style={{ padding: '1rem', flex: 1 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
+                              {dashboardData?.item_prices && dashboardData.item_prices.length > 0 ? dashboardData.item_prices.slice(0, 4).map((priceObj, idx) => (
+                                <div key={idx} style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '1rem', border: '1px solid #f1f5f9', textAlign: 'center' }}>
+                                  <label style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase', marginBottom: '4px' }}>
+                                    {priceObj.price_list} ({priceObj.uom || 'Nos'})
+                                  </label>
+                                  <p style={{ fontWeight: 950, fontSize: '1.1rem', color: '#0ea5e9' }}>
+                                    <span style={{ fontSize: '0.6rem', color: '#64748b', marginRight: '4px' }}>AED</span>
+                                    {Number(priceObj.price_list_rate || 0).toFixed(2)}
+                                  </p>
                                 </div>
-                              </div>
+                              )) : <p style={{ color: '#94a3b8', fontSize: '0.7rem', textAlign: 'center' }}>No price records</p>}
                             </div>
-                            <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                              <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
-                                <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Info size={15} style={{ color: '#0ea5e9' }} /> Catalog Info</p>
+                          </div>
+                        </div>
+
+                        {/* 2. CATALOG INFO */}
+                        <div className="so-card" style={{ borderRadius: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column' }}>
+                          <div className="so-card-header" style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                            <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Info size={15} style={{ color: '#0ea5e9' }} /> Catalog Info</p>
+                          </div>
+                          <div className="so-card-body" style={{ padding: '1.25rem', flex: 1, display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                            <div><label style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Group</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.item_group}</p></div>
+                            <div><label style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Brand</label><p style={{ fontWeight: 800, color: themeColor, fontSize: '0.9rem' }}>{form.brand || 'No Brand'}</p></div>
+                            <div><label style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Base UOM</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.default_uom}</p></div>
+                            <div><label style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Valuation</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{Number(form.valuation_rate || 0).toFixed(2)}</p></div>
+                          </div>
+                        </div>
+
+                        {/* 3. UNITS OF MEASURE (Taller Table) */}
+                        <div className="so-card" style={{ borderRadius: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden' }}>
+                          <div className="so-card-header" style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
+                            <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Scale size={15} style={{ color: themeColor }} /> Units System</p>
+                          </div>
+                          <div className="so-card-body" style={{ padding: 0 }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
+                                  <th style={{ padding: '0.75rem 1.25rem', textAlign: 'left', color: '#94a3b8', fontWeight: 900 }}>UOM</th>
+                                  <th style={{ padding: '0.75rem 1.25rem', textAlign: 'right', color: '#94a3b8', fontWeight: 900 }}>FACT.</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(form.uoms && form.uoms.length > 0) ? form.uoms.map((u, i) => (
+                                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '0.85rem 1.25rem', fontWeight: 900, color: '#1e293b' }}>{u.uom}</td>
+                                    <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right', fontWeight: 900, color: themeColor }}>{u.conversion_factor}</td>
+                                  </tr>
+                                )) : (
+                                  <tr><td colSpan="2" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>Single Unit</td></tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* 4. IDENTIFICATION SIDEBAR (Tall Card) */}
+                        <div className="so-card" style={{ gridRow: 'span 2', borderRadius: '1.5rem', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'white' }}>
+                          <div style={{ padding: '1.5rem', display: 'flex', flex: 1, flexDirection: 'column', gap: '1.5rem', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '1.5rem', overflow: 'hidden', padding: '1rem' }}>
+                              {form.imagePreview ? <img src={form.imagePreview} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /> : <Package size={64} style={{ opacity: 0.1 }} />}
+                            </div>
+                            
+                            <div style={{ textAlign: 'center' }}>
+                              <h3 style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Consensus Identity</h3>
+                              <div style={{ marginBottom: '0.75rem' }}>
+                                {dashboardData?.item_details?.custom_barcode_image ? (
+                                  <img src={dashboardData.item_details.custom_barcode_image} style={{ height: '40px', margin: '0 auto' }} />
+                                ) : (
+                                  <div style={{ opacity: 0.1 }}><Barcode size={40} /></div>
+                                )}
                               </div>
-                              <div className="so-card-body" style={{ padding: '0.85rem 1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Group</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.item_group}</p></div>
-                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Brand</label><p style={{ fontWeight: 800, color: themeColor, fontSize: '0.9rem' }}>{form.brand || 'No Brand'}</p></div>
-                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Base UOM</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.default_uom}</p></div>
-                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Type</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.is_variant ? `Variant of ${form.variant_of}` : 'Template'}</p></div>
-                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Valuation Rate</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{Number(form.valuation_rate || 0).toFixed(2)}</p></div>
-                              </div>
+                              <p style={{ fontSize: '0.9rem', fontWeight: 950, color: '#64748b', letterSpacing: '3px', fontFamily: 'monospace' }}>
+                                {dashboardData?.item_details?.barcodes?.[0]?.barcode || dashboardData?.item_details?.item_code || 'UNLINKED'}
+                              </p>
                             </div>
 
-                            {/* UOM Table */}
-                            <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', marginTop: '1.5rem' }}>
-                              <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                                <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Scale size={15} style={{ color: themeColor }} /> Units Of Measure</p>
-                              </div>
-                              <div className="so-card-body" style={{ padding: 0 }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
-                                  <thead>
-                                    <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                                      <th style={{ padding: '0.75rem 1.25rem', textAlign: 'left', color: '#94a3b8', fontWeight: 900 }}>NO.</th>
-                                      <th style={{ padding: '0.75rem 1.25rem', textAlign: 'left', color: '#94a3b8', fontWeight: 900 }}>UOM</th>
-                                      <th style={{ padding: '0.75rem 1.25rem', textAlign: 'right', color: '#94a3b8', fontWeight: 900 }}>CONVERSION FACTOR</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {(form.uoms && form.uoms.length > 0) ? form.uoms.map((u, i) => (
-                                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                        <td style={{ padding: '0.75rem 1.25rem', fontWeight: 700, color: '#cbd5e1' }}>{i + 1}</td>
-                                        <td style={{ padding: '0.75rem 1.25rem', fontWeight: 900, color: '#1e293b' }}>{u.uom}</td>
-                                        <td style={{ padding: '0.75rem 1.25rem', textAlign: 'right', fontWeight: 900, color: themeColor }}>{u.conversion_factor}</td>
-                                      </tr>
-                                    )) : (
-                                      <tr>
-                                        <td colSpan="3" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No alternate UOMs defined</td>
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
+                            <div style={{ width: '100%' }}>
+                              <div style={{ 
+                                padding: '0.85rem', 
+                                borderRadius: '1.25rem', 
+                                background: form.disabled ? '#fee2e2' : '#f0fdf4',
+                                color: form.disabled ? '#ef4444' : '#15803d',
+                                border: `1px solid ${form.disabled ? '#fecaca' : '#bbf7d0'}`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                fontSize: '0.8rem', fontWeight: 900, textTransform: 'uppercase'
+                              }}>
+                                <ShieldCheck size={18} />
+                                {form.disabled ? 'DISABLED' : 'CERTIFIED ACTIVE'}
                               </div>
                             </div>
+                          </div>
                         </div>
-                        <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                          <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}><p className="so-card-title" style={{ fontSize: '0.8rem' }}>Technical Description</p></div>
-                          <div className="so-card-body" style={{ padding: '1rem', flex: 1 }}>
-                            <p style={{ color: '#475569', lineHeight: '1.4', fontSize: '0.85rem' }}>{dashboardData?.item_details?.description || 'Extended description not available.'}</p>
-                            <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
-                              {['Active Stock Tracking', 'Multi-UOM Converison', 'Loyalty Eligible'].map(feat => (
-                                <div key={feat} style={{ background: '#f0fdf4', padding: '0.35rem 0.65rem', borderRadius: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid #bbf7d0' }}>
-                                  <ShieldCheck size={12} style={{ color: '#15803d' }} /><span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#166534' }}>{feat}</span>
+
+                        {/* 5. TECHNICAL DESCRIPTION (Large Span) */}
+                        <div className="so-card" style={{ gridColumn: 'span 3', borderRadius: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+                          <div className="so-card-header" style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                            <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><FileText size={15} style={{ color: '#64748b' }} /> Technical Description & Specifications</p>
+                          </div>
+                          <div className="so-card-body" style={{ padding: '1.25rem' }}>
+                            <p style={{ color: '#64748b', lineHeight: '1.5', fontSize: '0.85rem', marginBottom: '1.25rem' }}>{dashboardData?.item_details?.description || 'No extended documentation available for this item record.'}</p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+                              {['Active Stock Tracking', 'Multi-UOM Conversion', 'Loyalty Program Eligible', 'Verified Master Integrity'].map(feat => (
+                                <div key={feat} style={{ background: '#f1f5f9', padding: '0.35rem 0.65rem', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid #e2e8f0' }}>
+                                  <ShieldCheck size={12} style={{ color: '#10b981' }} /><span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#475569' }}>{feat}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-                        <div className="so-card" style={{ borderRadius: '1.5rem', overflow: 'hidden', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', background: 'white', height: '100%', justifyContent: 'space-between' }}>
-                          {/* Left: Image & Actions */}
-                          <div style={{ display: 'flex', flex: 1 }}>
-                            <div style={{ width: '220px', display: 'flex', flexDirection: 'column', padding: '1rem', borderRight: '1px solid #f1f5f9' }}>
-                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '1rem', overflow: 'hidden', padding: '0.5rem' }}>
-                                {form.imagePreview ? <img src={form.imagePreview} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Package size={48} style={{ opacity: 0.1 }} />}
-                              </div>
-                              <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-                                <div style={{ 
-                                  padding: '0.75rem', 
-                                  borderRadius: '1rem', 
-                                  background: form.disabled ? '#fee2e2' : '#f0fdf4',
-                                  color: form.disabled ? '#ef4444' : '#15803d',
-                                  border: `1px solid ${form.disabled ? '#fecaca' : '#bbf7d0'}`,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px',
-                                  fontSize: '0.9rem',
-                                  fontWeight: 900,
-                                  textTransform: 'uppercase'
-                                }}>
-                                  <AlertCircle size={18} />
-                                  {form.disabled ? 'DISABLED IN ERP' : 'ENABLED / ACTIVE'}
-                                </div>
-                              </div>
-                            </div>
 
-                            {/* Right: Identification */}
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '2rem 1rem', textAlign: 'center', justifyContent: 'center' }}>
-                              <h3 style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>Item Identification</h3>
-                              <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700, marginBottom: '1.5rem' }}>Consistency Verified</p>
-
-                              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                {dashboardData?.item_details?.custom_barcode_image ? (
-                                  <img src={dashboardData.item_details.custom_barcode_image} style={{ width: '100%', maxWidth: '120px', height: 'auto', marginBottom: '0.75rem' }} />
-                                ) : (
-                                  <div style={{ marginBottom: '0.75rem', opacity: 0.15 }}><Barcode size={40} /></div>
-                                )}
-                                <p style={{ fontSize: '0.8rem', fontWeight: 900, color: '#64748b', letterSpacing: '3px', fontFamily: 'monospace' }}>
-                                  {dashboardData?.item_details?.barcodes?.[0]?.barcode || dashboardData?.item_details?.item_code || 'UNLINKED'}
-                                </p>
-                              </div>
-
-                              <div style={{ marginTop: 'auto', padding: '1rem 0 0 0' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: '#10b981', fontWeight: 800, fontSize: '0.7rem' }}>
-                                  <ShieldCheck size={14} /> Certified Master
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -806,10 +778,10 @@ export default function ItemList() {
                     <div style={{ animation: 'fadeIn 0.4s ease', padding: '1rem' }}>
                       {!isPriceDetailView ? (
                         <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                             <div>
-                              <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b' }}>Standard Rates Registry</h3>
-                              <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8' }}>{priceData.prices?.length || 0} active definitions for {editingItemCode}</p>
+                              <h3 style={{ fontSize: '1.25rem', fontWeight: 950, color: '#1e293b' }}>Item Price Registry</h3>
+                              <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8' }}>{priceData.prices?.length || 0} active pricing definitions for {editingItemCode}</p>
                             </div>
                             <button 
                               onClick={() => {
@@ -817,48 +789,56 @@ export default function ItemList() {
                                 setIsPriceDetailView(true);
                               }}
                               className="so-btn-primary" 
-                              style={{ height: '3rem', padding: '0 1.5rem', borderRadius: '0.8rem', background: themeColor, fontSize: '0.75rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px' }}
+                              style={{ height: '3.5rem', padding: '0 2rem', borderRadius: '1.25rem', background: themeColor, fontSize: '0.8rem', fontWeight: 950, display: 'flex', alignItems: 'center', gap: '10px', boxShadow: `0 10px 25px -5px ${themeColor}40` }}
                             >
-                              <Plus size={18} /> INITIALIZE RECORD
+                              <Plus size={20} /> INITIALIZE RECORD
                             </button>
                           </div>
 
-                          <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.03)' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <div className="so-card" style={{ borderRadius: '2rem', overflow: 'hidden', boxShadow: '0 15px 40px -10px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
+                            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
                               <thead>
-                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                  <th style={{ padding: '1.25rem 2rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Price List / UOM</th>
-                                  <th style={{ padding: '1.25rem 2rem', textAlign: 'center', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Type</th>
-                                  <th style={{ padding: '1.25rem 2rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Rate (AED)</th>
-                                  <th style={{ padding: '1.25rem 2rem', width: '100px' }}></th>
+                                <tr style={{ background: '#f8fafc' }}>
+                                  <th style={{ padding: '1.5rem 2.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 950, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Price List / UOM</th>
+                                  <th style={{ padding: '1.5rem 2.5rem', textAlign: 'center', fontSize: '0.7rem', fontWeight: 950, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Scope</th>
+                                  <th style={{ padding: '1.5rem 2.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 950, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Rate (AED)</th>
+                                  <th style={{ padding: '1.5rem 2.5rem', width: '80px' }}></th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {loadingPrices ? (
-                                  <tr><td colSpan="4" style={{ padding: '5rem', textAlign: 'center' }}><Loader2 className="animate-spin" style={{ margin: '0 auto', color: themeColor }} /></td></tr>
+                                  <tr><td colSpan="4" style={{ padding: '8rem', textAlign: 'center' }}><Loader2 className="animate-spin" size={40} style={{ margin: '0 auto', color: themeColor }} /></td></tr>
                                 ) : (priceData?.prices || []).length === 0 ? (
-                                  <tr><td colSpan="4" style={{ padding: '10rem', textAlign: 'center' }}>
-                                    <div style={{ opacity: 0.1, marginBottom: '1rem' }}><Scale size={64} style={{ margin: '0 auto' }} /></div>
-                                    <h4 style={{ fontWeight: 900, color: '#1e293b' }}>No definitions detected</h4>
-                                    <p style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700 }}>Initialize a price list entry to start trading.</p>
+                                  <tr><td colSpan="4" style={{ padding: '12rem', textAlign: 'center' }}>
+                                    <div style={{ opacity: 0.1, marginBottom: '2rem' }}><Scale size={80} style={{ margin: '0 auto' }} /></div>
+                                    <h4 style={{ fontSize: '1.1rem', fontWeight: 950, color: '#1e293b', marginBottom: '8px' }}>No pricing detected</h4>
+                                    <p style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 800 }}>Start by initializing a price list for this item.</p>
                                   </td></tr>
                                 ) : priceData?.prices?.map((p, idx) => (
-                                  <tr key={p.name || idx} onClick={() => navigate(`/itempricelist?item_code=${editingItemCode}`)} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s', cursor: 'pointer' }} className="hover:bg-slate-50">
-                                    <td style={{ padding: '1.5rem 2rem' }}>
-                                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '1rem' }}>{p.price_list}</span>
-                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: themeColor }}>{p.uom}</span>
+                                  <tr key={p.name || idx} onClick={() => { setPriceForm({...p}); setIsPriceDetailView(true); }} style={{ transition: 'all 0.2s', cursor: 'pointer' }} className="hover:bg-slate-50">
+                                    <td style={{ padding: '1.75rem 2.5rem', borderTop: '1px solid #f8fafc' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <span style={{ fontWeight: 950, color: '#1e293b', fontSize: '1.05rem' }}>{p.price_list}</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <Box size={12} style={{ color: themeColor }} />
+                                          <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#64748b' }}>{p.uom}</span>
+                                        </div>
                                       </div>
                                     </td>
-                                    <td style={{ padding: '1.5rem 2rem', textAlign: 'center' }}>
-                                      {p.buying === 1 && <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '100px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase' }}>Buying</span>}
-                                      {p.selling === 1 && <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '100px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', marginLeft: p.buying ? '8px' : 0 }}>Selling</span>}
+                                    <td style={{ padding: '1.75rem 2.5rem', textAlign: 'center', borderTop: '1px solid #f8fafc' }}>
+                                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                        {p.buying === 1 && <span style={{ background: '#fffbeb', color: '#92400e', padding: '6px 14px', borderRadius: '1rem', fontSize: '10px', fontWeight: 950, textTransform: 'uppercase', border: '1px solid #fef3c7' }}>Buying</span>}
+                                        {p.selling === 1 && <span style={{ background: '#f0fdf4', color: '#166534', padding: '6px 14px', borderRadius: '1rem', fontSize: '10px', fontWeight: 950, textTransform: 'uppercase', border: '1px solid #dcfce7' }}>Selling</span>}
+                                      </div>
                                     </td>
-                                    <td style={{ padding: '1.5rem 2rem', textAlign: 'right', fontWeight: 900, color: '#1e293b', fontSize: '1.1rem' }}>
-                                      {Number(p.price_list_rate || 0).toFixed(2)}
+                                    <td style={{ padding: '1.75rem 2.5rem', textAlign: 'right', borderTop: '1px solid #f8fafc' }}>
+                                       <p style={{ fontWeight: 950, color: '#1e293b', fontSize: '1.25rem' }}>{Number(p.price_list_rate || 0).toFixed(2)}</p>
+                                       <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 900 }}>Per {p.uom}</p>
                                     </td>
-                                    <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
-                                      <ChevronRight size={18} style={{ color: '#cbd5e1' }} />
+                                    <td style={{ padding: '1.75rem 2.5rem', textAlign: 'right', borderTop: '1px solid #f8fafc' }}>
+                                      <div style={{ width: '32px', height: '32px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#cbd5e1' }}>
+                                        <ChevronRight size={18} />
+                                      </div>
                                     </td>
                                   </tr>
                                 ))}
@@ -868,65 +848,130 @@ export default function ItemList() {
                         </>
                       ) : (
                         <div style={{ animation: 'slideInRight 0.3s ease' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
-                             <button onClick={() => setIsPriceDetailView(false)} style={{ padding: '0.75rem', background: 'white', borderRadius: '1rem', border: '1px solid #e2e8f0', color: '#64748b' }}><ChevronLeft size={20} /></button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '3rem' }}>
+                             <button onClick={() => setIsPriceDetailView(false)} style={{ width: '3.5rem', height: '3.5rem', background: 'white', borderRadius: '1.25rem', border: '1px solid #e2e8f0', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}><ChevronLeft size={24} /></button>
                              <div>
-                               <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1e293b' }}>Record Details</h3>
-                               <p style={{ fontSize: '0.75rem', color: themeColor, fontWeight: 900 }}>{priceForm.name || 'NEW DRAFT ENTRY'}</p>
+                               <h3 style={{ fontSize: '1.5rem', fontWeight: 950, color: '#1e293b' }}>Price Configuration</h3>
+                               <p style={{ fontSize: '0.85rem', color: themeColor, fontWeight: 950, letterSpacing: '1px' }}>{priceForm.name || 'NEW DRAFT DEFINITION'}</p>
                              </div>
                           </div>
 
-                          <div className="so-card" style={{ borderRadius: '2rem', padding: '3.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.05)' }}>
-                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2.5rem' }}>
+                          <div className="so-card" style={{ borderRadius: '2.5rem', padding: '4rem', boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.08)', border: '1px solid #f1f5f9' }}>
+                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
                                 <div className="so-field">
-                                  <label className="so-label">Price List</label>
-                                  <select 
-                                    className="so-input" 
-                                    value={priceForm.price_list} 
-                                    onChange={e => setPriceForm({ ...priceForm, price_list: e.target.value, buying: e.target.value.toLowerCase().includes('buying') ? 1 : 0, selling: e.target.value.toLowerCase().includes('selling') ? 1 : 0 })}
-                                  >
-                                    <option value="Standard Selling">Standard Selling</option>
-                                    <option value="Standard Buying">Standard Buying</option>
-                                  </select>
+                                  <label className="so-label" style={{ marginBottom: '1rem', display: 'block' }}>Active Price List</label>
+                                  <div style={{ position: 'relative' }}>
+                                    <select 
+                                      className="so-input" 
+                                      style={{ height: '4.5rem', borderRadius: '1.50rem', padding: '0 1.5rem', fontSize: '1rem', fontWeight: 900 }}
+                                      value={priceForm.price_list} 
+                                      onChange={e => setPriceForm({ 
+                                        ...priceForm, 
+                                        price_list: e.target.value, 
+                                        buying: e.target.value.toLowerCase().includes('buying') ? 1 : priceForm.buying, 
+                                        selling: e.target.value.toLowerCase().includes('selling') ? 1 : priceForm.selling 
+                                      })}
+                                    >
+                                      <option value="Standard Selling">Standard Selling (AED)</option>
+                                      <option value="Standard Buying">Standard Buying (AED)</option>
+                                      <option value="Cash Selling">Cash Selling (AED)</option>
+                                      <option value="Retail Buying">Retail Buying (AED)</option>
+                                      <option value="CREATE_NEW">+ Create new Price List...</option>
+                                    </select>
+                                    <ChevronDown size={20} style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#94a3b8' }} />
+                                  </div>
                                 </div>
                                 <div className="so-field">
-                                  <label className="so-label">UOM (Unit of Measure)</label>
-                                  <input type="text" className="so-input" value={priceForm.uom} onChange={e => setPriceForm({ ...priceForm, uom: e.target.value })} placeholder="e.g. Nos" />
+                                  <label className="so-label" style={{ marginBottom: '1rem', display: 'block' }}>Target Unit (UOM)</label>
+                                  <div style={{ position: 'relative' }}>
+                                    <select 
+                                      className="so-input" 
+                                      style={{ height: '4.5rem', borderRadius: '1.50rem', padding: '0 1.5rem', fontSize: '1rem', fontWeight: 900 }}
+                                      value={priceForm.uom} 
+                                      onChange={e => setPriceForm({ ...priceForm, uom: e.target.value })}
+                                    >
+                                      {[form.default_uom, ...(form.uoms || []).map(u => u.uom)].filter((v, i, a) => v && a.indexOf(v) === i).map(u => (
+                                        <option key={u} value={u}>{u}</option>
+                                      ))}
+                                    </select>
+                                    <ChevronDown size={20} style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#94a3b8' }} />
+                                  </div>
                                 </div>
+                                
                                 <div className="so-field" style={{ gridColumn: 'span 2' }}>
-                                  <label className="so-label">Price List Rate ({(priceForm.currency || 'AED')})</label>
-                                  <input 
-                                    type="number" 
-                                    className="so-input" 
-                                    style={{ height: '5rem', fontSize: '2rem', fontWeight: 900, color: themeColor }}
-                                    value={priceForm.price_list_rate} 
-                                    onChange={e => setPriceForm({ ...priceForm, price_list_rate: e.target.value })} 
-                                  />
+                                  <label className="so-label" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}><Tag size={16} /> Base Rate Value</label>
+                                  <div style={{ position: 'relative' }}>
+                                    <input 
+                                      type="number" 
+                                      className="so-input" 
+                                      style={{ height: '6.5rem', fontSize: '3rem', fontWeight: 950, color: themeColor, textAlign: 'center', borderRadius: '2rem' }}
+                                      value={priceForm.price_list_rate} 
+                                      onChange={e => setPriceForm({ ...priceForm, price_list_rate: Number(e.target.value) })} 
+                                    />
+                                    <span style={{ position: 'absolute', left: '2rem', top: '50%', transform: 'translateY(-50%)', fontSize: '1.25rem', fontWeight: 950, color: '#cbd5e1' }}>AED</span>
+                                  </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: '1.5rem', gridColumn: 'span 2' }}>
-                                  <div style={{ flex: 1, padding: '1.5rem', border: '2px solid #f1f5f9', borderRadius: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div><p style={{ fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Buying Permitted</p><p style={{ fontWeight: 800, color: priceForm.buying ? '#d97706' : '#64748b' }}>{priceForm.buying ? 'ALLOWED' : 'DISABLED'}</p></div>
-                                    <input type="checkbox" checked={priceForm.buying} onChange={e => setPriceForm({ ...priceForm, buying: e.target.checked ? 1 : 0 })} />
-                                  </div>
-                                  <div style={{ flex: 1, padding: '1.5rem', border: '2px solid #f1f5f9', borderRadius: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div><p style={{ fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Selling Permitted</p><p style={{ fontWeight: 800, color: priceForm.selling ? '#16a34a' : '#64748b' }}>{priceForm.selling ? 'ALLOWED' : 'DISABLED'}</p></div>
-                                    <input type="checkbox" checked={priceForm.selling} onChange={e => setPriceForm({ ...priceForm, selling: e.target.checked ? 1 : 0 })} />
-                                  </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', gridColumn: 'span 2' }}>
+                                  <button 
+                                    onClick={() => setPriceForm({ ...priceForm, buying: priceForm.buying ? 0 : 1 })}
+                                    style={{ 
+                                      padding: '2rem', 
+                                      border: priceForm.buying ? `3px solid #fbbf24` : '2px solid #f1f5f9', 
+                                      borderRadius: '2rem', 
+                                      background: priceForm.buying ? '#fffbeb' : 'white',
+                                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                      transition: 'all 0.2s', cursor: 'pointer'
+                                    }}
+                                  >
+                                    <div style={{ textAlign: 'left' }}>
+                                      <p style={{ fontSize: '0.7rem', fontWeight: 950, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Buying Enabled</p>
+                                      <p style={{ fontWeight: 950, color: priceForm.buying ? '#92400e' : '#cbd5e1', fontSize: '1.1rem' }}>{priceForm.buying ? 'ACTIVE' : 'INACTIVE'}</p>
+                                    </div>
+                                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', border: '2px solid #e2e8f0', background: priceForm.buying ? '#fbbf24' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      {priceForm.buying === 1 && <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'white' }}></div>}
+                                    </div>
+                                  </button>
+                                  <button 
+                                    onClick={() => setPriceForm({ ...priceForm, selling: priceForm.selling ? 0 : 1 })}
+                                    style={{ 
+                                      padding: '2rem', 
+                                      border: priceForm.selling ? `3px solid #10b981` : '2px solid #f1f5f9', 
+                                      borderRadius: '2rem', 
+                                      background: priceForm.selling ? '#f0fdf4' : 'white',
+                                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                      transition: 'all 0.2s', cursor: 'pointer'
+                                    }}
+                                  >
+                                    <div style={{ textAlign: 'left' }}>
+                                      <p style={{ fontSize: '0.7rem', fontWeight: 950, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Selling Enabled</p>
+                                      <p style={{ fontWeight: 950, color: priceForm.selling ? '#065f46' : '#cbd5e1', fontSize: '1.1rem' }}>{priceForm.selling ? 'ACTIVE' : 'INACTIVE'}</p>
+                                    </div>
+                                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', border: '2px solid #e2e8f0', background: priceForm.selling ? '#10b981' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      {priceForm.selling === 1 && <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'white' }}></div>}
+                                    </div>
+                                  </button>
                                 </div>
                              </div>
 
-                             <div style={{ marginTop: '4rem', display: 'flex', gap: '1.5rem', justifyContent: 'flex-end' }}>
-                               <button onClick={() => setIsPriceDetailView(false)} className="so-btn-secondary" style={{ padding: '0 3rem', height: '3.5rem' }}>Discard</button>
+                             <div style={{ marginTop: '5rem', display: 'flex', gap: '2rem', justifyContent: 'flex-end' }}>
+                               <button 
+                                 onClick={() => setIsPriceDetailView(false)} 
+                                 className="so-btn-secondary" 
+                                 style={{ padding: '0 4rem', height: '4.5rem', borderRadius: '1.5rem', fontWeight: 950, fontSize: '1rem' }}
+                               >
+                                 Discard
+                               </button>
                                <button 
                                  className="so-btn-primary" 
-                                 style={{ padding: '0 4rem', height: '3.5rem', background: themeColor, fontWeight: 900, fontSize: '0.9rem' }}
+                                 style={{ padding: '0 5rem', height: '4.5rem', background: themeColor, borderRadius: '1.5rem', fontWeight: 950, fontSize: '1.1rem', boxShadow: `0 15px 30px -5px ${themeColor}40` }}
                                  onClick={async () => {
                                    await handleSavePrice();
                                    setIsPriceDetailView(false);
                                  }}
                                  disabled={saving}
                                >
-                                 {saving ? 'Synchronizing...' : (priceForm.name ? 'Commit Changes' : 'Publish Detail')}
+                                 {saving ? 'Synchronizing...' : (priceForm.name ? 'Update Master Record' : 'Publish Detail')}
                                </button>
                              </div>
                           </div>
@@ -1103,7 +1148,20 @@ export default function ItemList() {
                     <div className="so-form-grid">
                       <div className="so-field"><label className="so-label">Item Code</label><input type="text" value={form.item_code} onChange={e => setForm({ ...form, item_code: e.target.value })} className="so-input" disabled={isEditMode} /></div>
                       <div className="so-field"><label className="so-label">Item Name</label><input type="text" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} className="so-input" /></div>
-                      <div className="so-field"><label className="so-label">Item Group</label><select value={form.item_group} onChange={e => setForm({ ...form, item_group: e.target.value })} className="so-input">{itemGroups.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}</select></div>
+                      <div className="so-field">
+                        <label className="so-label">Item Group</label>
+                        <div style={{ position: 'relative' }}>
+                          <select 
+                             value={form.item_group} 
+                             onChange={e => setForm({ ...form, item_group: e.target.value })} 
+                             className="so-input"
+                          >
+                             {itemGroups.length === 0 && <option value="">Loading groups...</option>}
+                             {itemGroups.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                          </select>
+                          <ChevronDown size={18} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#94a3b8' }} />
+                        </div>
+                      </div>
                       <div className="so-field"><label className="so-label">Base UOM</label><input type="text" value={form.default_uom} onChange={e => setForm({ ...form, default_uom: e.target.value })} className="so-input" /></div>
                       <div className="so-field" style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
                         <input type="checkbox" checked={form.disabled} onChange={e => setForm({ ...form, disabled: e.target.checked })} style={{ width: '18px', height: '18px' }} id="chk-disabled" />
