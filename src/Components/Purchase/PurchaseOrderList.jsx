@@ -32,7 +32,7 @@ const PurchaseOrderList = ({ onNew }) => {
 
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = '';
-  const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+  const API_PATH = '/api/method/kyle_retail.retail_api.api';
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -80,7 +80,7 @@ const PurchaseOrderList = ({ onNew }) => {
     );
   };
 
-  const STATUS_TABS = ['All', 'Draft', 'Submitted', 'To Bill', 'To Receive and Bill', 'Completed'];
+  const STATUS_TABS = ['All', 'Draft', 'Submitted', 'To Bill', 'To Receive and Bill', 'Completed', 'Cancelled'];
 
   return (
     <div className="so-page" style={{ minHeight: '100vh' }}>
@@ -267,16 +267,23 @@ const PurchaseOrderList = ({ onNew }) => {
                       </div>
                     </td>
 
-                    {/* Analytics */}
+                    {/* Analytics / Progress */}
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1e293b' }}>
-                          {parseFloat(po.total_qty || 0).toFixed(0)}
-                        </span>
-                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Products</span>
-                      </div>
-                      <div style={{ width: '64px', height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden', marginTop: '0.35rem' }}>
-                        <div style={{ height: '100%', background: themeColor, borderRadius: '9999px', width: `${Math.min(100, (po.total_qty / 100) * 100)}%` }} />
+                      <div className="flex flex-col gap-1.5 min-w-[120px]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-slate-400 w-8">RCVD:</span>
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${po.per_received || 0}%` }} />
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-600">{Math.round(po.per_received || 0)}%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-slate-400 w-8">BILL:</span>
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-sky-500 rounded-full" style={{ width: `${po.per_billed || 0}%` }} />
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-600">{Math.round(po.per_billed || 0)}%</span>
+                        </div>
                       </div>
                     </td>
 
