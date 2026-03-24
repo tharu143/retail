@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import './SalesOrder.css';
 import NavBar from '../Nav/NavBar';
 
-const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+const API_PATH = '/api/method/kyle_retail.retail_api.api';
 const RESOURCE_API = '/api/resource/Purchase Order';
 
 function PurchaseOrderLists() {
@@ -48,17 +48,17 @@ function PurchaseOrderLists() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_PATH}.get_purchase_orders`, {
+      const res = await axios.get(`${API_PATH}.get_purchase_order_list_retail`, {
         params: { limit: 2000, limit_page_length: 2000 },
         withCredentials: true,
         headers: { 'X-Frappe-SID': getSession() }
       });
       const msg = res.data?.message;
-      // API returns message as direct array
-      if (Array.isArray(msg)) {
-        setOrders(msg);
-      } else if (msg?.success && Array.isArray(msg?.data)) {
+      // Handle new API response structure: { message: { status: "success", data: [...] } }
+      if (msg?.status === "success" && Array.isArray(msg?.data)) {
         setOrders(msg.data);
+      } else if (Array.isArray(msg)) {
+        setOrders(msg);
       } else {
         setOrders([]);
       }
