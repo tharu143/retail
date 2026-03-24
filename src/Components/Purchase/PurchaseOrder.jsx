@@ -431,7 +431,13 @@ function PurchaseOrder() {
       });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
-      setTaxTemplates(data.message || []);
+      const templates = data.message || [];
+      setTaxTemplates(templates);
+      
+      // Default to UAE VAT 5% for new POs if not already set
+      if (!formData.name && !formData.taxes_and_charges && templates.some(t => t.name === 'UAE VAT 5%')) {
+        onTaxChange('UAE VAT 5%');
+      }
     } catch (err) {
       console.error('Tax templates error:', err);
     }
@@ -1244,26 +1250,30 @@ function PurchaseOrder() {
             
             <div className="flex flex-col gap-6">
               {/* Primary Actions for Submitted POs */}
-              {formData.docstatus === 1 && (
+              {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
                 <div className="flex flex-col gap-3 p-3 bg-slate-50/50 rounded-lg border border-slate-100">
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Create New Record from PO</span>
                   <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={() => handleCreateFlow('receipt')}
-                      disabled={loadingLinks}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all shadow-emerald-200 active:scale-95 disabled:opacity-50"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Create Purchase Receipt
-                    </button>
-                    <button
-                      onClick={() => handleCreateFlow('invoice')}
-                      disabled={loadingLinks}
-                      className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all shadow-sky-200 active:scale-95 disabled:opacity-50"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Create Purchase Invoice
-                    </button>
+                    {formData.per_received < 100 && (
+                      <button
+                        onClick={() => handleCreateFlow('receipt')}
+                        disabled={loadingLinks}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all shadow-emerald-200 active:scale-95 disabled:opacity-50"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Create Purchase Receipt
+                      </button>
+                    )}
+                    {formData.per_billed < 100 && (
+                      <button
+                        onClick={() => handleCreateFlow('invoice')}
+                        disabled={loadingLinks}
+                        className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all shadow-sky-200 active:scale-95 disabled:opacity-50"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Create Purchase Invoice
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1276,27 +1286,27 @@ function PurchaseOrder() {
                       <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">{catName}</span>
                       <div className="h-px flex-1 bg-slate-50" />
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-col gap-2">
                       {Object.entries(doctypes).map(([dt, list]) => {
                         const count = list.length;
                         if (count === 0) return null;
                         return (
-                          <div key={dt} className="flex flex-col gap-1.5">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-700">
+                          <div key={dt} className="flex items-center justify-between gap-4 px-3 py-2 bg-white border border-slate-100 rounded-lg hover:border-slate-200 transition-all">
+                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-700">
                               {dt}
-                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[9px]">{count}</span>
+                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px]">{count}</span>
                             </div>
-                            <div className="flex flex-wrap gap-1.5 ml-1">
+                            <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
                               {list.map(item => {
                                 const id = typeof item === 'object' ? item.name : item;
                                 const s = linkedDocStatuses[id];
                                 const isSub = s?.docstatus === 1;
                                 return (
-                                  <div key={id} className={`px-2 py-0.5 rounded-md border text-[8px] font-black flex items-center gap-1.5 ${isSub ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
-                                    <Box size={8} className="opacity-50" />
+                                  <div key={id} className={`px-2 py-0.5 rounded-md border text-[8.5px] font-black flex items-center gap-1.5 ${isSub ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
+                                    <Box size={9} className="opacity-50" />
                                     {id}
                                     {!isSub && (dt === 'Purchase Receipt' || dt === 'Purchase Invoice') && (
-                                      <button onClick={() => handleSubmitDoc(id, dt)} className="ml-1 px-1 bg-orange-500 text-white rounded hover:bg-orange-600">Submit</button>
+                                      <button onClick={() => handleSubmitDoc(id, dt)} className="ml-1 px-1.5 bg-orange-500 text-white rounded hover:bg-orange-600 text-[8px]">SUBMIT</button>
                                     )}
                                   </div>
                                 );
@@ -1540,7 +1550,7 @@ function PurchaseOrder() {
                     <thead>
                       <tr>
                         <th className="purchase-th !pl-3 w-[140px] text-center">Scanner</th>
-                        <th className="purchase-th min-w-[240px]">Item Description</th>
+                        <th className="purchase-th min-w-[240px]">Item Code</th>
                         <th className="purchase-th w-[90px] text-center">Box Qty</th>
                         <th className="purchase-th w-[90px] text-center">Pcs/Box</th>
                         <th className="purchase-th w-[140px] text-center">Box Price</th>
