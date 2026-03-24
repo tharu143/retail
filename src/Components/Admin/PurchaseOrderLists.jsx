@@ -346,28 +346,8 @@ function PurchaseOrderLists() {
                                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                 onClick={() => setShowActions(null)}
                               >
-                                <Eye size={13} /> View / Edit
+                                <Eye size={13} /> View / Edit Record
                               </a>
-                              {po.status === 'Draft' && (
-                                <button
-                                  onClick={() => handleDelete(po.name)}
-                                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: '#ef4444' }}
-                                  onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}
-                                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                >
-                                  <Trash2 size={13} /> Delete
-                                </button>
-                              )}
-                              {po.status !== 'Draft' && po.status !== 'Cancelled' && (
-                                <button
-                                  onClick={() => handleCancel(po.name)}
-                                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: '#ef4444' }}
-                                  onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}
-                                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                >
-                                  <X size={13} /> Cancel
-                                </button>
-                              )}
                             </div>
                           )}
                         </td>
