@@ -235,6 +235,27 @@ export default function ItemList() {
     }
   };
 
+  const fetchPriceList = async (code) => {
+    try {
+      setLoadingPrices(true);
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_prices', {
+        params: { item_code: code },
+        withCredentials: true
+      });
+      const result = res.data.message;
+      setPriceData({
+        prices: result?.data || [],
+        metrics: result?.metrics || {},
+        warehouse_breakdown: result?.warehouse_breakdown || []
+      });
+    } catch (err) {
+      console.error('Fetch Prices Error:', err);
+      setPriceData({ prices: [], metrics: {}, warehouse_breakdown: [] });
+    } finally {
+      setLoadingPrices(false);
+    }
+  };
+
   const handleSavePrice = async () => {
     try {
       setSaving(true);
