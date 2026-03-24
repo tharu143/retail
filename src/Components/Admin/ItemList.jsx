@@ -1104,6 +1104,10 @@ export default function ItemList() {
                       <div className="so-field"><label className="so-label">Item Name</label><input type="text" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} className="so-input" /></div>
                       <div className="so-field"><label className="so-label">Item Group</label><select value={form.item_group} onChange={e => setForm({ ...form, item_group: e.target.value })} className="so-input">{itemGroups.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}</select></div>
                       <div className="so-field"><label className="so-label">Base UOM</label><input type="text" value={form.default_uom} onChange={e => setForm({ ...form, default_uom: e.target.value })} className="so-input" /></div>
+                      <div className="so-field" style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                        <input type="checkbox" checked={form.disabled} onChange={e => setForm({ ...form, disabled: e.target.checked })} style={{ width: '18px', height: '18px' }} id="chk-disabled" />
+                        <label htmlFor="chk-disabled" style={{ fontSize: '13px', fontWeight: 600, color: '#444' }}>Disabled (Hide in POS)</label>
+                      </div>
                     </div>
                   </div>
                 </div>
