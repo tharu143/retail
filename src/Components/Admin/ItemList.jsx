@@ -87,9 +87,10 @@ export default function ItemList() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     item_code: '', item_name: '', item_group: '', disabled: false,
-    maintain_stock: true, has_variants: false,
-    opening_stock: 0, valuation_rate: 0, standard_selling_rate: 0,
-    default_uom: 'Nos', description: '', image: null, imagePreview: null
+    maintain_stock: true, has_variants: false, is_variant: false, variant_of: '',
+    opening_stock: 0, valuation_rate: 0, standard_selling_rate: 0, brand: '',
+    default_uom: 'Nos', description: '', image: null, imagePreview: null,
+    uoms: []
   });
   const [saving, setSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -201,12 +202,21 @@ export default function ItemList() {
     try {
       setLoadingDashboard(true);
       setLoadingWarehouse(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', {
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
         params: { item_code: code },
         withCredentials: true
       });
       const result = res.data?.message || {};
       setDashboardData(result);
+      setForm(prev => ({
+        ...prev,
+        brand: result.brand || '',
+        valuation_rate: result.valuation_rate || 0,
+        is_variant: result.is_variant === 1,
+        variant_of: result.variant_of || '',
+        uoms: result.uoms || [],
+        description: result.description || prev.description
+      }));
       setWarehouseDetails(result.stock_status?.warehouse_details || []);
     } catch (err) {
       console.error('Ultimate Fetch Error:', err);
@@ -645,15 +655,48 @@ export default function ItemList() {
                                 </div>
                               </div>
                             </div>
-                          <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                            <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
-                              <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Info size={15} style={{ color: '#0ea5e9' }} /> Catalog Info</p>
+                            <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                              <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                                <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Info size={15} style={{ color: '#0ea5e9' }} /> Catalog Info</p>
+                              </div>
+                              <div className="so-card-body" style={{ padding: '0.85rem 1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Group</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.item_group}</p></div>
+                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Brand</label><p style={{ fontWeight: 800, color: themeColor, fontSize: '0.9rem' }}>{form.brand || 'No Brand'}</p></div>
+                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Base UOM</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.default_uom}</p></div>
+                                <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Type</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.is_variant ? `Variant of ${form.variant_of}` : 'Template'}</p></div>
+                              </div>
                             </div>
-                            <div className="so-card-body" style={{ padding: '0.85rem 1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                              <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Group</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.item_group}</p></div>
-                              <div><label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Base UOM</label><p style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{form.default_uom}</p></div>
+
+                            {/* UOM Table */}
+                            <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', marginTop: '1.5rem' }}>
+                              <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
+                                <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Scale size={15} style={{ color: themeColor }} /> Units Of Measure</p>
+                              </div>
+                              <div className="so-card-body" style={{ padding: 0 }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                                  <thead>
+                                    <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
+                                      <th style={{ padding: '0.75rem 1.25rem', textAlign: 'left', color: '#94a3b8', fontWeight: 900 }}>NO.</th>
+                                      <th style={{ padding: '0.75rem 1.25rem', textAlign: 'left', color: '#94a3b8', fontWeight: 900 }}>UOM</th>
+                                      <th style={{ padding: '0.75rem 1.25rem', textAlign: 'right', color: '#94a3b8', fontWeight: 900 }}>CONVERSION FACTOR</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(form.uoms && form.uoms.length > 0) ? form.uoms.map((u, i) => (
+                                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                        <td style={{ padding: '0.75rem 1.25rem', fontWeight: 700, color: '#cbd5e1' }}>{i + 1}</td>
+                                        <td style={{ padding: '0.75rem 1.25rem', fontWeight: 900, color: '#1e293b' }}>{u.uom}</td>
+                                        <td style={{ padding: '0.75rem 1.25rem', textAlign: 'right', fontWeight: 900, color: themeColor }}>{u.conversion_factor}</td>
+                                      </tr>
+                                    )) : (
+                                      <tr>
+                                        <td colSpan="3" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No alternate UOMs defined</td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
-                          </div>
                         </div>
                         <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', flex: 1, display: 'flex', flexDirection: 'column' }}>
                           <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}><p className="so-card-title" style={{ fontSize: '0.8rem' }}>Technical Description</p></div>
