@@ -575,26 +575,63 @@ export default function ItemList() {
               <div style={{ width: '100%', animation: 'fadeIn 0.5s ease' }}>
                 <div style={{ width: '100%', padding: '0 0.5rem' }}>
                   {activeTab === 'General' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'stretch' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-                          <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                            <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
-                              <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Tag size={15} style={{ color: '#0ea5e9' }} /> Pricing Details</p>
-                            </div>
-                            <div className="so-card-body" style={{ padding: '0.85rem' }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
-                                {dashboardData?.item_prices && dashboardData.item_prices.length > 0 ? dashboardData.item_prices.map((priceObj, idx) => (
-                                  <div key={idx} style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '0.85rem', border: '1px solid #f1f5f9', textAlign: 'center' }}>
-                                    <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={priceObj.price_list}>
-                                      {priceObj.price_list} <span style={{ color: themeColor }}>({priceObj.uom || 'Nos'})</span>
-                                    </label>
-                                    <p style={{ fontWeight: 900, fontSize: '1rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><span style={{ fontSize: '0.6rem', color: '#64748b' }}>{priceObj.currency || 'AED'}</span>{Number(priceObj.price_list_rate || 0).toFixed(2)}</p>
-                                  </div>
-                                )) : <p style={{ color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center', gridColumn: 'span 2' }}>No price records found.</p>}
+                    <div style={{ animation: 'fadeIn 0.5s ease', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      {/* Metric Summary Bar */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
+                        {/* Avg Buying Card */}
+                        <div className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: `6px solid ${themeColor}`, boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                          <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Average Buying</p>
+                          <p style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1e293b' }}>
+                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
+                            {Number(priceData.metrics?.average_buying_price || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        {/* Last Buying Card */}
+                        <div className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: '6px solid #f59e0b', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                          <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Last Buying Price</p>
+                          <p style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f59e0b' }}>
+                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
+                            {Number(priceData.metrics?.last_buying_price || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        {/* Total Stock Card */}
+                        <div className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: '6px solid #3b82f6', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                          <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Total Inventory</p>
+                          <p style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1e293b' }}>
+                            {priceData.metrics?.total_stock || 0}
+                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: '6px' }}>{form.default_uom}</span>
+                          </p>
+                        </div>
+                        {/* Stock Value Card */}
+                        <div className="so-card" style={{ padding: '1rem 1.5rem', borderRadius: '1.25rem', borderLeft: '6px solid #10b981', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                          <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Inventory Value</p>
+                          <p style={{ fontSize: '1.25rem', fontWeight: 900, color: '#10b981' }}>
+                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
+                            {Number(priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'stretch' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                            <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                              <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                                <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Tag size={15} style={{ color: '#0ea5e9' }} /> Pricing Details</p>
+                              </div>
+                              <div className="so-card-body" style={{ padding: '0.85rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                                  {dashboardData?.item_prices && dashboardData.item_prices.length > 0 ? dashboardData.item_prices.map((priceObj, idx) => (
+                                    <div key={idx} style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '0.85rem', border: '1px solid #f1f5f9', textAlign: 'center' }}>
+                                      <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', display: 'block', textTransform: 'uppercase', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={priceObj.price_list}>
+                                        {priceObj.price_list} <span style={{ color: themeColor }}>({priceObj.uom || 'Nos'})</span>
+                                      </label>
+                                      <p style={{ fontWeight: 900, fontSize: '1rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><span style={{ fontSize: '0.6rem', color: '#64748b' }}>{priceObj.currency || 'AED'}</span>{Number(priceObj.price_list_rate || 0).toFixed(2)}</p>
+                                    </div>
+                                  )) : <p style={{ color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center', gridColumn: 'span 2' }}>No price records found.</p>}
+                                </div>
                               </div>
                             </div>
-                          </div>
                           <div className="so-card" style={{ borderRadius: '1.25rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                             <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
                               <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}><Info size={15} style={{ color: '#0ea5e9' }} /> Catalog Info</p>
@@ -662,47 +699,13 @@ export default function ItemList() {
                             </div>
                           </div>
                         </div>
+                        </div>
                       </div>
                     </div>
                   )}
 
                   {activeTab === 'Prices' && (
                     <div style={{ animation: 'fadeIn 0.4s ease', padding: '1rem' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
-                        {/* Avg Buying Card */}
-                        <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: `6px solid ${themeColor}` }}>
-                          <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Average Buying</p>
-                          <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1e293b' }}>
-                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
-                            {Number(priceData.metrics?.average_buying_price || 0).toFixed(2)}
-                          </p>
-                        </div>
-                        {/* Last Buying Card */}
-                        <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #f59e0b' }}>
-                          <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Last Buying Price</p>
-                          <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f59e0b' }}>
-                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
-                            {Number(priceData.metrics?.last_buying_price || 0).toFixed(2)}
-                          </p>
-                        </div>
-                        {/* Total Stock Card */}
-                        <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #3b82f6' }}>
-                          <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Total Inventory</p>
-                          <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1e293b' }}>
-                            {priceData.metrics?.total_stock || 0}
-                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginLeft: '6px' }}>{form.default_uom}</span>
-                          </p>
-                        </div>
-                        {/* Stock Value Card */}
-                        <div className="so-card" style={{ padding: '1.5rem', borderRadius: '1.5rem', borderLeft: '6px solid #10b981' }}>
-                          <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Inventory Value</p>
-                          <p style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981' }}>
-                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '4px' }}>{priceData.metrics?.currency || 'AED'}</span>
-                            {Number(priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                      </div>
-
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <div>
                           <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b' }}>Standard Rates List</h3>
