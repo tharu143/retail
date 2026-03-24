@@ -619,7 +619,6 @@ export default function ItemList() {
                   <Edit2 size={13} /> Edit Master
                 </button>
               )}
-              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#fee2e2', color: '#ef4444', marginLeft: '0.5rem' }}><X size={22} /></button>
             </div>
           </div>
           <div className="so-modal-body" style={{ flex: 1, padding: '1.25rem 2rem', background: '#f8fafc', overflowY: 'auto' }}>
