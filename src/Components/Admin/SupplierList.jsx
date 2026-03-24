@@ -1,4 +1,3 @@
-// src/Components/Admin/SupplierList.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, Save, Upload, Building2, ChevronLeft,
@@ -322,173 +321,297 @@ export default function SupplierList() {
       </div>
 
       {showForm && (
-        <div className="so-full-screen-view" style={{ position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', animation: 'soModalIn 0.3s ease-out' }}>
-          <div className="so-modal-header" style={{ padding: '1rem 2.5rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.6rem', borderRadius: '0.75rem' }}><ChevronLeft size={22} /></button>
+        <div className="fixed inset-0 bg-gray-50 z-[1000] flex flex-col">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleCloseForm}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ChevronLeft size={20} className="text-gray-500" />
+              </button>
               <div>
-                <h2 className="so-modal-title" style={{ fontSize: '1.4rem', fontWeight: 900 }}>{isViewMode ? form.supplier_name : (isEditMode ? 'Edit Supplier Record' : 'Onboard New Supplier')}</h2>
-                {isViewMode && <p style={{ fontSize: '0.75rem', color: themeColor, fontWeight: 800, textTransform: 'uppercase' }}>{editingSupplierName}</p>}
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {isViewMode ? form.supplier_name : (isEditMode ? 'Edit Supplier Record' : 'Onboard New Supplier')}
+                </h2>
+                {isViewMode && (
+                  <p className="text-xs text-gray-500 mt-0.5">{editingSupplierName}</p>
+                )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#fee2e2', color: '#ef4444', borderRadius: '0.75rem', padding: '0.6rem' }}><X size={22} /></button>
-            </div>
+            <button
+              onClick={handleCloseForm}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X size={20} className="text-gray-500" />
+            </button>
           </div>
 
-          <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', background: '#f8fafc', padding: '3.5rem' }}>
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto">
             {isViewMode ? (
-              <div style={{ width: '100%', animation: 'fadeIn 0.5s ease' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '3.5rem', borderBottom: '2.5px solid #e2e8f0', marginBottom: '3.5rem', background: 'white', position: 'sticky', top: '-3.5rem', zIndex: 10, padding: '1rem 0' }}>
-                  {['Dashboard', 'General', 'Connections'].map(tab => (
-                    <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '1.25rem 2rem', fontWeight: 900, fontSize: '0.95rem', color: activeTab === tab ? themeColor : '#94a3b8', borderBottom: activeTab === tab ? `4px solid ${themeColor}` : '4px solid transparent', background: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px' }}>{tab}</button>
-                  ))}
+              // View Mode Content
+              <div className="max-w-7xl mx-auto px-8 py-8">
+                {/* Tabs */}
+                <div className="border-b border-gray-200 mb-8">
+                  <div className="flex gap-8">
+                    {['Dashboard', 'General', 'Connections'].map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`pb-3 text-sm font-medium transition-colors ${activeTab === tab
+                            ? 'border-b-2 border-blue-600 text-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 4rem' }}>
-                  {activeTab === 'Dashboard' && (
-                    <div style={{ animation: 'fadeIn 0.4s ease' }}>
-                      {loadingDashboard ? (
-                        <div style={{ padding: '10rem', textAlign: 'center' }}><Loader2 size={48} className="so-spinner" style={{ margin: '0 auto', color: themeColor }} /></div>
-                      ) : dashboardData?.connections ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
-                          {Object.entries(dashboardData.connections).map(([category, links]) => {
-                            const rows = [];
-                            if (typeof links === 'object' && links !== null) {
-                              Object.entries(links).forEach(([k, v]) => {
-                                if (Array.isArray(v)) {
-                                  rows.push({ label: k, data: v });
-                                } else if (typeof v === 'object' && v !== null) {
-                                  Object.entries(v).forEach(([k2, v2]) => {
-                                    if (Array.isArray(v2)) rows.push({ label: k2, data: v2 });
-                                  });
-                                }
-                              });
-                            }
+                {/* Dashboard Tab */}
+                {activeTab === 'Dashboard' && (
+                  <div>
+                    {loadingDashboard ? (
+                      <div className="flex justify-center py-20">
+                        <Loader2 size={40} className="animate-spin text-gray-400" />
+                      </div>
+                    ) : dashboardData?.connections ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {Object.entries(dashboardData.connections).map(([category, links]) => {
+                          const rows = [];
+                          if (typeof links === 'object' && links !== null) {
+                            Object.entries(links).forEach(([k, v]) => {
+                              if (Array.isArray(v)) rows.push({ label: k, data: v });
+                            });
+                          }
+                          if (rows.length === 0) return null;
 
-                            if (rows.length === 0) return null;
-
-                            return (
-                              <div key={category} className="so-card" style={{ borderRadius: '2rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', overflow: 'hidden' }}>
-                                <div className="so-card-header" style={{ padding: '1.25rem 2rem', background: '#f8fafc', borderBottom: `4px solid ${themeColor}20` }}>
-                                  <p className="so-card-title" style={{ fontWeight: 900, textTransform: 'uppercase', color: '#1e293b', fontSize: '0.85rem', letterSpacing: '1px' }}>{category}</p>
-                                </div>
-                                <div className="so-card-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                  {rows.map((row, idx) => {
-                                    const routeMap = {
-                                      'Purchase Order': 'purchaseorderlist',
-                                      'Purchase Receipt': 'purchasereceiptlist',
-                                      'Purchase Invoice': 'purchaseinvoicelist',
-                                      'Payment Entry': 'paymententrylist',
-                                      'Journal Entry': 'journalentrylist',
-                                      'Item Price': 'itempricelist',
-                                      'Pricing Rule': 'pricingrulelist',
-                                      'Contact': 'contactlist',
-                                      'Address': 'addresslist'
-                                    };
-                                    const routeName = routeMap[row.label] || '';
-
-                                    return (
-                                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        <div onClick={() => { if (routeName) window.location.href = `/#/${routeName}?supplier=${encodeURIComponent(editingSupplierName)}`; }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.75rem', background: '#ffffff', borderRadius: '1.5rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', cursor: routeName ? 'pointer' : 'default', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = themeColor} onMouseLeave={e => e.currentTarget.style.borderColor = '#e2e8f0'}>
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                            <span style={{ fontWeight: 900, color: '#1e293b', fontSize: '0.9rem' }}>{row.label}</span>
-                                            {routeName ? <span style={{ fontSize: '0.7rem', color: themeColor, fontWeight: 700 }}>View List →</span> : <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>Unmapped</span>}
-                                          </div>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                            <span style={{ fontWeight: 900, color: 'white', background: themeColor, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1rem', fontSize: '1rem', boxShadow: `0 4px 10px ${themeColor}40` }}>
-                                              {row.data.length}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                          return (
+                            <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                              <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
+                                <h4 className="text-sm font-semibold text-gray-700">{category}</h4>
                               </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div style={{ padding: '8rem', textAlign: 'center' }}>No statistics available.</div>
-                      )}
-                    </div>
-                  )}
-
-                  {activeTab === 'General' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 450px', gap: '4rem', animation: 'fadeIn 0.4s ease' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                        <div className="so-card" style={{ borderRadius: '2.5rem', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)' }}>
-                          <div className="so-card-header" style={{ padding: '2rem 3rem' }}><p className="so-card-title">Commercial & Legal Profile</p></div>
-                          <div className="so-card-body" style={{ padding: '3rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
-                              <div><label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>SUPPLIER GROUP</label><p style={{ fontWeight: 900, color: '#1e293b', fontSize: '1.25rem' }}>{form.supplier_group}</p></div>
-                              <div><label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>LEGAL TYPE</label><p style={{ fontWeight: 900, color: '#1e293b', fontSize: '1.25rem' }}>{form.supplier_type}</p></div>
-                              <div><label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>TAX ID (TRN)</label><p style={{ fontWeight: 900, color: '#1e293b', fontSize: '1.25rem' }}>{form.tax_id || 'NOT REGISTERED'}</p></div>
-                              <div><label style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>ACCOUNT STATUS</label><StatusBadge isInactive={form.disabled} themeColor={themeColor} /></div>
+                              <div className="divide-y divide-gray-100">
+                                {rows.map((row, idx) => (
+                                  <div key={idx} className="px-5 py-3 flex justify-between items-center">
+                                    <span className="text-sm text-gray-600">{row.label}</span>
+                                    <span className="text-sm font-semibold text-gray-900">{row.data.length}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-20 text-gray-500">No data available</div>
+                    )}
+                  </div>
+                )}
+
+                {/* General Tab */}
+                {activeTab === 'General' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="bg-white rounded-lg border border-gray-200 p-6">
+                        <h4 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-100">Commercial & Legal Profile</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Supplier Group</label>
+                            <p className="text-sm text-gray-900">{form.supplier_group || '—'}</p>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Legal Type</label>
+                            <p className="text-sm text-gray-900">{form.supplier_type || '—'}</p>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Tax ID (TRN)</label>
+                            <p className="text-sm text-gray-900">{form.tax_id || '—'}</p>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Account Status</label>
+                            <StatusBadge isInactive={form.disabled} themeColor={themeColor} />
                           </div>
                         </div>
-                        <div className="so-card" style={{ borderRadius: '2.5rem', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)' }}>
-                          <div className="so-card-header" style={{ padding: '2rem 3rem' }}><p className="so-card-title">Communication Identity</p></div>
-                          <div className="so-card-body" style={{ padding: '3rem' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                                <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '1.5rem', border: '1px solid #f1f5f9' }}><Mail size={24} style={{ color: themeColor }} /></div>
-                                <div><p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8' }}>OPERATIONAL EMAIL</p><p style={{ fontWeight: 900, fontSize: '1.1rem', color: '#1e293b' }}>{form.email_id || 'NOT_SPECIFIED'}</p></div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                                <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '1.5rem', border: '1px solid #f1f5f9' }}><Phone size={24} style={{ color: themeColor }} /></div>
-                                <div><p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8' }}>DIRECT MOBILE</p><p style={{ fontWeight: 900, fontSize: '1.1rem', color: '#1e293b' }}>{form.mobile_no || 'NOT_SPECIFIED'}</p></div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                                <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '1.5rem', border: '1px solid #f1f5f9' }}><MapPin size={24} style={{ color: themeColor }} /></div>
-                                <div><p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8' }}>REGISTERED ADDRESS</p><p style={{ fontWeight: 900, fontSize: '1.1rem', color: '#1e293b' }}>{form.address || 'LOCAL_OFFICE'}</p></div>
-                              </div>
+                      </div>
+
+                      <div className="bg-white rounded-lg border border-gray-200 p-6">
+                        <h4 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-100">Communication Identity</h4>
+                        <div className="space-y-4">
+                          <div className="flex items-start gap-3">
+                            <Mail size={18} className="text-gray-400 mt-0.5" />
+                            <div className="flex-1">
+                              <label className="text-xs font-medium text-gray-500 block">Operational Email</label>
+                              <p className="text-sm text-gray-900">{form.email_id || '—'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <Phone size={18} className="text-gray-400 mt-0.5" />
+                            <div className="flex-1">
+                              <label className="text-xs font-medium text-gray-500 block">Direct Mobile</label>
+                              <p className="text-sm text-gray-900">{form.mobile_no || '—'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <MapPin size={18} className="text-gray-400 mt-0.5" />
+                            <div className="flex-1">
+                              <label className="text-xs font-medium text-gray-500 block">Registered Address</label>
+                              <p className="text-sm text-gray-900">{form.address || '—'}</p>
                             </div>
                           </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                        <div className="so-card" style={{ height: '450px', overflow: 'hidden', borderRadius: '3.5rem', boxShadow: '0 30px 60px -12px rgba(0,0,0,0.15)', border: '8px solid white' }}>
-                          {form.imagePreview ? <img src={form.imagePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9' }}><Building2 size={100} style={{ opacity: 0.1 }} /></div>}
-                        </div>
-                        <div style={{ display: 'grid', gap: '1.5rem' }}>
-                          <button onClick={() => { setIsViewMode(false); setIsEditMode(true); }} className="so-btn-primary" style={{ height: '5rem', borderRadius: '1.5rem', fontSize: '1.2rem', fontWeight: 900, justifyContent: 'center' }}><Edit2 size={24} /> Edit Partner Profile</button>
-                          <button onClick={() => handleDelete(editingSupplierName)} className="so-btn-danger" style={{ height: '5rem', borderRadius: '1.5rem', fontSize: '1.2rem', fontWeight: 900, justifyContent: 'center', background: '#fee2e2' }}><Trash2 size={24} /> Delete Partner</button>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="aspect-square bg-gray-50 flex items-center justify-center p-6">
+                          {form.imagePreview ? (
+                            <img src={form.imagePreview} alt="" className="w-full h-full object-contain" />
+                          ) : (
+                            <Building2 size={80} className="text-gray-300" />
+                          )}
                         </div>
                       </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
+                          className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 flex items-center justify-center gap-2"
+                        >
+                          <Edit2 size={16} /> Edit Profile
+                        </button>
+                        <button
+                          onClick={() => handleDelete(editingSupplierName)}
+                          className="flex-1 px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {activeTab === 'Connections' && (
-                    <div style={{ padding: '10rem', textAlign: 'center', background: 'white', borderRadius: '3rem', border: '3px dashed #e2e8f0' }}>
-                      <ShoppingCart size={80} style={{ margin: '0 auto 2rem', opacity: 0.05, color: themeColor }} />
-                      <p style={{ fontWeight: 900, color: '#94a3b8', fontSize: '1.5rem' }}>No Active Business Connections Found.</p>
-                    </div>
-                  )}
-                </div>
+                {activeTab === 'Connections' && (
+                  <div className="text-center py-20">
+                    <ShoppingCart size={64} className="mx-auto text-gray-300 mb-4" />
+                    <p className="text-gray-500">No active business connections found</p>
+                  </div>
+                )}
               </div>
             ) : (
-              <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-                <div className="so-card" style={{ borderRadius: '2.5rem', marginBottom: '2.5rem' }}>
-                  <div className="so-card-header" style={{ padding: '1.5rem 3rem' }}><p className="so-card-title">Base Specifications</p></div>
-                  <div className="so-card-body" style={{ padding: '3rem' }}>
-                    <div className="so-form-grid" style={{ gap: '2rem' }}>
-                      <div className="so-field"><label className="so-label">Supplier Name *</label><input type="text" value={form.supplier_name} onChange={e => setForm({ ...form, supplier_name: e.target.value })} className="so-input" /></div>
-                      <div className="so-field"><label className="so-label">Supplier Group *</label><select value={form.supplier_group} onChange={e => setForm({ ...form, supplier_group: e.target.value })} className="so-input"><option value="">Select Group</option>{supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-                      <div className="so-field"><label className="so-label">Entity Type</label><select value={form.supplier_type} onChange={e => setForm({ ...form, supplier_type: e.target.value })} className="so-input"><option value="Company">Company</option><option value="Individual">Individual</option></select></div>
-                      <div className="so-field"><label className="so-label">Tax TRN</label><input type="text" value={form.tax_id} onChange={e => setForm({ ...form, tax_id: e.target.value })} className="so-input" /></div>
+              // Edit/Create Mode Form
+              <div className="max-w-4xl mx-auto px-8 py-8">
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    <h3 className="text-base font-semibold text-gray-900">Base Specifications</h3>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                          Supplier Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={form.supplier_name}
+                          onChange={e => setForm({ ...form, supplier_name: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Enter supplier name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                          Supplier Group <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={form.supplier_group}
+                          onChange={e => setForm({ ...form, supplier_group: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">Select Group</option>
+                          {supplierGroups.map(g => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Entity Type</label>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              value="Company"
+                              checked={form.supplier_type === 'Company'}
+                              onChange={e => setForm({ ...form, supplier_type: e.target.value })}
+                              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">Company</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              value="Individual"
+                              checked={form.supplier_type === 'Individual'}
+                              onChange={e => setForm({ ...form, supplier_type: e.target.value })}
+                              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">Individual</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Tax TRN</label>
+                        <input
+                          type="text"
+                          value={form.tax_id}
+                          onChange={e => setForm({ ...form, tax_id: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Enter tax registration number"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="so-card" style={{ borderRadius: '2.5rem' }}>
-                  <div className="so-card-header" style={{ padding: '1.5rem 3rem' }}><p className="so-card-title">Location & Contact</p></div>
-                  <div className="so-card-body" style={{ padding: '3rem' }}>
-                    <div className="so-form-grid" style={{ gap: '2rem' }}>
-                      <div className="so-field"><label className="so-label">Email</label><input type="email" value={form.email_id} onChange={e => setForm({ ...form, email_id: e.target.value })} className="so-input" /></div>
-                      <div className="so-field"><label className="so-label">Mobile</label><input type="text" value={form.mobile_no} onChange={e => setForm({ ...form, mobile_no: e.target.value })} className="so-input" /></div>
-                      <div className="so-field" style={{ gridColumn: 'span 2' }}><label className="so-label">Full Address</label><textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="so-input" rows={3} style={{ minHeight: '120px' }} /></div>
+
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mt-6">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    <h3 className="text-base font-semibold text-gray-900">Location & Contact</h3>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
+                        <input
+                          type="email"
+                          value={form.email_id}
+                          onChange={e => setForm({ ...form, email_id: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="supplier@company.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Mobile</label>
+                        <input
+                          type="text"
+                          value={form.mobile_no}
+                          onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="+1 234 567 8900"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Full Address</label>
+                        <textarea
+                          rows={3}
+                          value={form.address}
+                          onChange={e => setForm({ ...form, address: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Building, street, city, country"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -496,10 +619,21 @@ export default function SupplierList() {
             )}
           </div>
 
+          {/* Footer */}
           {!isViewMode && (
-            <div className="so-modal-footer" style={{ padding: '2rem 5rem', background: 'white', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '2rem' }}>
-              <button onClick={handleCloseForm} className="so-btn-secondary">Discard</button>
-              <button onClick={handleSave} disabled={saving} className="so-btn-primary" style={{ padding: '0 5rem', height: '4rem', fontSize: '1.1rem' }}>
+            <div className="bg-white border-t border-gray-200 px-8 py-4 flex justify-end gap-3 sticky bottom-0">
+              <button
+                onClick={handleCloseForm}
+                className="px-5 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Discard
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 {saving ? 'Processing...' : (isEditMode ? 'Commit Base Updates' : 'Authorize Partner')}
               </button>
             </div>
