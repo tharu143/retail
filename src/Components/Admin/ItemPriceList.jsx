@@ -184,7 +184,7 @@ function ItemPriceList() {
   };
 
   return (
-    <div className="so-page" style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
+    <div className="so-page" style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: "'Inter', sans-serif", overflowY: 'auto' }}>
       <NavBar />
 
       {/* Modern Report Header */}

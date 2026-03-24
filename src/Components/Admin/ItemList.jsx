@@ -432,7 +432,7 @@ export default function ItemList() {
   return (
     <>
       <NavBar />
-      <div className="so-page" style={{ background: '#f5f6f8', minHeight: '100vh', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column', overflowY: 'visible' }}>
+      <div className="so-page" style={{ background: '#f5f6f8', minHeight: '100vh', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         {/* Header Section */}
         <div style={{ padding: '24px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
@@ -593,7 +593,7 @@ export default function ItemList() {
               <button onClick={handleCloseForm} className="so-modal-close" style={{ background: '#fee2e2', color: '#ef4444' }}><X size={22} /></button>
             </div>
           </div>
-          <div className="so-modal-body" style={{ flex: 1, padding: '1.25rem 2rem', background: '#f8fafc', overflow: 'hidden' }}>
+          <div className="so-modal-body" style={{ flex: 1, padding: '1.25rem 2rem', background: '#f8fafc', overflowY: 'auto' }}>
             {isViewMode ? (
               <div style={{ width: '100%', animation: 'fadeIn 0.5s ease' }}>
                 <div style={{ width: '100%', padding: '0 0.5rem' }}>

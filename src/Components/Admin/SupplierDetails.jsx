@@ -173,7 +173,7 @@ const SupplierDetails = () => {
     const isActive = supplier.disabled === 0;
 
     return (
-        <div className="so-page animate-fadeIn pb-20 px-8 max-w-7xl mx-auto">
+        <div className="so-page animate-fadeIn pb-20 px-8 max-w-7xl mx-auto" style={{ minHeight: '100vh', overflowY: 'auto' }}>
             
             {/* Bold Header Identity */}
             <div className="flex flex-col lg:flex-row items-center gap-12 py-10">

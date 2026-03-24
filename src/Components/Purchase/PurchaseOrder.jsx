@@ -1140,7 +1140,7 @@ function PurchaseOrder() {
 
   return (
     <>
-      <div className={`font-sans purchase-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
+      <div className={`font-sans purchase-container ${theme === 'legacy' ? 'theme-legacy' : ''}`} style={{ height: '100vh', overflowY: 'auto' }}>
         <div className="bg-white px-6 py-2 border-b border-slate-100 flex items-center justify-between">
           <div className="flex flex-col text-left">
             <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
