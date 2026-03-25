@@ -908,18 +908,14 @@ function Home() {
 
     try {
       setSearchLoading(true);
-      const results = await frappeCall({
-        method: 'kyle_retail.retail_api.api.get_retail_item_details',
-        args: { search_term: barcode.trim(), warehouse: warehouse }
-      });
-      const apiItem = (results || [])[0];
+      const apiItem = await POSService.getItemByBarcode(barcode.trim());
 
-      if (apiItem) {
+      if (apiItem && apiItem.item_code && apiItem.status !== 'error') {
         const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
         let pendingQty = 0;
         pendingInvoices.forEach(inv => {
           (inv.items || []).forEach(it => {
-            if (it.item_code === apiItem.name) {
+            if (it.item_code === apiItem.item_code) {
               const qtyPieces = it.uom === 'Box' ? it.qty * (it.custom_pieces_per_box || 1) : it.qty;
               pendingQty += qtyPieces;
             }
@@ -927,13 +923,14 @@ function Home() {
         });
 
         const itemToBill = {
-          id: apiItem.name,
+          id: apiItem.item_code,
           name: apiItem.item_name,
-          price: apiItem.price_list_rate || 0,
+          price: apiItem.price_list_rate || apiItem.rate || 0,
           actual_qty: apiItem.actual_qty || 0,
           local_qty: (apiItem.actual_qty || 0) - pendingQty,
           warehouse_details: apiItem.warehouse_details || [],
-          custom_pieces_per_box: apiItem.custom_pieces_per_box || 1
+          custom_pieces_per_box: apiItem.custom_pieces_per_box || 1,
+          barcodes: apiItem.barcodes || []
         };
 
         if (itemToBill.local_qty <= 0) {
@@ -943,7 +940,6 @@ function Home() {
               method: 'kyle_retail.retail_api.api.find_nearest_stock',
               args: { item_code: itemToBill.id, current_warehouse: warehouse }
             });
-            // Update itemToBill with the latest proximity data
             itemToBill.warehouse_details = nearest || [];
             showStockBreakdown(itemToBill);
           } catch (err) {
@@ -966,7 +962,6 @@ function Home() {
           }, 200);
         }
       } else {
-        // Improved fallback to local search (checks barcode, name, and ID)
         const query = barcode.trim().toLowerCase();
         const foundLocal = Items.find(item =>
           item.barcodes?.some(b => b.barcode.trim() === barcode.trim()) ||
@@ -978,7 +973,7 @@ function Home() {
           handleAddToBill(foundLocal);
           setBarcodeInput('');
         } else {
-          Swal.fire('Not Found', 'Item not found in database.', 'error');
+          Swal.fire('Not Found', apiItem?.message || 'Item not found in database.', 'error');
           if (barcodeInputRef.current) {
             barcodeInputRef.current.style.backgroundColor = '#fee2e2';
             setTimeout(() => {

@@ -140,15 +140,15 @@ function PurchaseOrder() {
 
     setScanningRow(rowIndex);
     try {
-      const res = await fetch(`${API_PATH}.get_item_by_barcode_po?barcode=${encodeURIComponent(barcode)}`, {
+      const res = await fetch(`${API_PATH}.get_item_by_barcode_retail?barcode=${encodeURIComponent(barcode)}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Item not found');
       const data = await res.json();
-      const item = data.message;
-      if (!item || !item.item_code) {
-        throw new Error(`No item found for barcode: ${barcode}`);
+      const item = Array.isArray(data.message) ? data.message[0] : data.message;
+      if (!item || item.status === 'error' || (!item.item_code && !item.name)) {
+        throw new Error(item?.message || `No item found for barcode: ${barcode}`);
       }
 
       setFormData(prev => {

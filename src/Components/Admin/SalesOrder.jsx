@@ -274,45 +274,30 @@ function SalesOrder() {
     e.preventDefault();
     const barcode = barcodeInput.trim();
     try {
-      const checkRes = await axios.get(
-        '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists',
-        { params: { barcode }, withCredentials: true }
-      );
-      if (checkRes.data.message.exists) {
-        const itemCode = checkRes.data.message.item;
-        const itemRes = await axios.get(`${API_PATH}.get_items_so`, { params: { query: itemCode }, withCredentials: true });
-        const itemsList2 = itemRes.data.message || [];
-        if (itemsList2.length > 0) {
-          const item = itemsList2[0];
-          let rate = 0;
-          try {
-            const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
-              params: { item_code: item.item_code, price_list: form.selling_price_list },
-              withCredentials: true
-            });
-            rate = rateRes.data?.message?.message?.rate || rateRes.data?.message?.rate || 0;
-          } catch { }
-
-          setForm(prev => recalcForm({
-            ...prev,
-            items: [...prev.items, {
-              item_code: item.item_code,
-              item_name: item.item_name,
-              qty: 1,
-              uom: item.stock_uom || 'Nos',
-              rate,
-              amount: rate,
-              delivery_date: prev.delivery_date || prev.transaction_date
-            }]
-          }));
-          setBarcodeInput('');
-          setTimeout(() => barcodeRef.current?.focus(), 100);
-        } else {
-          alert('Item not found for this barcode');
-        }
-      } else {
-        alert('Invalid barcode');
+      const res = await axios.get(`${API_PATH}.get_item_by_barcode_retail`, { params: { barcode }, withCredentials: true });
+      const item = Array.isArray(res.data.message) ? res.data.message[0] : res.data.message;
+      
+      if (!item || item.status === 'error' || (!item.item_code && !item.name)) {
+        throw new Error(item?.message || 'Item not found');
       }
+
+      // get_retail_item_details should return rate, if not default to 0
+      const rate = item.rate || item.last_selling_rate || item.standard_rate || 0;
+
+      setForm(prev => recalcForm({
+        ...prev,
+        items: [...prev.items, {
+          item_code: item.item_code,
+          item_name: item.item_name,
+          qty: 1,
+          uom: item.stock_uom || 'Nos',
+          rate,
+          amount: rate,
+          delivery_date: prev.delivery_date || prev.transaction_date
+        }]
+      }));
+      setBarcodeInput('');
+      setTimeout(() => barcodeRef.current?.focus(), 100);
     } catch (err) {
       alert('Error: ' + (err.response?.data?.message || err.message));
     }

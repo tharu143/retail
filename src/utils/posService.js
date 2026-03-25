@@ -127,6 +127,15 @@ const POSService = {
             method: 'kyle_retail.retail_api.api.get_purchase_tax_templates',
             type: 'GET'
         });
+    },
+
+    getItemByBarcode: async (barcode) => {
+        const res = await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_item_by_barcode_retail',
+            args: { barcode },
+            type: 'GET'
+        });
+        return Array.isArray(res) ? res[0] : res;
     }
 };
 

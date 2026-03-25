@@ -198,13 +198,13 @@ const QuickStockInStandalone = () => {
             } else {
                 // API check
                 const online = await POSService.getItemByBarcode(barcode);
-                if (online) {
+                if (online && online.status !== 'error') {
                     selectItem(online);
                 } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'Not Found',
-                        text: `No item found for: ${barcode}`,
+                        text: online?.message || `No item found for: ${barcode}`,
                         timer: 2000,
                         showConfirmButton: false
                     });

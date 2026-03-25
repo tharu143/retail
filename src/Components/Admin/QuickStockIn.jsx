@@ -107,13 +107,13 @@ const QuickStockIn = ({ isOpen, onClose }) => {
             } else {
                 // Try API
                 const res = await POSService.getItemByBarcode(barcode);
-                if (res) {
+                if (res && res.status !== 'error') {
                     selectItem(res);
                 } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'Not Found',
-                        text: `No item found for barcode: ${barcode}`,
+                        text: res?.message || `No item found for barcode: ${barcode}`,
                         timer: 2000,
                         showConfirmButton: false
                     });
