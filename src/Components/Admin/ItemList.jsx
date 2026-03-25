@@ -242,11 +242,17 @@ const ItemCard = ({ item, onClick }) => (
       }}>{item.item_name}</h3>
     </div>
     <div style={{ padding: '10px 16px', borderTop: `1px solid ${T.color.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ fontSize: T.font.xs, fontWeight: T.weight.semibold, color: T.color.textLight, background: T.color.surface, padding: '3px 8px', borderRadius: '4px' }}>{item.stock_uom || 'Nos'}</span>
-      <span style={{ fontSize: T.font.base, fontWeight: T.weight.black, color: T.color.text }}>
-        <span style={{ fontSize: T.font.xs, color: T.color.textMuted, marginRight: '3px' }}>AED</span>
-        {Number(item.standard_rate || 0).toFixed(2)}
-      </span>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <span style={{ fontSize: '10px', color: T.color.textLight, fontWeight: T.weight.bold, textTransform: 'uppercase' }}>Buying</span>
+        <span style={{ fontSize: T.font.sm, fontWeight: T.weight.bold, color: T.color.slate }}>{Number(item.valuation_rate || 0).toFixed(2)}</span>
+      </div>
+      <div style={{ textAlign: 'right' }}>
+        <span style={{ fontSize: '10px', color: T.color.textLight, fontWeight: T.weight.bold, textTransform: 'uppercase' }}>Selling</span>
+        <p style={{ fontSize: T.font.base, fontWeight: T.weight.black, color: T.color.text, margin: 0 }}>
+          <span style={{ fontSize: T.font.xs, color: T.color.textMuted, marginRight: '3px' }}>AED</span>
+          {Number(item.rate || item.standard_rate || 0).toFixed(2)}
+        </p>
+      </div>
     </div>
   </div>
 );
@@ -322,12 +328,37 @@ export default function ItemList() {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/resource/Item', {
+      // Fetch base item details (groups, images, etc)
+      const resBase = await axios.get('/api/resource/Item', {
         params: { limit_page_length: 5000, fields: JSON.stringify(["item_code", "item_name", "item_group", "stock_uom", "image", "description", "disabled", "has_variants", "standard_rate"]), order_by: 'item_name asc' },
         withCredentials: true
       });
-      setItems(res.data?.data || []);
-    } catch { setItems([]); } finally { setLoading(false); }
+      const itemsBase = resBase.data?.data || [];
+
+      // Fetch live prices and weighted average valuation
+      const resPrices = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_price_list_all', { withCredentials: true });
+      const priceData = resPrices.data?.message?.data || [];
+
+      // Merge data
+      const merged = itemsBase.map(item => {
+        const pMatch = priceData.find(p => p.item_code === item.item_code);
+        return {
+          ...item,
+          // Use the real-time rate and valuation from the special API
+          valuation_rate: pMatch?.valuation_rate || 0,
+          rate: pMatch?.rate || item.standard_rate || 0,
+          stock: pMatch?.stock || 0,
+          stock_value: pMatch?.stock_value || 0
+        };
+      });
+
+      setItems(merged);
+    } catch (err) {
+      console.error('Fetch Items Error:', err);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -637,10 +668,14 @@ export default function ItemList() {
                         <Badge variant={item.disabled ? 'danger' : 'success'}>{item.disabled ? 'Disabled' : 'Active'}</Badge>
                       </td>
                       <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                        <span style={{ fontSize: T.font.md, fontWeight: T.weight.black, color: T.color.text }}>
-                          <span style={{ fontSize: T.font.xs, color: T.color.textLight, marginRight: '3px' }}>AED</span>
-                          {Number(item.standard_rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                        <p style={{ fontSize: T.font.md, fontWeight: T.weight.black, color: T.color.text, margin: 0 }}>
+                          <span style={{ fontSize: T.font.xs, color: T.color.textLight, marginRight: '3px' }}>S:</span>
+                          {Number(item.rate || item.standard_rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p style={{ fontSize: T.font.xs, fontWeight: T.weight.bold, color: T.color.slate, margin: '2px 0 0' }}>
+                          <span style={{ color: T.color.textLight, marginRight: '3px' }}>B:</span>
+                          {Number(item.valuation_rate || 0).toFixed(2)}
+                        </p>
                       </td>
                     </tr>
                   ))}
