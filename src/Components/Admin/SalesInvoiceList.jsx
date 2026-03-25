@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import '../Admin/SalesOrder.css';
 
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
@@ -18,12 +17,15 @@ const SalesInvoiceList = () => {
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [isViewOnly, setIsViewOnly] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dropdownPosition, setDropdownPosition] = useState(null);
   const [isReturnMode, setIsReturnMode] = useState(false);
   const [returnAgainst, setReturnAgainst] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
+
+
 
   // Theme toggle (synced with POS & Sales Order)
   const [siTheme, setSiTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
@@ -352,19 +354,36 @@ const SalesInvoiceList = () => {
   };
 
   const addItemRow = () => {
+    // 1. Safety check for Return Mode
     if (isReturnMode) return;
+
+    // 2. ഈ ഭാഗം നമ്മൾ ലളിതമാക്കുന്നു (നിബന്ധനകൾ ഒഴിവാക്കി)
+    const newItem = {
+      row_id: Date.now() + Math.random(), // കൂടുതൽ സുരക്ഷിതമായ ID
+      item_code: '',
+      item_name: '',
+      qty: 1,
+      uom: 'Nos',
+      rate: 0,
+      amount: 0,
+      income_account: defaultIncomeAccount || ''
+    };
+
     setForm(prev => ({
       ...prev,
-      items: [...prev.items, {
-        item_code: '',
-        item_name: '',
-        qty: 1,
-        uom: 'Nos',
-        rate: 0,
-        amount: 0,
-        income_account: defaultIncomeAccount
-      }]
+      items: [...prev.items, newItem]
     }));
+
+
+    setTimeout(() => {
+      const body = document.querySelector('.so-modal-body');
+      if (body) {
+        body.scrollTo({
+          top: body.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, 50);
   };
 
   const selectItem = async (idx, item) => {
@@ -590,6 +609,7 @@ const SalesInvoiceList = () => {
         in_words: ''
       });
       setSearchCustomer(inv.customer_name || '');
+      setIsViewOnly(true);
       setShowModal(true);
       calculateTotals();
     } catch (err) {
@@ -676,12 +696,17 @@ const SalesInvoiceList = () => {
             </button>
             <button
               className="so-btn-primary"
-              onClick={() => { resetForm(); setShowModal(true); }}
+              onClick={() => { resetForm(); setIsViewOnly(false); setShowModal(true); }}
             >
               <Plus size={16} /> New Invoice
             </button>
           </div>
         </div>
+
+
+
+
+
         <div className="so-layout" style={{ flexDirection: 'column' }}>
           {/* Top Filters Bar */}
           <div className="so-filter-bar" style={{
@@ -814,55 +839,65 @@ const SalesInvoiceList = () => {
             </div>
           </div>
         </div>
+
+
+
+
+
+
+
+
+        {/* Modal */}
         {/* Modal */}
         {showModal && (
-          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())} style={{ padding: 0 }}>
-            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }}>
-              <div className="so-modal-header">
-                <h2 className="so-modal-title">
+
+
+          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())} style={{ padding: 0, position: 'fixed' }}>
+            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+
+              {/* Header */}
+              <div className="so-modal-header" style={{ padding: '1rem 1.5rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 className="so-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>
                   {isReturnMode ? (
                     <><ArrowLeft size={16} style={{ display: 'inline', marginRight: '0.4rem' }} /> Credit Note — Return Against: {returnAgainst}</>
                   ) : (
                     form.name ? `Edit — ${form.name}` : 'New Sales Invoice'
                   )}
                 </h2>
-                <button className="so-modal-close" onClick={() => { setShowModal(false); resetForm(); }}><X size={20} /></button>
+                <button className="so-modal-close" onClick={() => { setShowModal(false); resetForm(); }} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#64748b' }}><X size={20} /></button>
               </div>
-              <div className="so-modal-body">
+
+              {/* Body - Alignment Fix Here */}
+              <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
                 {/* Basic Info Card */}
-                <div className="so-card">
-                  <div className="so-card-header">
-                    <p className="so-card-title">Basic Information</p>
+                <div className="so-card" style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                  <div className="so-card-header" style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
+                    <p className="so-card-title" style={{ margin: 0, fontWeight: 700, color: '#334155' }}>Basic Information</p>
                   </div>
-                  <div className="so-card-body">
-                    <div className="so-form-grid">
+                  <div className="so-card-body" style={{ padding: '1.25rem' }}>
+                    <div className="so-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
                       <div className="so-field">
-                        <label className="so-label">Posting Date <span style={{ color: 'var(--so-danger)' }}>*</span></label>
-                        <input type="date" value={form.posting_date} onChange={e => setForm(prev => ({ ...prev, posting_date: e.target.value }))} className="so-input" />
+                        <label className="so-label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>Posting Date <span style={{ color: 'red' }}>*</span></label>
+                        <input type="date" value={form.posting_date} disabled={isViewOnly} onChange={e => setForm(prev => ({ ...prev, posting_date: e.target.value }))} className="so-input" style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem' }} />
                       </div>
                       <div className="so-field">
-                        <label className="so-label">Customer <span style={{ color: 'var(--so-danger)' }}>*</span></label>
+                        <label className="so-label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>Customer <span style={{ color: 'red' }}>*</span></label>
                         <div className="relative">
                           <input
                             type="text"
                             value={searchCustomer}
+                            disabled={isViewOnly}
                             onChange={e => setSearchCustomer(e.target.value)}
                             onFocus={() => setShowCustomerDropdown(true)}
                             placeholder="Search customer..."
                             className="so-input"
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem' }}
                           />
                           {showCustomerDropdown && filteredCustomers.length > 0 && (
-                            <div className="so-dropdown" style={{ left: 0, right: 0 }}>
+                            <div className="so-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', zIndex: 50, border: '1px solid #e2e8f0', borderRadius: '0.375rem', marginTop: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                               {filteredCustomers.map(c => (
-                                <div
-                                  key={c.name}
-                                  onClick={() => {
-                                    setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
-                                    setSearchCustomer(c.customer_name);
-                                    setShowCustomerDropdown(false);
-                                  }}
-                                  className="so-dropdown-item"
-                                >
+                                <div key={c.name} onClick={() => { setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name })); setSearchCustomer(c.customer_name); setShowCustomerDropdown(false); }} className="so-dropdown-item" style={{ padding: '0.75rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}>
                                   <div style={{ fontWeight: 700 }}>{c.customer_name}</div>
                                   <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{c.name}</div>
                                 </div>
@@ -872,12 +907,12 @@ const SalesInvoiceList = () => {
                         </div>
                       </div>
                       <div className="so-field">
-                        <label className="so-label">Due Date</label>
-                        <input type="date" value={form.due_date} onChange={e => setForm(prev => ({ ...prev, due_date: e.target.value }))} className="so-input" />
+                        <label className="so-label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>Due Date</label>
+                        <input type="date" value={form.due_date} disabled={isViewOnly} onChange={e => setForm(prev => ({ ...prev, due_date: e.target.value }))} className="so-input" style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem' }} />
                       </div>
                       <div className="so-field">
-                        <label className="so-label">Branch</label>
-                        <select value={form.set_warehouse} onChange={e => setForm(prev => ({ ...prev, set_warehouse: e.target.value }))} className="so-select">
+                        <label className="so-label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>Branch</label>
+                        <select disabled={isViewOnly} value={form.set_warehouse} onChange={e => setForm(prev => ({ ...prev, set_warehouse: e.target.value }))} className="so-select" style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem' }}>
                           <option value="">Select Branch</option>
                           {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
                         </select>
@@ -885,63 +920,47 @@ const SalesInvoiceList = () => {
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '1.5rem', padding: '0.25rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                        <input type="checkbox" checked={form.is_pos} onChange={e => setForm(prev => ({ ...prev, is_pos: e.target.checked }))} style={{ width: '16px', height: '16px' }} />
-                        Is POS
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+                        <input type="checkbox" disabled={isViewOnly} checked={form.is_pos} onChange={e => setForm(prev => ({ ...prev, is_pos: e.target.checked }))} style={{ width: '18px', height: '18px' }} /> Is POS
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                        <input type="checkbox" checked={form.update_stock} onChange={e => setForm(prev => ({ ...prev, update_stock: e.target.checked }))} style={{ width: '16px', height: '16px' }} />
-                        Update Stock
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+                        <input type="checkbox" disabled={isViewOnly} checked={form.update_stock} onChange={e => setForm(prev => ({ ...prev, update_stock: e.target.checked }))} style={{ width: '18px', height: '18px' }} /> Update Stock
                       </label>
-                      {isReturnMode && (
-                        <>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                            <input type="checkbox" checked={form.update_outstanding_amount_in_self} onChange={e => setForm(prev => ({ ...prev, update_outstanding_amount_in_self: e.target.checked }))} style={{ width: '16px', height: '16px' }} />
-                            Update Outstanding for Self
-                          </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                            <input type="checkbox" checked={form.update_billed_amount_in_delivery_note} onChange={e => setForm(prev => ({ ...prev, update_billed_amount_in_delivery_note: e.target.checked }))} style={{ width: '16px', height: '16px' }} />
-                            Update Billed Amount
-                          </label>
-                        </>
-                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="so-card" style={{ background: 'var(--so-primary-light)', borderStyle: 'dashed', borderWidth: '2px', borderColor: 'var(--so-primary)', opacity: 0.9 }}>
-                  <div className="so-card-body">
-                    <div className="so-barcode-area" style={{ background: 'white', border: '1.5px solid var(--so-border)' }}>
-                      <Search size={18} style={{ color: 'var(--so-primary)' }} />
+                {/* Barcode Area */}
+                <div className="so-card" style={{ background: isGreen ? '#f0fdf4' : '#f0f9ff', border: `2px dashed ${themeColor}`, borderRadius: '0.75rem' }}>
+                  <div className="so-card-body" style={{ padding: '1.25rem' }}>
+                    <div className="so-barcode-area" style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', padding: '0.75rem 1rem', gap: '1rem' }}>
+                      <Search size={20} style={{ color: themeColor }} />
                       <input
                         id="barcode-scan-input"
                         type="text"
+                        disabled={isViewOnly}
                         value={barcodeInput}
                         onChange={(e) => setBarcodeInput(e.target.value)}
                         onKeyDown={handleBarcodeScan}
                         placeholder="Scan or type barcode and press Enter..."
-                        className="so-barcode-input"
-                        style={{ fontSize: '1rem', fontWeight: 600 }}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: '1rem', fontWeight: 600 }}
                       />
                     </div>
                   </div>
                 </div>
 
-                {isReturnMode && returnAgainst && (
-                  <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#fee2e2', borderRadius: '0.5rem', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }}></div>
-                    <span style={{ fontSize: '0.85rem', color: '#991b1b', fontWeight: 600 }}>
-                      Return Against: <strong style={{ textDecoration: 'underline' }}>{returnAgainst}</strong>
-                    </span>
-                  </div>
-                )}
-
                 {/* Items Card */}
                 <div className="so-card">
                   <div className="so-card-header">
                     <p className="so-card-title">Items Information</p>
-                    {!isReturnMode && (
-                      <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem', color: 'var(--so-primary)' }}>
+
+
+                    {!isReturnMode && !isViewOnly && (
+                      <button
+                        onClick={addItemRow}
+                        className="so-btn-ghost"
+                        style={{ fontSize: '0.7rem', color: 'var(--so-primary)' }}
+                      >
                         <Plus size={14} /> Add New Row
                       </button>
                     )}
@@ -969,6 +988,7 @@ const SalesInvoiceList = () => {
                                       <input
                                         type="text"
                                         value={itemQueries[i] || ''}
+                                        disabled={isViewOnly}
                                         onChange={(e) => {
                                           const q = e.target.value;
                                           setItemQueries(prev => ({ ...prev, [i]: q }));
@@ -1031,18 +1051,40 @@ const SalesInvoiceList = () => {
                                 </div>
                               </td>
                               <td>
-                                <input type="number" value={item.qty || ''} onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)} className="so-input" style={{ textAlign: 'center', height: '36px', fontWeight: 700 }} disabled={isReturnMode} />
+                                <input
+                                  type="number"
+                                  value={item.qty || ''}
+                                  onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)}
+                                  className="so-input"
+                                  style={{ textAlign: 'center', height: '36px', fontWeight: 700 }}
+
+                                  disabled={isViewOnly || isReturnMode}
+                                />
                               </td>
                               <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 800, color: 'var(--so-text-muted)' }}>{item.uom || '-'}</td>
                               <td>
-                                <input type="number" value={item.rate || ''} onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)} className="so-input" style={{ textAlign: 'right', height: '36px', fontWeight: 700 }} step="0.01" disabled={isReturnMode} />
+                                <input
+                                  type="number"
+                                  value={item.rate || ''}
+                                  onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)}
+                                  className="so-input"
+                                  style={{ textAlign: 'right', height: '36px', fontWeight: 700 }}
+                                  step="0.01"
+
+                                  disabled={isViewOnly || isReturnMode}
+                                />
                               </td>
                               <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.9rem', paddingRight: '1.5rem', color: 'var(--so-primary)' }}>
                                 {getCurrencySymbol(form.currency)}{(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </td>
                               <td style={{ textAlign: 'center' }}>
-                                {!isReturnMode && (
-                                  <button onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }))} className="so-btn-danger" style={{ padding: '0.25rem', borderRadius: '0.4rem' }}>
+
+                                {!isReturnMode && !isViewOnly && (
+                                  <button
+                                    onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }))}
+                                    className="so-btn-danger"
+                                    style={{ padding: '0.25rem', borderRadius: '0.4rem' }}
+                                  >
                                     <X size={14} />
                                   </button>
                                 )}
@@ -1055,130 +1097,84 @@ const SalesInvoiceList = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
-                  {/* Taxes Section */}
-                  <div className="so-card" style={{ height: '100%' }}>
-                    <div className="so-card-header">
-                      <p className="so-card-title">Taxes & Charges</p>
-                    </div>
-                    <div className="so-card-body">
-                      <div className="so-field" style={{ marginBottom: '1rem' }}>
-                        <label className="so-label">Tax Template</label>
-                        <select
-                          value={form.taxes_and_charges}
-                          onChange={e => applyTaxTemplate(e.target.value)}
-                          className="so-select"
-                        >
-                          <option value="">No Tax</option>
-                          {taxTemplates.map(t => (
-                            <option key={t.name} value={t.name}>{t.name}</option>
-                          ))}
-                        </select>
-                      </div>
+                {/* Bottom Section: Taxes & Summary */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
 
-                      {form.taxes.length > 0 && (
-                        <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
-                          <table className="so-items-table">
-                            <thead>
-                              <tr>
-                                <th>Account</th>
-                                <th style={{ width: '70px', textAlign: 'center' }}>Rate %</th>
-                                <th style={{ width: '100px', textAlign: 'right' }}>Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {form.taxes.map((tax, i) => {
-                                const taxAmount = (tax.rate / 100) * form.base_total;
-                                return (
-                                  <tr key={i}>
-                                    <td style={{ fontSize: '0.7rem', fontWeight: 600 }}>{tax.account_head?.split(' - ')[0]}</td>
-                                    <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 800 }}>{tax.rate}%</td>
-                                    <td style={{ textAlign: 'right', fontSize: '0.75rem', fontWeight: 800 }}>
-                                      {getCurrencySymbol(form.currency)}{taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                  {/* Taxes Card */}
+                  <div className="so-card" style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+                    <div className="so-card-header" style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
+                      <p className="so-card-title" style={{ margin: 0, fontWeight: 700 }}>Taxes & Charges</p>
+                    </div>
+                    <div className="so-card-body" style={{ padding: '1.25rem' }}>
+                      <label className="so-label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Tax Template</label>
+                      <select disabled={isViewOnly} value={form.taxes_and_charges} onChange={e => applyTaxTemplate(e.target.value)} className="so-select" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1' }}>
+                        <option value="">No Tax</option>
+                        {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                      </select>
+                      {/* Tax table if exists... */}
                     </div>
                   </div>
 
                   {/* Summary Card */}
-                  <div className="so-card" style={{
-                    background: isGreen
-                      ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
-                      : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)',
-                    color: 'white',
-                    height: '100%'
-                  }}>
-                    <div className="so-card-header" style={{ borderBottomColor: 'rgba(255,255,255,0.1)' }}>
-                      <p className="so-card-title" style={{ color: 'white' }}>Final Summary</p>
-                    </div>
-                    <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.8, fontSize: '0.9rem' }}>
+                  <div className="so-card" style={{ borderRadius: '0.75rem', background: isGreen ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)', color: 'white', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <p className="so-card-title" style={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>Final Summary</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.9 }}>
                         <span>Subtotal</span>
-                        <span style={{ fontWeight: 700 }}>{getCurrencySymbol(form.currency)}{form.base_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <span style={{ fontWeight: 700 }}>{getCurrencySymbol()}{form.base_total.toLocaleString()}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.8, fontSize: '0.9rem' }}>
-                        <span>Total Taxes</span>
-                        <span style={{ fontWeight: 700 }}>{getCurrencySymbol(form.currency)}{form.total_taxes_and_charges.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.9 }}>
+                        <span>Taxes</span>
+                        <span style={{ fontWeight: 700 }}>{getCurrencySymbol()}{form.total_taxes_and_charges.toLocaleString()}</span>
                       </div>
-
-                      <div style={{
-                        marginTop: '1rem',
-                        paddingTop: '1rem',
-                        borderTop: '1px solid rgba(255,255,255,0.2)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}>
-                        <span style={{ fontSize: '1rem', fontWeight: 500 }}>Grand Total</span>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '1.75rem', fontWeight: 900, display: 'block', lineHeight: 1 }}>
-                            {getCurrencySymbol(form.currency)}{form.grand_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
+                      <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '1.1rem' }}>Grand Total</span>
+                        <span style={{ fontSize: '2rem', fontWeight: 900 }}>{getCurrencySymbol()}{form.rounded_total.toLocaleString()}</span>
                       </div>
-
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        background: 'rgba(0,0,0,0.15)',
-                        padding: '0.75rem 1rem',
-                        borderRadius: '0.5rem',
-                        marginTop: '0.5rem'
-                      }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.7 }}>Rounded</span>
-                        <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>{getCurrencySymbol(form.currency)}{form.rounded_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      {form.currency === 'INR' && form.in_words && (
-                        <p style={{ fontSize: '0.65rem', fontStyle: 'italic', opacity: 0.6, marginTop: '0.5rem', textAlign: 'right', lineHeight: 1.4 }}>
-                          {form.in_words}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Footer */}
               <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={() => { setShowModal(false); resetForm(); }}>Cancel</button>
+                <button className="so-btn-secondary" onClick={() => { setShowModal(false); resetForm(); }}>
+                  Cancel
+                </button>
+
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button className="so-btn-secondary" onClick={() => createSalesInvoice(false)} disabled={saving} style={{ background: 'white' }}>
-                    {saving ? 'Saving...' : (form.name ? 'Update Draft' : 'Save Draft')}
-                  </button>
-                  <button className="so-btn-primary" onClick={() => createSalesInvoice(true)} disabled={saving} style={{ minWidth: '160px' }}>
-                    {saving ? <><Loader2 size={14} className="so-spinner" /> Submitting...</> : (isReturnMode ? 'Submit Credit Note' : 'Submit Invoice')}
-                  </button>
+
+                  {isViewOnly ? (
+                    <button
+                      className="so-btn-primary"
+                      onClick={() => setIsViewOnly(false)}
+                      style={{ minWidth: '120px', backgroundColor: '#6366f1' }}
+                    >
+                      Edit Invoice
+                    </button>
+                  ) : (
+
+                    <>
+                      <button className="so-btn-secondary" onClick={() => createSalesInvoice(false)} disabled={saving}>
+                        {saving ? 'Saving...' : 'Save Draft'}
+                      </button>
+                      <button className="so-btn-primary" onClick={() => createSalesInvoice(true)} disabled={saving}>
+                        {saving ? 'Submitting...' : 'Submit Invoice'}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
+
+
+
             </div>
           </div>
         )}
+
+
+
+
       </div>
     </>
   );

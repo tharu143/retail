@@ -262,7 +262,26 @@ function NavBar() {
             <span style={{ fontSize: '10px', fontWeight: 800 }}>THEME: {(theme || 'modern').toUpperCase()}</span>
           </div>
 
-          <SettingsIcon className="cursor-pointer nav-icon" onClick={() => navigate('/dashboard')} title="Dashboard" />
+          <div 
+            onClick={() => navigate('/dashboard')} 
+            className="cursor-pointer d-flex align-items-center justify-content-center"
+            style={{ 
+              background: '#f1f5f9', 
+              color: '#475569', 
+              padding: '6px 14px', 
+              borderRadius: '8px', 
+              fontSize: '11px', 
+              fontWeight: 800, 
+              letterSpacing: '0.05em',
+              border: '1.5px solid #e2e8f0',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+          >
+            ADMIN
+          </div>
           <LayoutDashboard className="cursor-pointer nav-icon" onClick={() => navigate('/syncmanager')} title="Sync Manager" />
           <i className="bi bi-power cursor-pointer nav-icon logout" onClick={handleLogout} title="Logout"></i>
 

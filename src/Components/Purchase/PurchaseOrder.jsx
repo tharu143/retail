@@ -1242,13 +1242,13 @@ function PurchaseOrder() {
       const filtered = results.filter(it => 
         (it.item_name || '').toLowerCase().includes(query.toLowerCase()) || 
         (it.item_code || '').toLowerCase().includes(query.toLowerCase()) ||
-        (it.supplier_part_no || '').toLowerCase().includes(query.toLowerCase())
+        (it.supplier_part_no || '').toLowerCase().includes(query.toLowerCase()) ||
+        (it.custom_supplier_sl_num || '').toLowerCase().includes(query.toLowerCase()) ||
+        (it.barcode || '').toLowerCase().includes(query.toLowerCase())
       );
 
-      // If matches exist after filtering, use them. Otherwise, if the query is clear/short, show full results
-      const finalResults = (query && filtered.length > 0) ? filtered : results;
-      
-      setAllItems(finalResults);
+      // Only show filtered results if there is a query, otherwise show what the server returned
+      const finalResults = query ? filtered : results;
       return finalResults;
     } catch (err) {
       return [];

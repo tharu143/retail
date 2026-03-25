@@ -4,13 +4,14 @@ import {
   Plus, Search, X, Save, Upload, Package, Camera, ChevronLeft,
   Users, AlertCircle, Trash2, ChevronDown, Palette, Loader2, ChevronRight,
   Edit2, ShoppingCart, Barcode, Tag, Box, Info, ShieldCheck, Scale, MapPin, Activity, FileText, Calendar,
-  LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw
+  LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap
 } from 'lucide-react';
 import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../Nav/NavBar';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import Swal from 'sweetalert2';
 
 /* ========== DESIGN TOKENS ========== */
 const T = {
@@ -100,6 +101,9 @@ const GlobalStyle = () => (
     .il-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; background: ${T.bg}; border: 1.5px solid ${T.border}; border-radius: 8px; font-size: 12px; font-weight: 600; color: ${T.text}; font-family: 'DM Mono', monospace; }
     .il-conn-tab { padding: 9px 18px; font-size: 13px; font-weight: 600; color: ${T.textMuted}; border: none; background: transparent; cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
     .il-conn-tab.active { color: ${T.blue}; border-bottom-color: ${T.blue}; }
+    .il-view-tab { padding: 12px 20px; font-size: 13px; font-weight: 700; color: ${T.textMuted}; border: none; background: transparent; cursor: pointer; transition: all 0.2s; position: relative; display: flex; align-items: center; justify-content: center; height: 100%; }
+    .il-view-tab.active { color: ${T.blue}; }
+    .il-view-tab-indicator { position: absolute; bottom: 0; left: 15px; right: 15px; height: 3px; background: ${T.blue}; border-radius: 10px 10px 0 0; }
     .il-page-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1.5px solid ${T.border}; background: ${T.surface}; color: ${T.textSub}; cursor: pointer; transition: all 0.15s; }
     .il-page-btn:hover:not([disabled]) { border-color: ${T.blue}; color: ${T.blue}; }
     .il-page-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
@@ -116,7 +120,77 @@ const GlobalStyle = () => (
   `}</style>
 );
 
-/* ========== HELPERS ========== */
+/* ==================== UI COMPONENTS ==================== */
+const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const filteredDocs = useMemo(() => {
+    return (docs || []).filter(doc => {
+      const s = (search || '').toLowerCase();
+      const d = doc.posting_date || doc.modified?.split(' ')?.[0] || '';
+      const nameMatch = (doc.name || '').toLowerCase().includes(s) || (doc.parent || '').toLowerCase().includes(s);
+      const dateMatch = (!fromDate || d >= fromDate) && (!toDate || d <= toDate);
+      return nameMatch && dateMatch;
+    }).sort((a, b) => (b.posting_date || b.modified || '').localeCompare(a.posting_date || a.modified || ''));
+  }, [docs, search, fromDate, toDate]);
+
+  return (
+    <div style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden', transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: isOpen ? T.blueLight : '#fff' }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 700, color: isOpen ? T.blue : T.text }}>{title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+           <span style={{ fontSize: 11, fontWeight: 800, background: isOpen ? T.blue : T.bg, color: isOpen ? '#fff' : T.blue, padding: '2px 8px', borderRadius: 10, transition: '0.2s' }}>{filteredDocs.length}</span>
+           <ChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: '0.2s', color: T.textMuted }} />
+        </div>
+      </div>
+      {isOpen && (
+        <div style={{ padding: 0, borderTop: `1px solid ${T.borderLight}`, background: '#fff' }}>
+           {filteredDocs.length > 0 ? (
+             <div style={{ overflowX: 'auto' }}>
+               <table className="il-table" style={{ border: 'none' }}>
+                 <thead>
+                   <tr style={{ background: T.bg }}>
+                     <th style={{ paddingLeft: 20 }}>Ref ID</th>
+                     <th>Date</th>
+                     <th style={{ textAlign: 'right' }}>Qty</th>
+                     <th style={{ textAlign: 'right' }}>Rate</th>
+                     <th style={{ textAlign: 'right' }}>Total</th>
+                     <th style={{ paddingRight: 20 }}>Serial / Note</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                    {filteredDocs.map((doc, idx) => (
+                       <tr key={idx} style={{ cursor: 'default' }}>
+                          <td style={{ paddingLeft: 20 }}>
+                             <div style={{ fontWeight: 600, color: T.blue, fontSize: 13, fontFamily: "'DM Mono', monospace" }}>{doc.name || doc.parent}</div>
+                             <div style={{ fontSize: 10, color: T.green, fontWeight: 700, textTransform: 'uppercase' }}>{doc.status || 'Submitted'}</div>
+                          </td>
+                          <td style={{ fontSize: 12, color: T.textSub, fontFamily: "'DM Mono', monospace" }}>{doc.posting_date || doc.modified?.split(' ')?.[0] || '—'}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{doc.qty || 0} <span style={{ fontWeight: 400, color: T.textMuted, fontSize: 11 }}>{doc.uom || 'Nos'}</span></td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(doc.rate || 0).toFixed(2)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: T.blue }}>{Number(doc.amount || (doc.qty * doc.rate) || 0).toFixed(2)}</td>
+                          <td style={{ paddingRight: 20 }}>
+                             <code style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 6px', borderRadius: 4 }}>{doc.custom_supplier_sl_num || doc.serial_no || '—'}</code>
+                          </td>
+                       </tr>
+                    ))}
+                 </tbody>
+               </table>
+             </div>
+           ) : (
+             <div style={{ padding: '30px', textAlign: 'center', color: T.textMuted, fontSize: 12, fontWeight: 600 }}>
+                No records found matching filters
+             </div>
+           )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const StatusBadge = ({ disabled }) => (
   <span className={`il-badge ${disabled ? 'il-badge-red' : 'il-badge-green'}`}>
     <span style={{ width: 5, height: 5, borderRadius: '50%', background: disabled ? T.red : T.green }} />
@@ -322,6 +396,7 @@ export default function ItemList() {
   const [priceForm, setPriceForm] = useState({ price_list: '', uom: '', price_list_rate: 0, buying: 0, selling: 1, name: '' });
   const [expandedLinks, setExpandedLinks] = useState({});
   const [connectionSearch, setConnectionSearch] = useState('');
+  const [dashSubTab, setDashSubTab] = useState('Procurement');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [connectionActiveTab, setConnectionActiveTab] = useState(null);
@@ -406,19 +481,26 @@ export default function ItemList() {
   const fetchItemGroups = async (search = '') => {
     try {
       const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_groups', { params: { search }, withCredentials: true });
-      if (res.data.message) {
-        const raw = res.data.message.data || res.data.message;
-        setItemGroups((Array.isArray(raw) ? raw : []).map(g => typeof g === 'string' ? { label: g, value: g } : g));
-      }
+      const raw = res.data.message?.data || res.data.message || [];
+      setItemGroups((Array.isArray(raw) ? raw : []).map(g => {
+        if (typeof g === 'string') return { label: g, value: g };
+        const label = g.item_group_name || g.label || g.name || g.value;
+        const value = g.name || g.value || g.item_group_name || g.label;
+        return { label, value };
+      }));
     } catch { }
   };
 
   const fetchBrands = async () => {
     try {
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_brands', { withCredentials: true });
-      const raw = res.data.message || [];
-      const data = Array.isArray(raw) ? raw : (raw.data || []);
-      setBrands((Array.isArray(data) ? data : []).map(b => typeof b === 'string' ? { label: b, value: b } : { label: b.label || b.name, value: b.value || b.name }));
+      const raw = res.data.message?.data || res.data.message || [];
+      setBrands((Array.isArray(raw) ? raw : []).map(b => {
+        if (typeof b === 'string') return { label: b, value: b };
+        const label = b.brand_name || b.label || b.name || b.value;
+        const value = b.name || b.value || b.brand_name || b.label;
+        return { label, value };
+      }));
     } catch { }
   };
 
@@ -426,7 +508,12 @@ export default function ItemList() {
     try {
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_uoms_retail', { withCredentials: true });
       const raw = res.data.message?.data || res.data.message || [];
-      setUoms((Array.isArray(raw) ? raw : []).map(u => ({ label: u.name, value: u.name })));
+      setUoms((Array.isArray(raw) ? raw : []).map(u => {
+        if (typeof u === 'string') return { label: u, value: u };
+        const label = u.uom_name || u.label || u.name || u.uom || u.value;
+        const value = u.name || u.uom || u.value || u.uom_name || u.label;
+        return { label, value };
+      }));
     } catch { }
   };
 
@@ -446,6 +533,23 @@ export default function ItemList() {
   const handleCreateUom = async (name) => {
     try { const res = await axios.post('/api/resource/UOM', { uom_name: name }, { withCredentials: true }); if (res.data.data) { await fetchUoms(); setForm(p => ({ ...p, default_uom: name })); } }
     catch (e) { alert('Failed: ' + (e.response?.data?.message || e.message)); }
+  };
+
+  const handleDisableToggle = async (checked) => {
+    if (checked) {
+      const result = await Swal.fire({
+        title: 'Deactivate Item?',
+        text: "This will hide the item from active registers and transaction lists.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: T.red,
+        cancelButtonColor: T.textMuted,
+        confirmButtonText: 'Yes, Deactivate'
+      });
+      if (result.isConfirmed) setForm({ ...form, disabled: true });
+    } else {
+       setForm({ ...form, disabled: false });
+    }
   };
 
   const addBarcode = async (code) => {
@@ -489,7 +593,7 @@ export default function ItemList() {
     if (!form.item_code.trim() || !form.item_name.trim() || !form.item_group || !form.default_uom.trim()) { alert('Please fill all required fields'); return; }
     setSaving(true);
     try {
-      const data = { item_code: form.item_code, item_name: form.item_name, item_group: form.item_group, stock_uom: form.default_uom, standard_rate: parseFloat(form.standard_selling_rate) || 0, disabled: form.disabled ? 1 : 0, maintain_stock: form.maintain_stock ? 1 : 0, has_variants: form.has_variants ? 1 : 0, description: form.description || '', image: form.image || form.imagePreview || '', hsn_code: form.hsn_code, brand: form.brand, custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0, custom_allow_discount: form.custom_allow_discount ? 1 : 0, is_stock_item: form.is_stock_item ? 1 : 0, is_sales_item: form.is_sales_item ? 1 : 0, is_purchase_item: form.is_purchase_item ? 1 : 0, barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })), uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })), supplier_items: form.supplier_items };
+      const data = { item_code: form.item_code, item_name: form.item_name, item_group: form.item_group, stock_uom: form.default_uom, standard_rate: parseFloat(form.standard_selling_rate) || 0, disabled: form.disabled ? 1 : 0, maintain_stock: form.maintain_stock ? 1 : 0, has_variants: form.has_variants ? 1 : 0, description: form.description || '', image: form.image || form.imagePreview || '', hsn_code: form.hsn_code, brand: form.brand, country_of_origin: form.country_of_origin, custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0, custom_allow_discount: form.custom_allow_discount ? 1 : 0, is_stock_item: form.is_stock_item ? 1 : 0, is_sales_item: form.is_sales_item ? 1 : 0, is_purchase_item: form.is_purchase_item ? 1 : 0, barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })), uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })), supplier_items: form.supplier_items };
       await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc', { doctype: 'Item', data }, { withCredentials: true });
       alert(isEditMode ? 'Item updated!' : 'Item created!');
       setShowForm(false); resetForm(); fetchItems();
@@ -699,29 +803,56 @@ export default function ItemList() {
         <div className="il-modal-panel anim-in">
           {/* Header */}
           <div className="il-modal-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
               <button className="il-btn il-btn-secondary" style={{ padding: '7px 9px' }} onClick={handleCloseForm}><ChevronLeft size={17} /></button>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {isViewMode ? form.item_name : (isEditMode ? 'Edit Item' : 'New Item')}
+                <div style={{ fontSize: 16, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.text }}>
+                  {isViewMode ? form.item_name : (isEditMode ? 'Edit Item Master' : 'New Item Master')}
                 </div>
                 {isViewMode && <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{editingItemCode}</div>}
               </div>
             </div>
-            {isViewMode && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div className="il-tabs">
-                  {['General', 'Dashboard', 'Prices', 'Stock'].map(t => (
-                    <button key={t} className={`il-tab ${activeTab === t ? 'active' : ''}`} onClick={() => { setActiveTab(t); if (t !== 'Prices') setIsPriceDetailView(false); }}>{t}</button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+               {isViewMode && (
+                <div className="il-tabs" style={{ background: '#F1F5F9', border: `1px solid ${T.border}` }}>
+                   {['General', 'Dashboard', 'Prices', 'Stock'].map(t => (
+                    <button
+                      key={t}
+                      className={`il-tab ${activeTab === t ? 'active' : ''}`}
+                      onClick={() => { setActiveTab(t); if (t !== 'Prices') setIsPriceDetailView(false); }}
+                    >
+                      {t}
+                    </button>
                   ))}
                 </div>
-                <div style={{ width: 1.5, height: 24, background: T.border, margin: '0 4px' }}></div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button className="il-btn il-btn-secondary" style={{ padding: '6px 10px', fontSize: 13 }} onClick={() => { setIsViewMode(false); setIsEditMode(true); }}><Edit2 size={13} />Edit</button>
-                  <button className="il-btn il-btn-danger" style={{ padding: '6px 10px', fontSize: 13 }} onClick={() => handleDelete(editingItemCode)}><Trash2 size={13} />Delete</button>
-                </div>
-              </div>
-            )}
+               )}
+
+               {isViewMode && (
+                <>
+                  <div style={{ width: 1.5, height: 24, background: T.border, margin: '0 4px' }}></div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button 
+                      className="il-btn il-btn-secondary" 
+                      style={{ height: 32, padding: '0 12px', gap: 6, fontSize: 11, background: '#fff' }}
+                      onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
+                    >
+                      <Edit2 size={13} /> Edit Item
+                    </button>
+                    <button className="il-btn il-btn-danger" style={{ height: 32, padding: '0 10px', gap: 6, fontSize: 11 }} onClick={() => handleDelete(editingItemCode)}>
+                      <Trash2 size={13} />Delete
+                    </button>
+                  </div>
+                </>
+               )}
+
+               {!isViewMode && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="il-btn il-btn-secondary" onClick={handleCloseForm}>Cancel</button>
+                    <button className="il-btn il-btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Item')}</button>
+                  </div>
+               )}
+            </div>
           </div>
 
           {/* Body */}
@@ -745,16 +876,26 @@ export default function ItemList() {
                     {/* Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 260px', gap: 14 }}>
                       {/* Prices */}
-                      <CardSection title="Price Lists" icon={<Tag size={14} />}>
+                      <CardSection title="Price Lists" icon={<Tag size={14} />} action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => setActiveTab('Prices')}><Edit2 size={12} />Manage</button>}>
                         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {dashboardData?.item_prices?.length > 0
                             ? dashboardData.item_prices.slice(0, 4).map((p, i) => (
-                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: T.bg, borderRadius: 8 }}>
-                                <div>
-                                  <div style={{ fontSize: 12, fontWeight: 600, color: T.textSub }}>{p.price_list}</div>
-                                  <div style={{ fontSize: 10, color: T.textMuted }}>{p.uom || 'Nos'}</div>
+                              <div key={i} className="group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: T.bg, borderRadius: 8, cursor: 'pointer' }} onClick={() => {
+                                setActiveTab('Prices');
+                                const found = (priceData.prices || []).find(pr => pr.price_list === p.price_list && pr.uom === p.uom);
+                                if (found) { setPriceForm({ ...found }); setIsPriceDetailView(true); }
+                                else { setPriceForm({ price_list: p.price_list, uom: p.uom, price_list_rate: p.price_list_rate, buying: p.price_list.toLowerCase().includes('buying') ? 1 : 0, selling: p.price_list.toLowerCase().includes('selling') ? 1 : 0, name: '' }); setIsPriceDetailView(true); }
+                              }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: T.textSub }}>{p.price_list}</div>
+                                  <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 600 }}>{p.uom || 'Nos'}</div>
                                 </div>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{Number(p.price_list_rate || 0).toFixed(2)}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{Number(p.price_list_rate || 0).toFixed(2)}</span>
+                                  <div className="group-hover:opacity-100 opacity-0 transition-opacity" style={{ padding: 4, borderRadius: 6, background: T.blueLight, color: T.blue }}>
+                                    <Edit2 size={12} />
+                                  </div>
+                                </div>
                               </div>
                             ))
                             : <div style={{ padding: '16px 0', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No prices set</div>}
@@ -795,11 +936,21 @@ export default function ItemList() {
                         <div className="il-card-header"><span className="il-card-title">Identification</span></div>
                         <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
                           <div style={{ aspectRatio: '1', background: T.bg, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            {form.imagePreview ? <img src={form.imagePreview} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /> : <Package size={36} style={{ color: '#D1D9E6' }} />}
+                            {form.imagePreview ? <img src={form.imagePreview} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt={form.item_name} /> : <Package size={36} style={{ color: '#D1D9E6' }} />}
                           </div>
+                          {barcodes?.length > 0 && (
+                            <div style={{ padding: '10px 12px', background: T.surface, borderRadius: 10, border: `1.5px solid ${T.borderLight}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                              <img 
+                                src={`https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(barcodes[0].barcode)}&code=Code128`} 
+                                style={{ height: 38, maxWidth: '100%', filter: 'contrast(1.1)' }} 
+                                alt="Item Barcode" 
+                              />
+                              <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px' }}>{barcodes[0].barcode}</span>
+                            </div>
+                          )}
                           <div style={{ padding: '9px 12px', borderRadius: 9, background: form.disabled ? T.redLight : T.greenLight, border: `1.5px solid ${form.disabled ? '#FECACA' : '#BBF7D0'}`, display: 'flex', alignItems: 'center', gap: 7 }}>
                             <ShieldCheck size={15} style={{ color: form.disabled ? T.red : T.green }} />
-                            <span style={{ fontSize: 12, fontWeight: 700, color: form.disabled ? T.red : T.green }}>{form.disabled ? 'DISABLED' : 'ACTIVE'}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: form.disabled ? T.red : T.green }}>{form.disabled ? 'DISABLED' : 'OPERATIONAL'}</span>
                           </div>
                           <div>
                             <span className="il-section-label">Barcodes</span>
@@ -848,6 +999,88 @@ export default function ItemList() {
                         </div>
                       </CardSection>
                     </div>
+                  </div>
+                )}
+                {/* DASHBOARD */}
+                {activeTab === 'Dashboard' && (
+                  <div className="anim-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {loadingDashboard ? (
+                      <div style={{ padding: '80px', textAlign: 'center' }}><Loader2 size={28} style={{ color: T.blue, margin: '0 auto' }} className="spin" /></div>
+                    ) : (
+                      <>
+                        {/* Search & Date Bar */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12 }}>
+                          <div style={{ position: 'relative', flex: 1 }}>
+                            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
+                            <input 
+                              className="il-input" 
+                              style={{ paddingLeft: 40, background: 'transparent', border: 'none' }} 
+                              placeholder="Search records..." 
+                              value={connectionSearch}
+                              onChange={e => setConnectionSearch(e.target.value)}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                             <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, background: T.bg }} />
+                             <span style={{ color: T.textMuted }}>—</span>
+                             <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, background: T.bg }} />
+                          </div>
+                        </div>
+
+                        {/* Sub Tabs */}
+                        <div>
+                          <div style={{ display: 'flex', borderBottom: `1.5px solid ${T.borderLight}`, gap: 24, padding: '0 4px' }}>
+                            {['Procurement', 'Sales', 'Inventory'].map(tab => (
+                              <button
+                                key={tab}
+                                onClick={() => setDashSubTab(tab)}
+                                style={{ 
+                                  padding: '12px 0', 
+                                  fontSize: 13, 
+                                  fontWeight: 700, 
+                                  color: dashSubTab === tab ? T.blue : T.textMuted,
+                                  border: 'none',
+                                  background: 'none',
+                                  borderBottom: dashSubTab === tab ? `2.5px solid ${T.blue}` : '2.5px solid transparent',
+                                  cursor: 'pointer',
+                                  marginBottom: -1.5,
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                {tab}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {(() => {
+                              const connections = dashboardData?.connections || dashboardData?.categories || {};
+                              const currentGroupDocs = connections[dashSubTab] || {};
+                              const docTypes = Object.entries(currentGroupDocs);
+                              
+                              if (docTypes.length === 0) {
+                                return (
+                                  <div style={{ padding: '40px', textAlign: 'center', background: T.bg, borderRadius: 12, border: `1px dotted ${T.border}` }}>
+                                    <div style={{ fontSize: 13, color: T.textMuted, fontWeight: 600 }}>No {dashSubTab} records available</div>
+                                  </div>
+                                );
+                              }
+
+                              return docTypes.map(([title, docs]) => (
+                                <DashboardDocRow 
+                                  key={title} 
+                                  title={title} 
+                                  docs={docs} 
+                                  search={connectionSearch} 
+                                  fromDate={fromDate} 
+                                  toDate={toDate} 
+                                />
+                              ));
+                            })()}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -988,100 +1221,6 @@ export default function ItemList() {
                   </div>
                 )}
 
-                {/* DASHBOARD */}
-                {activeTab === 'Dashboard' && (
-                  <div className="anim-in">
-                    {loadingDashboard ? (
-                      <div style={{ padding: '80px', textAlign: 'center' }}><Loader2 size={28} style={{ color: T.blue, margin: '0 auto' }} className="spin" /></div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                        {dashboardData?.analytics && (
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-                            <StatCard label="Sales Volume" value={`AED ${Number(dashboardData.analytics.gross_sales?.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`Qty: ${dashboardData.analytics.gross_sales?.total_qty || 0}`} accent={T.blue} />
-                            <StatCard label="Purchase Volume" value={`AED ${Number(dashboardData.analytics.gross_purchasing?.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`Qty: ${dashboardData.analytics.gross_purchasing?.total_qty || 0}`} accent={T.amber} />
-                            <StatCard label="Total Stock" value={`${dashboardData.stock_status?.total_qty || 0} ${form.default_uom}`} sub={`${dashboardData.stock_status?.warehouse_details?.length || 0} warehouses`} accent={T.purple} />
-                          </div>
-                        )}
-                        {(dashboardData?.connections || dashboardData?.categories) && (
-                          <>
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                              <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
-                                <Search size={13} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
-                                <input className="il-input" style={{ paddingLeft: 32 }} placeholder="Search records..." value={connectionSearch} onChange={e => setConnectionSearch(e.target.value)} />
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                                <Calendar size={13} style={{ color: T.textMuted }} />
-                                <input type="date" className="il-input" style={{ width: 150 }} value={fromDate} onChange={e => setFromDate(e.target.value)} />
-                                <span style={{ color: T.textMuted }}>—</span>
-                                <input type="date" className="il-input" style={{ width: 150 }} value={toDate} onChange={e => setToDate(e.target.value)} />
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 0, borderBottom: `2px solid ${T.border}` }}>
-                              {Object.keys(dashboardData?.connections || dashboardData?.categories || {}).map(cat => (
-                                <button key={cat} className={`il-conn-tab ${connectionActiveTab === cat ? 'active' : ''}`} onClick={() => setConnectionActiveTab(cat)}>{cat}</button>
-                              ))}
-                            </div>
-                            {(() => {
-                              const links = dashboardData.connections?.[connectionActiveTab] || dashboardData.categories?.[connectionActiveTab];
-                              if (!links) return <div style={{ padding: '50px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No connections</div>;
-                              const rows = [];
-                              Object.entries(links).forEach(([k, v]) => {
-                                if (Array.isArray(v)) {
-                                  const filtered = v.filter(doc => {
-                                    const s = connectionSearch.toLowerCase();
-                                    const d = doc.posting_date || '';
-                                    return (!s || (doc.name || '').toLowerCase().includes(s) || (doc.status || '').toLowerCase().includes(s)) && (!fromDate || d >= fromDate) && (!toDate || d <= toDate);
-                                  }).sort((a, b) => (b.posting_date || '').localeCompare(a.posting_date || ''));
-                                  if (filtered.length > 0 || (!connectionSearch && !fromDate && !toDate)) rows.push({ label: k, data: filtered, total: v.length });
-                                }
-                              });
-                              if (!rows.length) return <div style={{ padding: '40px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No matching records</div>;
-                              return (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                  {rows.map((row, i) => {
-                                    const isExp = expandedLinks[row.label] || connectionSearch || fromDate || toDate;
-                                    return (
-                                      <div key={i} className="il-card" style={{ overflow: 'hidden' }}>
-                                        <div onClick={() => setExpandedLinks(p => ({ ...p, [row.label]: !p[row.label] }))}
-                                          style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: isExp ? T.blueLight : T.surface }}>
-                                          <span style={{ fontSize: 13, fontWeight: 700, color: isExp ? T.blue : T.text }}>{row.label}</span>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span className="il-badge il-badge-blue">{row.total}</span>
-                                            <ChevronDown size={13} style={{ color: T.textMuted, transform: isExp ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
-                                          </div>
-                                        </div>
-                                        {isExp && (
-                                          <table className="il-table">
-                                            <thead><tr><th>Ref ID</th><th>Date</th><th style={{ textAlign: 'right' }}>Qty</th><th style={{ textAlign: 'right' }}>Rate</th><th style={{ textAlign: 'right' }}>Total</th><th>Serial</th></tr></thead>
-                                            <tbody>
-                                              {row.data.map((doc, di) => (
-                                                <tr key={di}>
-                                                  <td>
-                                                    <div style={{ fontWeight: 600, color: T.blue, fontSize: 13, fontFamily: "'DM Mono', monospace" }}>{doc.name || doc.parent || '—'}</div>
-                                                    <div style={{ fontSize: 11, color: T.green, fontWeight: 600 }}>{doc.status || 'Active'}</div>
-                                                  </td>
-                                                  <td style={{ fontFamily: "'DM Mono', monospace", fontSize: 12 }}>{doc.posting_date?.split('-').reverse().join('-') || '—'}</td>
-                                                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{doc.qty || 0}<span style={{ color: T.textMuted, fontWeight: 400, marginLeft: 3 }}>{doc.uom}</span></td>
-                                                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(doc.rate || 0).toFixed(2)}</td>
-                                                  <td style={{ textAlign: 'right', fontWeight: 700, color: T.blue }}>{Number(doc.amount || (doc.qty * doc.rate) || 0).toFixed(2)}</td>
-                                                  <td><code style={{ fontSize: 11, background: T.bg, padding: '2px 7px', borderRadius: 6, fontWeight: 600, fontFamily: "'DM Mono', monospace" }}>{doc.custom_supplier_sl_num || '—'}</code></td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })()}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )}
 
@@ -1100,16 +1239,15 @@ export default function ItemList() {
                         <label className="il-form-label req">Item Name</label>
                         <input className="il-input" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} placeholder="Full item name" />
                       </div>
-                      <div className="il-form-field">
-                        <label className="il-form-label req">Item Group</label>
-                        <div style={{ position: 'relative' }}>
-                          <select className="il-select" value={form.item_group} onChange={e => setForm({ ...form, item_group: e.target.value })}>
-                            {itemGroups.length === 0 && <option value="">Loading groups...</option>}
-                            {itemGroups.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-                          </select>
-                          <ChevronDown size={13} style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: T.textMuted }} />
-                        </div>
-                      </div>
+                        <SearchableSelect
+                          label="Item Group"
+                          value={form.item_group}
+                          options={itemGroups}
+                          required
+                          placeholder="Select Group"
+                          onChange={val => setForm({ ...form, item_group: val })}
+                          onAction={() => { const n = prompt('New Item Group:'); if (n) fetchItemGroups(); }}
+                        />
                        <SearchableSelect
                          label="Brand"
                          value={form.brand}
@@ -1175,7 +1313,7 @@ export default function ItemList() {
                         </label>
                       ))}
                       <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form.disabled ? T.redLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form.disabled ? '#FECACA' : T.border}`, transition: 'all 0.15s' }}>
-                        <input type="checkbox" className="il-check" checked={form.disabled} onChange={e => setForm({ ...form, disabled: e.target.checked })} />
+                        <input type="checkbox" className="il-check" checked={form.disabled} onChange={e => handleDisableToggle(e.target.checked)} />
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: T.red }}>Disable Item</div>
                           <div style={{ fontSize: 11, color: '#FCA5A5' }}>Hide from active registries</div>
