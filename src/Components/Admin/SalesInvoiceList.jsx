@@ -696,9 +696,9 @@ const SalesInvoiceList = () => {
             </button>
             <button
               className="so-btn-primary"
-              onClick={() => { resetForm(); setIsViewOnly(false); setShowModal(true); }}
+              onClick={() => navigate('/homepage')}
             >
-              <Plus size={16} /> New Invoice
+              <Plus size={16} /> Create Invoice
             </button>
           </div>
         </div>

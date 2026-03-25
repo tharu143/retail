@@ -51,7 +51,6 @@ const routeMap = {
   'Quick Stock-In': { path: '/quickstockin', icon: PlusCircle },
 
   // POS
-  'POS Screen': { path: '/homepage', icon: Monitor },
   'POS Profile': { path: '/posprofilelist', icon: LayoutDashboard },
   'Opening Entry': { path: '/posopeningentrylist', icon: Lock },
   'Closing Entry List': { path: '/posclosingentrylist', icon: FileText },
@@ -100,7 +99,7 @@ function Dashboard() {
       icon: Monitor,
       colorClass: 'icon-pos',
       cardClass: 'card-pos',
-      items: ['POS Screen', 'POS Profile', 'Opening Entry', 'New Closing Entry', 'Closing Entry List', 'POS Invoices', 'Sync Manager'],
+      items: ['POS Profile', 'Opening Entry', 'New Closing Entry', 'Closing Entry List', 'POS Invoices', 'Sync Manager'],
     },
     {
       title: 'Analytics',

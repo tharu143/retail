@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import {
     AlertCircle, Search, Calendar, Clock, CreditCard,
-    CheckCircle, Cloud, RefreshCw, XCircle, FileText,
+    CheckCircle, Cloud, RefreshCw, XCircle, FileText, Plus,
     Printer, Eye, Filter, Trash2, ArrowLeft, Smartphone, Palette, Loader2, Link
 } from "lucide-react";
 import { useSelector } from "react-redux";
@@ -255,7 +255,14 @@ function InvoiceList() {
                     >
                         <Palette size={13} /> {invTheme.toUpperCase()}
                     </button>
-                    <button className="so-btn-primary" onClick={loadData} disabled={loading}>
+                    <button 
+                        className="so-btn-primary" 
+                        onClick={() => navigate('/homepage')}
+                        style={{ border: 'none' }}
+                    >
+                        <Plus size={16} /> Create Invoice
+                    </button>
+                    <button className="so-btn-secondary" onClick={loadData} disabled={loading} style={{ border: 'none', background: '#f1f5f9', color: '#475569' }}>
                         <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Sync Store
                     </button>
                 </div>
