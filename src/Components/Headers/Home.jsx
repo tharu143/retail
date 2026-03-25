@@ -27,6 +27,29 @@ const flt = (num, prec = 6) => {
 };
 const round2 = (num) => flt(num, 2);
 
+const getImageUrl = (path) => {
+  if (!path || typeof path !== 'string') return null;
+  
+  const trimmedPath = path.trim();
+
+  // 1. IMPROVED: Check for 'data:' anywhere in the first 10 characters
+  // This catches cases like "/data:image..." or if there's a hidden char
+  if (/^.?data:image/i.test(trimmedPath)) {
+    // If it starts with a slash like "/data:image", remove the slash
+    return trimmedPath.startsWith('/') ? trimmedPath.substring(1) : trimmedPath;
+  }
+
+  // 2. If it's already a full HTTP URL (Barcode API), return as is
+  if (trimmedPath.startsWith("http")) {
+    return trimmedPath;
+  }
+
+  // 3. For relative paths (ERPNext /files/...), add the domain.
+  // We ensure there is exactly one slash between domain and path.
+  const cleanPath = trimmedPath.startsWith('/') ? trimmedPath : `/${trimmedPath}`;
+  return `https://retail.kylesolutions.com${cleanPath}`;
+};
+
 function Home() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -50,7 +73,7 @@ function Home() {
 
   // New: Legacy Classic Themes
   // Legacy Classic Hook
-  const { legacySubTheme, setLegacySubTheme, isGreen, toggleTheme } = useLegacyTheme();
+  const { legacySubTheme, setLegacySubTheme, isGreen, toggleTheme: toggleLegacyColor } = useLegacyTheme();
 
 
   const classicStyles = useMemo(() => {
@@ -730,6 +753,12 @@ function Home() {
               return (d instanceof Date && !isNaN(d.getTime())) ? format(d, 'yyyy-MM-dd HH:mm:ss') : undefined;
             })() : undefined
           });
+
+          // DEBUG: Log first 2 images to check raw format
+          if (results && results.length > 0) {
+            console.log("RAW IMAGE DATA:", results.slice(0, 2).map(i => ({ name: i.item_name, image_sample: i.image?.substring(0, 50) })));
+          }
+
           if (force || results?.length > 0) {
             if (force) await db.items.clear();
 
@@ -2114,12 +2143,11 @@ function Home() {
             )}
             <div className="h-5 w-[1px] bg-slate-200" />
             <button
-              onClick={toggleTheme}
+              onClick={toggleLegacyColor}
               className={`flex items-center gap-2 px-4 py-1.5 rounded bg-slate-50 border border-slate-200 transition-all font-black text-[12px] shadow-sm uppercase tracking-wide ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
               title="Toggle Legacy Color"
             >
-              <Palette size={11} /> {isGreen ? 'BLUE' : 'GREEN'}
-
+              <Palette size={11} /> {!isGreen ? 'GREEN' : 'BLUE'}
             </button>
 
             <div className="h-5 w-[1px] bg-slate-200" />
@@ -2589,68 +2617,6 @@ function Home() {
         </div>
       ) : (
         <div className="so-page">
-          {/* MODERN HEADER (UNIFIED) */}
-          <div className="so-page-header">
-            <div className="flex items-center gap-6">
-              <h1 className="so-page-title" onClick={() => navigate('/homepage')} style={{ cursor: 'pointer' }}>
-                <MonitorSmartphone size={22} />
-                <span>POS<span style={{ color: 'var(--so-primary)' }}>8</span></span>
-              </h1>
-
-              <div className="hidden md:flex items-center gap-3">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${isOffline ? 'bg-rose-50 border-rose-100 text-rose-500' : 'bg-emerald-50 border-emerald-100 text-emerald-500'}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                  <span className="text-[9px] font-black uppercase tracking-widest">{isOffline ? 'OFFLINE' : 'ONLINE'}</span>
-                </div>
-                <div className="px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-full">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    <Package size={10} className="inline mr-1" /> {branchPrefix || 'DXB'} BRANCH
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Standard Theme Toggle */}
-              <button
-                onClick={toggleTheme}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.4rem',
-                  padding: '0.5rem 1rem', background: '#f8fafc',
-                  border: `1.5px solid var(--so-primary)`, borderRadius: '0.375rem',
-                  fontSize: '0.75rem', fontWeight: 800, color: 'var(--so-primary)',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  textTransform: 'uppercase', letterSpacing: '0.04em'
-                }}
-              >
-                <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
-              </button>
-
-
-              <button
-                onClick={() => dispatch(toggleTheme())}
-                className="so-btn-secondary"
-                style={{ height: '2.4rem', padding: '0 1rem', fontSize: '11px', fontWeight: 800 }}
-              >
-                Switch Layout
-              </button>
-
-              <div className="h-6 w-px bg-slate-200 mx-1"></div>
-
-              <div className="hidden lg:flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-                <UserIcon size={16} className="text-slate-400" />
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-800 uppercase leading-none">{user?.full_name || user || 'CASHIER'}</span>
-                  <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-1">{format(currentTime, 'dd MMM · HH:mm:ss')}</span>
-                </div>
-              </div>
-
-              <button onClick={handleLogout} className="w-10 h-10 flex items-center justify-center bg-rose-50 border border-rose-100 text-rose-500 hover:bg-rose-500 hover:text-white transition-all rounded-xl">
-                <Power size={18} />
-              </button>
-            </div>
-          </div>
-
           {/* MODERN TOOL STRIP */}
           <div className="so-tool-strip">
             <div className="so-shortcut-badge" onClick={() => nameInputRef.current?.focus()}>
@@ -2669,6 +2635,37 @@ function Home() {
               <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
               <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear Bill</span>
             </div>
+            
+            <div className="h-6 w-px bg-slate-200 mx-2"></div>
+
+            <button
+                onClick={toggleLegacyColor}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0 0.75rem', height: '2rem', background: 'transparent',
+                  border: `1.5px solid var(--so-primary)`, borderRadius: '0.375rem',
+                  fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-primary)',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  textTransform: 'uppercase'
+                }}
+              >
+                <Palette size={12} /> {!isGreen ? 'GREEN' : 'BLUE'}
+              </button>
+
+              <button
+                onClick={() => dispatch(toggleTheme())}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0 0.75rem', height: '2rem', background: 'transparent',
+                  border: '1.5px solid var(--so-border)', borderRadius: '0.375rem',
+                  fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-text-muted)',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  textTransform: 'uppercase'
+                }}
+              >
+                <MonitorSmartphone size={12} /> Layout
+              </button>
+
             <div className="flex-1"></div>
             <button
               onClick={() => navigate('/quickstockin')}
@@ -2721,7 +2718,7 @@ function Home() {
                     >
                       <div className="relative group">
                         {item.image ? (
-                          <img src={item.image.startsWith('http') ? item.image : `https://retail.kylesolutions.com${item.image}`} alt={item.name} className="so-item-img" />
+                          <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
                         ) : (
                           <div className="so-item-img flex items-center justify-center p-6 text-center text-slate-400 font-black text-[10px] uppercase bg-slate-50 border-2 border-dashed border-slate-200">
                             {item.name}
@@ -2832,38 +2829,40 @@ function Home() {
                 ) : (
                   billItems.map((item, idx) => (
                     <div key={item.id} className="so-bill-item">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-6">
                           <h4 className="so-bill-item-name">{item.name}</h4>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[11px] font-black text-slate-500">AED {item.price}</span>
-                            <div className="flex rounded-md border border-slate-200 overflow-hidden">
-                              <button onClick={() => toggleUom(item.id, 'Piece')} className={`px-2 py-0.5 text-[8.5px] font-black ${item.uom === 'Piece' ? 'bg-slate-800 text-white' : 'bg-white text-slate-400'}`}>PC</button>
-                              <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2 py-0.5 text-[8.5px] font-black ${item.uom === 'Box' ? 'bg-slate-800 text-white' : 'bg-white text-slate-400'} disabled:opacity-30`}>BOX</button>
+                          <div className="flex items-center gap-4">
+                            <span className="text-[11px] font-black text-slate-400">AED {item.price}</span>
+                            <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                              <button onClick={() => toggleUom(item.id, 'Piece')} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
+                              <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
                             </div>
                           </div>
                         </div>
-                        <div className="so-bill-qty-control">
-                          <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
-                            <RefreshCw size={12} className={item.qty <= 1 ? 'opacity-0' : ''} />
-                            {item.qty > 1 ? '' : '-'}
-                          </button>
-                          <input
-                            id={`qty-input-${idx}`}
-                            className="so-bill-qty-input"
-                            value={item.qty}
-                            onChange={(e) => setQuantity(item.id, e.target.value)}
-                          />
-                          <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn">+</button>
+
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="so-bill-qty-control shadow-sm">
+                            <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
+                              {item.qty > 1 ? <RefreshCw size={11} className="opacity-40" /> : <X size={11} className="text-rose-400" />}
+                            </button>
+                            <input
+                              id={`qty-input-${idx}`}
+                              className="so-bill-qty-input"
+                              value={item.qty}
+                              onChange={(e) => setQuantity(item.id, e.target.value)}
+                            />
+                            <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500">+</button>
+                          </div>
                         </div>
-                        <button onClick={() => removeFromBill(item.id)} className="so-bill-remove">
-                          <X size={18} />
+                        <button onClick={() => removeFromBill(item.id)} className="so-bill-remove ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X size={16} />
                         </button>
                       </div>
 
-                      <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-50">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Item Total</span>
-                        <span className="text-[14px] font-black text-slate-900">AED {(item.qty * (item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price)).toFixed(2)}</span>
+                      <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
+                        <span className="text-[13px] font-black text-slate-800">AED {(item.qty * (item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price)).toFixed(2)}</span>
                       </div>
                     </div>
                   ))

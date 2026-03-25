@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     Package, Save, X, Trash2, Search, Scan, Palette, Loader2,
     ArrowRight, Warehouse, User, FileText, ShoppingCart, Box, TrendingUp,
-    Filter, RefreshCw, ChevronDown, PlusCircle
+    Filter, RefreshCw, ChevronDown, PlusCircle, Camera, Image as ImageIcon, Upload
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import POSService from '../../utils/posService';
