@@ -258,7 +258,12 @@ function ItemPriceList() {
                     onChange={e => setSelectedBrand(e.target.value)}
                   >
                      <option value="">All Brands</option>
-                     {Array.isArray(brands) && brands.map(b => <option key={b.name || b} value={b.name || b}>{b.name || b}</option>)}
+                     {Array.isArray(brands) && brands.map((b, i) => {
+                        const val = typeof b === 'string' ? b : (b.name || b.value || b.label || '');
+                        const display = typeof b === 'string' ? b : (b.label || b.name || b.value || '');
+                        if (!val) return null;
+                        return <option key={`${val}-${i}`} value={val}>{display}</option>;
+                     })}
                   </select>
                </div>
 
