@@ -74,6 +74,7 @@ function PurchaseOrder() {
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
   const dropdownRef = useRef(null);
   const [lastSavedData, setLastSavedData] = useState(null); // Added for dirty check
+  const searchTimeoutRef = useRef(null);
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState({});
@@ -1222,7 +1223,11 @@ function PurchaseOrder() {
 
   const fetchItems = async (query) => {
     try {
-      const res = await fetch(`${API_PATH}.get_items_for_po?query=${query}`, {
+      if (!query) {
+        // Optional: Return a default set or empty if needed
+        // For now, allow default fetching
+      }
+      const res = await fetch(`${API_PATH}.get_items_for_po?query=${encodeURIComponent(query)}&search=${encodeURIComponent(query)}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -1230,10 +1235,21 @@ function PurchaseOrder() {
       const data = await res.json();
       const results = (data.message || []).map(it => ({
         ...it,
-        rate: it.last_buying_rate || it.rate || 0
+        rate: parseFloat(it.last_buying_rate || it.rate || 0)
       }));
-      setAllItems(results);
-      return results;
+      
+      // Client-side filtering as a fallback if backend returns everything
+      const filtered = results.filter(it => 
+        (it.item_name || '').toLowerCase().includes(query.toLowerCase()) || 
+        (it.item_code || '').toLowerCase().includes(query.toLowerCase()) ||
+        (it.supplier_part_no || '').toLowerCase().includes(query.toLowerCase())
+      );
+
+      // If matches exist after filtering, use them. Otherwise, if the query is clear/short, show full results
+      const finalResults = (query && filtered.length > 0) ? filtered : results;
+      
+      setAllItems(finalResults);
+      return finalResults;
     } catch (err) {
       return [];
     }
@@ -1780,12 +1796,15 @@ function PurchaseOrder() {
                                     its[idx] = { ...its[idx], item_name: q };
                                     return { ...prev, items: its };
                                   });
-                                  const results = await fetchItems(q);
-                                  setAllItems(results || []);
-                                  setActiveDropdownRow(idx);
-                                  setSelectedProductIndex(0);
-                                  const rect = e.target.getBoundingClientRect();
-                                  setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+                                  if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                                  searchTimeoutRef.current = setTimeout(async () => {
+                                    const results = await fetchItems(q);
+                                    setAllItems(results || []);
+                                    setActiveDropdownRow(idx);
+                                    setSelectedProductIndex(0);
+                                    const rect = e.target.getBoundingClientRect();
+                                    setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+                                  }, 300);
                                 }}
                                 className="w-full outline-none disabled:bg-transparent"
                               />
