@@ -16,6 +16,8 @@ import { db } from '../../db';
 import Swal from 'sweetalert2';
 import { frappeCall } from '../../utils/frappe';
 import POSService from '../../utils/posService';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+
 // QuickStockIn removed - using route /quickstockin
 
 // ---------- Frappe-style rounding Utilities (Outside for stability) ----------
@@ -47,12 +49,9 @@ function Home() {
 
 
   // New: Legacy Classic Themes
-  const [legacySubTheme, setLegacySubTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-  const isGreen = legacySubTheme === 'green';
+  // Legacy Classic Hook
+  const { legacySubTheme, setLegacySubTheme, isGreen, toggleTheme } = useLegacyTheme();
 
-  useEffect(() => {
-    localStorage.setItem('legacySubTheme', legacySubTheme);
-  }, [legacySubTheme]);
 
   const classicStyles = useMemo(() => {
     // Dynamic Legacy Colors for Green / Blue Themes
@@ -2120,12 +2119,14 @@ function Home() {
             )}
             <div className="h-5 w-[1px] bg-slate-200" />
             <button
-              onClick={() => setLegacySubTheme(isGreen ? 'blue' : 'green')}
+              onClick={toggleTheme}
               className={`flex items-center gap-2 px-4 py-1.5 rounded bg-slate-50 border border-slate-200 transition-all font-black text-[12px] shadow-sm uppercase tracking-wide ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
               title="Toggle Legacy Color"
             >
-              <Palette size={11} /> {legacySubTheme.toUpperCase()}
+              <Palette size={11} /> {isGreen ? 'BLUE' : 'GREEN'}
+
             </button>
+
             <div className="h-5 w-[1px] bg-slate-200" />
             <button
               onClick={() => dispatch(toggleTheme())}
@@ -2545,7 +2546,7 @@ function Home() {
                 </button>
 
                 <button
-                  onClick={() => setLegacySubTheme(isGreen ? 'blue' : 'green')}
+                  onClick={toggleTheme}
                   style={{
                     padding: '8px 16px', borderRadius: '12px', border: '1.5px solid',
                     borderColor: isGreen ? '#10b981' : '#0ea5e9',
@@ -2555,8 +2556,10 @@ function Home() {
                     display: 'flex', alignItems: 'center', gap: '8px'
                   }}
                 >
-                  <Palette size={14} /> {legacySubTheme.toUpperCase()}
+                  <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
+
                 </button>
+
               </div>
             </div>
 
@@ -2615,7 +2618,7 @@ function Home() {
             <div className="flex items-center gap-3">
               {/* Standard Theme Toggle */}
               <button
-                onClick={() => setLegacySubTheme(isGreen ? 'blue' : 'green')}
+                onClick={toggleTheme}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.4rem',
                   padding: '0.5rem 1rem', background: '#f8fafc',
@@ -2625,8 +2628,9 @@ function Home() {
                   textTransform: 'uppercase', letterSpacing: '0.04em'
                 }}
               >
-                <Palette size={14} /> {legacySubTheme.toUpperCase()}
+                <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
               </button>
+
 
               <button
                 onClick={() => dispatch(toggleTheme())}

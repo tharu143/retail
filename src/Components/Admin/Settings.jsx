@@ -12,6 +12,8 @@ import { db } from '../../db';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+
 
 const Settings = () => {
     const dispatch = useDispatch();
@@ -23,19 +25,9 @@ const Settings = () => {
     const [selectedWarehouse, setSelectedWarehouse] = useState(activeWarehouse);
     const [loading, setLoading] = useState(true);
 
-    // Theme Support
-    const [stTheme, setStTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-    const isGreen = stTheme === 'green';
-    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-    const themeColorHover = isGreen ? '#059669' : '#0284c7';
-    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+    // Theme Hook
+    const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
 
-    useEffect(() => {
-        localStorage.setItem('legacySubTheme', stTheme);
-        document.documentElement.style.setProperty('--so-primary', themeColor);
-        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-        document.documentElement.style.setProperty('--so-primary-light', themeLight);
-    }, [stTheme, themeColor, themeColorHover, themeLight]);
 
     useEffect(() => {
         const fetchWarehouses = async () => {
@@ -163,7 +155,8 @@ const Settings = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <button
-                        onClick={() => setStTheme(isGreen ? 'blue' : 'green')}
+                        onClick={toggleTheme}
+
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.4rem',
                             padding: '0.45rem 1rem', background: '#f8fafc',
@@ -173,7 +166,9 @@ const Settings = () => {
                             textTransform: 'uppercase', letterSpacing: '0.04em'
                         }}
                     >
-                        <Palette size={14} /> {stTheme.toUpperCase()}
+                        <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
+
+
                     </button>
                     <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 0.25rem' }}></div>
                     <button className="so-btn-primary" onClick={handleSave}>

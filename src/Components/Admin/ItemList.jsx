@@ -9,6 +9,8 @@ import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../Nav/NavBar';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+
 
 /* ==================== UI HELPERS ==================== */
 const StatusBadge = ({ disabled, themeColor }) => (
@@ -64,19 +66,9 @@ export default function ItemList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewType, setViewType] = useState('card');
 
-  // Theme toggle
-  const [itTheme, setItTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-  const isGreen = itTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+  // Theme Hook
+  const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
 
-  useEffect(() => {
-    localStorage.setItem('legacySubTheme', itTheme);
-    document.documentElement.style.setProperty('--so-primary', themeColor);
-    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-    document.documentElement.style.setProperty('--so-primary-light', themeLight);
-  }, [itTheme, themeColor, themeColorHover, themeLight]);
 
   // Filters
   const [filterId, setFilterId] = useState('');
@@ -468,7 +460,9 @@ export default function ItemList() {
             >
               <Scale size={16} /> PRICE MASTER
             </button>
-            <button onClick={() => setItTheme(isGreen ? 'blue' : 'green')} style={{ padding: '10px 24px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', fontWeight: 700, color: '#777', cursor: 'pointer', textTransform: 'uppercase' }}>{itTheme}</button>
+            <button onClick={toggleTheme} style={{ padding: '10px 24px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', fontWeight: 700, color: '#777', cursor: 'pointer', textTransform: 'uppercase' }}>{isGreen ? 'BLUE' : 'GREEN'}</button>
+
+
             <button onClick={() => { resetForm(); setShowForm(true); fetchItemGroups(); }} style={{ padding: '10px 24px', background: themeColor, color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}><Plus size={18} /> ADD ITEM</button>
           </div>
         </div>

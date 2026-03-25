@@ -5,6 +5,8 @@ import {
     Download, Printer, ChevronDown, Truck, Package
 } from 'lucide-react';
 import '../Admin/SalesOrder.css';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+
 
 function PurchaseReport() {
   const [data, setData] = useState([]);
@@ -13,14 +15,9 @@ function PurchaseReport() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  // Theme Toggle Support
-  const [rptTheme, setRptTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-  const isGreen = rptTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
-  const themeHeaderBg = isGreen ? '#f2fdf9' : '#eff6ff';
-  const themeHeaderText = isGreen ? '#0d9488' : '#1d4ed8';
+  // Theme Hook
+  const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
+
 
   const [filters, setFilters] = useState({ 
     from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
@@ -33,13 +30,8 @@ function PurchaseReport() {
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
-  // Apply Theme Effect
-  useEffect(() => {
-    localStorage.setItem('legacySubTheme', rptTheme);
-    document.documentElement.style.setProperty('--so-primary', themeColor);
-    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-    document.documentElement.style.setProperty('--so-primary-light', themeLight);
-  }, [rptTheme, themeColor, themeColorHover, themeLight]);
+  // Apply Theme Effect removed — handled by hook
+
 
   useEffect(() => {
     fetchSuppliers();
@@ -111,7 +103,8 @@ function PurchaseReport() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           
           <button
-            onClick={() => setRptTheme(isGreen ? 'blue' : 'green')}
+            onClick={toggleTheme}
+
             style={{
               display: 'flex', alignItems: 'center', gap: '0.4rem',
               padding: '0.45rem 1rem', background: '#f8fafc',
@@ -121,7 +114,9 @@ function PurchaseReport() {
               textTransform: 'uppercase', letterSpacing: '0.04em'
             }}
           >
-            <Palette size={14} /> {rptTheme.toUpperCase()}
+            <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
+
+
           </button>
 
           <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 0.25rem' }}></div>

@@ -1,3 +1,4 @@
+// src/Components/Admin/SupplierList.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, Save, Upload, Building2, ChevronLeft,
@@ -321,323 +322,152 @@ export default function SupplierList() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-gray-50 z-[1000] flex flex-col">
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={handleCloseForm}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ChevronLeft size={20} className="text-gray-500" />
-              </button>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {isViewMode ? form.supplier_name : (isEditMode ? 'Edit Supplier Record' : 'Onboard New Supplier')}
-                </h2>
-                {isViewMode && (
-                  <p className="text-xs text-gray-500 mt-0.5">{editingSupplierName}</p>
-                )}
-              </div>
+        <div className="fixed inset-0 bg-gray-50/95 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 lg:p-12">
+          <div className="bg-white w-full max-w-5xl h-full lg:h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-white">
+            
+            {/* Modal Header */}
+            <div className="px-10 py-8 flex justify-between items-center border-b border-gray-50 shrink-0">
+               <div className="flex items-center gap-6">
+                  <button onClick={handleCloseForm} className="p-3 hover:bg-gray-50 rounded-2xl text-gray-400 transition-colors">
+                    <ChevronLeft size={24} />
+                  </button>
+                  <h2 className="text-3xl font-black text-gray-900 tracking-tight">
+                    {isEditMode ? 'Modify Partner Profile' : 'Onboard New Supplier'}
+                  </h2>
+               </div>
+               <button onClick={handleCloseForm} className="p-3 hover:bg-gray-50 rounded-2xl text-gray-400 transition-colors">
+                  <X size={24} />
+               </button>
             </div>
-            <button
-              onClick={handleCloseForm}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X size={20} className="text-gray-500" />
-            </button>
-          </div>
 
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto">
-            {isViewMode ? (
-              // View Mode Content
-              <div className="max-w-7xl mx-auto px-8 py-8">
-                {/* Tabs */}
-                <div className="border-b border-gray-200 mb-8">
-                  <div className="flex gap-8">
-                    {['Dashboard', 'General', 'Connections'].map(tab => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`pb-3 text-sm font-medium transition-colors ${activeTab === tab
-                            ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 hover:text-gray-700'
-                          }`}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Dashboard Tab */}
-                {activeTab === 'Dashboard' && (
-                  <div>
-                    {loadingDashboard ? (
-                      <div className="flex justify-center py-20">
-                        <Loader2 size={40} className="animate-spin text-gray-400" />
-                      </div>
-                    ) : dashboardData?.connections ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {Object.entries(dashboardData.connections).map(([category, links]) => {
-                          const rows = [];
-                          if (typeof links === 'object' && links !== null) {
-                            Object.entries(links).forEach(([k, v]) => {
-                              if (Array.isArray(v)) rows.push({ label: k, data: v });
-                            });
-                          }
-                          if (rows.length === 0) return null;
-
-                          return (
-                            <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                              <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
-                                <h4 className="text-sm font-semibold text-gray-700">{category}</h4>
-                              </div>
-                              <div className="divide-y divide-gray-100">
-                                {rows.map((row, idx) => (
-                                  <div key={idx} className="px-5 py-3 flex justify-between items-center">
-                                    <span className="text-sm text-gray-600">{row.label}</span>
-                                    <span className="text-sm font-semibold text-gray-900">{row.data.length}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-center py-20 text-gray-500">No data available</div>
-                    )}
-                  </div>
-                )}
-
-                {/* General Tab */}
-                {activeTab === 'General' && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-6">
-                      <div className="bg-white rounded-lg border border-gray-200 p-6">
-                        <h4 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-100">Commercial & Legal Profile</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <label className="text-xs font-medium text-gray-500 block mb-1">Supplier Group</label>
-                            <p className="text-sm text-gray-900">{form.supplier_group || '—'}</p>
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-500 block mb-1">Legal Type</label>
-                            <p className="text-sm text-gray-900">{form.supplier_type || '—'}</p>
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-500 block mb-1">Tax ID (TRN)</label>
-                            <p className="text-sm text-gray-900">{form.tax_id || '—'}</p>
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-500 block mb-1">Account Status</label>
-                            <StatusBadge isInactive={form.disabled} themeColor={themeColor} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white rounded-lg border border-gray-200 p-6">
-                        <h4 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-100">Communication Identity</h4>
-                        <div className="space-y-4">
-                          <div className="flex items-start gap-3">
-                            <Mail size={18} className="text-gray-400 mt-0.5" />
-                            <div className="flex-1">
-                              <label className="text-xs font-medium text-gray-500 block">Operational Email</label>
-                              <p className="text-sm text-gray-900">{form.email_id || '—'}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <Phone size={18} className="text-gray-400 mt-0.5" />
-                            <div className="flex-1">
-                              <label className="text-xs font-medium text-gray-500 block">Direct Mobile</label>
-                              <p className="text-sm text-gray-900">{form.mobile_no || '—'}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <MapPin size={18} className="text-gray-400 mt-0.5" />
-                            <div className="flex-1">
-                              <label className="text-xs font-medium text-gray-500 block">Registered Address</label>
-                              <p className="text-sm text-gray-900">{form.address || '—'}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        <div className="aspect-square bg-gray-50 flex items-center justify-center p-6">
-                          {form.imagePreview ? (
-                            <img src={form.imagePreview} alt="" className="w-full h-full object-contain" />
-                          ) : (
-                            <Building2 size={80} className="text-gray-300" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
-                          className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 flex items-center justify-center gap-2"
-                        >
-                          <Edit2 size={16} /> Edit Profile
-                        </button>
-                        <button
-                          onClick={() => handleDelete(editingSupplierName)}
-                          className="flex-1 px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'Connections' && (
-                  <div className="text-center py-20">
-                    <ShoppingCart size={64} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-500">No active business connections found</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Edit/Create Mode Form
-              <div className="max-w-4xl mx-auto px-8 py-8">
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <h3 className="text-base font-semibold text-gray-900">Base Specifications</h3>
-                  </div>
-                  <div className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                          Supplier Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={form.supplier_name}
-                          onChange={e => setForm({ ...form, supplier_name: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter supplier name"
+            {/* Modal Scroll Body */}
+            <div className="flex-1 overflow-y-auto p-10 bg-gray-50/50">
+               <div className="max-w-4xl mx-auto space-y-8 pb-12">
+                  
+                  {/* Card 1: Base Specs */}
+                  <div className="bg-white p-10 rounded-[2rem] border border-white shadow-sm space-y-8">
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                      <div className="w-2 h-6 bg-blue-600 rounded-full" />
+                      Base Specifications
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Supplier Name *</label>
+                        <input 
+                          type="text" 
+                          value={form.supplier_name} 
+                          onChange={e => setForm({...form, supplier_name: e.target.value})}
+                          placeholder="Enter legal entity name"
+                          className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800 text-sm focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                          Supplier Group <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={form.supplier_group}
-                          onChange={e => setForm({ ...form, supplier_group: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Supplier Group *</label>
+                        <select 
+                          value={form.supplier_group} 
+                          onChange={e => setForm({...form, supplier_group: e.target.value})}
+                          className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800 text-sm focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all cursor-pointer"
                         >
-                          <option value="">Select Group</option>
-                          {supplierGroups.map(g => (
-                            <option key={g} value={g}>{g}</option>
-                          ))}
+                          <option value="">Select Category</option>
+                          {supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Entity Type</label>
-                        <div className="flex items-center gap-6">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              value="Company"
-                              checked={form.supplier_type === 'Company'}
-                              onChange={e => setForm({ ...form, supplier_type: e.target.value })}
-                              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">Company</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              value="Individual"
-                              checked={form.supplier_type === 'Individual'}
-                              onChange={e => setForm({ ...form, supplier_type: e.target.value })}
-                              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">Individual</span>
-                          </label>
+                      <div className="space-y-4">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Entity Type</label>
+                        <div className="flex items-center gap-8">
+                          {['Company', 'Individual'].map(type => (
+                            <label key={type} className="flex items-center gap-3 cursor-pointer group">
+                              <div className="relative flex items-center justify-center">
+                                <input 
+                                  type="radio" 
+                                  name="supplier_type" 
+                                  value={type}
+                                  checked={form.supplier_type === type}
+                                  onChange={e => setForm({...form, supplier_type: e.target.value})}
+                                  className="peer appearance-none w-6 h-6 border-2 border-gray-200 rounded-full checked:border-blue-600 transition-all"
+                                />
+                                <div className="absolute w-2.5 h-2.5 bg-blue-600 rounded-full opacity-0 peer-checked:opacity-100 transition-all" />
+                              </div>
+                              <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{type}</span>
+                            </label>
+                          ))}
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Tax TRN</label>
-                        <input
-                          type="text"
-                          value={form.tax_id}
-                          onChange={e => setForm({ ...form, tax_id: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter tax registration number"
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Tax TRN</label>
+                        <input 
+                          type="text" 
+                          value={form.tax_id} 
+                          onChange={e => setForm({...form, tax_id: e.target.value})}
+                          placeholder="Registration number"
+                          className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800 text-sm focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all"
                         />
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mt-6">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <h3 className="text-base font-semibold text-gray-900">Location & Contact</h3>
-                  </div>
-                  <div className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
-                        <input
-                          type="email"
-                          value={form.email_id}
-                          onChange={e => setForm({ ...form, email_id: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="supplier@company.com"
+                  {/* Card 2: Contact Info */}
+                  <div className="bg-white p-10 rounded-[2rem] border border-white shadow-sm space-y-8">
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                      <div className="w-2 h-6 bg-blue-600 rounded-full" />
+                      Location & Contact
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Operational Email</label>
+                        <input 
+                          type="email" 
+                          value={form.email_id} 
+                          onChange={e => setForm({...form, email_id: e.target.value})}
+                          placeholder="support@partner.com"
+                          className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800 text-sm focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Mobile</label>
-                        <input
-                          type="text"
-                          value={form.mobile_no}
-                          onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="+1 234 567 8900"
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Direct Mobile</label>
+                        <input 
+                          type="text" 
+                          value={form.mobile_no} 
+                          onChange={e => setForm({...form, mobile_no: e.target.value})}
+                          placeholder="+X XXX XXX XXXX"
+                          className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-800 text-sm focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all"
                         />
                       </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Full Address</label>
-                        <textarea
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Full Registered Address</label>
+                        <textarea 
                           rows={3}
-                          value={form.address}
-                          onChange={e => setForm({ ...form, address: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Building, street, city, country"
+                          value={form.address} 
+                          onChange={e => setForm({...form, address: e.target.value})}
+                          placeholder="Building, Street, Landmark, Country"
+                          className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-[1.5rem] font-bold text-gray-800 text-sm focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all resize-none"
                         />
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Footer */}
-          {!isViewMode && (
-            <div className="bg-white border-t border-gray-200 px-8 py-4 flex justify-end gap-3 sticky bottom-0">
-              <button
-                onClick={handleCloseForm}
-                className="px-5 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
-              >
-                Discard
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {saving ? 'Processing...' : (isEditMode ? 'Commit Base Updates' : 'Authorize Partner')}
-              </button>
+               </div>
             </div>
-          )}
+
+            {/* Modal Footer */}
+            <div className="px-10 py-8 border-t border-gray-50 flex justify-end items-center gap-5 shrink-0 bg-white shadow-[0_-20px_50px_rgba(0,0,0,0.02)]">
+               <button 
+                  onClick={handleCloseForm} 
+                  className="px-8 py-3.5 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors"
+                >
+                  Discard
+               </button>
+               <button 
+                  onClick={handleSave} 
+                  disabled={saving}
+                  className="px-10 py-3.5 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.1em] flex items-center gap-3 shadow-[0_10px_30px_rgba(37,99,235,0.2)] hover:shadow-[0_15px_40px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 transition-all disabled:opacity-50"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Synchronizing...' : (isEditMode ? 'Authorize Updates' : 'Authorize Partner')}
+               </button>
+            </div>
+
+          </div>
         </div>
       )}
     </>

@@ -10,6 +10,8 @@ import Swal from 'sweetalert2';
 import POSService from '../../utils/posService';
 import { useSelector } from 'react-redux';
 import "../Admin/SalesOrder.css";
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+
 
 const SyncManager = () => {
     const [pendingInvoices, setPendingInvoices] = useState([]);
@@ -20,19 +22,9 @@ const SyncManager = () => {
     const [syncingId, setSyncingId] = useState(null);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-    // Sync Theme
-    const [syncSubTheme, setSyncSubTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-    const isGreen = syncSubTheme === 'green';
-    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-    const themeColorHover = isGreen ? '#059669' : '#0284c7';
-    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+    // Theme Hook
+    const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
 
-    useEffect(() => {
-        localStorage.setItem('legacySubTheme', syncSubTheme);
-        document.documentElement.style.setProperty('--so-primary', themeColor);
-        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-        document.documentElement.style.setProperty('--so-primary-light', themeLight);
-    }, [syncSubTheme, themeColor, themeColorHover, themeLight]);
 
     const fetchData = async () => {
         try {
@@ -274,7 +266,8 @@ const SyncManager = () => {
                         {isOnline ? 'SYSTEM CONNECTED' : 'OFFLINE MODE'}
                     </div>
                     <button
-                        onClick={() => setSyncSubTheme(isGreen ? 'blue' : 'green')}
+                        onClick={toggleTheme}
+
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.4rem',
                             padding: '0.45rem 1rem', background: '#f8fafc',
@@ -284,7 +277,9 @@ const SyncManager = () => {
                             textTransform: 'uppercase', letterSpacing: '0.04em'
                         }}
                     >
-                        <Palette size={14} /> {syncSubTheme.toUpperCase()}
+                        <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
+
+
                     </button>
                     <button className="so-btn-primary" onClick={fetchData} disabled={loading}>
                         <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh Data

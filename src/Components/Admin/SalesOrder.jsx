@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Plus, Trash2, Package, Loader2,
-  ChevronLeft, ChevronRight, X, Search, ScanLine, Palette
+  ChevronLeft, ChevronRight, X, Search, ScanLine, Palette, Zap
 } from 'lucide-react';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
@@ -10,6 +10,7 @@ import './SalesOrder.css';
 
 const API_PATH_K = '/api/method/kyle_retail.retail_api.api';
 const API_PATH_C = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+const API_PATH = API_PATH_K;
 const RESOURCE_BASE = '/api/resource';
 
 /* ------------------------------------------------------------------ */
@@ -106,7 +107,6 @@ function SalesOrder() {
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
 
-  // Theme toggle (matching POS Green/Blue)
   const [soTheme, setSoTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
   const isGreen = soTheme === 'green';
   const themeColor = isGreen ? '#10b981' : '#0ea5e9';
@@ -115,20 +115,17 @@ function SalesOrder() {
 
   useEffect(() => {
     localStorage.setItem('legacySubTheme', soTheme);
-    // Update CSS variable dynamically
     document.documentElement.style.setProperty('--so-primary', themeColor);
     document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
     document.documentElement.style.setProperty('--so-primary-light', themeLight);
   }, [soTheme, themeColor, themeColorHover, themeLight]);
 
-  /* Filters */
   const [searchTerm, setSearchTerm] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
 
-  /* Form state */
   const [form, setForm] = useState(emptyForm());
   const [customers, setCustomers] = useState([]);
   const [taxTemplates, setTaxTemplates] = useState([]);
@@ -141,7 +138,6 @@ function SalesOrder() {
 
   const barcodeRef = useRef(null);
 
-  /* ---- Filter Effect ---- */
   useEffect(() => {
     let f = orders;
     if (searchTerm) {
@@ -161,7 +157,6 @@ function SalesOrder() {
     setFilteredOrders(f);
   }, [searchTerm, customerFilter, statusFilter, minAmount, maxAmount, orders]);
 
-  /* ---- Fetch ---- */
   useEffect(() => {
     fetchOrders();
     fetchCustomers();
@@ -200,12 +195,10 @@ function SalesOrder() {
     } catch (err) { console.error(err); }
   };
 
-  /* ---- Recalc ---- */
   const recalculate = useCallback(() => {
     setForm(prev => recalcForm(prev));
   }, []);
 
-  /* ---- Item Ops ---- */
   const searchItems = async (query, idx) => {
     if (!query.trim()) {
       setItemsList([]);
@@ -276,7 +269,6 @@ function SalesOrder() {
     setForm(prev => recalcForm({ ...prev, items: prev.items.filter((_, i) => i !== idx) }));
   };
 
-  /* ---- Barcode ---- */
   const handleBarcodeScan = async e => {
     if (e.key !== 'Enter' || !barcodeInput.trim()) return;
     e.preventDefault();
@@ -326,7 +318,6 @@ function SalesOrder() {
     }
   };
 
-  /* ---- Tax Ops ---- */
   const loadTaxTemplate = async templateName => {
     if (!templateName) {
       setForm(prev => recalcForm({ ...prev, taxes_and_charges: '', taxes: [] }));
@@ -362,7 +353,6 @@ function SalesOrder() {
     }));
   };
 
-  /* ---- Save / Submit ---- */
   const handleSave = async (submit = false) => {
     if (!form.customer) return alert('Customer is required');
     if (!form.items.length) return alert('Add at least one item');
@@ -417,7 +407,6 @@ function SalesOrder() {
     }
   };
 
-  /* ---- Transition (SO to DN/SI) ---- */
   const handleTransition = async (type) => {
     if (!editingDocName) return;
     setLoadingLinks(true);
@@ -442,7 +431,6 @@ function SalesOrder() {
     }
   };
 
-  /* ---- Delete Order ---- */
   const deleteOrder = async name => {
     if (!window.confirm(`Are you sure you want to delete ${name}?`)) return;
     try {
@@ -470,7 +458,6 @@ function SalesOrder() {
     finally { setLoadingLinks(false); }
   };
 
-  /* ---- Load Existing ---- */
   const loadSalesOrder = async docName => {
     try {
       setLoading(true);
@@ -555,7 +542,6 @@ function SalesOrder() {
             <p className="so-page-subtitle">Manage and track all sales</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Theme Toggle */}
             <button
               onClick={() => setSoTheme(isGreen ? 'blue' : 'green')}
               style={{
@@ -595,7 +581,6 @@ function SalesOrder() {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-
             <div style={{ flex: '1 1 200px' }}>
               <label className="so-filter-label">Customer</label>
               <input
@@ -605,7 +590,6 @@ function SalesOrder() {
                 onChange={e => setCustomerFilter(e.target.value)}
               />
             </div>
-
             <div style={{ flex: '1 1 150px' }}>
               <label className="so-filter-label">Status</label>
               <select
@@ -618,7 +602,6 @@ function SalesOrder() {
                 <option value="Submitted">Submitted</option>
               </select>
             </div>
-
             <div style={{ flex: '1 1 200px' }}>
               <label className="so-filter-label">Amount Range</label>
               <div className="so-amount-range">
@@ -626,7 +609,6 @@ function SalesOrder() {
                 <input className="so-filter-input" type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} />
               </div>
             </div>
-
             <button
               className="so-clear-btn"
               onClick={clearFilters}
@@ -639,7 +621,6 @@ function SalesOrder() {
           {/* ---- Main Content ---- */}
           <div className="so-content">
             <p className="so-list-meta">{filteredOrders.length} record(s) found</p>
-
             <div className="so-table-card">
               <table className="so-table">
                 <thead>
@@ -690,7 +671,6 @@ function SalesOrder() {
                 </tbody>
               </table>
             </div>
-
             <div className="so-pagination">
               <span>Showing {filteredOrders.length} of {orders.length} records</span>
               <div className="so-pagination-btns">
@@ -703,22 +683,17 @@ function SalesOrder() {
         </div>
 
         {/* ================================================================ */}
-        {/* Modal                                                             */}
+        {/* Modal — TRUE FULLSCREEN                                          */}
         {/* ================================================================ */}
         {showModal && (
-          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()} style={{ padding: 0 }}>
-            <div className="so-modal" style={{
-              maxWidth: 'none',
-              width: '100vw',
-              height: '100vh',
-              margin: 0,
-              borderRadius: 0,
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
+          <div
+            className="so-modal-overlay"
+            onClick={e => e.target === e.currentTarget && closeModal()}
+          >
+            <div className="so-modal">
 
               {/* Modal Header */}
-              <div className="so-modal-header" style={{ padding: '1rem 2rem', background: 'white', borderBottom: '1px solid #e2e8f0' }}>
+              <div className="so-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <button onClick={closeModal} className="so-modal-close" style={{ background: '#f8fafc' }}>
                     <ChevronLeft size={20} />
@@ -730,7 +705,6 @@ function SalesOrder() {
                     {isViewMode && <p style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>{form.customer_name}</p>}
                   </div>
                 </div>
-
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                   {isViewMode && form.docstatus === 0 && (
                     <button
@@ -750,12 +724,12 @@ function SalesOrder() {
                 </div>
               </div>
 
-              <div className="so-modal-body" style={{ flex: 1, background: '#f8fafc', padding: '2rem' }}>
+              {/* Modal Body */}
+              <div className="so-modal-body">
                 {isViewMode ? (
-                  /* Detail View Content */
-                  <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+                  <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
 
-                    {/* Dashboard Connections (ERP Style) */}
+                    {/* Dashboard Connections */}
                     <div className="so-card" style={{ marginBottom: '2rem', border: `1px solid ${themeColor}30`, background: 'white' }}>
                       <div className="so-card-header" style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <p className="so-card-title" style={{ fontSize: '0.7rem', color: themeColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dashboard / Connections</p>
@@ -771,7 +745,6 @@ function SalesOrder() {
                             <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0369a1' }}>{linkedDocs.Sales_Invoice?.length || 0}</span>
                           </div>
                         </div>
-
                         {form.docstatus === 1 && (
                           <div style={{ display: 'flex', gap: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
                             <button onClick={() => handleTransition('delivery_note')} disabled={loadingLinks} className="so-btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.75rem' }}>
@@ -782,8 +755,6 @@ function SalesOrder() {
                             </button>
                           </div>
                         )}
-
-                        {/* Connection Badges */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
                           {linkedDocs.Delivery_Note?.map(dn => (
                             <span key={dn} className="so-badge" style={{ background: '#fff', border: '1px solid #e2e8f0', fontSize: '0.65rem' }}>DN: {dn}</span>
@@ -828,7 +799,6 @@ function SalesOrder() {
                           </div>
                         </div>
                       </div>
-
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                         <div className="so-card">
                           <div className="so-card-header"><p className="so-card-title">Order Info</p></div>
@@ -866,12 +836,8 @@ function SalesOrder() {
                     </div>
                   </div>
                 ) : (
-                  /* Edit Mode Content (Original Form Content) */
-                  <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-                    {/* ... Original Form Content ... (existing cards) */}
-                    {/* I'll wrap the existing cards here */}
+                  <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
 
-                    {/* ---- Transition & Connections (New Requirement) ---- */}
                     {form.docstatus === 1 && (
                       <div className="so-card" style={{ border: `1.5px solid ${themeColor}`, background: themeLight }}>
                         <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -882,25 +848,13 @@ function SalesOrder() {
                         </div>
                         <div className="so-card-body">
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
-                            <button
-                              className="so-btn-primary"
-                              onClick={() => handleTransition('delivery_note')}
-                              disabled={loadingLinks}
-                              style={{ height: '36px', fontSize: '0.75rem' }}
-                            >
+                            <button className="so-btn-primary" onClick={() => handleTransition('delivery_note')} disabled={loadingLinks} style={{ height: '36px', fontSize: '0.75rem' }}>
                               Create Delivery Note
                             </button>
-                            <button
-                              className="so-btn-secondary"
-                              onClick={() => handleTransition('sales_invoice')}
-                              disabled={loadingLinks}
-                              style={{ height: '36px', fontSize: '0.75rem', background: '#fff' }}
-                            >
+                            <button className="so-btn-secondary" onClick={() => handleTransition('sales_invoice')} disabled={loadingLinks} style={{ height: '36px', fontSize: '0.75rem', background: '#fff' }}>
                               Create Sales Invoice
                             </button>
                           </div>
-
-                          {/* Connection Links */}
                           {(linkedDocs.Delivery_Note?.length > 0 || linkedDocs.Sales_Invoice?.length > 0 || linkedDocs.Payment_Entry?.length > 0) && (
                             <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '0.75rem' }}>
                               <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', marginBottom: '0.5rem' }}>Linked Documents</p>
@@ -921,14 +875,13 @@ function SalesOrder() {
                       </div>
                     )}
 
-                    {/* ---- Core Details Card ---- */}
+                    {/* Core Details Card */}
                     <div className="so-card">
                       <div className="so-card-header">
                         <span className="so-card-title">Order Details</span>
                       </div>
                       <div className="so-card-body">
                         <div className="so-form-grid">
-                          {/* Customer */}
                           <div className="so-field so-relative">
                             <label className="so-label">Customer <span style={{ color: '#ef4444' }}>*</span></label>
                             <input
@@ -944,9 +897,7 @@ function SalesOrder() {
                                 {customers
                                   .filter(c => c.customer_name?.toLowerCase().includes(searchCustomer.toLowerCase()))
                                   .map(c => (
-                                    <div
-                                      key={c.name}
-                                      className="so-dropdown-item"
+                                    <div key={c.name} className="so-dropdown-item"
                                       onMouseDown={() => {
                                         setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
                                         setSearchCustomer(c.customer_name);
@@ -960,37 +911,20 @@ function SalesOrder() {
                               </div>
                             )}
                           </div>
-
-                          {/* Transaction Date */}
                           <div className="so-field">
                             <label className="so-label">Transaction Date</label>
-                            <input
-                              type="date"
-                              className="so-input"
-                              value={form.transaction_date}
-                              onChange={e => setForm(prev => ({ ...prev, transaction_date: e.target.value }))}
-                            />
+                            <input type="date" className="so-input" value={form.transaction_date}
+                              onChange={e => setForm(prev => ({ ...prev, transaction_date: e.target.value }))} />
                           </div>
-
-                          {/* Delivery Date */}
                           <div className="so-field">
                             <label className="so-label">Delivery Date</label>
-                            <input
-                              type="date"
-                              className="so-input"
-                              value={form.delivery_date}
-                              onChange={e => setForm(prev => ({ ...prev, delivery_date: e.target.value }))}
-                            />
+                            <input type="date" className="so-input" value={form.delivery_date}
+                              onChange={e => setForm(prev => ({ ...prev, delivery_date: e.target.value }))} />
                           </div>
-
-                          {/* Price List */}
                           <div className="so-field">
                             <label className="so-label">Price List</label>
-                            <select
-                              className="so-select"
-                              value={form.selling_price_list}
-                              onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))}
-                            >
+                            <select className="so-select" value={form.selling_price_list}
+                              onChange={e => setForm(prev => ({ ...prev, selling_price_list: e.target.value }))}>
                               <option value="Standard Selling">Standard Selling</option>
                             </select>
                           </div>
@@ -998,7 +932,7 @@ function SalesOrder() {
                       </div>
                     </div>
 
-                    {/* ---- Barcode Scanner ---- */}
+                    {/* Barcode Scanner */}
                     <div className="so-barcode-area">
                       <ScanLine size={22} />
                       <input
@@ -1012,13 +946,11 @@ function SalesOrder() {
                       />
                     </div>
 
-                    {/* ---- Items Card ---- */}
+                    {/* Items Card */}
                     <div className="so-card">
                       <div className="so-card-header">
                         <span className="so-card-title">Product Items</span>
-                        <button className="so-btn-ghost" onClick={addItemRow}>
-                          <Plus size={14} /> Add Item
-                        </button>
+                        <button className="so-btn-ghost" onClick={addItemRow}><Plus size={14} /> Add Item</button>
                       </div>
                       <div className="so-items-table-wrap">
                         <table className="so-items-table">
@@ -1035,9 +967,7 @@ function SalesOrder() {
                           <tbody>
                             {form.items.length === 0 ? (
                               <tr>
-                                <td colSpan={6} className="so-empty">
-                                  No items yet — scan a barcode or click <strong>Add Item</strong>
-                                </td>
+                                <td colSpan={6} className="so-empty">No items yet — scan a barcode or click <strong>Add Item</strong></td>
                               </tr>
                             ) : (
                               form.items.map((item, i) => (
@@ -1050,9 +980,7 @@ function SalesOrder() {
                                       </div>
                                     ) : (
                                       <div className="so-relative">
-                                        <input
-                                          className="so-td-input"
-                                          placeholder="Search item..."
+                                        <input className="so-td-input" placeholder="Search item..."
                                           value={itemSearches[i] || ''}
                                           onChange={e => {
                                             const v = e.target.value;
@@ -1063,11 +991,7 @@ function SalesOrder() {
                                         {showItemDropdowns[i] && itemsList.length > 0 && (
                                           <div className="so-dropdown">
                                             {itemsList.map(itm => (
-                                              <div
-                                                key={itm.item_code}
-                                                className="so-dropdown-item"
-                                                onMouseDown={() => selectItem(i, itm)}
-                                              >
+                                              <div key={itm.item_code} className="so-dropdown-item" onMouseDown={() => selectItem(i, itm)}>
                                                 <div className="so-dropdown-item-name">{itm.item_name}</div>
                                                 <div className="so-dropdown-item-code">{itm.item_code}</div>
                                               </div>
@@ -1079,31 +1003,18 @@ function SalesOrder() {
                                   </td>
                                   <td style={{ fontSize: '0.75rem', color: '#64748b' }}>{item.uom}</td>
                                   <td>
-                                    <input
-                                      type="number"
-                                      className="so-td-input"
-                                      style={{ textAlign: 'center' }}
-                                      value={item.qty || ''}
-                                      onChange={e => updateItem(i, 'qty', e.target.value)}
-                                    />
+                                    <input type="number" className="so-td-input" style={{ textAlign: 'center' }}
+                                      value={item.qty || ''} onChange={e => updateItem(i, 'qty', e.target.value)} />
                                   </td>
                                   <td>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      className="so-td-input"
-                                      style={{ textAlign: 'right' }}
-                                      value={item.rate || ''}
-                                      onChange={e => updateItem(i, 'rate', e.target.value)}
-                                    />
+                                    <input type="number" step="0.01" className="so-td-input" style={{ textAlign: 'right' }}
+                                      value={item.rate || ''} onChange={e => updateItem(i, 'rate', e.target.value)} />
                                   </td>
                                   <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
                                     {(parseFloat(item.amount) || 0).toFixed(2)}
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
-                                    <button className="so-btn-danger" onClick={() => removeItemRow(i)}>
-                                      <Trash2 size={14} />
-                                    </button>
+                                    <button className="so-btn-danger" onClick={() => removeItemRow(i)}><Trash2 size={14} /></button>
                                   </td>
                                 </tr>
                               ))
@@ -1113,23 +1024,18 @@ function SalesOrder() {
                       </div>
                     </div>
 
-                    {/* ---- Taxes Card ---- */}
+                    {/* Taxes Card */}
                     <div className="so-card">
                       <div className="so-card-header">
                         <span className="so-card-title">Taxes & Charges</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <select
-                            className="so-select"
+                          <select className="so-select"
                             style={{ width: 'auto', minWidth: '180px', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
-                            value={form.taxes_and_charges}
-                            onChange={e => loadTaxTemplate(e.target.value)}
-                          >
+                            value={form.taxes_and_charges} onChange={e => loadTaxTemplate(e.target.value)}>
                             <option value="">No Template</option>
                             {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
                           </select>
-                          <button className="so-btn-ghost" onClick={addTaxRow}>
-                            <Plus size={14} /> Add Row
-                          </button>
+                          <button className="so-btn-ghost" onClick={addTaxRow}><Plus size={14} /> Add Row</button>
                         </div>
                       </div>
                       {form.taxes.length > 0 && (
@@ -1150,56 +1056,35 @@ function SalesOrder() {
                               {form.taxes.map((tax, i) => (
                                 <tr key={i}>
                                   <td>
-                                    <input
-                                      type="checkbox"
-                                      checked={tax.add_deduct_tax === 'Add'}
-                                      onChange={e => updateTax(i, 'add_deduct_tax', e.target.checked ? 'Add' : 'Deduct')}
-                                    />
+                                    <input type="checkbox" checked={tax.add_deduct_tax === 'Add'}
+                                      onChange={e => updateTax(i, 'add_deduct_tax', e.target.checked ? 'Add' : 'Deduct')} />
                                   </td>
                                   <td>
-                                    <select
-                                      className="so-td-input"
-                                      value={tax.charge_type || ''}
-                                      onChange={e => updateTax(i, 'charge_type', e.target.value)}
-                                    >
+                                    <select className="so-td-input" value={tax.charge_type || ''}
+                                      onChange={e => updateTax(i, 'charge_type', e.target.value)}>
                                       <option value="On Net Total">On Net Total</option>
                                       <option value="Actual">Actual</option>
                                       <option value="On Previous Row Amount">On Prev Row</option>
                                     </select>
                                   </td>
                                   <td>
-                                    <input
-                                      className="so-td-input"
-                                      value={tax.account_head || ''}
-                                      onChange={e => updateTax(i, 'account_head', e.target.value)}
-                                    />
+                                    <input className="so-td-input" value={tax.account_head || ''}
+                                      onChange={e => updateTax(i, 'account_head', e.target.value)} />
                                   </td>
                                   <td>
-                                    <input
-                                      type="number"
-                                      className="so-td-input"
-                                      style={{ textAlign: 'right' }}
-                                      value={tax.rate || ''}
-                                      onChange={e => updateTax(i, 'rate', e.target.value)}
-                                    />
+                                    <input type="number" className="so-td-input" style={{ textAlign: 'right' }}
+                                      value={tax.rate || ''} onChange={e => updateTax(i, 'rate', e.target.value)} />
                                   </td>
                                   <td>
-                                    <input
-                                      type="number"
-                                      className="so-td-input"
-                                      style={{ textAlign: 'right' }}
-                                      value={tax.tax_amount || ''}
-                                      onChange={e => updateTax(i, 'tax_amount', e.target.value)}
-                                      disabled={tax.charge_type !== 'Actual'}
-                                    />
+                                    <input type="number" className="so-td-input" style={{ textAlign: 'right' }}
+                                      value={tax.tax_amount || ''} onChange={e => updateTax(i, 'tax_amount', e.target.value)}
+                                      disabled={tax.charge_type !== 'Actual'} />
                                   </td>
                                   <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
                                     {parseFloat(tax.total || 0).toFixed(2)}
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
-                                    <button className="so-btn-danger" onClick={() => removeTaxRow(i)}>
-                                      <Trash2 size={13} />
-                                    </button>
+                                    <button className="so-btn-danger" onClick={() => removeTaxRow(i)}><Trash2 size={13} /></button>
                                   </td>
                                 </tr>
                               ))}
@@ -1209,7 +1094,7 @@ function SalesOrder() {
                       )}
                     </div>
 
-                    {/* ---- Summary Bar ---- */}
+                    {/* Summary Bar */}
                     <div className="so-summary-bar">
                       <div className="so-summary-item">
                         <span className="so-summary-label">Total Qty</span>
@@ -1236,8 +1121,9 @@ function SalesOrder() {
                 )}
               </div>
 
+              {/* Modal Footer */}
               {!isViewMode && (
-                <div className="so-modal-footer" style={{ padding: '1rem 2rem', background: 'white', borderTop: '1px solid #e2e8f0' }}>
+                <div className="so-modal-footer">
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
                     {editingDocName && form.docstatus === 0 && (
                       <button className="so-btn-danger" onClick={() => deleteOrder(editingDocName)}>
@@ -1247,12 +1133,12 @@ function SalesOrder() {
                   </div>
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
                     <button className="so-btn-secondary" onClick={closeModal}>Cancel</button>
-                    {(form.docstatus !== 1) && (
+                    {form.docstatus !== 1 && (
                       <button className="so-btn-primary" onClick={() => handleSave(false)} disabled={saving || isSubmitting}>
                         {saving ? <><Loader2 size={14} className="so-spinner" /> Saving...</> : 'Save Draft'}
                       </button>
                     )}
-                    {(form.docstatus !== 1) && (
+                    {form.docstatus !== 1 && (
                       <button className="so-btn-primary" onClick={() => handleSave(true)} disabled={saving || isSubmitting} style={{ background: themeColor }}>
                         {isSubmitting ? <><Loader2 size={14} className="so-spinner" /> Submitting...</> : 'Submit'}
                       </button>
@@ -1260,6 +1146,7 @@ function SalesOrder() {
                   </div>
                 </div>
               )}
+
             </div>
           </div>
         )}

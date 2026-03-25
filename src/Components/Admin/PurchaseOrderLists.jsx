@@ -7,6 +7,8 @@ import {
 import { format } from 'date-fns';
 import './SalesOrder.css';
 import NavBar from '../Nav/NavBar';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+
 
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
 const RESOURCE_API = '/api/resource/Purchase Order';
@@ -25,19 +27,9 @@ function PurchaseOrderLists() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
-  // Theme toggle (synced across pages)
-  const [poTheme, setPoTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-  const isGreen = poTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+  // Theme Hook
+  const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
 
-  useEffect(() => {
-    localStorage.setItem('legacySubTheme', poTheme);
-    document.documentElement.style.setProperty('--so-primary', themeColor);
-    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-    document.documentElement.style.setProperty('--so-primary-light', themeLight);
-  }, [poTheme, themeColor, themeColorHover, themeLight]);
 
   const getSession = () => localStorage.getItem('session') || '';
 
@@ -150,7 +142,8 @@ function PurchaseOrderLists() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {/* Theme Toggle */}
             <button
-              onClick={() => setPoTheme(isGreen ? 'blue' : 'green')}
+              onClick={toggleTheme}
+
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.4rem',
                 padding: '0.45rem 0.9rem', background: '#f8fafc',
@@ -162,7 +155,9 @@ function PurchaseOrderLists() {
               title="Toggle Theme"
             >
               <Palette size={13} />
-              {poTheme.toUpperCase()}
+              {isGreen ? 'BLUE' : 'GREEN'}
+
+
             </button>
 
             {/* Toggle Filters */}
