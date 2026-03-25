@@ -6,18 +6,19 @@ import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
   Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
-  DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone
+  DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan,
+  ShoppingCart, Minus, Plus
 } from 'lucide-react';
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { logout, toggleTheme } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import './LegacyPOS.css';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 import { db } from '../../db';
 import Swal from 'sweetalert2';
 import { frappeCall } from '../../utils/frappe';
 import POSService from '../../utils/posService';
-import { useLegacyTheme } from '../../hooks/useLegacyTheme';
-
 // QuickStockIn removed - using route /quickstockin
 
 // ---------- Frappe-style rounding Utilities (Outside for stability) ----------
@@ -50,6 +51,46 @@ const getImageUrl = (path) => {
   return `https://retail.kylesolutions.com${cleanPath}`;
 };
 
+// Isolated internal clock component to prevent flickering in the main POS page
+const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount, formatType, onToggleFormat, continuousCount }) => {
+  const [tick, setTick] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setTick(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const userNumMatch = userName?.match(/\d+$/);
+  const userCode = userNumMatch ? `CS${userNumMatch[0]}` : 'CS1';
+
+  let displayString = "";
+  if (formatType === 'continuous') {
+    const year = format(tick, 'yyyy');
+    displayString = `${branchPrefix || 'POS'}-${userCode}-${year}-${String(continuousCount || 1).padStart(6, '0')}`;
+  } else {
+    displayString = `${branchPrefix || 'POS'}-${userCode}-${ddmm}-${format(tick, 'HHmmss')}-${String(sessionOrderCount).padStart(3, '0')}`;
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <select
+        value={formatType}
+        onChange={(e) => onToggleFormat(e.target.value)}
+        className="offline-id-select h-6 px-1 w-[100px] text-[9.5px] font-black uppercase text-slate-500 bg-white border border-slate-200 outline-none rounded cursor-pointer transition-colors hover:border-slate-300 shadow-sm"
+      >
+        <option value="timestamp">Timestamp</option>
+        <option value="continuous">Sequence</option>
+      </select>
+      <input
+        value={displayString}
+        readOnly
+        title="Offline ID generated according to the chosen type"
+        className="offline-id-input w-[200px] h-6 px-1 text-center text-[10.5px] cursor-text font-black italic text-sky-600 bg-sky-50 outline-none border border-sky-200 rounded shadow-sm"
+      />
+    </div>
+  );
+};
+
 function Home() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -68,29 +109,21 @@ function Home() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [sessionOrderCount, setSessionOrderCount] = useState(1);
-  const [currentTime, setCurrentTime] = useState(new Date());
 
-
-  // New: Legacy Classic Themes
-  // Legacy Classic Hook
+  // NEW: Legacy Classic Themes (for styles)
   const { legacySubTheme, setLegacySubTheme, isGreen, toggleTheme: toggleLegacyColor } = useLegacyTheme();
-
+  
+  // New ref for category horizontal scroll
+  const categoryScrollRef = useRef(null);
 
   const classicStyles = useMemo(() => {
-    // Dynamic Legacy Colors for Green / Blue Themes
     const isGreen = legacySubTheme === 'green';
-
-    // Legacy main POS body colors
     const mainColor = isGreen ? '#1a6b52' : '#4a90d9';
     const darkColor = isGreen ? '#0d4a35' : '#0d3050';
     const lightColor = isGreen ? '#c8e8d4' : '#c5d8ed';
     const accentColor = '#e8c84a';
     const borderColor = isGreen ? '#4a9a72' : '#4a7aaa';
     const statusBarColor = isGreen ? '#8ac8a8' : '#8ab4d8';
-
-    // Top nav unified clean to match newly styled buttons and avoid text contrast issues
-    const topBarBg = '#ffffff';
-    const topBarBorder = '#e2e8f0';
 
     return `
       .classic-root {
@@ -100,29 +133,29 @@ function Home() {
         overflow: hidden;
       }
       .classic-titlebar {
-        background: ${topBarBg}; color: ${statusBarColor};
+        background: ${darkColor}; color: #d0ede0;
         padding: 4px 12px; display: flex;
         align-items: center; justify-content: space-between;
-        border-bottom: 1px solid ${topBarBorder}; font-size: 12px; flex-shrink: 0;
+        border-bottom: 2px solid ${borderColor}; font-size: 12px; flex-shrink: 0;
       }
       .classic-nav {
-        background: ${topBarBg}; border-bottom: 1px solid ${topBarBorder};
-        height: 48px; display: flex; align-items: center;
+        background: ${darkColor}; border-bottom: 2px solid ${borderColor};
+        height: 42px; display: flex; align-items: center;
         justify-content: space-between; padding: 0 14px;
         flex-shrink: 0; position: relative; z-index: 100;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
       }
       .classic-header-form {
-        background: ${topBarBg}; padding: 8px 16px;
+        background: ${darkColor}; padding: 8px 16px;
         border-bottom: 2px solid ${borderColor};
         display: flex; flex-wrap: nowrap; gap: 20px; align-items: center;
         flex-shrink: 0; position: relative; z-index: 110;
       }
       .classic-field label { color: ${statusBarColor}; font-size: 10px; white-space: nowrap; font-weight: 900; letter-spacing: 0.5px; }
       .classic-field input, .classic-field select {
-        background: #ffffff; border: 1px solid ${topBarBorder}; border-radius: 4px;
-        padding: 5px 8px; font-size: 12px;
+        background: #ffffff; border: 2px solid #000;
+        padding: 4px 8px; font-size: 12px;
         font-family: inherit; color: #000; outline: none;
+        box-shadow: inset 1px 1px 2px rgba(0,0,0,0.2);
       }
       .classic-entry-area { flex: 1; display: flex; flex-direction: column; background: ${lightColor}; position: relative; }
       .classic-entry-header {
@@ -152,7 +185,7 @@ function Home() {
       }
       .classic-bottom-bar {
         background: ${darkColor}; border-top: 2px solid ${borderColor};
-        display: flex; align-items: center; justify-content: flex-end; padding: 4px 10px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; padding: 4px 10px; flex-shrink: 0;
       }
       .classic-action-bar {
         background: ${isGreen ? '#156047' : '#154070'}; padding: 5px 10px;
@@ -220,12 +253,6 @@ function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-
   // Sync & Order Count effect
   useEffect(() => {
     const updateStats = async () => {
@@ -261,12 +288,182 @@ function Home() {
   const [searchContext, setSearchContext] = useState('header'); // 'header' or 'inline'
   const itemDropdownRef = useRef(null);
 
+  // Offline Generation Toggle
+  const [offlineIdType, setOfflineIdType] = useState(() => localStorage.getItem('offlineIdType') || 'timestamp');
+  const [continuousOrderCount, setContinuousOrderCount] = useState(() => parseInt(localStorage.getItem('offlineIdContinuousCount')) || 1);
+
+  const setOfflineIdMethodHandle = (method) => {
+    setOfflineIdType(method);
+    localStorage.setItem('offlineIdType', method);
+  };
+
   // Speed Checkout
   const [customerMobile, setCustomerMobile] = useState('');
   const [customerLoading, setCustomerLoading] = useState(false);
   const mobileInputRef = useRef(null);
-  const inlineInputRef = useRef(null);
   const [lastInteractedItem, setLastInteractedItem] = useState(null);
+
+  // Camera states
+  const [showCamera, setShowCamera] = useState(false);
+  const homeVideoRef = useRef(null);
+  const homeCodeReader = useRef(null);
+
+  if (!homeCodeReader.current) {
+    const hints = new Map();
+    const formats = [
+      BarcodeFormat.EAN_13,
+      BarcodeFormat.UPC_A,
+      BarcodeFormat.CODE_128
+    ];
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    homeCodeReader.current = new BrowserMultiFormatReader(hints);
+  }
+
+  // External HID Scanner Buffer
+  const scannerBuffer = useRef("");
+  const lastKeyTime = useRef(0);
+
+  const stopHomeCamera = () => {
+    if (homeCodeReader.current) homeCodeReader.current.reset();
+    setShowCamera(false);
+  };
+
+  const renderCommonModals = () => (
+    <>
+      {showDiscountModal && renderDiscountModal()}
+      {showPaymentModal && renderPaymentModal()}
+      {showOpeningModal && (
+        <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="home-modal" style={{ maxWidth: '1100px', maxHeight: '95vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="home-modal-header">
+              <h3>Open POS Shift</h3>
+              <button className="home-modal-close" onClick={handleLogout}>X</button>
+            </div>
+            <div className="home-modal-body" style={{ padding: 0 }}>
+              <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} />
+            </div>
+          </div>
+        </div>
+      )}
+      {showCamera && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-sky-100 text-sky-600 rounded-2xl shadow-inner">
+                  <Video size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">POS Camera Scanner</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Quick Scan Mode Active</p>
+                </div>
+              </div>
+              <button
+                onClick={stopHomeCamera}
+                className="w-12 h-12 bg-white text-slate-400 rounded-2xl flex items-center justify-center hover:text-slate-600 border border-slate-100 shadow-sm transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-8">
+              <div className="relative aspect-video rounded-3xl overflow-hidden bg-slate-900 shadow-inner group">
+                <video
+                  ref={homeVideoRef}
+                  className="w-full h-full object-cover"
+                />
+                {/* OVERLAY GUIDES */}
+                <div className="absolute inset-0 border-[2px] border-sky-400/30"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-1/2 border-[2px] border-sky-400 rounded-2xl shadow-[0_0_0_1000px_rgba(15,23,42,0.6)]">
+                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-[4px] border-l-[4px] border-sky-400 rounded-tl-lg"></div>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-[4px] border-r-[4px] border-sky-400 rounded-tr-lg"></div>
+                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-[4px] border-l-[4px] border-sky-400 rounded-bl-lg"></div>
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-[4px] border-r-[4px] border-sky-400 rounded-br-lg"></div>
+
+                  <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-bounce"></div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-col items-center gap-6">
+                <div
+                  className="w-full border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-sky-400 hover:bg-sky-50 transition-all cursor-pointer group"
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={onScanDrop}
+                  onClick={() => document.getElementById('modal-image-upload')?.click()}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Scan size={32} className="text-slate-300 group-hover:text-sky-500 transition-colors" />
+                    <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                      Drag & Drop Image or Click to Open File
+                    </div>
+                  </div>
+                  <input id="modal-image-upload" type="file" accept="image/*" className="hidden" onChange={handleImageScan} />
+                </div>
+
+                <button
+                  onClick={stopHomeCamera}
+                  className="px-12 py-4 bg-slate-900 text-white font-black uppercase text-[12px] tracking-widest rounded-2xl hover:bg-slate-800 transition-all shadow-xl active:scale-95"
+                >
+                  Stop Scanner
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPurchaseModal && (
+        <div className="home-modal-overlay" onClick={() => setShowPurchaseModal(false)}>
+          <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="home-modal-header">
+              <h3>Purchase Tools: {purchaseForm.item_code}</h3>
+              <button className="home-modal-close" onClick={() => setShowPurchaseModal(false)}><X size={20} /></button>
+            </div>
+            <div className="home-modal-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700 }}>Supplier</label>
+                <input type="text" placeholder="Enter Supplier Name" value={purchaseForm.supplier} onChange={e => setPurchaseForm({ ...purchaseForm, supplier: e.target.value })} className="home-customer-input" />
+
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: '13px', fontWeight: 700 }}>Purchase Rate (AED)</label>
+                    <input type="number" value={purchaseForm.purchase_rate} onChange={e => updatePurchasePrice('purchase_rate', e.target.value)} className="home-customer-input" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: '13px', fontWeight: 700 }}>Markup (%)</label>
+                    <input type="number" value={purchaseForm.markup} onChange={e => updatePurchasePrice('markup', e.target.value)} className="home-customer-input" />
+                  </div>
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <span style={{ fontSize: '14px', color: '#64748b' }}>Price Type:</span>
+                    <span style={{ fontWeight: 700 }}>{purchaseForm.price_type}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '10px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer', flex: 1 }}>
+                      <input type="radio" checked={purchaseForm.price_type === 'Percentage'} onChange={() => updatePurchasePrice('price_type', 'Percentage')} /> Percentage
+                    </label>
+                    <label style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer', flex: 1 }}>
+                      <input type="radio" checked={purchaseForm.price_type === 'Amount'} onChange={() => updatePurchasePrice('price_type', 'Amount')} /> Fixed Amount
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', marginTop: '15px' }}>
+                    <span style={{ fontWeight: 700 }}>Target Selling Price:</span>
+                    <span style={{ fontWeight: 800, color: '#10b981' }}>AED {purchaseForm.target_price.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="home-modal-footer">
+              <button className="home-modal-cancel" onClick={() => setShowPurchaseModal(false)}>Cancel</button>
+              <button className="home-modal-apply" onClick={handlePurchaseSubmit} style={{ background: '#10b981' }}>Submit Purchase</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   // ---------- Auth ----------
   useEffect(() => {
@@ -274,6 +471,7 @@ function Home() {
       navigate('/');
       return;
     }
+    // Only show opening modal if NOT a manager
     if (!posOpeningEntry && !isManager) setShowOpeningModal(true);
   }, [user, session, posOpeningEntry, isManager, navigate]);
 
@@ -364,8 +562,11 @@ function Home() {
   // ---------- CALCULATIONS (Defined before handlers) ----------
   const subtotal = useMemo(() =>
     billItems.reduce((sum, item) => {
-      const itemPrice = item.uom === 'Box' ? item.price * (item.custom_pieces_per_box || 1) : item.price;
-      return sum + flt(itemPrice * (parseFloat(item.qty) || 0));
+      // Calculate effective price for the selected UOM
+      // If Box is selected and a specific Box price exists, use it. Otherwise, use piece price * factor.
+      const factor = (item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1);
+      const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
+      return sum + flt(effectivePrice * item.qty);
     }, 0)
     , [billItems]);
 
@@ -566,17 +767,8 @@ function Home() {
   // Click outside dropdowns
   useEffect(() => {
     const handler = (e) => {
-      // Customer dropdown
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target) && !nameInputRef.current?.contains(e.target)) {
-        setShowDropdown(false);
-      }
-      // Item search results dropdown
-      if (itemDropdownRef.current &&
-        !itemDropdownRef.current.contains(e.target) &&
-        !barcodeInputRef.current?.contains(e.target) &&
-        !inlineInputRef.current?.contains(e.target)) {
-        setShowItemDropdown(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
+      if (itemDropdownRef.current && !itemDropdownRef.current.contains(e.target)) setShowItemDropdown(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -586,23 +778,29 @@ function Home() {
   useEffect(() => {
     const query = barcodeInput.trim().toLowerCase();
     if (query.length === 0 && (searchContext === 'inline' || searchContext === 'header')) {
-      // ALWAYS prepare top 10 results so they are ready the moment the dropdown opens
-      setItemSearchResults(Items.slice(0, 10));
+      // Show top 10 items if empty (only when active)
+      if (showItemDropdown) {
+        setItemSearchResults(Items.slice(0, 10));
+      } else {
+        setItemSearchResults([]);
+      }
       setActiveItemIndex(-1);
     } else if (query.length >= 1) {
-      const results = Items.filter(it => {
-        const n = (it.name || "").toLowerCase();
-        const i = (it.id || "").toLowerCase();
-        const b = (it.barcodes || []).some(bc => (bc.barcode || "").toLowerCase().includes(query));
-        return n.includes(query) || i.includes(query) || b;
-      }).sort((a, b) => {
-        // Sort matches starting with the query first for better results
-        const aStart = (a.name || "").toLowerCase().startsWith(query);
-        const bStart = (b.name || "").toLowerCase().startsWith(query);
-        if (aStart && !bStart) return -1;
-        if (!aStart && bStart) return 1;
-        return 0;
-      }).slice(0, 15);
+      let results = [];
+      if (searchContext === 'header') {
+        // strictly barcode search in header
+        results = Items.filter(it =>
+          (it.barcodes || []).some(b => (b.barcode || "").toLowerCase().includes(query)) ||
+          (it.id || "").toLowerCase() === query // allow direct item code
+        ).slice(0, 12);
+      } else {
+        // generic search in inline
+        results = Items.filter(it =>
+          (it.name || "").toLowerCase().includes(query) ||
+          (it.id || "").toLowerCase().includes(query) ||
+          (it.barcodes || []).some(b => (b.barcode || "").toLowerCase().includes(query))
+        ).slice(0, 12);
+      }
       setItemSearchResults(results);
       setShowItemDropdown(results.length > 0);
     } else {
@@ -610,7 +808,7 @@ function Home() {
       setShowItemDropdown(false);
       setActiveItemIndex(-1);
     }
-  }, [barcodeInput, Items, searchContext]); // removed showItemDropdown from deps to stay ready
+  }, [barcodeInput, Items, searchContext, showItemDropdown]);
 
   // ---------- CUSTOMER HANDLERS ----------
   const openCreate = () => {
@@ -726,12 +924,15 @@ function Home() {
   const fetchItems = useCallback(async (force = false) => {
     if (!session) return;
     try {
-      setLoadingItems(true); setError("");
+      if (Items.length === 0) {
+        setLoadingItems(true);
+      }
+      setError("");
 
       const rawLastSync = localStorage.getItem('last_item_sync_time') || "";
       const storedLastSync = (rawLastSync === "undefined" || rawLastSync === "null") ? "" : rawLastSync;
 
-      let url = `kyle_retail.retail_api.api.get_item_details?warehouse=${encodeURIComponent(warehouse)}`;
+      let url = `custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`;
 
       if (storedLastSync && !force) {
         const d = new Date(storedLastSync);
@@ -753,12 +954,6 @@ function Home() {
               return (d instanceof Date && !isNaN(d.getTime())) ? format(d, 'yyyy-MM-dd HH:mm:ss') : undefined;
             })() : undefined
           });
-
-          // DEBUG: Log first 2 images to check raw format
-          if (results && results.length > 0) {
-            console.log("RAW IMAGE DATA:", results.slice(0, 2).map(i => ({ name: i.item_name, image_sample: i.image?.substring(0, 50) })));
-          }
-
           if (force || results?.length > 0) {
             if (force) await db.items.clear();
 
@@ -931,20 +1126,62 @@ function Home() {
     setFilteredItems(filtered);
   }, [selectedCategory, Items, barcodeInput]);
 
+  // ---------- ITEM HANDLERS ----------
+  const handleFilter = (cat) => setSelectedCategory(cat);
+  const handleAddToBill = (item) => {
+    setLastInteractedItem(item);
+    setBillItems(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        // --- Stock Verification ---
+        // Get conversion factor for current UOM
+        const factor = existing.uom_conversions?.[existing.uom] || (existing.uom === 'Box' ? (existing.custom_pieces_per_box || 1) : 1);
+        const piecesNeeded = factor;
+        const currentPieces = existing.qty * factor;
+
+        if (currentPieces + piecesNeeded > item.local_qty) {
+          Swal.fire('Out of Stock', `Only ${item.local_qty} pieces available.`, 'warning');
+          return prev;
+        }
+        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+      } else {
+        if (item.local_qty <= 0) {
+          Swal.fire('Out of Stock', `"${item.name}" is out of stock.`, 'warning');
+          return prev;
+        }
+        // Default to Base UOM (usually Nos or Piece)
+        const baseUom = item.uom_conversions?.Nos ? 'Nos' : (item.uom_conversions?.Piece ? 'Piece' : 'Nos');
+        const initialPrice = item.prices?.[baseUom] || item.price || 0;
+
+        return [...prev, {
+          ...item,
+          qty: 1,
+          uom: baseUom,
+          price: initialPrice // Set rate initially based on Base UOM
+        }];
+      }
+    });
+    barcodeInputRef.current?.focus();
+  };
+
   // ---------- BARCODE SCANNER HANDLER ----------
   const handleBarcodeScan = useCallback(async (barcode) => {
     if (!barcode.trim()) return;
 
     try {
       setSearchLoading(true);
-      const apiItem = await POSService.getItemByBarcode(barcode.trim());
+      const results = await frappeCall({
+        method: 'kyle_retail.retail_api.api.get_retail_item_details',
+        args: { search_term: barcode.trim(), warehouse: warehouse }
+      });
+      const apiItem = (results || [])[0];
 
-      if (apiItem && apiItem.item_code && apiItem.status !== 'error') {
+      if (apiItem) {
         const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
         let pendingQty = 0;
         pendingInvoices.forEach(inv => {
           (inv.items || []).forEach(it => {
-            if (it.item_code === apiItem.item_code) {
+            if (it.item_code === apiItem.name) {
               const qtyPieces = it.uom === 'Box' ? it.qty * (it.custom_pieces_per_box || 1) : it.qty;
               pendingQty += qtyPieces;
             }
@@ -952,15 +1189,25 @@ function Home() {
         });
 
         const itemToBill = {
-          id: apiItem.item_code,
+          id: apiItem.name,
           name: apiItem.item_name,
-          price: apiItem.price_list_rate || apiItem.rate || 0,
+          price: apiItem.price_list_rate || 0,
           actual_qty: apiItem.actual_qty || 0,
           local_qty: (apiItem.actual_qty || 0) - pendingQty,
           warehouse_details: apiItem.warehouse_details || [],
-          custom_pieces_per_box: apiItem.custom_pieces_per_box || 1,
-          barcodes: apiItem.barcodes || []
+          custom_pieces_per_box: apiItem.pcs_per_box || apiItem.custom_pieces_per_box || 1,
+          prices: apiItem.prices || {},
+          uom_conversions: apiItem.uom_conversions || {},
+          barcode_image: apiItem.barcode_image || null
         };
+
+        // Fallback for prices if missing
+        if (!itemToBill.prices.Nos && !itemToBill.prices.Piece) {
+          itemToBill.prices = { "Nos": apiItem.price_list_rate || 0 };
+        }
+        if (!itemToBill.uom_conversions.Nos && !itemToBill.uom_conversions.Piece) {
+          itemToBill.uom_conversions = { "Nos": 1 };
+        }
 
         if (itemToBill.local_qty <= 0) {
           try {
@@ -969,6 +1216,7 @@ function Home() {
               method: 'kyle_retail.retail_api.api.find_nearest_stock',
               args: { item_code: itemToBill.id, current_warehouse: warehouse }
             });
+            // Update itemToBill with the latest proximity data
             itemToBill.warehouse_details = nearest || [];
             showStockBreakdown(itemToBill);
           } catch (err) {
@@ -991,23 +1239,51 @@ function Home() {
           }, 200);
         }
       } else {
-        const query = barcode.trim().toLowerCase();
+        // Fallback to local search if API fails to find it (for offline support)
         const foundLocal = Items.find(item =>
-          item.barcodes?.some(b => b.barcode.trim() === barcode.trim()) ||
-          item.id.toLowerCase() === query ||
-          item.name.toLowerCase().includes(query)
+          (item.id || "").toLowerCase() === barcode.trim().toLowerCase() ||
+          item.barcodes?.some(b => (b.barcode || "").toLowerCase() === barcode.trim().toLowerCase())
         );
 
         if (foundLocal) {
           handleAddToBill(foundLocal);
           setBarcodeInput('');
         } else {
-          Swal.fire('Not Found', apiItem?.message || 'Item not found in database.', 'error');
-          if (barcodeInputRef.current) {
-            barcodeInputRef.current.style.backgroundColor = '#fee2e2';
-            setTimeout(() => {
-              if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
-            }, 400);
+          // Tier 3: Global Discovery Fallback
+          try {
+            setSearchLoading(true);
+            const globalRes = await POSService.findItemGlobal(barcode.trim());
+            const it = globalRes?.message?.[0] || globalRes?.[0] || null;
+
+            if (it) {
+              const itemToBill = {
+                id: it.name || it.item_code,
+                name: it.item_name || it.name,
+                price: it.price_list_rate || it.price || 0,
+                actual_qty: it.actual_qty || 0,
+                local_qty: 0, // Mark as 0 if global Discovery
+                warehouse_details: it.warehouse_details || [],
+                custom_pieces_per_box: it.pcs_per_box || it.custom_pieces_per_box || 1,
+                prices: it.prices || { "Nos": it.price || it.price_list_rate || 0 },
+                uom_conversions: it.uom_conversions || { "Nos": 1 },
+                barcode_image: it.barcode_image || null,
+                _global: true // Flag for UI
+              };
+
+              handleAddToBill(itemToBill);
+              setBarcodeInput('');
+            } else {
+              Swal.fire('Not Found', 'Item not found in local or global database.', 'error');
+              if (barcodeInputRef.current) {
+                barcodeInputRef.current.style.backgroundColor = '#fee2e2';
+                setTimeout(() => {
+                  if (barcodeInputRef.current) barcodeInputRef.current.style.backgroundColor = '';
+                }, 400);
+              }
+            }
+          } catch (globalErr) {
+            console.error("Global search failed:", globalErr);
+            Swal.fire('Not Found', 'Item not found in database.', 'error');
           }
         }
       }
@@ -1016,56 +1292,122 @@ function Home() {
     } finally {
       setSearchLoading(false);
     }
-  }, [Items, warehouse, authFetch]);
+  }, [Items, warehouse, authFetch, handleAddToBill]);
+
+  // ---------- CAMERA SCANNER ENGINE ----------
+  if (!homeCodeReader.current) {
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.UPC_A, BarcodeFormat.CODE_128]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    homeCodeReader.current = new BrowserMultiFormatReader(hints);
+  }
+
+  useEffect(() => {
+    if (showCamera && homeVideoRef.current) {
+      const startScanner = async () => {
+        try {
+          const constraints = {
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              aspectRatio: { ideal: 1.3333333333 }
+            }
+          };
+          await homeCodeReader.current.decodeFromVideoDevice(constraints, homeVideoRef.current, (result, err) => {
+            if (result && showCamera) {
+              const scannedText = result.text.trim();
+              handleBarcodeScan(scannedText);
+              setShowCamera(false);
+              homeCodeReader.current.reset();
+            }
+          });
+        } catch (error) {
+          try {
+            await homeCodeReader.current.decodeFromVideoDevice(null, homeVideoRef.current, (result, err) => {
+              if (result && showCamera) {
+                handleBarcodeScan(result.text.trim());
+                setShowCamera(false);
+                homeCodeReader.current.reset();
+              }
+            });
+          } catch (fallbackError) {
+            Swal.fire('Camera Error', 'Could not open scanner.', 'error');
+            setShowCamera(false);
+          }
+        }
+      };
+      startScanner();
+    }
+    return () => { if (homeCodeReader.current) homeCodeReader.current.reset(); };
+  }, [showCamera, handleBarcodeScan]);
+
+  const handleImageScan = async (fileOrEvent) => {
+    let file;
+    if (fileOrEvent.target && fileOrEvent.target.files) {
+      file = fileOrEvent.target.files[0];
+    } else {
+      file = fileOrEvent; // Passed directly from drop
+    }
+
+    if (!file) return;
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = async () => {
+            try {
+              const result = await homeCodeReader.current.decodeFromImageElement(img);
+              if (result) {
+                handleBarcodeScan(result.text.trim());
+                Swal.fire({ title: 'Success', text: `Scanned: ${result.text}`, icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+              }
+            } catch (err) {
+              Swal.fire('Scan Failed', 'Could not find a valid barcode in this image.', 'error');
+            }
+          };
+        } catch (err) {
+          console.error("Image loading error:", err);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("File reading error:", err);
+    }
+  };
+
+  const onScanDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      handleImageScan(file);
+    }
+  };
 
   const onBarcodeKeyDown = (e) => {
-    // Standardize navigation: Arrows ONLY for the dropdown, as requested.
     if (e.key === 'ArrowDown' && showItemDropdown) {
       e.preventDefault();
       setActiveItemIndex(prev => Math.min(prev + 1, itemSearchResults.length - 1));
     } else if (e.key === 'ArrowUp' && showItemDropdown) {
       e.preventDefault();
       setActiveItemIndex(prev => Math.max(prev - 1, 0));
-    } else if (e.key === 'Enter' || (e.key === 'Tab' && showItemDropdown && activeItemIndex >= 0)) {
-      // If we have a selected item (via arrows) OR it's Enter, handle the selection
+    } else if (e.key === 'Enter') {
       if (activeItemIndex >= 0 && itemSearchResults[activeItemIndex]) {
-        e.preventDefault();
-        const selected = itemSearchResults[activeItemIndex];
-        handleAddToBill(selected);
+        handleAddToBill(itemSearchResults[activeItemIndex]);
         setBarcodeInput('');
         setShowItemDropdown(false);
         setActiveItemIndex(-1);
-
-        // Standard flow: Focus the QUANTITY field of the item just added for rapid adjustment
-        setTimeout(() => {
-          const newIdx = billItems.length; // The index of the item that will be added (after state update)
-          const qtyInput = document.getElementById(`qty-input-${newIdx}`);
-          if (qtyInput) {
-            qtyInput.focus();
-            qtyInput.select();
-          } else if (theme === 'legacy') {
+        if (theme === 'legacy') {
+          setTimeout(() => {
             const targetId = searchContext === 'header' ? 'legacy-header-search' : 'legacy-inline-search';
             document.getElementById(targetId)?.focus();
-          } else {
-            barcodeInputRef.current?.focus();
-          }
-        }, 50);
-      } else if (e.key === 'Enter' && itemSearchResults.length > 0) {
-        // Fallback: If no arrow selection but Enter is pressed with results, take the first one
-        e.preventDefault();
-        const first = itemSearchResults[0];
-        handleAddToBill(first);
-        setBarcodeInput('');
-        setShowItemDropdown(false);
-        setActiveItemIndex(-1);
-
-        setTimeout(() => {
-          const newIdx = billItems.length;
-          document.getElementById(`qty-input-${newIdx}`)?.focus();
-        }, 50);
-      } else if (e.key === 'Enter' && barcodeInput.trim()) {
-        // No local matches, try full barcode scan (API)
-        e.preventDefault();
+          }, 10);
+        } else {
+          barcodeInputRef.current?.focus();
+        }
+      } else {
         handleBarcodeScan(barcodeInput);
       }
     } else if (e.key === 'Escape') {
@@ -1073,21 +1415,6 @@ function Home() {
       setActiveItemIndex(-1);
     }
   };
-
-  // ---------- AUTO SCROLL FOR SEARCH DROPDOWN ----------
-  useEffect(() => {
-    if (activeItemIndex >= 0 && showItemDropdown) {
-      setTimeout(() => {
-        const activeItem = document.querySelector('.active-dropdown-item');
-        if (activeItem) {
-          activeItem.scrollIntoView({
-            block: 'nearest',
-            behavior: 'smooth'
-          });
-        }
-      }, 10);
-    }
-  }, [activeItemIndex, showItemDropdown]);
 
   // NEW: Request Stock from other warehouses
   const handleRequestStock = async (item) => {
@@ -1131,18 +1458,18 @@ function Home() {
   const showStockBreakdown = (item) => {
     const details = item.warehouse_details || [];
     if (details.length === 0) {
-      Swal.fire('No Data', 'No branch breakdown available.', 'info');
+      Swal.fire('No Data', 'No warehouse breakdown available.', 'info');
       return;
     }
 
     const html = `
         <div style="text-align: left; padding: 10px; max-height: 400px; overflow-y: auto;">
              <div style="display: flex; justify-content: space-between; font-weight: 800; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; margin-bottom: 10px;">
-                <span>Branch</span>
+                <span>Branch / Warehouse</span>
                 <span>Stock / Action</span>
             </div>
             ${details.map(d => {
-      const qty = parseFloat(d.actual_qty ?? d.qty ?? d.stock_qty ?? 0) || 0;
+      const qty = parseFloat(d.actual_qty);
       const branchName = d.warehouse_name || d.warehouse;
       return `
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 12px 0;">
@@ -1200,45 +1527,24 @@ function Home() {
     });
   };
 
-  // ---------- ITEM HANDLERS ----------
-  const handleFilter = (cat) => setSelectedCategory(cat);
-  const handleAddToBill = (item) => {
-    setLastInteractedItem(item);
-    setBillItems(prev => {
-      const existing = prev.find(i => i.id === item.id);
-      if (existing) {
-        // Check pieces vs boxes
-        const piecesNeeded = existing.uom === 'Box' ? (existing.custom_pieces_per_box || 1) : 1;
-        const currentPieces = existing.uom === 'Box' ? (existing.qty * (existing.custom_pieces_per_box || 1)) : existing.qty;
 
-        if (currentPieces + piecesNeeded > item.local_qty) {
-          Swal.fire('Out of Stock', `Only ${item.local_qty} pieces available.`, 'warning');
-          return prev;
-        }
-        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
-      } else {
-        if (item.local_qty <= 0) {
-          Swal.fire('Out of Stock', `"${item.name}" is out of stock.`, 'warning');
-          return prev;
-        }
-        return [...prev, { ...item, qty: 1, uom: 'Piece' }];
-      }
-    });
-    barcodeInputRef.current?.focus();
-  };
+
 
   const toggleUom = (id, newUom) => {
     setBillItems(prev => prev.map(item => {
       if (item.id === id) {
-        // Validation: If switching to Box, ensure stock exists
-        if (newUom === 'Box') {
-          const factor = item.custom_pieces_per_box || 1;
-          if (item.qty * factor > item.local_qty) {
-            Swal.fire('Out of Stock', `Insufficient stock to switch to Box.`, 'warning');
-            return item;
-          }
+        // --- Stock Verification ---
+        const factor = newUom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
+        const totalPiecesNeeded = item.qty * factor;
+
+        if (totalPiecesNeeded > item.local_qty) {
+          Swal.fire('Out of Stock', `Insufficient stock to switch. Needed: ${totalPiecesNeeded}, Available: ${item.local_qty}`, 'warning');
+          return item;
         }
-        return { ...item, uom: newUom };
+
+        // Standard UOM toggle logic - set price based on UOM or keep base price
+        const newPrice = item.prices?.[newUom] || item.price || 0;
+        return { ...item, uom: newUom, price: newPrice };
       }
       return item;
     }));
@@ -1297,7 +1603,8 @@ function Home() {
   const updateQuantity = (id, delta) => {
     setBillItems(prev => prev.map(i => {
       if (i.id === id) {
-        const newQty = Math.max(1, (i.qty || 0) + delta);
+        const currentQty = parseInt(i.qty) || 0;
+        const newQty = Math.max(1, currentQty + delta);
         if (delta > 0) {
           const piecesNeeded = i.uom === 'Box' ? newQty * (i.custom_pieces_per_box || 1) : newQty;
           if (piecesNeeded > (i.local_qty || 0)) {
@@ -1311,38 +1618,43 @@ function Home() {
     }));
   };
 
-  const setQuantity = (id, val) => {
-    const newQty = parseInt(val);
-    if (isNaN(newQty)) {
-      setBillItems(prev => prev.map(i => i.id === id ? { ...i, qty: "" } : i));
-      return;
-    }
-
+  const setExactQuantity = (id, val) => {
     setBillItems(prev => prev.map(i => {
       if (i.id === id) {
-        const finalQty = Math.max(1, newQty);
-        const piecesNeeded = i.uom === 'Box' ? finalQty * (i.custom_pieces_per_box || 1) : finalQty;
-        if (piecesNeeded > (i.local_qty || 0)) {
-          Swal.fire('Out of Stock', `Insufficient stock for ${finalQty} units.`, 'warning');
-          return i;
+        if (val === '') return { ...i, qty: '' };
+
+        const newQty = parseInt(val);
+        if (isNaN(newQty) || newQty < 0) return i;
+
+        const currentQty = parseInt(i.qty) || 0;
+        if (newQty > currentQty) {
+          const piecesNeeded = i.uom === 'Box' ? newQty * (i.custom_pieces_per_box || 1) : newQty;
+          if (piecesNeeded > (i.local_qty || 0)) {
+            Swal.fire('Out of Stock', `Insufficient stock.`, 'warning');
+            return i;
+          }
         }
-        return { ...i, qty: finalQty };
+        return { ...i, qty: newQty };
       }
       return i;
     }));
   };
 
-  // Category Scrolling Ref (Required for Modern UI)
-  const categoryScrollRef = useRef(null);
-
+  // Category slider
+  const groupCategories = (cats, size) => {
+    const groups = [];
+    for (let i = 0; i < cats.length; i += size) groups.push(cats.slice(i, i + size));
+    return groups;
+  };
+  const groupedCategories = groupCategories(categories, 4);
   const handlePrevSlide = () => {
     if (categoryScrollRef.current) {
-      categoryScrollRef.current.scrollBy({ left: -240, behavior: "smooth" });
+      categoryScrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
     }
   };
   const handleNextSlide = () => {
     if (categoryScrollRef.current) {
-      categoryScrollRef.current.scrollBy({ left: 240, behavior: "smooth" });
+      categoryScrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
     }
   };
 
@@ -1413,13 +1725,22 @@ function Home() {
 
     const generateOfflineId = () => {
       const now = new Date();
-      const prefix = branchPrefix || user?.split('@')[0].slice(0, 3).toUpperCase() || 'POS';
-      const dateStr = format(now, 'yyyyMMdd');
-      const timeStr = format(now, 'HHmmssSS'); // Include milliseconds for uniqueness
-      const seqKey = `offline_seq_${dateStr}`;
-      const currentSeq = parseInt(localStorage.getItem(seqKey) || '0') + 1;
-      localStorage.setItem(seqKey, currentSeq.toString());
-      return `${prefix}-${dateStr}-${timeStr}-${String(currentSeq).padStart(4, '0')}`;
+      // Prefix: Use branchPrefix (e.g., AJM) or first 3 of username
+      const bPrefix = branchPrefix || user?.split('@')[0].slice(0, 3).toUpperCase() || 'POS';
+
+      // User Code: Extract digits or identifier before @
+      const usernamePart = user?.split('@')[0] || '';
+      const userNumMatch = usernamePart.match(/\d+$/);
+      const userCode = userNumMatch ? `CS${userNumMatch[0]}` : 'CS1';
+
+      if (offlineIdType === 'continuous') {
+        const year = format(now, 'yyyy');
+        return `${bPrefix}-${userCode}-${year}-${String(continuousOrderCount).padStart(6, '0')}`;
+      } else {
+        const ddmm = format(now, 'ddMM');
+        const timeStr = format(now, 'HHmmss');
+        return `${bPrefix}-${userCode}-${ddmm}-${timeStr}-${String(sessionOrderCount).padStart(3, '0')}`;
+      }
     };
 
     const offlineId = generateOfflineId();
@@ -1618,8 +1939,15 @@ function Home() {
     setDiscount({ type: 'amount', value: 0 });
     setCustomerName('Cash'); setSelectedCustomer(null); setPhoneNumber('');
     setSelectedPaymentMode(''); setTenderedAmount(0);
+    setPayments([]);
     setShowPaymentModal(false);
     barcodeInputRef.current?.focus();
+
+    if (offlineIdType === 'continuous') {
+      const nextCount = continuousOrderCount + 1;
+      setContinuousOrderCount(nextCount);
+      localStorage.setItem('offlineIdContinuousCount', nextCount.toString());
+    }
   };
 
   // ---------- SPEED CHECKOUT & KEYBOARD SHORTCUTS ----------
@@ -1659,19 +1987,24 @@ function Home() {
           if (err.message && err.message.includes("409")) {
             // 409 means conflict - usually customer already exists
             try {
-              // Try searching one more time or use a simpler detail call
-              const searchRes = await frappeCall({
-                method: 'kyle_retail.retail_api.api.get_customer_details',
-                args: { customer: searchTerm }
+              // Try searching for the exact customer by mobile number
+              const listRes = await frappeCall({
+                method: 'frappe.client.get_list',
+                args: { doctype: 'Customer', filters: [['mobile_no', '=', searchTerm]], fields: ['name', 'customer_name', 'mobile_no'] }
               });
-              if (searchRes && searchRes.name) {
-                pickCustomer(searchRes);
+              if (listRes && listRes.length > 0) {
+                pickCustomer(listRes[0]);
+                const Toast = Swal.mixin({
+                  toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                });
+                Toast.fire({ icon: 'success', title: `Customer: ${listRes[0].customer_name || listRes[0].name}` });
                 return;
               }
             } catch (e2) { }
           }
           console.error("Customer lookup failed", err);
-          Swal.fire('Error', 'Customer lookup failed or exists with different details (409). Check if mobile is correct.', 'error');
+          // If auto-create and fetch fails completely, open the Create Custom Modal automatically
+          openCreate();
         } finally {
           setCustomerLoading(false);
         }
@@ -1729,8 +2062,9 @@ function Home() {
   const renderPaymentModal = () => (
     <div className="home-modal-overlay" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}>
       <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div className="home-modal-header" style={{ justifyContent: 'center', position: 'relative' }}>
-          <h3 style={{ margin: 0 }}>Payment Details</h3>
+        <div className="home-modal-header">
+          <h3>Payment Details</h3>
+          <button className="home-modal-close" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}><X size={20} /></button>
         </div>
 
         <div className="home-modal-body">
@@ -1994,6 +2328,28 @@ function Home() {
   // ---------- KEYBOARD SHORTCUTS ENGINE ----------
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // 1. GLOBAL HID SCANNER LISTENER (Intercepts rapid digits)
+      const now = Date.now();
+      const isInputFocused = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
+
+      // If user is not typing in a specific input, or if it's very fast (typical of hardware scanners)
+      if (now - lastKeyTime.current > 150) {
+        scannerBuffer.current = ""; // Reset buffer if typing is too slow to be a scanner
+      }
+      lastKeyTime.current = now;
+
+      if (e.key.length === 1 && /^[0-9]$/.test(e.key)) {
+        scannerBuffer.current += e.key;
+      } else if (e.key === 'Enter' && scannerBuffer.current.length >= 6) {
+        // Hardware Scanner finished sequence (min 6 chars for retail codes)
+        e.preventDefault();
+        const scanValue = scannerBuffer.current;
+        scannerBuffer.current = "";
+        handleBarcodeScan(scanValue);
+        return;
+      }
+
+      // 2. KEYBOARD SHORTCUTS
       // F2: Focus Mobile Number
       if (e.key === 'F2') {
         e.preventDefault();
@@ -2050,7 +2406,7 @@ function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [billItems.length, showPaymentModal, showDiscountModal, showItemDropdown, selectedPaymentMode, showOpeningModal, lastInteractedItem, balanceRemaining, tenderedAmount, paymentLoading]);
+  }, [billItems.length, showPaymentModal, showDiscountModal, showItemDropdown, selectedPaymentMode, showOpeningModal, lastInteractedItem, balanceRemaining, tenderedAmount, paymentLoading, handleBarcodeScan]);
 
   if (loadingItems) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
 
@@ -2113,7 +2469,323 @@ function Home() {
 
   const changeBack = Math.max(0, totalPaid - grandTotal);
 
-  // ---------- RENDER ----------
+  // ---------- LIGHT THEME RENDERER (Emerald & Slate) ----------
+  const renderLightTheme = () => {
+    return (
+      <div className="so-page">
+        {/* MODERN TOOL STRIP */}
+        <div className="so-tool-strip">
+          <div className="so-shortcut-badge" onClick={() => nameInputRef.current?.focus()}>
+            <span className="so-shortcut-key">F2</span>
+            <span className="so-shortcut-label">Customer</span>
+          </div>
+          <div className="so-shortcut-badge" onClick={() => barcodeInputRef.current?.focus()}>
+            <span className="so-shortcut-key">F4</span>
+            <span className="so-shortcut-label">Search</span>
+          </div>
+          <div className="so-shortcut-badge" onClick={handleCheckout}>
+            <span className="so-shortcut-key">SPACE</span>
+            <span className="so-shortcut-label">Pay Now</span>
+          </div>
+          <div className="so-shortcut-badge" style={{ background: '#fef2f2', borderColor: '#fee2e2' }} onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}>
+            <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
+            <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear Bill</span>
+          </div>
+          
+          <div className="h-6 w-px bg-slate-200 mx-2"></div>
+
+          <button
+              onClick={toggleLegacyColor}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0 0.75rem', height: '2rem', background: 'transparent',
+                border: `1.5px solid var(--so-primary)`, borderRadius: '0.375rem',
+                fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-primary)',
+                cursor: 'pointer', transition: 'all 0.2s',
+                textTransform: 'uppercase'
+              }}
+            >
+              <Palette size={12} /> {!isGreen ? 'GREEN' : 'BLUE'}
+            </button>
+
+            <button
+              onClick={() => dispatch(toggleTheme())}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0 0.75rem', height: '2rem', background: 'transparent',
+                border: '1.5px solid var(--so-border)', borderRadius: '0.375rem',
+                fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-text-muted)',
+                cursor: 'pointer', transition: 'all 0.2s',
+                textTransform: 'uppercase'
+              }}
+            >
+              <MonitorSmartphone size={12} /> Layout
+            </button>
+
+          <div className="flex-1"></div>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="so-btn-primary"
+            style={{ padding: '0 1.5rem', height: '2.5rem' }}
+          >
+            <Package size={16} /> Dashboard
+          </button>
+        </div>
+
+        <main className="so-main-layout">
+          <div className="so-item-side">
+            <div className="so-cat-bar">
+              {categories.length > 5 && (
+                <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handlePrevSlide}>
+                  <ChevronLeft size={18} />
+                </button>
+              )}
+              <div className="so-cat-tabs" ref={categoryScrollRef}>
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    className={`so-cat-tab ${selectedCategory === cat ? 'active' : ''}`}
+                    onClick={() => handleFilter(cat)}
+                  >
+                    {cat === "all" ? "All Categories" : cat}
+                  </button>
+                ))}
+              </div>
+              {categories.length > 5 && (
+                <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handleNextSlide}>
+                  <ChevronRight size={18} />
+                </button>
+              )}
+            </div>
+
+            <div className="so-grid-area">
+              {filteredItems.length === 0 ? (
+                <div className="col-span-full h-96 flex flex-col items-center justify-center text-slate-300 gap-4 opacity-70">
+                  <SearchSlash size={64} strokeWidth={1} />
+                  <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
+                </div>
+              ) : (
+                filteredItems.map(item => (
+                  <div
+                    key={item.id}
+                    className="so-item-card"
+                    onClick={() => { setLastInteractedItem(item); item.local_qty > 0 && handleAddToBill(item); }}
+                    style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
+                  >
+                    <div className="relative group">
+                      {item.image ? (
+                        <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
+                      ) : (
+                        <div className="so-item-img flex items-center justify-center p-6 text-center text-slate-400 font-black text-[10px] uppercase bg-slate-50 border-2 border-dashed border-slate-200">
+                          {item.name}
+                        </div>
+                      )}
+                      <div className="absolute top-2.5 right-2.5">
+                        <span className={`so-item-badge ${item.local_qty > 10 ? 'so-badge-emerald' : (item.local_qty > 0 ? 'so-badge-amber' : 'so-badge-rose')}`}>
+                          {item.local_qty > 0 ? `${item.local_qty} UNIT` : 'OUT STOCK'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col flex-1 justify-between gap-1.5">
+                      <h4 className="so-item-name">
+                        {item.name}
+                      </h4>
+
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Price</span>
+                          <span className="font-black text-slate-900 text-[13px]">
+                            <span className="text-[9px] text-slate-400 mr-0.5">AED</span> {parseFloat(item.price).toFixed(2)}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
+                        >
+                          <Info size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {item.local_qty <= 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
+                        className="w-full mt-2 py-2.5 bg-sky-50 text-sky-600 rounded-xl border border-sky-100 text-[10px] font-black uppercase tracking-tighter hover:bg-sky-600 hover:text-white transition-all"
+                      >
+                        Locate in Other Branches
+                      </button>
+                    )}
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+
+          <aside className="so-bill-side">
+            <div className="so-bill-header flex flex-col gap-4">
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <UserPlus size={18} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+                </div>
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  placeholder="Search Customer..."
+                  value={customerName === 'Cash' ? '' : customerName}
+                  className="so-customer-input pl-12"
+                  onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
+                  onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); setShowDropdown(true); }}
+                  onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
+                />
+                {showDropdown && (
+                  <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[300] mt-2 max-h-56 overflow-y-auto">
+                    {searchResults.map(c => (
+                      <div key={c.name} onMouseDown={() => pickCustomer(c)} className="p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
+                        <div>
+                          <div className="font-black text-[13px] text-slate-800 uppercase">{c.customer_name}</div>
+                          <div className="text-[11px] text-slate-400 font-bold">{c.mobile_no}</div>
+                        </div>
+                        <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500" />
+                      </div>
+                    ))}
+                    <div onMouseDown={openCreate} className="p-4 bg-emerald-50 text-emerald-600 font-black text-[11px] uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
+                      + Register New Customer
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={18} className="text-sky-400 group-focus-within:text-sky-600 transition-colors" />
+                </div>
+                <input
+                  ref={barcodeInputRef}
+                  type="text"
+                  placeholder="SCAN OR TYPE PRODUCT NAME..."
+                  value={barcodeInput}
+                  onChange={e => setBarcodeInput(e.target.value)}
+                  onKeyDown={onBarcodeKeyDown}
+                  className="so-customer-input pl-12 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="so-bill-items">
+              {billItems.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center opacity-30 gap-4 mt-12 grayscale">
+                  <MonitorSmartphone size={80} strokeWidth={1} />
+                  <span className="font-black text-[11px] uppercase tracking-widest text-center px-16 leading-relaxed">
+                    Select items or scan barcode<br />to start a new transaction
+                  </span>
+                </div>
+              ) : (
+                billItems.map((item, idx) => (
+                  <div key={item.id} className="so-bill-item">
+                    <div className="relative flex justify-between items-start">
+                      <div className="flex-1 pr-6">
+                        <h4 className="so-bill-item-name">{item.name}</h4>
+                        <div className="flex items-center gap-4">
+                          <span className="text-[11px] font-black text-slate-400">AED {item.price}</span>
+                          <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                            <button onClick={() => toggleUom(item.id, 'Piece')} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
+                            <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="so-bill-qty-control shadow-sm">
+                          <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
+                            {item.qty > 1 ? <Minus size={11} className="opacity-40" /> : <X size={11} className="text-rose-400" />}
+                          </button>
+                          <input
+                            id={`qty-input-${idx}`}
+                            className="so-bill-qty-input"
+                            value={item.qty}
+                            onChange={(e) => setQuantity(item.id, e.target.value)}
+                          />
+                          <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500"><Plus size={11} /></button>
+                        </div>
+                      </div>
+                      <button onClick={() => removeFromBill(item.id)} className="so-bill-remove">
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
+                      <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
+                      <span className="text-[13px] font-black text-slate-800">AED {(item.qty * (item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price)).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="so-bill-footer">
+              <div className="so-total-box">
+                <div className="so-total-row">
+                  <span>Subtotal</span>
+                  <span>AED {displaySubtotal.toFixed(2)}</span>
+                </div>
+                {displayDiscount > 0 && (
+                  <div className="so-total-row" style={{ color: 'var(--so-danger)' }}>
+                    <span>Discount</span>
+                    <span>-AED {displayDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="so-total-row">
+                  <span>Tax ({taxRate}%)</span>
+                  <span>AED {displayTax.toFixed(2)}</span>
+                </div>
+
+                <div className="so-grand-total">
+                  <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
+                  <span>AED {grandTotal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={() => setShowDiscountModal(true)}
+                  className="so-btn-secondary flex-1"
+                >
+                  <Palette size={14} /> % Discount
+                </button>
+                <button
+                  onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}
+                  className="so-btn-secondary flex-1"
+                  style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
+                >
+                  <Trash2 size={14} /> Reset
+                </button>
+              </div>
+
+              <button
+                className="so-btn-pay"
+                disabled={grandTotal <= 0}
+                onClick={handleCheckout}
+              >
+                <CreditCard size={18} /> Confirm & Pay (Space)
+              </button>
+            </div>
+          </aside>
+        </main>
+
+        {renderCommonModals()}
+      </div>
+    );
+  };
+
+
+  // ---------- MAIN RENDER CONTEXT ----------
+  // MODERN THEME (Simplified Priority Render)
+  if (theme !== 'legacy') {
+    return renderLightTheme();
+  }
+
   // NEW CLASSIC RENDERER (Embedded logic for Green/Blue themes)
   if (theme === 'legacy') {
     const isGreen = legacySubTheme === 'green';
@@ -2143,20 +2815,19 @@ function Home() {
             )}
             <div className="h-5 w-[1px] bg-slate-200" />
             <button
-              onClick={toggleLegacyColor}
+              onClick={() => setLegacySubTheme(isGreen ? 'blue' : 'green')}
               className={`flex items-center gap-2 px-4 py-1.5 rounded bg-slate-50 border border-slate-200 transition-all font-black text-[12px] shadow-sm uppercase tracking-wide ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
               title="Toggle Legacy Color"
             >
-              <Palette size={11} /> {!isGreen ? 'GREEN' : 'BLUE'}
+              <Palette size={11} /> {legacySubTheme.toUpperCase()}
             </button>
-
             <div className="h-5 w-[1px] bg-slate-200" />
             <button
               onClick={() => dispatch(toggleTheme())}
               className={`flex items-center gap-2 px-4 py-1.5 rounded bg-slate-50 border border-slate-200 transition-all font-black text-[12px] shadow-sm uppercase tracking-wide ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
               title="Switch to Modern UI"
             >
-              <MonitorSmartphone size={11} /> MODERN UI
+              <MonitorSmartphone size={11} /> SWITCH THEME
             </button>
           </div>
 
@@ -2171,7 +2842,7 @@ function Home() {
               <UserIcon size={12} className="text-slate-500" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-black text-slate-800 uppercase leading-none">{user?.full_name || user || 'CASHIER'}</span>
-                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">{format(currentTime, 'dd MMM · HH:mm:ss')}</span>
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">{format(new Date(), 'dd MMM · HH:mm:ss')}</span>
               </div>
             </div>
             <button onClick={handleLogout} className="w-8 h-8 flex items-center justify-center bg-rose-50 border border-rose-200 text-rose-500 hover:bg-rose-500 hover:text-white transition-all rounded">
@@ -2182,8 +2853,6 @@ function Home() {
 
         {/* CLASSIC HEADER FORM */}
         <div className="classic-header-form">
-
-
           <div className="classic-field flex items-center gap-2 relative">
             <label className="uppercase font-bold">CUSTOMER</label>
             <div className="relative group" ref={dropdownRef}>
@@ -2201,14 +2870,13 @@ function Home() {
                 className="w-48 h-6 px-2"
                 placeholder="Mobile or Name..."
               />
-              {showDropdown && (
-                <div className="absolute top-full left-0 w-64 bg-white border-2 border-slate-900 shadow-[4px_4px_0_rgba(0,0,0,0.1)] z-[9999] max-h-48 overflow-y-auto">
+              {showDropdown && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 w-64 bg-white border-2 border-slate-900 shadow-[4px_4px_0_rgba(0,0,0,0.1)] z-[9999] max-h-48 overflow-y-auto mt-1">
                   {searchResults.map(c => (
                     <div key={c.name} className={`p-2 border-b border-slate-100 hover:bg-slate-50 cursor-pointer text-[11px] font-bold text-slate-900`} onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); }}>
                       {c.customer_name} — {c.mobile_no}
                     </div>
                   ))}
-                  <div className="p-2 bg-sky-50 text-sky-600 font-black text-[10px] cursor-pointer hover:bg-amber-400 hover:text-black" onMouseDown={(e) => { e.preventDefault(); openCreate(); }}>+ CREATE NEW CUSTOMER</div>
                 </div>
               )}
             </div>
@@ -2222,52 +2890,44 @@ function Home() {
                 value={barcodeInput}
                 onChange={e => { setBarcodeInput(e.target.value); setSearchContext('header'); setShowItemDropdown(true); }}
                 onKeyDown={onBarcodeKeyDown}
-                onFocus={() => { setSearchContext('header'); setShowItemDropdown(true); setActiveItemIndex(-1); }}
-                onClick={() => { setSearchContext('header'); setShowItemDropdown(true); }}
+                onFocus={() => { setBarcodeInput(''); setSearchContext('header'); setShowItemDropdown(false); setActiveItemIndex(-1); }}
+                onClick={() => { setBarcodeInput(''); setSearchContext('header'); setShowItemDropdown(false); }}
                 onBlur={() => setTimeout(() => setShowItemDropdown(false), 300)}
                 id="legacy-header-search"
                 className="w-48 h-6 px-2 bg-amber-50"
-                placeholder="Scan Barcode or Search..."
+                autoFocus
               />
-              {showItemDropdown && itemSearchResults.length > 0 && searchContext === 'header' && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, minWidth: '320px',
-                  background: '#fff', border: '2px solid #1e293b',
-                  boxShadow: '4px 4px 0 rgba(0,0,0,0.12)', zIndex: 9999,
-                  maxHeight: '260px', overflowY: 'auto'
-                }}>
-                  {itemSearchResults.map((it, idx) => (
-                    <div
-                      key={it.id}
-                      style={{
-                        padding: '8px 12px', borderBottom: '1px solid #f1f5f9',
-                        cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
-                        alignItems: 'center',
-                        background: activeItemIndex === idx ? (isGreen ? '#fef3c7' : '#e0f2fe') : '#fff'
-                      }}
-                      className={activeItemIndex === idx ? 'active-dropdown-item' : ''}
-                      onMouseDown={(e) => { e.preventDefault(); handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); barcodeInputRef.current?.focus(); }}
-                      onMouseEnter={() => setActiveItemIndex(idx)}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '12px', color: '#0f172a' }}>{it.name}</div>
-                        <div style={{ fontSize: '10px', color: '#64748b' }}>
-                          {it.barcodes && it.barcodes.length > 0 ? `${it.barcodes[0].barcode} · ` : ''}
-                          {it.id} · Stock: {it.local_qty}
-                        </div>
-                      </div>
-                      <div style={{ fontWeight: 800, color: isGreen ? '#10b981' : '#0284c7', fontSize: '12px' }}>AED {it.price}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
+            <button
+              onClick={() => setShowCamera(true)}
+              className="w-8 h-6 bg-slate-100 text-slate-600 border border-slate-300 flex items-center justify-center hover:bg-slate-200 transition-all rounded"
+              title="Camera Scanner"
+            >
+              <Camera size={14} />
+            </button>
+            <label className="w-8 h-6 bg-slate-100 text-slate-600 border border-slate-300 flex items-center justify-center hover:bg-slate-200 transition-all rounded cursor-pointer" title="Scan Image File">
+              <Scan size={14} />
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageScan} />
+            </label>
           </div>
 
-          <div className="ml-auto flex items-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-1 bg-slate-50 border border-slate-200 rounded">
-              <span className="text-[10px] font-black text-slate-400 uppercase">Branch:</span>
-              <span className="text-[11px] font-black text-slate-800">{warehouse}</span>
+          <div className="classic-field flex items-center gap-2">
+            <label className="uppercase font-bold text-[10px] tracking-widest text-slate-400">INV NO:</label>
+            <InvoiceNumberDisplay
+              branchPrefix={branchPrefix}
+              userName={user?.split('@')[0]}
+              ddmm={format(new Date(), 'ddMM')}
+              sessionOrderCount={sessionOrderCount}
+              formatType={offlineIdType}
+              onToggleFormat={setOfflineIdMethodHandle}
+              continuousCount={continuousOrderCount}
+            />
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-500">
+              <span className="text-[10px] font-black uppercase tracking-widest ">BRANCH:</span>
+              <span className={`text-[11px] font-black ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}>{warehouse}</span>
             </div>
           </div>
         </div>
@@ -2276,42 +2936,58 @@ function Home() {
         <div className="flex-1 flex overflow-hidden">
           <div className="classic-entry-area">
             {/* GRID SECTION */}
-            <div className="flex-1 overflow-auto bg-white/40 pb-64" style={{ minHeight: '300px' }}>
+            <div className="flex-1 overflow-auto bg-slate-100 pb-16">
               <table className="classic-table">
                 <colgroup>
                   <col style={{ width: 40 }} />
                   <col style={{ width: 140 }} />
                   <col style={{ width: 'auto' }} />
                   <col style={{ width: 70 }} />
+                  <col style={{ width: 60 }} />
+                  <col style={{ width: 60 }} />
+                  <col style={{ width: 80 }} />
                   <col style={{ width: 70 }} />
-                  <col style={{ width: 90 }} />
-                  <col style={{ width: 130 }} />
-                  <col style={{ width: 40 }} />
+                  <col style={{ width: 100 }} />
+                  <col style={{ width: 30 }} />
                 </colgroup>
                 <thead>
                   <tr>
                     <th className="text-center">#</th>
-                    <th>ITEM CODE</th>
-                    <th>DESCRIPTION</th>
+                    <th className="text-center">ITEM CODE</th>
+                    <th className="text-center">DESCRIPTION</th>
                     <th className="text-center">UOM</th>
-                    <th className="text-right">QTY</th>
-                    <th className="text-right">PRICE</th>
-                    <th className="text-right">TOTAL</th>
+                    <th className="text-center">QTY</th>
+                    <th className="text-center">PCS</th>
+                    <th className="text-center">PRICE</th>
+                    <th className="text-center">VAT (5%)</th>
+                    <th className="text-center">TOTAL</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {billItems.map((item, idx) => {
-                    const itemPrice = item.uom === 'Box' ? item.price * (item.custom_pieces_per_box || 1) : item.price;
-                    const lineTotal = item.qty * itemPrice;
+                    const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
+                    const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
+                    const lineTotal = item.qty * effectivePrice;
                     return (
                       <tr key={idx} className="bg-white hover:bg-amber-50 group border-b border-slate-100">
                         <td className="text-center font-bold text-slate-400 text-[10px]">{idx + 1}</td>
-                        <td className="px-2 font-bold text-slate-900">
+                        <td className="px-2 font-bold text-slate-900 text-center">
                           <span className="classic-cell-text" title={item.item_code || item.id}>{item.item_code || item.id}</span>
                         </td>
-                        <td className="px-2 font-black text-slate-700 uppercase">
-                          <span className="classic-cell-text" title={item.item_name || item.name}>{item.item_name || item.name}</span>
+                        <td className="p-0">
+                          <input
+                            type="text"
+                            value={item.item_name || item.name}
+                            onChange={e => {
+                              const newBill = [...billItems];
+                              if (newBill[idx].item_name !== undefined) newBill[idx].item_name = e.target.value;
+                              else newBill[idx].name = e.target.value;
+                              setBillItems(newBill);
+                            }}
+                            className="w-full h-full px-2 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300"
+                            placeholder="Description"
+                          />
                         </td>
                         <td className="p-0">
                           <select
@@ -2320,15 +2996,15 @@ function Home() {
                             className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-amber-200 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                             <option value="Piece">Pc</option>
-                            <option value="Box">Box</option>
+                            {item.custom_pieces_per_box > 0 && <option value="Box">Box ({item.custom_pieces_per_box})</option>}
                           </select>
                         </td>
                         <td className="p-0">
                           <input
                             id={`qty-input-${idx}`}
                             type="number"
-                            value={item.qty}
-                            onChange={e => setQuantity(item.id, e.target.value)}
+                            value={item.qty === 0 ? '' : item.qty}
+                            onChange={e => setExactQuantity(item.id, e.target.value)}
                             onFocus={e => e.target.select()}
                             onKeyDown={e => {
                               if (e.key === 'Enter') {
@@ -2341,13 +3017,19 @@ function Home() {
                                 }
                               }
                             }}
-                            className="w-full h-full text-right px-2 font-black text-sky-600 focus:bg-amber-100 outline-none border-none"
+                            className="w-full h-full text-center px-2 font-black text-sky-600 focus:bg-amber-100 outline-none border-none"
                           />
                         </td>
-                        <td className="text-right px-2 font-black text-slate-800 bg-slate-50/30">
-                          {parseFloat(item.price).toFixed(2)}
+                        <td className="text-center px-2 font-black text-amber-600 bg-amber-50">
+                          {item.qty * factor}
                         </td>
-                        <td className="text-right px-2 font-black text-slate-900 bg-slate-50/50">AED {(parseFloat(lineTotal) || 0).toFixed(2)}</td>
+                        <td className="text-center px-2 font-black text-slate-800 bg-slate-50/30">
+                          {parseFloat(effectivePrice).toFixed(2)}
+                        </td>
+                        <td className="text-center px-2 font-bold text-slate-500 text-[10px] italic">
+                          {(lineTotal * 0.05).toFixed(2)}
+                        </td>
+                        <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50">AED {(parseFloat(lineTotal) || 0).toFixed(2)}</td>
                         <td className="text-center">
                           <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
                         </td>
@@ -2357,26 +3039,27 @@ function Home() {
                   {/* ADVANCED: Smart Inline Search Row (The "Active" Empty Row) */}
                   <tr
                     className={`${isGreen ? 'bg-emerald-50/50' : 'bg-sky-50/50'} border-y-2 border-amber-400 group relative cursor-pointer hover:bg-amber-100/30 transition-all`}
-                    onClick={() => { inlineInputRef.current?.focus(); setSearchContext('inline'); setShowItemDropdown(true); }}
+                    onClick={() => { const el = document.getElementById('legacy-inline-search'); if (el) el.focus(); setSearchContext('inline'); setShowItemDropdown(true); }}
                   >
                     <td className="text-center font-bold text-amber-600">{billItems.length + 1}</td>
                     <td colSpan={2} className="p-0 relative h-10">
                       <input
                         type="text"
                         id="legacy-inline-search"
-                        ref={inlineInputRef}
                         className="w-full h-full px-4 font-black italic text-slate-400 focus:text-slate-900 bg-transparent outline-none placeholder:text-slate-300 cursor-pointer"
                         placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
                         value={barcodeInput}
                         onChange={e => { setBarcodeInput(e.target.value); setSearchContext('inline'); setShowItemDropdown(true); }}
-                        onFocus={() => { setSearchContext('inline'); setShowItemDropdown(true); setActiveItemIndex(-1); }}
-                        onClick={(e) => { e.stopPropagation(); setSearchContext('inline'); setShowItemDropdown(true); }}
+                        onFocus={() => { setBarcodeInput(''); setSearchContext('inline'); setShowItemDropdown(false); setActiveItemIndex(-1); }}
+                        onClick={(e) => { e.stopPropagation(); setBarcodeInput(''); setSearchContext('inline'); setShowItemDropdown(false); }}
                         onBlur={() => setTimeout(() => setShowItemDropdown(false), 300)}
                         onKeyDown={onBarcodeKeyDown}
                       />
                       {/* Fixed-position dropdown — avoids overflow:auto clipping — shifted for UOM column */}
-                      {showItemDropdown && itemSearchResults.length > 0 && searchContext === 'inline' && inlineInputRef.current && (() => {
-                        const rect = inlineInputRef.current.getBoundingClientRect();
+                      {showItemDropdown && itemSearchResults.length > 0 && searchContext === 'inline' && (() => {
+                        const searchEl = document.getElementById('legacy-inline-search');
+                        if (!searchEl) return null;
+                        const rect = searchEl.getBoundingClientRect();
                         return (
                           <div style={{
                             position: 'fixed',
@@ -2400,10 +3083,11 @@ function Home() {
                                   display: 'flex',
                                   justifyContent: 'space-between',
                                   alignItems: 'center',
+                                  textAlign: 'left',
                                   background: activeItemIndex === i ? (isGreen ? '#fef3c7' : '#e0f2fe') : (i === 0 ? (isGreen ? '#f0fdf4' : '#f0f9ff') : '#fff')
                                 }}
                                 className={activeItemIndex === i ? 'active-dropdown-item' : ''}
-                                onMouseDown={(e) => { e.preventDefault(); handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); inlineInputRef.current?.focus(); }}
+                                onMouseDown={(e) => { e.preventDefault(); handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); const el2 = document.getElementById('legacy-inline-search'); if (el2) el2.focus(); }}
                                 onMouseEnter={() => setActiveItemIndex(i)}
                               >
                                 <div>
@@ -2420,9 +3104,12 @@ function Home() {
                         );
                       })()}
                     </td>
-                    <td className="bg-black/5">-</td>
-                    <td className="bg-black/5">-</td>
-                    <td className="text-right px-2 font-black text-amber-600 bg-black/5">NEXT ITEM</td>
+                    <td className="text-center bg-black/5">-</td>
+                    <td className="text-center bg-black/5">-</td>
+                    <td className="text-center bg-black/5">-</td>
+                    <td className="text-center bg-black/5">-</td>
+                    <td className="text-center bg-black/5">-</td>
+                    <td className="text-center px-2 font-black text-amber-600 bg-black/5">NEXT ITEM</td>
                     <td className="text-center group-hover:bg-amber-400 transition-colors">
                       <Search size={14} className="mx-auto text-amber-400 group-hover:text-black" />
                     </td>
@@ -2432,6 +3119,9 @@ function Home() {
                   {Array.from({ length: Math.max(0, 17 - billItems.length) }).map((_, i) => (
                     <tr key={`empty-${i}`} className="bg-white/30 border-b border-white/10 opacity-30">
                       <td className="text-center text-slate-300 font-bold">{billItems.length + i + 2}</td>
+                      <td className="border-r border-white/10"></td>
+                      <td className="border-r border-white/10"></td>
+                      <td className="border-r border-white/10"></td>
                       <td className="border-r border-white/10"></td>
                       <td className="border-r border-white/10"></td>
                       <td className="border-r border-white/10"></td>
@@ -2520,445 +3210,416 @@ function Home() {
           </div>
         </div>
 
-        {/* Reuse Modals from existing Home.jsx logic */}
-        {showDiscountModal && renderDiscountModal()}
-        {showPaymentModal && renderPaymentModal()}
-        {showOpeningModal && (
-          <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[2000] flex items-center justify-center p-8">
-            <div className="w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl">
-              <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} />
-            </div>
-          </div>
-        )}
+        {/* Common Modals */}
+        {renderCommonModals()}
       </div>
     );
   }
 
-  // ---------- MODERN RENDER (EMERALD & SLATE) ----------
+  // ---------- MODERN RENDER (UNCHANGED) ----------
   return (
-    <div className={`home-container ${!isGreen ? 'theme-blue' : ''} ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
-      {theme === 'legacy' ? (
-        <div className={`classic-root ${!isGreen ? 'theme-blue' : ''}`}>
-          <style>{classicStyles}</style>
+    <div className={`home-container ${theme === 'legacy' ? 'theme-legacy' : ''}`}>
+      {/* Removed Redundant Legacy Header for Modern View */}
 
-          {/* CLASSIC NAVBAR */}
-          <nav className="classic-nav">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-              <div
-                className="so-brand"
-                style={{
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px'
-                }}
-                onClick={() => navigate('/homepage')}
-              >
-                <MonitorSmartphone size={24} style={{ color: isGreen ? '#10b981' : '#0ea5e9' }} />
-                <span style={{ color: '#0f172a' }}>POS<span style={{ color: isGreen ? '#10b981' : '#0ea5e9' }}>8</span></span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => dispatch(toggleTheme())}
-                  style={{
-                    padding: '8px 16px', borderRadius: '12px', border: '1px solid #e2e8f0',
-                    background: '#ffffff', color: '#64748b', fontSize: '11px', fontWeight: 900,
-                    textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s',
-                    display: 'flex', alignItems: 'center', gap: '8px'
-                  }}
-                >
-                  <LayoutDashboard size={14} /> Theme: {theme.toUpperCase()}
-                </button>
-
-                <button
-                  onClick={toggleTheme}
-                  style={{
-                    padding: '8px 16px', borderRadius: '12px', border: '1.5px solid',
-                    borderColor: isGreen ? '#10b981' : '#0ea5e9',
-                    background: '#ffffff', color: isGreen ? '#10b981' : '#0ea5e9',
-                    fontSize: '11px', fontWeight: 950, textTransform: 'uppercase',
-                    cursor: 'pointer', transition: 'all 0.2s',
-                    display: 'flex', alignItems: 'center', gap: '8px'
-                  }}
-                >
-                  <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
-
-                </button>
-
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
-                  {isOffline ? 'Offline' : 'Online'}
-                </span>
-              </div>
-
-              <button
-                onClick={handleLogout}
-                style={{
-                  width: '40px', height: '40px', borderRadius: '12px', background: '#fef2f2',
-                  color: '#ef4444', border: '1px solid #fee2e2', display: 'flex',
-                  alignItems: 'center', justifyCenter: 'center', cursor: 'pointer'
-                }}
-              >
-                <Power size={18} />
-              </button>
-            </div>
-          </nav>
-
-          {/* ... classic view content remaining as is ... */}
-          {/* Due to size limit, I'm focusing on the main structure. 
-              The classic view body was mostly placeholder in the last iteration.
-              Moving to Modern view which is the target. */}
-          <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '24px', opacity: 0.5 }}>
-            CLASSIC MODE ACTIVE
-          </div>
-        </div>
-      ) : (
-        <div className="so-page">
-          {/* MODERN TOOL STRIP */}
-          <div className="so-tool-strip">
-            <div className="so-shortcut-badge" onClick={() => nameInputRef.current?.focus()}>
-              <span className="so-shortcut-key">F2</span>
-              <span className="so-shortcut-label">Customer</span>
-            </div>
-            <div className="so-shortcut-badge" onClick={() => barcodeInputRef.current?.focus()}>
-              <span className="so-shortcut-key">F4</span>
-              <span className="so-shortcut-label">Search</span>
-            </div>
-            <div className="so-shortcut-badge" onClick={handleCheckout}>
-              <span className="so-shortcut-key">SPACE</span>
-              <span className="so-shortcut-label">Pay Now</span>
-            </div>
-            <div className="so-shortcut-badge" style={{ background: '#fef2f2', borderColor: '#fee2e2' }} onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}>
-              <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
-              <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear Bill</span>
-            </div>
-            
-            <div className="h-6 w-px bg-slate-200 mx-2"></div>
-
-            <button
-                onClick={toggleLegacyColor}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.4rem',
-                  padding: '0 0.75rem', height: '2rem', background: 'transparent',
-                  border: `1.5px solid var(--so-primary)`, borderRadius: '0.375rem',
-                  fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-primary)',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  textTransform: 'uppercase'
-                }}
-              >
-                <Palette size={12} /> {!isGreen ? 'GREEN' : 'BLUE'}
-              </button>
-
-              <button
-                onClick={() => dispatch(toggleTheme())}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.4rem',
-                  padding: '0 0.75rem', height: '2rem', background: 'transparent',
-                  border: '1.5px solid var(--so-border)', borderRadius: '0.375rem',
-                  fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-text-muted)',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  textTransform: 'uppercase'
-                }}
-              >
-                <MonitorSmartphone size={12} /> Layout
-              </button>
-
-            <div className="flex-1"></div>
-            <button
-              onClick={() => navigate('/quickstockin')}
-              className="so-btn-primary"
-              style={{ padding: '0 1.5rem', height: '2.5rem' }}
-            >
-              <Package size={16} /> Quick Stock-In
-            </button>
-          </div>
-
-          <main className="so-main-layout">
-            <div className="so-item-side">
-              <div className="so-cat-bar">
-                {categories.length > 5 && (
-                  <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handlePrevSlide}>
-                    <ChevronLeft size={18} />
+      <div className="home-content">
+        <div className="home-layout">
+          <div className="home-main-section">
+            {theme !== 'legacy' && (
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 rounded-xl border border-sky-100">
+                    <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-sky-600 border border-sky-200">F2</kbd>
+                    <span className="text-[10px] font-black text-sky-900 uppercase tracking-tight">Customer</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 rounded-xl border border-sky-100">
+                    <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-sky-600 border border-sky-200">F4</kbd>
+                    <span className="text-[10px] font-black text-sky-900 uppercase tracking-tight">Search</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 rounded-xl border border-sky-100">
+                    <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-sky-600 border border-sky-200">Space</kbd>
+                    <span className="text-[10px] font-black text-sky-900 uppercase tracking-tight">Pay</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-100">
+                    <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-amber-600 border border-amber-200">Esc</kbd>
+                    <span className="text-[10px] font-black text-amber-900 uppercase tracking-tight">Clear</span>
+                  </div>
+                  <button
+                    onClick={() => navigate('/quickstockin')}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-xl border border-slate-800 hover:bg-slate-800 transition-all cursor-pointer shadow-lg active:scale-95"
+                  >
+                    <Package size={14} className="text-white" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-tight">Quick Stock-In</span>
                   </button>
-                )}
-                <div className="so-cat-tabs" ref={categoryScrollRef}>
-                  {categories.map(cat => (
-                    <button
-                      key={cat}
-                      className={`so-cat-tab ${selectedCategory === cat ? 'active' : ''}`}
-                      onClick={() => handleFilter(cat)}
-                    >
-                      {cat === "all" ? "All Categories" : cat}
-                    </button>
-                  ))}
+                  <button
+                    onClick={() => dispatch(toggleTheme())}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-sky-500 rounded-xl border border-sky-400 hover:bg-sky-400 transition-all cursor-pointer shadow-lg active:scale-95"
+                    title="Switch POS Theme"
+                  >
+                    <Palette size={14} className="text-white" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-tight">Theme</span>
+                  </button>
                 </div>
-                {categories.length > 5 && (
-                  <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handleNextSlide}>
-                    <ChevronRight size={18} />
-                  </button>
-                )}
-              </div>
 
-              <div className="so-grid-area">
-                {filteredItems.length === 0 ? (
-                  <div className="col-span-full h-96 flex flex-col items-center justify-center text-slate-300 gap-4 opacity-70">
-                    <SearchSlash size={64} strokeWidth={1} />
-                    <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
+                <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${isOffline ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {isOffline ? 'OFFLINE' : 'ONLINE'}
+                    </span>
                   </div>
-                ) : (
-                  filteredItems.map(item => (
-                    <div
-                      key={item.id}
-                      className="so-item-card"
-                      onClick={() => { setLastInteractedItem(item); item.local_qty > 0 && handleAddToBill(item); }}
-                      style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
-                    >
-                      <div className="relative group">
-                        {item.image ? (
-                          <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
-                        ) : (
-                          <div className="so-item-img flex items-center justify-center p-6 text-center text-slate-400 font-black text-[10px] uppercase bg-slate-50 border-2 border-dashed border-slate-200">
-                            {item.name}
-                          </div>
-                        )}
-                        <div className="absolute top-2.5 right-2.5">
-                          <span className={`so-item-badge ${item.local_qty > 10 ? 'so-badge-emerald' : (item.local_qty > 0 ? 'so-badge-amber' : 'so-badge-rose')}`}>
-                            {item.local_qty > 0 ? `${item.local_qty} UNIT` : 'OUT STOCK'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col flex-1 justify-between gap-1.5">
-                        <h4 className="so-item-name">
-                          {item.name}
-                        </h4>
-
-                        <div className="flex items-center justify-between pt-2">
-                          <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Price</span>
-                            <span className="font-black text-slate-900 text-[13px]">
-                              <span className="text-[9px] text-slate-400 mr-0.5">AED</span> {parseFloat(item.price).toFixed(2)}
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                          >
-                            <Info size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {item.local_qty <= 0 && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
-                          className="w-full mt-2 py-2.5 bg-sky-50 text-sky-600 rounded-xl border border-sky-100 text-[10px] font-black uppercase tracking-tighter hover:bg-sky-600 hover:text-white transition-all"
-                        >
-                          Locate in Other Branches
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* BILL SIDE */}
-            <aside className="so-bill-side">
-              <div className="so-bill-header flex flex-col gap-4">
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <UserPlus size={18} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+                  <div className="h-4 w-[1px] bg-slate-200"></div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{branchPrefix || 'DXB'} Branch</span>
                   </div>
-                  <input
-                    ref={nameInputRef}
-                    type="text"
-                    placeholder="Search Customer..."
-                    value={customerName === 'Cash' ? '' : customerName}
-                    className="so-customer-input pl-12"
-                    onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
-                    onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); setShowDropdown(true); }}
-                    onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
-                  />
-                  {showDropdown && (
-                    <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[300] mt-2 max-h-56 overflow-y-auto">
-                      {searchResults.map(c => (
-                        <div key={c.name} onMouseDown={() => pickCustomer(c)} className="p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
-                          <div>
-                            <div className="font-black text-[13px] text-slate-800 uppercase">{c.customer_name}</div>
-                            <div className="text-[11px] text-slate-400 font-bold">{c.mobile_no}</div>
+                </div>
+              </div>
+            )}
+            {/* Removed pending sync text from Home as per request */}
+            {/* Category Slider - HIDDEN IN LEGACY */}
+            {theme !== 'legacy' && (
+              <div className="home-category-sidebar">
+                <div className="home-carousel-container">
+                  {groupedCategories.length > 1 && (
+                    <button className="home-carousel-arrow home-carousel-arrow-left" onClick={handlePrevSlide}>
+                      <ChevronLeft size={20} />
+                    </button>
+                  )}
+                  <div className="home-carousel-slides">
+                    <div className="home-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+                      {groupedCategories.map((group, i) => (
+                        <div key={i} className="home-category-slide">
+                          <div className="home-category-grid">
+                            {group.map(cat => (
+                              <button key={cat} className={`home-category-btn ${selectedCategory === cat ? "home-category-btn-active" : ""}`} onClick={() => handleFilter(cat)}>
+                                <span className="home-category-text" data-index={categories.indexOf(cat) + 1}>
+                                  {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                                </span>
+                              </button>
+                            ))}
                           </div>
-                          <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500" />
                         </div>
                       ))}
-                      <div onMouseDown={openCreate} className="p-4 bg-emerald-50 text-emerald-600 font-black text-[11px] uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
-                        + Register New Customer
-                      </div>
                     </div>
+                  </div>
+                  {groupedCategories.length > 1 && (
+                    <button className="home-carousel-arrow home-carousel-arrow-right" onClick={handleNextSlide}>
+                      <ChevronRight size={20} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Products Grid - HIDDEN IN LEGACY */}
+            {theme !== 'legacy' && (
+              <div className="home-items-container">
+                <div className="home-items-grid">
+                  {filteredItems.length === 0 ? (
+                    <p className="home-no-items">No items in this category</p>
+                  ) : (
+                    filteredItems.map(item => (
+                      <div key={item.id} className="home-item-wrapper" onClick={() => { setLastInteractedItem(item); item.local_qty > 0 && handleAddToBill(item); }}>
+                        <div className="home-item-card" style={{ opacity: item.local_qty > 0 ? 1 : 0.6, cursor: item.local_qty > 0 ? 'pointer' : 'not-allowed' }}>
+                          <div className="home-item-image-box">
+                            {item.image ? (
+                              <img
+                                src={getImageUrl(item.image)}
+                                alt={item.name}
+                                className="home-item-image"
+                                onError={e => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className="home-item-placeholder"
+                              style={{
+                                display: item.image ? 'none' : 'flex',
+                                width: '100%',
+                                height: '100%',
+                                backgroundColor: '#f1f5f9',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#94a3b8',
+                                fontWeight: 700,
+                                fontSize: '0.8rem',
+                                textAlign: 'center',
+                                padding: '10px'
+                              }}
+                            >
+                              {item.name}
+                            </div>
+                            {/* Overlay Barcode Image if exists */}
+                            {item.barcode_image && (
+                              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(255,255,255,0.8)', padding: '2px', display: 'flex', justifyContent: 'center' }}>
+                                <img src={getImageUrl(item.barcode_image)} alt="barcode" style={{ height: '20px', width: 'auto', mixBlendMode: 'multiply' }} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="home-item-body">
+                            <h4 className="home-item-title">{item.name}</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <p className="home-item-price" style={{ margin: 0 }}><strong>AED</strong> {item.price}</p>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }} onClick={() => setLastInteractedItem(item)}>
+                                <span style={{ fontSize: '0.65rem', color: item.local_qty > 0 ? '#10b981' : (item.total_qty > 0 ? '#f59e0b' : '#ef4444'), background: item.local_qty > 0 ? 'rgba(16, 185, 129, 0.1)' : (item.total_qty > 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)'), padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                  {item.local_qty > 0 ? 'IN STOCK' : (item.total_qty > 0 ? 'NEARBY' : 'OUT STOCK')}: {item.local_qty}
+                                </span>
+                                {item.local_qty <= 0 && (
+                                  <button onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }} style={{ fontSize: '0.65rem', color: '#6366f1', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid #6366f1', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, cursor: 'pointer' }}>
+                                    Find Stock
+                                  </button>
+                                )}
+                                <span style={{
+                                  fontSize: '0.65rem',
+                                  color: '#6366f1',
+                                  background: 'rgba(99, 102, 241, 0.1)',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }} onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }} title="Click to view all branches">
+                                  Total: {item.total_qty}
+                                  <Search size={10} />
+                                </span>
+                              </div>
+                              {item.local_qty <= 0 && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                                  style={{ marginTop: '8px', width: '100%', padding: '4px', fontSize: '0.75rem', backgroundColor: '#4f46e5', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Stock Breakdown
+                                </button>
+                              )}
+                              {user?.role_profile === 'Retail Manager' && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openPurchaseTools(item); }}
+                                  style={{ marginTop: '4px', width: '100%', padding: '4px', fontSize: '0.75rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Purchase Tools
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* HORIZONTAL BILL SECTION (Legacy: Below Items) */}
+            {/* Removed Redundant Legacy Bill section for Modern View */}
+
+            {/* RIGHT: MODERN BILL SECTION (Hidden in Legacy) */}
+            {theme !== 'legacy' && (
+              <div className="home-bill-section">
+                {/* SPEED CHECKOUT - MOBILE NUMBER */}
+                <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+                  <input
+                    ref={mobileInputRef}
+                    type="tel"
+                    placeholder="Mobile Number + Enter (Speed Checkout)"
+                    value={customerMobile}
+                    onChange={(e) => setCustomerMobile(e.target.value)}
+                    onKeyDown={handleMobileEnter}
+                    className="home-customer-input"
+                    style={{
+                      background: 'linear-gradient(to right, #e1f4ff, #ffffff)',
+                      border: '2px solid #3b82f6',
+                      fontWeight: 700,
+                      fontSize: '0.9rem'
+                    }}
+                  />
+                  {customerLoading ? (
+                    <Loader2 size={16} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#3b82f6' }} />
+                  ) : (
+                    <Phone size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#3b82f6' }} />
                   )}
                 </div>
 
-                <div className="relative group">
+                {/* BARCODE SCANNER INPUT - PROMINENT STYLE */}
+                <div className="relative mb-3 group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Search size={18} className="text-sky-400 group-focus-within:text-sky-600 transition-colors" />
                   </div>
                   <input
                     ref={barcodeInputRef}
                     type="text"
-                    placeholder="SCAN OR TYPE PRODUCT NAME..."
+                    placeholder="SCAN / TYPE PRODUCT NAME OR BARCODE..."
                     value={barcodeInput}
-                    onChange={e => setBarcodeInput(e.target.value)}
+                    onChange={(e) => setBarcodeInput(e.target.value)}
                     onKeyDown={onBarcodeKeyDown}
-                    className="so-customer-input pl-12 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
+                    className="w-full pl-12 pr-12 py-4 bg-sky-50/50 border-2 border-sky-100 rounded-2xl text-sm font-black text-sky-900 placeholder:text-sky-300 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
                   />
-                </div>
-              </div>
-
-              <div className="so-bill-items">
-                {billItems.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center opacity-30 gap-4 mt-12 grayscale">
-                    <MonitorSmartphone size={80} strokeWidth={1} />
-                    <span className="font-black text-[11px] uppercase tracking-widest text-center px-16 leading-relaxed">
-                      Select items or scan barcode<br />to start a new transaction
-                    </span>
-                  </div>
-                ) : (
-                  billItems.map((item, idx) => (
-                    <div key={item.id} className="so-bill-item">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 pr-6">
-                          <h4 className="so-bill-item-name">{item.name}</h4>
-                          <div className="flex items-center gap-4">
-                            <span className="text-[11px] font-black text-slate-400">AED {item.price}</span>
-                            <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-                              <button onClick={() => toggleUom(item.id, 'Piece')} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
-                              <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="so-bill-qty-control shadow-sm">
-                            <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
-                              {item.qty > 1 ? <RefreshCw size={11} className="opacity-40" /> : <X size={11} className="text-rose-400" />}
-                            </button>
-                            <input
-                              id={`qty-input-${idx}`}
-                              className="so-bill-qty-input"
-                              value={item.qty}
-                              onChange={(e) => setQuantity(item.id, e.target.value)}
-                            />
-                            <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500">+</button>
-                          </div>
-                        </div>
-                        <button onClick={() => removeFromBill(item.id)} className="so-bill-remove ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <X size={16} />
-                        </button>
-                      </div>
-
-                      <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
-                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
-                        <span className="text-[13px] font-black text-slate-800">AED {(item.qty * (item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price)).toFixed(2)}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="so-bill-footer">
-                <div className="so-total-box">
-                  <div className="so-total-row">
-                    <span>Subtotal</span>
-                    <span>AED {displaySubtotal.toFixed(2)}</span>
-                  </div>
-                  {displayDiscount > 0 && (
-                    <div className="so-total-row" style={{ color: 'var(--so-danger)' }}>
-                      <span>Discount</span>
-                      <span>-AED {displayDiscount.toFixed(2)}</span>
+                  <button
+                    onClick={() => setShowCamera(true)}
+                    className="absolute right-12 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-sky-500 rounded-xl flex items-center justify-center border border-sky-100 shadow-sm hover:bg-sky-50 transition-all"
+                    title="Camera Scanner"
+                  >
+                    <Camera size={20} />
+                  </button>
+                  <label className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-emerald-500 rounded-xl flex items-center justify-center border border-sky-100 shadow-sm hover:bg-sky-50 transition-all cursor-pointer" title="Scan Image File">
+                    <Scan size={20} />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageScan} />
+                  </label>
+                  {searchLoading && (
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+                      <Loader2 size={18} className="animate-spin text-sky-500" />
                     </div>
                   )}
-                  <div className="so-total-row">
-                    <span>Tax ({taxRate}%)</span>
-                    <span>AED {displayTax.toFixed(2)}</span>
-                  </div>
 
-                  <div className="so-grand-total">
-                    <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
-                    <span>AED {grandTotal.toFixed(2)}</span>
-                  </div>
+                  {/* Item Search Dropdown */}
+                  {showItemDropdown && (
+                    <div ref={itemDropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '300px', overflowY: 'auto', zIndex: 20, marginTop: '4px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
+                      {itemSearchResults.map(it => (
+                        <div key={it.id} onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); }} style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '0.75rem' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}>
+                          {it.barcode_image ? (
+                            <img src={getImageUrl(it.barcode_image)} alt="barcode" style={{ width: '60px', height: '30px', objectFit: 'contain' }} />
+                          ) : (
+                            it.image ? <img src={getImageUrl(it.image)} alt={it.name} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} /> : <div style={{ width: '32px', height: '32px', backgroundColor: '#f1f5f9', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#64748b' }}>No img</div>
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{it.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Code: {it.id} | Stock: {it.local_qty}</div>
+                          </div>
+                          <div style={{ fontWeight: 700, color: '#1e293b' }}>AED {it.price}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-3 mb-4">
-                  <button
-                    onClick={() => setShowDiscountModal(true)}
-                    className="so-btn-secondary flex-1"
-                  >
-                    <Palette size={14} /> % Discount
-                  </button>
-                  <button
-                    onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}
-                    className="so-btn-secondary flex-1"
-                    style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
-                  >
-                    <Trash2 size={14} /> Reset
-                  </button>
+                {/* CUSTOMER SELECTION - PREMIUM STYLE */}
+                <div className="relative group mb-3">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <UserPlus size={18} className="text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+                  </div>
+                  <input
+                    ref={nameInputRef}
+                    type="text"
+                    placeholder="CUSTOMER NAME (TYPE TO SEARCH...)"
+                    value={customerName}
+                    className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
+                    onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
+                    onFocus={() => { if (customerName.trim() === 'Cash') nameInputRef.current?.select(); customerName.trim().length >= 2 && setShowDropdown(true); }}
+                    onKeyDown={e => { if (e.key === 'Enter' && customerName.trim()) { const existing = searchResults.find(c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase()); if (existing) pickCustomer(existing); else if (customerName.trim().length >= 2) openCreate(); } }}
+                    autoComplete="off"
+                  />
+                  {searchLoading && <Loader2 size={18} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
+                  {showDropdown && (
+                    <div ref={dropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '220px', overflowY: 'auto', zIndex: 10, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                      {searchResults.length === 0 ? <div style={{ padding: '0.75rem', color: '#64748b', textAlign: 'center' }}>{customerName.trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}</div> : searchResults.map(c => (
+                        <div key={c.name} onClick={() => pickCustomer(c)} style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}>
+                          <div><div style={{ fontWeight: 600 }}>{c.customer_name}</div>{c.mobile_no && <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{c.mobile_no}</div>}</div>
+                          <Search size={16} style={{ color: '#94a3b8' }} />
+                        </div>
+                      ))}
+                      {searchResults.every(c => c.customer_name.toLowerCase() !== customerName.trim().toLowerCase()) && <div onClick={openCreate} style={{ padding: '0.75rem 1rem', cursor: 'pointer', background: '#eef2ff', color: '#4338ca', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><UserPlus size={18} /> Create "{customerName.trim()}"</div>}
+                    </div>
+                  )}
+                </div>
+                <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} className="home-customer-input" />
+
+                {/* Bill Items */}
+                <div className="home-bill-items">
+                  {billItems.length === 0 ? (
+                    <p className="home-bill-empty">No items added yet</p>
+                  ) : (
+                    <ul className="home-bill-item-list">
+                      {billItems.map(item => (
+                        <li key={item.id} className="home-bill-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="home-bill-item-info">
+                              <span className="home-bill-item-name">{item.name}</span>
+                              <span className="home-bill-item-price"><strong>AED</strong> {item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price} × {item.qty} Pc</span>
+                            </div>
+                            <div className="home-bill-item-actions">
+                              <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, -1); }}>-</button>
+                              <span className="home-bill-qty">{item.qty}</span>
+                              <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, 1); }}>+</button>
+                              <button className="home-bill-remove-btn" onClick={e => { e.stopPropagation(); removeFromBill(item.id); }}><X size={14} /></button>
+                            </div>
+                          </div>
+                          {/* PIECE VS BOX TOGGLE */}
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button onClick={() => toggleUom(item.id, item.uom_conversions?.Nos ? 'Nos' : 'Piece')} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #3b82f6', background: (item.uom === 'Piece' || item.uom === 'Nos') ? '#3b82f6' : '#fff', color: (item.uom === 'Piece' || item.uom === 'Nos') ? '#fff' : '#3b82f6' }}>Piece</button>
+                            <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #8b5cf6', background: item.uom === 'Box' ? '#8b5cf6' : '#fff', color: item.uom === 'Box' ? '#fff' : '#8b5cf6', opacity: (!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1) ? 0.5 : 1 }}>Box ({item.custom_pieces_per_box || 1})</button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
-                <button
-                  className="so-btn-pay"
-                  disabled={grandTotal <= 0}
-                  onClick={handleCheckout}
-                >
-                  <CreditCard size={18} /> Confirm & Pay (Space)
-                </button>
+                {/* Summary */}
+                <div className="home-bill-summary">
+                  <div className="home-bill-summary-row"><span>Subtotal</span><span><strong>AED</strong> {displaySubtotal.toFixed(2)}</span></div>
+                  {discount.value > 0 && <div className="home-bill-summary-row home-bill-discount"><span>Discount {discount.type === 'percent' ? `(${discount.value}%)` : ''}</span><span>-<strong>AED</strong> {displayDiscount.toFixed(2)}</span></div>}
+                  <div className="home-bill-summary-row"><span>Tax ({taxRate}%)</span><span><strong>AED</strong> {displayTax.toFixed(2)}</span></div>
+                  <div className="home-bill-summary-row home-bill-grand-total"><span>Grand Total</span><span><strong>AED</strong> {grandTotal.toFixed(2)}</span></div>
+                </div>
+
+                {/* Buttons */}
+                <div className="container-fluid">
+                  <div className="row">
+                    <div className="col-12">
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
+                        <button className="home-bill-discount-btn" onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? `Edit (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}</button>
+                        {grandTotal > 0 && <button className="home-bill-pay-btn" onClick={handleCheckout}>Pay</button>}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
+                        {billItems.length > 0 && <button className="home-bill-clear-btn" onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}>Clear Bill</button>}
+                        <button className="home-bill-clear-btn" onClick={closingEntry} style={{ backgroundColor: '#26abff' }}>Closing</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </aside>
-          </main>
-        </div>
-      )}
+            )}
+          </div>
+        </div> {/* close home-layout */}
+      </div> {/* close home-content */}
 
-      {/* MODALS */}
+      {/* ---------- MODALS ---------- */}
       {showDiscountModal && (
         <div className="home-modal-overlay" onClick={() => setShowDiscountModal(false)}>
-          <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
-            <div className="home-modal-header text-center">
-              <h3 className="text-xl font-black uppercase tracking-tight text-slate-800">Apply Discount</h3>
+          <div className="home-modal" onClick={e => e.stopPropagation()}>
+            <div className="home-modal-header">
+              <h3>Apply Discount</h3>
+              <button className="home-modal-close" onClick={() => setShowDiscountModal(false)}><X size={20} /></button>
             </div>
             <div className="home-modal-body">
-              <div className="home-discount-toggle">
-                <button
-                  className={`home-discount-type-btn ${discount.type === 'amount' ? 'active' : ''}`}
-                  onClick={() => setDiscount({ ...discount, type: 'amount' })}
-                >
-                  <DollarSign size={16} /> Amount
-                </button>
-                <button
-                  className={`home-discount-type-btn ${discount.type === 'percent' ? 'active' : ''}`}
-                  onClick={() => setDiscount({ ...discount, type: 'percent' })}
-                >
-                  <Palette size={16} /> Percent
-                </button>
+              <div className="home-discount-type">
+                <label><input type="radio" name="type" checked={discount.type === 'amount'} onChange={() => setDiscount({ ...discount, type: 'amount' })} /> Amount (AED)</label>
+                <label><input type="radio" name="type" checked={discount.type === 'percent'} onChange={() => setDiscount({ ...discount, type: 'percent' })} /> Percentage (%)</label>
               </div>
-
               <input
                 type="number"
                 placeholder={discount.type === 'percent' ? 'Enter %' : 'Enter AED'}
                 value={discountInput}
                 onChange={e => setDiscountInput(e.target.value)}
-                className="so-customer-input text-center text-2xl h-16"
+                className="home-discount-input"
                 min="0"
+                step={discount.type === 'percent' ? '0.01' : '1'}
               />
             </div>
             <div className="home-modal-footer">
-              <button className="so-btn-secondary flex-1" onClick={() => setShowDiscountModal(false)}>Cancel</button>
+              <button className="home-modal-cancel" onClick={() => setShowDiscountModal(false)}>Cancel</button>
               {discount.value > 0 && (
-                <button className="so-btn-secondary flex-1" style={{ color: 'var(--so-danger)', borderColor: '#fee2e2' }} onClick={clearDiscount}>Remove</button>
+                <button
+                  className="home-modal-cancel"
+                  onClick={clearDiscount}
+                  style={{ backgroundColor: '#fee2e2', color: '#ef4444', borderColor: '#fecaca' }}
+                >
+                  Remove Discount
+                </button>
               )}
-              <button className="so-btn-primary flex-[2]" onClick={applyDiscountHandler}>Apply Discount</button>
+              <button className="home-modal-apply" onClick={applyDiscountHandler}>Apply</button>
             </div>
           </div>
         </div>
@@ -2966,34 +3627,32 @@ function Home() {
 
       {showCreateModal && (
         <div className="home-modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+          <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px' }}>
             <div className="home-modal-header">
-              <h3 className="text-xl font-black uppercase tracking-tight">New Customer Profile</h3>
+              <h3>Create New Customer</h3>
+              <button className="home-modal-close" onClick={() => setShowCreateModal(false)}><X size={20} /></button>
             </div>
             <div className="home-modal-body">
-              <div className="form-group">
-                <label>Customer Full Name *</label>
-                <input type="text" value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} className="so-customer-input" placeholder="e.g. John Doe" />
-              </div>
-              <div className="form-group">
-                <label>Phone / Mobile *</label>
-                <input type="tel" value={createForm.phone} onChange={e => setCreateForm({ ...createForm, phone: e.target.value })} className="so-customer-input" placeholder="+971 -- --- ----" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label>Primary Email</label>
-                  <input type="email" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} className="so-customer-input" placeholder="Optional" />
-                </div>
-                <div className="form-group">
-                  <label>Branch Location</label>
-                  <input type="text" value={createForm.address} onChange={e => setCreateForm({ ...createForm, address: e.target.value })} className="so-customer-input" placeholder="Optional" />
-                </div>
-              </div>
+              <input type="text" placeholder="Customer Name *" value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
+              <input type="tel" placeholder="Phone" value={createForm.phone} onChange={e => setCreateForm({ ...createForm, phone: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
+              <input type="text" placeholder="Address (optional)" value={createForm.address} onChange={e => setCreateForm({ ...createForm, address: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
+              <input type="email" placeholder="Email (optional)" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
             </div>
             <div className="home-modal-footer">
-              <button className="so-btn-secondary flex-1" onClick={() => setShowCreateModal(false)}>Discard</button>
-              <button className="so-btn-primary flex-[2]" onClick={createCustomer} disabled={creatingCustomer}>
-                {creatingCustomer ? 'Saving Data...' : 'Create Account'}
+              <button className="home-modal-cancel" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button
+                className="home-modal-apply"
+                onClick={createCustomer}
+                disabled={creatingCustomer}  // ← disables double click
+              >
+                {creatingCustomer ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Customer"
+                )}
               </button>
             </div>
           </div>
@@ -3002,22 +3661,10 @@ function Home() {
 
       {showPaymentModal && renderPaymentModal()}
 
-      {showOpeningModal && (
-        <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
-          <div className="home-modal" style={{ maxWidth: '1100px', maxHeight: '95vh', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-            <div className="home-modal-header flex justify-between items-center">
-              <h3 className="text-xl font-black uppercase tracking-tight">Open New POS Session</h3>
-              <button className="p-2 text-slate-400 hover:text-rose-500" onClick={handleLogout}><X size={24} /></button>
-            </div>
-            <div className="home-modal-body p-0 overflow-auto" style={{ maxHeight: 'calc(95vh - 84px)' }}>
-              <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Common Modals */}
+      {renderCommonModals()}
     </div>
   );
 }
 
 export default Home;
-

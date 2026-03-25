@@ -8,6 +8,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { db } from '../../db';
 import "../Admin/SalesOrder.css";
+import { useLegacyTheme } from "../../hooks/useLegacyTheme";
 
 function InvoiceList() {
     const navigate = useNavigate();
@@ -48,19 +49,9 @@ function InvoiceList() {
     const userData = useSelector((state) => state.user);
     const getSession = () => userData?.session || localStorage.getItem("session") || "";
 
-    // Sync Theme
-    const [invTheme, setInvTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-    const isGreen = invTheme === 'green';
+    // Sync Theme (Using the same hook as POS)
+    const { legacySubTheme, isGreen, toggleTheme: toggleLegacyColor } = useLegacyTheme();
     const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-    const themeColorHover = isGreen ? '#059669' : '#0284c7';
-    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
-
-    useEffect(() => {
-        localStorage.setItem('legacySubTheme', invTheme);
-        document.documentElement.style.setProperty('--so-primary', themeColor);
-        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-        document.documentElement.style.setProperty('--so-primary-light', themeLight);
-    }, [invTheme, themeColor, themeColorHover, themeLight]);
 
     // Load local and server data
     const loadData = async () => {
@@ -243,17 +234,18 @@ function InvoiceList() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <button
-                        onClick={() => setInvTheme(isGreen ? 'blue' : 'green')}
+                        onClick={toggleLegacyColor}
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.4rem',
                             padding: '0.45rem 0.9rem', background: '#f8fafc',
                             border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                            fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                            fontSize: '0.75rem', fontWeight: 850, color: themeColor,
                             cursor: 'pointer', transition: 'all 0.2s',
                             textTransform: 'uppercase', letterSpacing: '0.04em'
                         }}
                     >
-                        <Palette size={13} /> {invTheme.toUpperCase()}
+                        <Palette size={13} />
+                        {isGreen ? 'BLUE' : 'GREEN'}
                     </button>
                     <button 
                         className="so-btn-primary" 
@@ -394,73 +386,134 @@ function InvoiceList() {
             </div>
 
             {selectedInvoice && (
-                <div className="so-modal-overlay" onClick={() => setSelectedInvoice(null)}>
-                    <div className="so-modal" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
-                        <div className="so-modal-header">
+                <div 
+                    className="fixed inset-0 z-[2000] bg-white flex flex-col animate-fadeIn"
+                    style={{ maxHeight: '100vh' }}
+                >
+                    {/* FULL SCREEN HEADER */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0 bg-white">
+                        <div className="flex items-center gap-4">
+                            <button 
+                                onClick={() => setSelectedInvoice(null)}
+                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-all border border-slate-200"
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
                             <div>
-                                <h3 className="so-modal-title">{selectedInvoice.name}</h3>
-                                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>
-                                    {selectedInvoice.offline_id ? `Ref: ${selectedInvoice.offline_id}` : 'Server Transaction'}
+                                <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                                    <FileText size={20} className="text-slate-400" />
+                                    {selectedInvoice.name}
+                                </h1>
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                                    {selectedInvoice.offline_id ? `LOCAL REF: ${selectedInvoice.offline_id}` : 'SERVER TRANSACTION'}
                                 </p>
                             </div>
-                            <button className="so-modal-close" onClick={() => setSelectedInvoice(null)}><XCircle size={20} /></button>
                         </div>
-                        <div className="so-modal-body">
-                            <div className="so-summary-bar">
-                                <div className="so-summary-item">
-                                    <span className="so-summary-label">Customer</span>
-                                    <span className="so-summary-value">{selectedInvoice.customer_name}</span>
-                                </div>
-                                <div className="so-summary-item">
-                                    <span className="so-summary-label">Date</span>
-                                    <span className="so-summary-value">{selectedInvoice.posting_date}</span>
-                                </div>
-                                <div className="so-summary-item">
-                                    <span className="so-summary-label">Total Amount</span>
-                                    <span className="so-summary-value grand">AED {parseFloat(selectedInvoice.grand_total).toFixed(2)}</span>
+
+                        <div className="flex items-center gap-3">
+                            <button 
+                                className="px-6 h-11 bg-slate-900 text-white rounded-xl font-black text-[13px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95 transition-all"
+                                onClick={() => handlePrint(selectedInvoice)}
+                            >
+                                <Printer size={18} /> Print Invoice
+                            </button>
+                            <button 
+                                onClick={() => setSelectedInvoice(null)}
+                                className="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-50 text-rose-500 border border-slate-200 hover:bg-rose-50"
+                            >
+                                <XCircle size={22} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* FULL SCREEN BODY */}
+                    <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6">
+                        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            
+                            {/* LEFT: SUMMARY CARDS */}
+                            <div className="lg:col-span-1 flex flex-col gap-4">
+                                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Transaction Details</h4>
+                                    <div className="space-y-5">
+                                        <div className="flex justify-between items-start">
+                                            <span className="text-[11px] font-black text-slate-400 uppercase italic">Customer</span>
+                                            <span className="text-sm font-black text-slate-800 text-right">{selectedInvoice.customer_name}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[11px] font-black text-slate-400 uppercase italic">Date & Time</span>
+                                            <span className="text-sm font-black text-slate-800">{selectedInvoice.posting_date} · {selectedInvoice.posting_time || '00:00'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[11px] font-black text-slate-400 uppercase italic">Payment Mode</span>
+                                            <span className="text-sm font-black text-slate-800 uppercase">{selectedInvoice.payment_mode || 'Cash'}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="mt-8 pt-6 border-t border-slate-100">
+                                        <div className="bg-slate-900 rounded-xl p-5 text-white">
+                                            <span className="text-[10px] font-black opacity-50 uppercase tracking-[0.2em]">Grand Total</span>
+                                            <div className="text-3xl font-black mt-1">
+                                                <small className="text-sm mr-1.5 opacity-40 italic">AED</small>
+                                                {parseFloat(selectedInvoice.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="so-card">
-                                <div className="so-card-header">
-                                    <span className="so-card-title">Transaction Items</span>
-                                </div>
-                                <div className="so-card-body" style={{ padding: 0 }}>
-                                    <div className="so-items-table-wrap">
-                                        <table className="so-items-table">
+                            {/* RIGHT: ITEMS TABLE */}
+                            <div className="lg:col-span-2">
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                                    <div className="px-6 py-4 border-b border-slate-100 bg-white sticky top-0 z-10">
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Itemized Breakdown</h4>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
                                             <thead>
-                                                <tr>
-                                                    <th>Item</th>
-                                                    <th style={{ textAlign: 'right' }}>Qty</th>
-                                                    <th style={{ textAlign: 'right' }}>Rate</th>
-                                                    <th style={{ textAlign: 'right' }}>Total</th>
+                                                <tr className="bg-slate-50/50">
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Item Description</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Qty</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-right">Rate</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-right">Amount</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {(selectedInvoice.pos_invoice_items || selectedInvoice.items || []).map((it, i) => (
-                                                    <tr key={i}>
-                                                        <td>
-                                                            <div className="so-item-display-name">{it.item_name || it.item_code}</div>
-                                                            <div className="so-item-display-code">{it.item_code}</div>
+                                                    <tr key={i} className="hover:bg-slate-50/70 transition-colors border-b border-slate-50 last:border-0 font-medium">
+                                                        <td className="px-6 py-5">
+                                                            <div className="text-[13px] font-black text-slate-800 leading-tight">{it.item_name || it.item_code}</div>
+                                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-1">{it.item_code}</div>
                                                         </td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{it.qty || it.quantity}</td>
-                                                        <td style={{ textAlign: 'right' }}>{parseFloat(it.rate || 0).toFixed(2)}</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                                            {((it.qty || 1) * (it.rate || 0)).toFixed(2)}
+                                                        <td className="px-6 py-5 text-center">
+                                                            <span className={`px-2.5 py-1 rounded-lg text-[11px] font-black ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                                {it.qty || it.quantity}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-5 text-right text-[13px] font-black text-slate-600">
+                                                            {parseFloat(it.rate || 0).toFixed(2)}
+                                                        </td>
+                                                        <td className="px-6 py-5 text-right text-[15px] font-black text-slate-900">
+                                                            {((it.qty || 1) * (it.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                         </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
+                                            <tfoot>
+                                                <tr className="bg-slate-50/30">
+                                                    <td colSpan="3" className="px-6 py-6 text-right">
+                                                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Total Amount</span>
+                                                    </td>
+                                                    <td className="px-6 py-6 text-right">
+                                                        <span className="text-xl font-black text-slate-900">
+                                                            AED {parseFloat(selectedInvoice.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
                                         </table>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="so-modal-footer">
-                            <button className="so-btn-secondary" onClick={() => setSelectedInvoice(null)}>Close</button>
-                            <button className="so-btn-primary" onClick={() => handlePrint(selectedInvoice)}>
-                                <Printer size={16} /> Print Receipt
-                            </button>
                         </div>
                     </div>
                 </div>
