@@ -44,7 +44,7 @@ const GlobalStyle = () => (
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'DM Sans', sans-serif; background: ${T.bg}; color: ${T.text}; }
-    .il-page { min-height: 100vh; background: ${T.bg}; }
+    .il-page { min-height: 100vh; background: ${T.bg}; overflow-x: hidden; position: relative; }
     .il-card { background: ${T.surface}; border: 1px solid ${T.border}; border-radius: ${T.radiusMd}; box-shadow: ${T.shadow}; }
     .il-input { width: 100%; padding: 9px 13px; background: ${T.surface}; border: 1.5px solid ${T.border}; border-radius: ${T.radius}; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; color: ${T.text}; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
     .il-input:focus { border-color: ${T.blue}; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
@@ -80,7 +80,7 @@ const GlobalStyle = () => (
     .il-section-label { font-size: 11px; font-weight: 700; color: ${T.textMuted}; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 7px; display: block; }
     .il-check { width: 16px; height: 16px; accent-color: ${T.blue}; cursor: pointer; flex-shrink: 0; }
     .il-divider { height: 1.5px; background: ${T.borderLight}; border: none; }
-    .il-modal-panel { position: fixed; inset: 0; z-index: 1000; background: ${T.bg}; display: flex; flex-direction: column; }
+    .il-modal-panel { position: fixed; inset: 0; z-index: 999999; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
     .il-modal-header { background: ${T.surface}; border-bottom: 1.5px solid ${T.border}; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
     .il-modal-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
     .il-modal-footer { background: ${T.surface}; border-top: 1.5px solid ${T.border}; padding: 14px 28px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
@@ -116,6 +116,8 @@ const GlobalStyle = () => (
     @keyframes spin { to { transform: rotate(360deg); } }
     .anim-in { animation: fadeUp 0.2s ease-out both; }
     .spin { animation: spin 0.8s linear infinite; }
+    .il-group-tabs-scroll { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; display: flex; gap: 8px; padding: 4px; }
+    .il-group-tabs-scroll::-webkit-scrollbar { display: none; }
   `}</style>
 );
 
@@ -719,6 +721,51 @@ export default function ItemList() {
           </div>
         </div>
 
+        {/* GROUP TABS SCROLL */}
+        <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, padding: '4px 28px' }}>
+          <div className="il-group-tabs-scroll" style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '8px 0', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <button 
+              onClick={() => { setFilterGroup(''); setCurrentPage(1); }}
+              style={{ 
+                padding: '7px 16px', 
+                borderRadius: 10, 
+                fontSize: 11, 
+                fontWeight: 800, 
+                textTransform: 'uppercase', 
+                whiteSpace: 'nowrap', 
+                border: 'none', 
+                transition: 'all 0.2s',
+                background: filterGroup === '' ? T.text : T.bg,
+                color: filterGroup === '' ? '#fff' : T.textSub,
+                boxShadow: filterGroup === '' ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              All Assets
+            </button>
+            {itemGroups.map(g => (
+              <button 
+                key={g.value}
+                onClick={() => { setFilterGroup(g.value); setCurrentPage(1); }}
+                style={{ 
+                  padding: '7px 16px', 
+                  borderRadius: 10, 
+                  fontSize: 11, 
+                  fontWeight: 800, 
+                  textTransform: 'uppercase', 
+                  whiteSpace: 'nowrap', 
+                  border: 'none', 
+                  transition: 'all 0.2s',
+                  background: filterGroup === g.value ? T.blue : T.bg,
+                  color: filterGroup === g.value ? '#fff' : T.textSub,
+                  boxShadow: filterGroup === g.value ? '0 4px 12px rgba(37,99,235,0.2)' : 'none'
+                }}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* MAIN CONTENT */}
         <div style={{ padding: '20px 28px' }}>
           {loading ? (
@@ -799,25 +846,27 @@ export default function ItemList() {
       {/* ========== ITEM MODAL ========== */}
       {showForm && (
         <div className="il-modal-panel anim-in">
-          {/* Header */}
-          <div className="il-modal-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-              <button className="il-btn il-btn-secondary" style={{ padding: '7px 9px' }} onClick={handleCloseForm}><ChevronLeft size={17} /></button>
+          <div className="il-modal-header" style={{ height: 'auto', minHeight: 64, padding: '12px 28px', flexWrap: 'wrap', gap: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 'fit-content' }}>
+              <button className="il-btn il-btn-secondary" style={{ width: 36, height: 36, padding: 0, borderRadius: 10 }} onClick={handleCloseForm}>
+                <ChevronLeft size={18} />
+              </button>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.text }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: T.text, lineHeight: 1.2 }}>
                   {isViewMode ? form.item_name : (isEditMode ? 'Edit Item Master' : 'New Item Master')}
                 </div>
-                {isViewMode && <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{editingItemCode}</div>}
+                {isViewMode && <div style={{ fontSize: 10, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 2, fontWeight: 700 }}>{editingItemCode}</div>}
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 'auto', flexWrap: 'wrap' }}>
                {isViewMode && (
-                <div className="il-tabs" style={{ background: '#F1F5F9', border: `1px solid ${T.border}` }}>
+                <div className="il-tabs" style={{ background: T.bg, padding: '3px', borderRadius: 12 }}>
                    {['General', 'Dashboard', 'Prices', 'Stock'].map(t => (
                     <button
                       key={t}
                       className={`il-tab ${activeTab === t ? 'active' : ''}`}
+                      style={{ padding: '6px 14px', fontSize: 11, fontWeight: 800, borderRadius: 9 }}
                       onClick={() => { setActiveTab(t); if (t !== 'Prices') setIsPriceDetailView(false); }}
                     >
                       {t}
@@ -827,27 +876,26 @@ export default function ItemList() {
                )}
 
                {isViewMode && (
-                <>
-                  <div style={{ width: 1.5, height: 24, background: T.border, margin: '0 4px' }}></div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button 
-                      className="il-btn il-btn-secondary" 
-                      style={{ height: 32, padding: '0 12px', gap: 6, fontSize: 11, background: '#fff' }}
-                      onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
-                    >
-                      <Edit2 size={13} /> Edit Item
-                    </button>
-                    <button className="il-btn il-btn-danger" style={{ height: 32, padding: '0 10px', gap: 6, fontSize: 11 }} onClick={() => handleDelete(editingItemCode)}>
-                      <Trash2 size={13} />Delete
-                    </button>
-                  </div>
-                </>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button 
+                    className="il-btn il-btn-secondary" 
+                    style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff' }}
+                    onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
+                  >
+                    <Edit2 size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>REVISE</span>
+                  </button>
+                  <button className="il-btn il-btn-danger" style={{ height: 36, padding: '0 12px', borderRadius: 10 }} onClick={() => handleDelete(editingItemCode)}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
                )}
 
                {!isViewMode && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="il-btn il-btn-secondary" onClick={handleCloseForm}>Cancel</button>
-                    <button className="il-btn il-btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Item')}</button>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button className="il-btn il-btn-secondary" style={{ borderRadius: 10 }} onClick={handleCloseForm}>Discard</button>
+                    <button className="il-btn il-btn-primary" style={{ borderRadius: 10, padding: '0 24px' }} onClick={handleSave} disabled={saving}>
+                      {saving ? 'Syncing...' : (isEditMode ? 'Commit Changes' : 'Execute Genesis')}
+                    </button>
                   </div>
                )}
             </div>

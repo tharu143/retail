@@ -29,6 +29,7 @@ const CustomerDetails = () => {
   const [customer, setCustomer] = useState(null);
   const [addresses, setAddresses] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [linkedSearch, setLinkedSearch] = useState('');
   const [meta, setMeta] = useState({
     customer_types: ['Individual', 'Company'],
     customer_groups: [],
@@ -116,6 +117,31 @@ const CustomerDetails = () => {
       Swal.fire('Error', 'Failed to retrieve neural customer profile', 'error');
     } finally {
       setTimeout(() => setLoading(false), 500);
+    }
+  };
+
+  const fetchLinkedRecords = async () => {
+    try {
+      const [addrRes, contactRes] = await Promise.all([
+        axios.get('/api/resource/Address', {
+          params: {
+            filters: JSON.stringify([['Dynamic Link', 'link_name', '=', id], ['Dynamic Link', 'link_doctype', '=', 'Customer']]),
+            fields: JSON.stringify(['name', 'address_title', 'address_type', 'city', 'country', 'address_line1']),
+            limit_page_length: 50
+          }
+        }),
+        axios.get('/api/resource/Contact', {
+          params: {
+            filters: JSON.stringify([['Dynamic Link', 'link_name', '=', id], ['Dynamic Link', 'link_doctype', '=', 'Customer']]),
+            fields: JSON.stringify(['name', 'first_name', 'last_name', 'designation', 'email_id', 'mobile_no']),
+            limit_page_length: 50
+          }
+        })
+      ]);
+      setAddresses(addrRes.data.data || []);
+      setContacts(contactRes.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch linked records:', err);
     }
   };
 
@@ -244,13 +270,13 @@ const CustomerDetails = () => {
       <div className="max-w-7xl mx-auto mt-12 px-8">
         {/* Navigation Shard */}
         <div className="flex items-center gap-1 mb-10 bg-white p-2 rounded-[2rem] border border-gray-100 shadow-sm w-fit">
-          {['Intelligence', 'Geospatial', 'Transactions'].map((tab) => (
+          {['Intelligence', 'Geospatial', 'Personnel', 'Transactions'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900'}`}
             >
-              {tab}
+              {tab === 'Personnel' ? `Personnel (${contacts.length})` : tab}
             </button>
           ))}
         </div>
@@ -294,10 +320,21 @@ const CustomerDetails = () => {
 
             {activeTab === 'Geospatial' && (
               <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-10">
-                <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
-                  <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
-                  Registered Vector Grid (Addresses)
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
+                    <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
+                    Registered Vector Grid (Addresses - {addresses.length})
+                  </h3>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      className="pl-9 pr-4 py-2 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500/20"
+                      placeholder="Filter addresses..."
+                      value={linkedSearch}
+                      onChange={e => setLinkedSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
                 {addresses.length === 0 ? (
                   <div className="py-20 text-center space-y-4 bg-gray-50 rounded-[2rem]">
                     <MapPin size={40} className="mx-auto text-gray-200" />
@@ -305,17 +342,64 @@ const CustomerDetails = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {addresses.map((addr, idx) => (
-                      <div key={idx} className="p-6 bg-gray-50 rounded-[2rem] border border-transparent hover:border-gray-200 transition-all group">
+                    {addresses.filter(a => !linkedSearch || a.address_title?.toLowerCase().includes(linkedSearch.toLowerCase()) || a.city?.toLowerCase().includes(linkedSearch.toLowerCase())).map((addr, idx) => (
+                      <div key={idx} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} className="p-6 bg-gray-50 rounded-[2rem] border border-transparent hover:border-gray-200 transition-all group cursor-pointer">
                         <div className="flex justify-between items-start mb-4">
                           <div className="px-3 py-1 bg-white rounded-lg border border-gray-100 text-[8px] font-black uppercase text-gray-500 tracking-widest">
                             {addr.address_type}
                           </div>
                           {addr.is_primary_address === 1 && <CheckCircle2 size={16} className="text-emerald-500" />}
                         </div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-1">{addr.address_title}</h4>
                         <p className="text-sm font-bold text-gray-900 tracking-tight leading-relaxed">
-                          {addr.address_line1}, {addr.address_line2 && `${addr.address_line2}, `} {addr.city}, {addr.emirate}, {addr.country}
+                          {addr.address_line1}, {addr.city}, {addr.country}
                         </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'Personnel' && (
+              <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-10">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
+                    <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
+                    Neural Communication Shards (Contacts - {contacts.length})
+                  </h3>
+                   <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      className="pl-9 pr-4 py-2 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500/20"
+                      placeholder="Filter personnel..."
+                      value={linkedSearch}
+                      onChange={e => setLinkedSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                {contacts.length === 0 ? (
+                   <div className="py-20 text-center space-y-4 bg-gray-50 rounded-[2rem]">
+                    <Users size={40} className="mx-auto text-gray-200" />
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Personal Vectors Registered</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {contacts.filter(c => !linkedSearch || `${c.first_name} ${c.last_name}`.toLowerCase().includes(linkedSearch.toLowerCase())).map((con, idx) => (
+                      <div key={idx} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} className="p-6 bg-gray-50 rounded-[2rem] border border-transparent hover:border-gray-200 transition-all group cursor-pointer">
+                        <div className="flex items-center gap-4 mb-4">
+                           <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-[10px] font-black text-slate-900">
+                             {con.first_name?.[0]}{con.last_name?.[0]}
+                           </div>
+                           <div>
+                             <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{con.first_name} {con.last_name}</h4>
+                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{con.designation || 'Specialist'}</p>
+                           </div>
+                        </div>
+                        <div className="space-y-2">
+                           {con.email_id && <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600"><Mail size={12} /> {con.email_id}</div>}
+                           {con.mobile_no && <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600"><Phone size={12} /> {con.mobile_no}</div>}
+                        </div>
                       </div>
                     ))}
                   </div>

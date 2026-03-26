@@ -124,8 +124,10 @@ const SupplierDetails = () => {
   const [emirates] = useState(['Abu Dhabi', 'Dubai', 'Sharjah', 'Ajman', 'Umm Al Quwain', 'Ras Al Khaimah', 'Fujairah']);
 
   // Connectivity Sub-tabs & Filters
-  const [activeModule, setActiveModule] = useState('Procurement');
-  const [connSearch, setConnSearch] = useState("");
+  const [activeModule, setActiveModule] = useState('');
+  const [linkedAddresses, setLinkedAddresses] = useState([]);
+  const [linkedContacts, setLinkedContacts] = useState([]);
+  const [linkedSearch, setLinkedSearch] = useState('');
   const [connDateRange, setConnDateRange] = useState({ start: '', end: '' });
 
   const [supplierGroups] = useState(['Distributor', 'Manufacturer', 'Service Provider', 'Wholesaler', 'Retailer']);
@@ -185,6 +187,32 @@ const SupplierDetails = () => {
       console.error('Fetch error:', err);
     } finally {
       setTimeout(() => setLoading(false), 600);
+      fetchLinkedData();
+    }
+  };
+
+  const fetchLinkedData = async () => {
+    try {
+      const [addrRes, contactRes] = await Promise.all([
+        axios.get('/api/resource/Address', {
+          params: {
+            filters: JSON.stringify([['Dynamic Link', 'link_name', '=', name], ['Dynamic Link', 'link_doctype', '=', 'Supplier']]),
+            fields: JSON.stringify(['name', 'address_title', 'address_type', 'city', 'country', 'address_line1']),
+            limit_page_length: 50
+          }
+        }),
+        axios.get('/api/resource/Contact', {
+          params: {
+            filters: JSON.stringify([['Dynamic Link', 'link_name', '=', name], ['Dynamic Link', 'link_doctype', '=', 'Supplier']]),
+            fields: JSON.stringify(['name', 'first_name', 'last_name', 'designation', 'email_id', 'mobile_no']),
+            limit_page_length: 50
+          }
+        })
+      ]);
+      setLinkedAddresses(addrRes.data.data || []);
+      setLinkedContacts(contactRes.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch linked addresses/contacts:', err);
     }
   };
 
@@ -588,6 +616,25 @@ const SupplierDetails = () => {
                         {module}
                       </button>
                     ))}
+                    <div className="w-[1px] h-6 bg-gray-200 mx-2" />
+                    <button
+                      onClick={() => setActiveModule('Addresses')}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeModule === 'Addresses'
+                        ? 'bg-white shadow-sm ring-1 ring-gray-100 text-slate-800'
+                        : 'text-gray-600 hover:text-gray-900'}`}
+                      style={{ color: activeModule === 'Addresses' ? themeColor : undefined }}
+                    >
+                      Addresses ({linkedAddresses.length})
+                    </button>
+                    <button
+                      onClick={() => setActiveModule('Contacts')}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeModule === 'Contacts'
+                        ? 'bg-white shadow-sm ring-1 ring-gray-100 text-slate-800'
+                        : 'text-gray-600 hover:text-gray-900'}`}
+                      style={{ color: activeModule === 'Contacts' ? themeColor : undefined }}
+                    >
+                      Contacts ({linkedContacts.length})
+                    </button>
                   </div>
                 </div>
 
@@ -598,9 +645,9 @@ const SupplierDetails = () => {
                     <input
                       type="text"
                       className="w-full pl-11 pr-4 py-2.5 bg-gray-50/50 border border-gray-100 rounded-xl text-xs font-bold placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all"
-                      placeholder={`Search inside ${activeModule}...`}
-                      value={connSearch}
-                      onChange={(e) => setConnSearch(e.target.value)}
+                      placeholder="Filter connected nodes by ID or title..."
+                      value={linkedSearch}
+                      onChange={e => setLinkedSearch(e.target.value)}
                     />
                   </div>
                   <div className="flex items-center gap-3">
@@ -618,35 +665,80 @@ const SupplierDetails = () => {
 
                 {/* Connection List (Report View) */}
                 <div className="p-0 overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                  <table className="so-table">
                     <thead>
-                      <tr className="bg-gray-50/50">
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Document Blueprint</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Quantifiable Shard</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100 text-right">Action Gateway</th>
+                      <tr>
+                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Registry Vector</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Metrics</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100" style={{ width: '120px', textAlign: 'right' }}>Controls</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {currConnections.map((conn, idx) => (
-                        <tr
-                          key={idx}
-                          className="group hover:bg-slate-50 transition-all border-b border-slate-50"
-                        >
+                      {activeModule === 'Addresses' ? (
+                        linkedAddresses.filter(a => !linkedSearch || a.address_title?.toLowerCase().includes(linkedSearch.toLowerCase()) || a.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(addr => (
+                          <tr key={addr.name} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} className="group hover:bg-slate-50 transition-all border-b border-slate-50">
+                            <td className="px-8 py-6">
+                              <div className="flex items-center gap-4">
+                                <div className="p-3 bg-gray-50 rounded-xl"><MapPin size={18} className="text-gray-600" /></div>
+                                <div>
+                                  <h6 className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{addr.address_title}</h6>
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{addr.name}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6">
+                              <div className="flex items-center gap-3">
+                                <div className="px-3 py-1 bg-gray-50 rounded-lg text-[9px] font-black text-slate-700 uppercase tracking-widest">{addr.address_type}</div>
+                                <div className="text-[10px] font-black text-slate-900">{addr.city}, {addr.country}</div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6 text-right">
+                              <button className="px-5 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 hover:text-white transition-all active:scale-95">Access Stream</button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : activeModule === 'Contacts' ? (
+                        linkedContacts.filter(c => !linkedSearch || `${c.first_name} ${c.last_name}`.toLowerCase().includes(linkedSearch.toLowerCase()) || c.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(con => (
+                          <tr key={con.name} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} className="group hover:bg-slate-50 transition-all border-b border-slate-50">
+                            <td className="px-8 py-6">
+                              <div className="flex items-center gap-4">
+                                <div className="p-3 bg-emerald-50 rounded-xl"><User size={18} className="text-emerald-600" /></div>
+                                <div>
+                                  <h6 className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{con.first_name} {con.last_name}</h6>
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{con.name}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6">
+                              <div className="flex flex-col gap-1">
+                                <div className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{con.designation || 'Personnel'}</div>
+                                <div className="flex items-center gap-3 opacity-60">
+                                  <Mail size={12} /> <span className="text-[9px] font-bold">{con.email_id}</span>
+                                  <Phone size={12} className="ml-2" /> <span className="text-[9px] font-bold">{con.mobile_no}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6 text-right">
+                              <button className="px-5 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 hover:text-white transition-all active:scale-95">Access Stream</button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : dashboardData?.connections?.[activeModule]?.map((conn, idx) => (
+                        <tr key={idx} onClick={() => navigateDetail(conn.doctype, conn.name)} className="group hover:bg-slate-50 transition-all border-b border-slate-50">
                           <td className="px-8 py-6">
-                            <div className="flex items-center gap-5">
-                              <div className="p-3 rounded-2xl bg-slate-50 text-slate-600 group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm">
-                                <Layers size={18} />
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-gray-50 rounded-xl">
+                                <Building2 size={18} className="text-gray-400" />
                               </div>
                               <div>
-                                <div className="text-[13px] font-black text-slate-900 tracking-tight">{conn.doctype}</div>
-                                <div className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">Unified System Entity</div>
+                                <h6 className="text-[11px] font-black text-slate-900 uppercase tracking-tight">Shard: {conn.name}</h6>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{conn.doctype}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-8 py-6">
-                            <div className="flex items-center gap-3">
-                              <span className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black shadow-md">{conn.count}</span>
-                              <div className="flex flex-col">
+                            <div className="flex items-center gap-8">
+                              <div>
                                 <div className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em]">Quantifiable</div>
                                 <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Shards</div>
                               </div>
