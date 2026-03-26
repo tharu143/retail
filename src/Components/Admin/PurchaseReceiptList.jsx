@@ -342,7 +342,12 @@ function PurchaseReceiptList() {
     try {
       setLoading(true);
       const res = await axios.get(`${API_PATH}.get_purchase_receipts`, { 
-        params: { limit: 2000, limit_page_length: 2000, order_by: 'modified desc' }, 
+        params: { 
+          limit: 2000, 
+          limit_page_length: 2000, 
+          order_by: 'modified desc',
+          fields: '["name","supplier","supplier_name","posting_date","status","grand_total","rounded_total","total","net_total","base_net_total"]'
+        }, 
         withCredentials: true 
       });
       if (res.data.message?.success) {
@@ -1401,7 +1406,7 @@ function PurchaseReceiptList() {
                                 </span>
                               </td>
                               <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                AED {rec.grand_total ? parseFloat(rec.grand_total).toFixed(2) : '0.00'}
+                                AED {parseFloat(rec.rounded_total || rec.grand_total || rec.total || rec.base_net_total || rec.net_total || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
                               </td>
                               <td onClick={e => e.stopPropagation()}>
                                 <button style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>

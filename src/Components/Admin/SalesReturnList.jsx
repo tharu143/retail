@@ -253,8 +253,8 @@ function SalesReturnList() {
                           </span>
                         </td>
                         <td style={{ fontWeight: 800, color: '#475569', fontSize: '13px' }}>{r.return_against}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 950, color: '#ef4444', fontSize: '1rem' }}>
-                          -{r.currency} {Math.abs(r.grand_total).toLocaleString()}
+                        <td style={{ textAlign: 'right', fontWeight: 950, color: '#334155', fontSize: '1rem' }}>
+                          {r.currency} {Math.abs(parseFloat(r.rounded_total || r.grand_total || r.total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                         <td><span style={{ fontWeight: 950, fontFamily: 'monospace', color: themeColor, background: themeLight, padding: '5px 12px', borderRadius: '8px', fontSize: '11px' }}>{r.name}</span></td>
                       </tr>
