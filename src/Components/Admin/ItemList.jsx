@@ -80,7 +80,7 @@ const GlobalStyle = () => (
     .il-section-label { font-size: 11px; font-weight: 700; color: ${T.textMuted}; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 7px; display: block; }
     .il-check { width: 16px; height: 16px; accent-color: ${T.blue}; cursor: pointer; flex-shrink: 0; }
     .il-divider { height: 1.5px; background: ${T.borderLight}; border: none; }
-    .il-modal-panel { position: fixed; inset: 0; z-index: 999999; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
+    .il-modal-panel { position: fixed; inset: 0; z-index: 1040; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
     .il-modal-header { background: ${T.surface}; border-bottom: 1.5px solid ${T.border}; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
     .il-modal-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
     .il-modal-footer { background: ${T.surface}; border-top: 1.5px solid ${T.border}; padding: 14px 28px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
@@ -358,7 +358,7 @@ const defaultForm = () => ({
   default_uom: 'Nos', description: '', image: null, imagePreview: null,
   uoms: [], hsn_code: '', country_of_origin: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
   is_stock_item: 1, is_sales_item: 1, is_purchase_item: 1, supplier_items: [],
-  branch_availability: []
+  branch_availability: [], custom_pieces_per_box: 0
 });
 
 /* ========== MAIN COMPONENT ========== */
@@ -374,6 +374,12 @@ export default function ItemList() {
   const [filterGroup, setFilterGroup] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterHasVariants, setFilterHasVariants] = useState('');
+  const [barcodeFilter, setBarcodeFilter] = useState('');
+  const [showGlobalScan, setShowGlobalScan] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const [barcodes, setBarcodes] = useState([]);
+  const [barcodeInput, setBarcodeInput] = useState('');
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(defaultForm());
@@ -402,13 +408,12 @@ export default function ItemList() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [connectionActiveTab, setConnectionActiveTab] = useState(null);
-
-  const [barcodes, setBarcodes] = useState([]);
-  const [barcodeInput, setBarcodeInput] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
-  const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [valuationData, setValuationData] = useState(null);
   const [loadingValuation, setLoadingValuation] = useState(false);
+
+
+  const scanVideoRef = useRef(null);
+  const codeReader = useRef(new BrowserMultiFormatReader());
   const barcodeInputRef = useRef(null);
 
   useEffect(() => {
@@ -440,8 +445,14 @@ export default function ItemList() {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/resource/Item', { params: { limit_page_length: 5000, fields: JSON.stringify(["item_code", "item_name", "item_group", "stock_uom", "image", "description", "disabled", "has_variants", "standard_rate", "valuation_rate", "country_of_origin"]), order_by: 'item_name asc' }, withCredentials: true });
-      setItems(res.data?.data || []);
+      // Use the custom retail API which returns barcodes and other retail-ready data
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', { 
+        params: { 
+          warehouse: localStorage.getItem('warehouse') 
+        }, 
+        withCredentials: true 
+      });
+      setItems(res.data?.message || []);
     } catch { setItems([]); } finally { setLoading(false); }
   };
 
@@ -547,7 +558,8 @@ export default function ItemList() {
         showCancelButton: true,
         confirmButtonColor: T.red,
         cancelButtonColor: T.textMuted,
-        confirmButtonText: 'Yes, Deactivate'
+        confirmButtonText: 'Yes, Deactivate',
+        backdrop: `rgba(0,0,0,0.2)` // Lighter backdrop to still see details
       });
       if (result.isConfirmed) setForm({ ...form, disabled: true });
     } else {
@@ -579,17 +591,98 @@ export default function ItemList() {
   const removeBranchRow = (i) => setForm(p => ({ ...p, branch_availability: p.branch_availability.filter((_, idx) => idx !== i) }));
   const updateBranchRow = (i, v) => { const b = [...form.branch_availability]; b[i].warehouse = v; setForm({ ...form, branch_availability: b }); };
 
-  const filteredItems = useMemo(() => items.filter(item => {
-    const s = filterName.toLowerCase();
-    return (!filterName || item.item_code.toLowerCase().includes(s) || item.item_name.toLowerCase().includes(s))
-      && (!filterGroup || item.item_group.toLowerCase().includes(filterGroup.toLowerCase()))
-      && (!filterStatus || (filterStatus === 'Enabled' ? !item.disabled : item.disabled))
-      && (!filterHasVariants || (filterHasVariants === 'Yes' ? item.has_variants : !item.has_variants));
-  }), [items, filterName, filterGroup, filterStatus, filterHasVariants]);
+  const filteredItems = useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    return items.filter(item => {
+      const s = (filterName || '').toLowerCase();
+      const b = (barcodeFilter || '').toLowerCase();
+      
+      const matchesBarcode = !barcodeFilter || 
+        (item.barcodes || []).some(bc => (bc.barcode || '').toLowerCase().includes(b)) ||
+        (item.item_code || '').toLowerCase().includes(b);
+
+      return matchesBarcode 
+        && (!filterName || item.item_code.toLowerCase().includes(s) || item.item_name.toLowerCase().includes(s))
+        && (!filterGroup || item.item_group.toLowerCase().includes(filterGroup.toLowerCase()))
+        && (!filterStatus || (filterStatus === 'Enabled' ? !item.disabled : item.disabled))
+        && (!filterHasVariants || (filterHasVariants === 'Yes' ? item.has_variants : !item.has_variants));
+    });
+  }, [items, filterName, barcodeFilter, filterGroup, filterStatus, filterHasVariants]);
 
   const total = filteredItems.length;
   const totalPages = Math.ceil(total / pageSize);
   const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const startBarcodeScanner = async () => {
+    setShowGlobalScan(true);
+    setTimeout(async () => {
+      try {
+        await codeReader.current.decodeFromVideoDevice(null, scanVideoRef.current, (result) => {
+          if (result) {
+            setBarcodeFilter(result.text);
+            setShowGlobalScan(false);
+            codeReader.current.reset();
+          }
+        });
+      } catch (err) { console.error(err); setShowGlobalScan(false); }
+    }, 100);
+  };
+
+  const handleBarcodeFileScan = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = async () => {
+        try {
+          const result = await codeReader.current.decodeFromImageElement(img);
+          if (result) setBarcodeFilter(result.text);
+        } catch (err) { Swal.fire('Error', 'No barcode found in image', 'error'); }
+      };
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGlobalSearchMaster = async (term) => {
+    try {
+      setLoading(true);
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.find_item_globally_retail', { search_term: term }, { withCredentials: true });
+      const raw = res.data.message;
+      const results = (raw?.success && Array.isArray(raw?.data)) ? raw.data : [];
+      if (results.length > 0) {
+        const html = `
+          <div style="text-align: left; max-height: 400px; overflow-y: auto; padding: 10px;">
+            ${results.map(it => `
+              <div style="display: flex; gap: 12px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 8px; background: #fff;">
+                <div style="width: 48px; height: 48px; background: #f1f5f9; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                  ${it.image ? `<img src="${it.image}" style="width: 100%; height: 100%; object-fit: cover;">` : '<span style="font-size: 10px; color: #94a3b8;">NO IMG</span>'}
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-weight: 700; font-size: 14px; color: #1e293b;">${it.item_name}</div>
+                  <div style="font-size: 11px; color: #64748b; font-family: monospace;">${it.name}</div>
+                  <div style="font-size: 10px; color: #2563eb; font-weight: 700; margin-top: 4px;">ACTIVE IN: ${it.active_branches || 'None'}</div>
+                </div>
+                <button onclick="window.enableGlobalMaster('${it.name}')" style="background: #2563eb; color: #fff; border: none; padding: 6px 14px; border-radius: 8px; height: fit-content; align-self: center; font-size: 11px; font-weight: 900; cursor: pointer;">SYNC ALL TO THIS BRANCH</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        window.enableGlobalMaster = async (code) => {
+          try {
+            Swal.fire({ title: 'Activating Item...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const syncRes = await axios.post('/api/method/kyle_retail.retail_api.api.enable_item_for_branch_retail', { item_code: code, warehouse: localStorage.getItem('warehouse') }, { withCredentials: true });
+            if (syncRes.data.message?.success) {
+              Swal.fire('Success', 'Item activated for your branch!', 'success');
+              fetchItems();
+            }
+          } catch (e) { Swal.fire('Error', e.message, 'error'); }
+        };
+        Swal.fire({ title: 'Industry Registry Discovery', html: html, width: '600px', showConfirmButton: false, showCloseButton: true });
+      } else { Swal.fire('No Results', 'No matches found in any branch registry.', 'info'); }
+    } catch (e) { Swal.fire('Error', e.message, 'error'); } finally { setLoading(false); }
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -600,7 +693,31 @@ export default function ItemList() {
     if (!form.item_code.trim() || !form.item_name.trim() || !form.item_group || !form.default_uom.trim()) { alert('Please fill all required fields'); return; }
     setSaving(true);
     try {
-      const data = { item_code: form.item_code, item_name: form.item_name, item_group: form.item_group, stock_uom: form.default_uom, standard_rate: parseFloat(form.standard_selling_rate) || 0, disabled: form.disabled ? 1 : 0, maintain_stock: form.maintain_stock ? 1 : 0, has_variants: form.has_variants ? 1 : 0, description: form.description || '', image: form.image || form.imagePreview || '', hsn_code: form.hsn_code, brand: form.brand, country_of_origin: form.country_of_origin, custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0, custom_allow_discount: form.custom_allow_discount ? 1 : 0, is_stock_item: form.is_stock_item ? 1 : 0, is_sales_item: form.is_sales_item ? 1 : 0, is_purchase_item: form.is_purchase_item ? 1 : 0, barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })), uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })), supplier_items: form.supplier_items, branch_availability: form.branch_availability.filter(b => b.warehouse) };
+      const data = { 
+        item_code: form.item_code, 
+        item_name: form.item_name, 
+        item_group: form.item_group, 
+        stock_uom: form.default_uom, 
+        standard_rate: parseFloat(form.standard_selling_rate) || 0, 
+        disabled: form.disabled ? 1 : 0, 
+        maintain_stock: form.maintain_stock ? 1 : 0, 
+        has_variants: form.has_variants ? 1 : 0, 
+        description: form.description || '', 
+        image: form.image || form.imagePreview || '', 
+        hsn_code: form.hsn_code, 
+        brand: form.brand, 
+        country_of_origin: form.country_of_origin, 
+        custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0, 
+        custom_allow_discount: form.custom_allow_discount ? 1 : 0, 
+        is_stock_item: form.is_stock_item ? 1 : 0, 
+        is_sales_item: form.is_sales_item ? 1 : 0, 
+        is_purchase_item: form.is_purchase_item ? 1 : 0, 
+        custom_pieces_per_box: parseFloat(form.custom_pieces_per_box) || 0,
+        barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })), 
+        uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })), 
+        supplier_items: form.supplier_items, 
+        branch_availability: form.branch_availability.filter(b => b.warehouse) 
+      };
       await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc', { doctype: 'Item', data }, { withCredentials: true });
       alert(isEditMode ? 'Item updated!' : 'Item created!');
       setShowForm(false); resetForm(); fetchItems();
@@ -626,7 +743,20 @@ export default function ItemList() {
 
   const handleRowClick = async (item) => {
     setIsViewMode(true); setIsEditMode(false); setEditingItemCode(item.item_code);
-    setForm({ ...defaultForm(), item_code: item.item_code, item_name: item.item_name, item_group: item.item_group, disabled: item.disabled === 1, has_variants: item.has_variants === 1, default_uom: item.stock_uom || 'Nos', standard_selling_rate: item.standard_rate || 0, imagePreview: item.image, brand: item.brand || '', country_of_origin: item.country_of_origin || '', branch_availability: [] });
+    setForm({ ...defaultForm(), 
+      item_code: item.item_code, 
+      item_name: item.item_name, 
+      item_group: item.item_group, 
+      disabled: item.disabled === 1, 
+      has_variants: item.has_variants === 1, 
+      default_uom: item.stock_uom || 'Nos', 
+      standard_selling_rate: item.standard_rate || 0, 
+      imagePreview: item.image, 
+      brand: item.brand || '', 
+      country_of_origin: item.country_of_origin || '', 
+      custom_pieces_per_box: item.custom_pieces_per_box || 0,
+      branch_availability: [] 
+    });
     setBarcodes([]); setShowForm(true); setActiveTab('General'); setDashboardData(null); setConnectionActiveTab(null);
     fetchPriceList(item.item_code);
     fetchItemDashboardDetails(item.item_code);
@@ -688,10 +818,31 @@ export default function ItemList() {
         <div style={{ background: T.surface, borderBottom: `1.5px solid ${T.border}`, padding: '14px 28px' }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <span className="il-section-label">Search</span>
+              <span className="il-section-label">Barcode / Scan</span>
+              <div style={{ position: 'relative' }}>
+                <Barcode size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.blue, pointerEvents: 'none' }} />
+                <input 
+                  className="il-input" 
+                  style={{ paddingLeft: 34, paddingRight: 60, borderColor: barcodeFilter ? T.blue : T.border }} 
+                  placeholder="Scan or type barcode..." 
+                  value={barcodeFilter} 
+                  onChange={e => setBarcodeFilter(e.target.value)} 
+                />
+                <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
+                   <button onClick={startBarcodeScanner} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Camera Scan"><Camera size={14} /></button>
+                   <label style={{ cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Image Scan">
+                     <Upload size={14} />
+                     <input type="file" hidden accept="image/*" onChange={handleBarcodeFileScan} />
+                   </label>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ flex: 1.5, minWidth: 280 }}>
+              <span className="il-section-label">Name or Code</span>
               <div style={{ position: 'relative' }}>
                 <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
-                <input className="il-input" style={{ paddingLeft: 34 }} placeholder="Name or item code..." value={filterName} onChange={e => { setFilterName(e.target.value); setCurrentPage(1); }} />
+                <input className="il-input" style={{ paddingLeft: 34 }} placeholder="Search items..." value={filterName} onChange={e => { setFilterName(e.target.value); setCurrentPage(1); }} />
               </div>
             </div>
             <div style={{ width: 190 }}>
@@ -783,51 +934,73 @@ export default function ItemList() {
             <div style={{ padding: '80px 0', textAlign: 'center' }}>
               <Loader2 size={28} style={{ color: T.blue, margin: '0 auto' }} className="spin" />
             </div>
-          ) : paginatedItems.length === 0 ? (
-            <div style={{ padding: '80px 0', textAlign: 'center', background: T.surface, borderRadius: T.radiusMd, border: `2px dashed ${T.border}` }}>
-              <Package size={44} style={{ color: T.border, margin: '0 auto 12px' }} />
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.textSub }}>No items found</div>
-              <div style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>Adjust your filters or add a new item</div>
-            </div>
-          ) : viewType === 'card' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
-              {paginatedItems.map(item => <ItemCard key={item.item_code} item={item} onClick={handleRowClick} />)}
-            </div>
-          ) : (
-            <div className="il-card" style={{ overflow: 'hidden' }}>
-              <table className="il-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 52, paddingLeft: 18 }}></th>
-                    <th>Item</th>
-                    <th>Group</th>
-                    <th>UOM</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Valuation Rate (AED)</th>
-                    <th style={{ width: 36 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedItems.map(item => (
-                    <tr key={item.item_code} onClick={() => handleRowClick(item)}>
-                      <td style={{ paddingLeft: 18 }}>
-                        <div style={{ width: 36, height: 36, background: T.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${T.border}` }}>
-                          {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Package size={15} style={{ color: '#D1D9E6' }} />}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{item.item_name}</div>
-                        <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{item.item_code}</div>
-                      </td>
-                      <td style={{ fontSize: 13, color: T.textSub }}>{item.item_group}</td>
-                      <td><span style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>{item.stock_uom || 'Nos'}</span></td>
-                      <td><StatusBadge disabled={item.disabled} /></td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>{Number(item.valuation_rate || 0).toFixed(2)}</td>
-                      <td style={{ paddingRight: 16 }}><ChevronRight size={15} style={{ color: T.textMuted }} /></td>
+          ) : paginatedItems.length > 0 ? (
+            viewType === 'card' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
+                {paginatedItems.map(item => <ItemCard key={item.item_code} item={item} onClick={handleRowClick} />)}
+              </div>
+            ) : (
+              <div className="il-card" style={{ overflow: 'hidden' }}>
+                <table className="il-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 52, paddingLeft: 18 }}></th>
+                      <th>Item</th>
+                      <th>Group</th>
+                      <th>UOM</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Valuation Rate (AED)</th>
+                      <th style={{ width: 36 }}></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedItems.map(item => (
+                      <tr key={item.item_code} onClick={() => handleRowClick(item)}>
+                        <td style={{ paddingLeft: 18 }}>
+                          <div style={{ width: 36, height: 36, background: T.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${T.border}` }}>
+                            {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Package size={15} style={{ color: '#D1D9E6' }} />}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{item.item_name}</div>
+                          <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{item.item_code}</div>
+                        </td>
+                        <td style={{ fontSize: 13, color: T.textSub }}>{item.item_group}</td>
+                        <td><span style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>{item.stock_uom || 'Nos'}</span></td>
+                        <td><StatusBadge disabled={item.disabled} /></td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>{Number(item.valuation_rate || 0).toFixed(2)}</td>
+                        <td style={{ paddingRight: 16 }}><ChevronRight size={15} style={{ color: T.textMuted }} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : (
+            <div style={{ padding: '80px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 64, height: 64, background: T.bg, borderRadius: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+                {barcodeFilter ? <Barcode size={32} color={T.blue} strokeWidth={1.5} /> : <Package size={32} color={T.textMuted} strokeWidth={1.5} />}
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: T.text, textAlign: 'center' }}>
+                {barcodeFilter ? `Barcode Unrecognized` : `Inventory Exhausted`}
+              </div>
+              <p style={{ fontSize: 14, color: T.textMuted, marginTop: 8, textAlign: 'center', maxWidth: 400, lineHeight: 1.6 }}>
+                {barcodeFilter 
+                  ? <>The barcode <strong>{barcodeFilter}</strong> is not registered for <strong>{localStorage.getItem('warehouse') || 'Current Branch'}</strong>.</>
+                  : <>No items match your current filters in this branch. Expand your search to the global registry.</>
+                }
+              </p>
+              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+                {hasFilters && <button className="il-btn il-btn-secondary" onClick={clearFilters} style={{ height: 44, borderRadius: 12, padding: '0 24px' }}>Clear Local Filters</button>}
+                <button 
+                  onClick={() => handleGlobalSearchMaster(barcodeFilter || filterName)}
+                  className="il-btn il-btn-primary" 
+                  style={{ padding: '0 32px', fontSize: 13, height: 44, borderRadius: 12, boxShadow: '0 10px 15px -3px rgba(37,99,235,0.2)' }}
+                >
+                  <Search size={15} style={{ marginRight: 8 }} /> 
+                  {barcodeFilter ? 'Deep Scan Registry' : 'Search Industry Registry'}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -866,7 +1039,25 @@ export default function ItemList() {
                 <div style={{ fontSize: 16, fontWeight: 800, color: T.text, lineHeight: 1.2 }}>
                   {isViewMode ? form.item_name : (isEditMode ? 'Edit Item Master' : 'New Item Master')}
                 </div>
-                {isViewMode && <div style={{ fontSize: 10, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 2, fontWeight: 700 }}>{editingItemCode}</div>}
+                {isViewMode && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                    <div style={{ fontSize: 10, color: T.textMuted, fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{editingItemCode}</div>
+                    <div style={{ width: 1, height: 10, background: T.border }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                       <span style={{ fontSize: 11, fontWeight: 800, color: form.disabled ? T.red : T.green }}>{form.disabled ? '● INACTIVE' : '● ACTIVE'}</span>
+                       <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 6 }}>
+                          <input 
+                            type="checkbox" 
+                            className="il-check" 
+                            checked={form.disabled} 
+                            onChange={e => handleDisableToggle(e.target.checked)} 
+                            style={{ margin: 0, width: 14, height: 14 }}
+                          />
+                          <span style={{ fontSize: 10, fontWeight: 800, color: T.textSub }}>DEACTIVATE</span>
+                       </label>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -969,6 +1160,7 @@ export default function ItemList() {
                             ['Valuation', `AED ${Number(form.valuation_rate || 0).toFixed(2)}`],
                             ['HSN Code', form.hsn_code || '—'],
                             ['Origin', form.country_of_origin || '—'],
+                            ['Packing', `${form.custom_pieces_per_box || 0} ${form.default_uom} / Box`],
                           ].map(([l, v]) => (
                             <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${T.borderLight}`, alignItems: 'center' }}>
                               <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 600 }}>{l}</span>
@@ -1365,6 +1557,10 @@ export default function ItemList() {
                          <label className="il-form-label">Country of Origin</label>
                          <input className="il-input" value={form.country_of_origin} onChange={e => setForm({ ...form, country_of_origin: e.target.value })} placeholder="e.g. India, UAE" />
                        </div>
+                        <div className="il-form-field">
+                          <label className="il-form-label">Pieces Per Box</label>
+                          <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => setForm({ ...form, custom_pieces_per_box: e.target.value })} placeholder="Conversion factor" />
+                        </div>
                     </div>
                   </div>
                 </CardSection>
@@ -1379,7 +1575,13 @@ export default function ItemList() {
                         { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
                       ].map(f => (
                         <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form[f.key] === 1 ? T.blueLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`, transition: 'all 0.15s' }}>
-                          <input type="checkbox" className="il-check" checked={form[f.key] === 1} onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })} />
+                          <input 
+                            type="checkbox" 
+                            className="il-check" 
+                            checked={form[f.key] === 1} 
+                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })} 
+                            tabIndex={showForm ? 0 : -1}
+                          />
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{f.label}</div>
                             <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
@@ -1395,7 +1597,13 @@ export default function ItemList() {
                         { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
                       ].map(f => (
                         <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form[f.key] === 1 ? T.blueLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`, transition: 'all 0.15s' }}>
-                          <input type="checkbox" className="il-check" checked={form[f.key] === 1} onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })} />
+                          <input 
+                            type="checkbox" 
+                            className="il-check" 
+                            checked={form[f.key] === 1} 
+                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })} 
+                            tabIndex={showForm ? 0 : -1}
+                          />
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 600 }}>{f.label}</div>
                             <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
@@ -1404,7 +1612,7 @@ export default function ItemList() {
                       ))}
                       <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form.disabled ? T.redLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form.disabled ? '#FECACA' : T.border}`, transition: 'all 0.15s' }}>
                         <input type="checkbox" className="il-check" checked={form.disabled} onChange={e => handleDisableToggle(e.target.checked)} />
-                        <div>
+                        <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: T.red }}>Disable Item</div>
                           <div style={{ fontSize: 11, color: '#FCA5A5' }}>Hide from active registries</div>
                         </div>
@@ -1554,6 +1762,20 @@ export default function ItemList() {
       )}
 
       {showCameraScanner && <CameraScanner onScan={c => { addBarcode(c); setShowCameraScanner(false); }} onClose={() => setShowCameraScanner(false)} />}
+      {showGlobalScan && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000000, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ width: '100%', maxWidth: 500, background: '#fff', borderRadius: 24, overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>Camera Scanner</div>
+              <button onClick={() => { codeReader.current.reset(); setShowGlobalScan(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: 20 }}>
+              <video ref={scanVideoRef} style={{ width: '100%', borderRadius: 16, background: '#000' }} />
+              <button onClick={() => { codeReader.current.reset(); setShowGlobalScan(false); }} style={{ width: '100%', marginTop: 20, padding: 12, background: T.blue, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700 }}>Stop Scanner</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

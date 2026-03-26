@@ -23,7 +23,8 @@ import {
   Lock,
   Settings,
   UserCheck,
-  PlusCircle
+  PlusCircle,
+  RotateCcw
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import QuickStockInStandalone from './QuickStockInStandalone';
@@ -43,6 +44,7 @@ const routeMap = {
   'Sales Order': { path: '/salesorderlist', icon: PackageCheck },
   'Sales Invoice': { path: '/salesinvoice', icon: Receipt },
   'Delivery Note': { path: '/deliverynote', icon: Truck },
+  'Sales Return': { path: '/salesreturn', icon: RotateCcw },
 
   // Stock
   'Item List': { path: '/itemlist', icon: Boxes },
@@ -85,7 +87,7 @@ function Dashboard() {
       icon: TrendingUp,
       colorClass: 'icon-sales',
       cardClass: 'card-sales',
-      items: ['Customer', 'Sales Order', 'Sales Invoice', 'Delivery Note'],
+      items: ['Customer', 'Sales Order', 'Sales Invoice', 'Delivery Note', 'Sales Return'],
     },
     {
       title: 'Stock Management',

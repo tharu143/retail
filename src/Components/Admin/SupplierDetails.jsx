@@ -4,7 +4,7 @@ import {
   AlertCircle, Globe, Tag, Receipt, Layers, ShoppingCart,
   ArrowRight, Settings, Edit2, Save, X, Package, CreditCard,
   ShieldCheck, Activity, TrendingUp, Calendar, Hash, FileText,
-  Search, Filter, Lock, Unlock, AlertTriangle, CheckSquare, Square
+  Search, Filter, Lock, Unlock, AlertTriangle, CheckSquare, Square, User
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import axios from 'axios';

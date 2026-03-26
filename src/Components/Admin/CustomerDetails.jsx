@@ -7,93 +7,161 @@ import {
   ArrowRight, Settings, Edit2, Save, X, Package, CreditCard,
   ShieldCheck, Activity, TrendingUp, Calendar, Hash, FileText,
   Search, Filter, Lock, Unlock, AlertTriangle, CheckSquare, Square,
-  User, CheckCircle2, Clock, Zap
+  User, CheckCircle2, Clock, Zap, UserPlus
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 
-const API_BASE = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
+/* ==================== UI COMPONENTS ==================== */
+const StatCard = ({ label, value, currency, icon: Icon, themeColor, isGreen }) => (
+  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group">
+    <div className="space-y-1">
+      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{label}</p>
+      <div className="flex items-baseline gap-1.5">
+        {currency && <span className="text-[11px] font-bold text-gray-400 uppercase">{currency}</span>}
+        <h4 className="text-2xl font-black text-gray-900 tracking-tight">{value}</h4>
+      </div>
+    </div>
+    <div className="p-3.5 rounded-xl transition-colors" style={{ backgroundColor: isGreen ? '#f0fdf4' : '#f0f9ff' }}>
+      <Icon size={22} style={{ color: themeColor }} strokeWidth={2.5} />
+    </div>
+  </div>
+);
+
+const ConnectionCard = ({ title, count, total_val, icon: Icon, themeColor, onClick }) => (
+  <div onClick={onClick} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between">
+    <div className="flex items-center gap-4">
+      <div className="p-2.5 rounded-lg bg-gray-50 group-hover:bg-white border border-transparent group-hover:border-gray-100 transition-all">
+        <Icon size={18} style={{ color: themeColor }} strokeWidth={2} />
+      </div>
+      <div>
+        <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">{title}</h5>
+        <p className="text-sm font-black text-gray-900">{count} Records</p>
+      </div>
+    </div>
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] font-bold text-gray-400">{total_val}</span>
+      <ArrowRight size={14} className="text-gray-300 group-hover:text-gray-900 transition-all group-hover:translate-x-1" />
+    </div>
+  </div>
+);
+
+const SectionLabel = ({ text }) => (
+  <div className="flex items-center gap-4 mb-6">
+    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{text}</h4>
+    <div className="h-px w-full bg-slate-100" />
+  </div>
+);
+
+const InfoRow = ({ label, value, icon: Icon, themeColor }) => (
+  <div className="space-y-1.5 py-1">
+    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+      <Icon size={12} style={{ color: themeColor }} /> {label}
+    </div>
+    <p className="text-sm font-bold text-gray-900 pl-5">{value || 'Not Defined'}</p>
+  </div>
+);
+
+const InputGroup = ({ label, value, onChange, placeholder, type = "text" }) => (
+  <div className="space-y-1.5">
+    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-0.5">{label}</label>
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-blue-500/50 transition-all"
+    />
+  </div>
+);
+
+const SelectGroup = ({ label, value, options, onChange }) => (
+  <div className="space-y-1.5">
+    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-0.5">{label}</label>
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-blue-500/50 transition-all cursor-pointer"
+    >
+      {options?.map(opt => <option key={opt.name || opt} value={opt.name || opt}>{opt.label || opt.name || opt}</option>)}
+    </select>
+  </div>
+);
+
+/* ==================== MAIN COMPONENT ==================== */
 const CustomerDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = id === 'new';
-  const { themeColor, themeLight } = useLegacyTheme();
+  const { themeColor, themeLight, isGreen } = useLegacyTheme();
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('Intelligence');
+  const [activeTab, setActiveTab] = useState('General');
   const [showEditModal, setShowEditModal] = useState(false);
 
   // Data States
   const [customer, setCustomer] = useState(null);
+  const [dashboard, setDashboard] = useState({
+    counts: { sales_orders: 0, sales_invoices: 0, delivery_notes: 0, payment_entries: 0, quotations: 0 },
+    current_balance: 0
+  });
   const [addresses, setAddresses] = useState([]);
   const [contacts, setContacts] = useState([]);
-  const [linkedSearch, setLinkedSearch] = useState('');
   const [meta, setMeta] = useState({
     customer_types: ['Individual', 'Company'],
     customer_groups: [],
     territories: [],
-    emirates: ['Abu Dhabi', 'Dubai', 'Sharjah', 'Ajman', 'Fujairah', 'Ras Al Khaimah', 'Umm Al Quwain'],
-    address_types: ['Billing', 'Shipping', 'Office', 'Personal', 'Plant', 'Postal', 'Shop', 'Subsidiary', 'Warehouse', 'Current', 'Permanent', 'Other']
+    emirates: [],
+    address_types: [],
+    countries: []
   });
 
-  // Form State for Create/Edit
+  // ERPNext Consistent Form State
   const [form, setForm] = useState({
     customer_name: '',
     customer_type: 'Individual',
     customer_group: 'All Customer Groups',
     territory: 'All Territories',
-    mobile_no: '',
-    email_id: '',
-    tax_id: '',
-    // Primary Address
-    address_line1: '',
-    address_line2: '',
-    city: '',
-    emirate: '',
-    country: 'United Arab Emirates',
-    address_type: 'Billing',
-    // Primary Contact
-    first_name: '',
-    last_name: '',
-    contact_email: '',
-    contact_mobile: ''
+    mobile_no: '', email_id: '', tax_id: '',
+    disabled: 0
   });
 
   useEffect(() => {
     fetchMeta();
-    if (!isNew) {
+    if (!isNew && id && id !== 'undefined') {
       fetchCustomerData();
+      fetchDashboard();
     }
-  }, [id]);
+  }, [id, isNew]);
 
   const fetchMeta = async () => {
     try {
       const res = await axios.get(`${API_BASE}.get_customer_meta_options`);
-      if (res.data.message) {
-        setMeta(prev => ({ ...prev, ...res.data.message }));
+      const data = res.data.message?.data || {};
+      if (data) {
+        setMeta(prev => ({ 
+          ...prev, 
+          customer_groups: data.customer_group || [],
+          territories: data.territory || [],
+          countries: data.countries || [],
+          address_types: data.address_type || [],
+          emirates: data.emirates || []
+        }));
       }
-    } catch (err) {
-      console.error("Meta fetch failed", err);
-    }
+    } catch (err) { console.error("Meta failed", err); }
   };
 
   const fetchCustomerData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}.get_customer_details`, {
-        params: { customer_id: id }
-      });
+      const res = await axios.get(`${API_BASE}.get_customer_details_retail`, { params: { customer_id: id } });
       const { customer: cust, addresses: addr, contacts: cont } = res.data.message.data;
       setCustomer(cust);
       setAddresses(addr || []);
       setContacts(cont || []);
-
-      // Populate form for editing
-      const primaryAddr = addr?.find(a => a.is_primary_address) || addr?.[0] || {};
-      const primaryCont = cont?.find(c => c.is_primary_contact) || cont?.[0] || {};
-
       setForm({
         customer_name: cust.customer_name || '',
         customer_type: cust.customer_type || 'Individual',
@@ -102,258 +170,168 @@ const CustomerDetails = () => {
         mobile_no: cust.mobile_no || '',
         email_id: cust.email_id || '',
         tax_id: cust.tax_id || '',
-        address_line1: primaryAddr.address_line1 || '',
-        address_line2: primaryAddr.address_line2 || '',
-        city: primaryAddr.city || '',
-        emirate: primaryAddr.emirate || '',
-        country: primaryAddr.country || 'United Arab Emirates',
-        address_type: primaryAddr.address_type || 'Billing',
-        first_name: primaryCont.first_name || '',
-        last_name: primaryCont.last_name || '',
-        contact_email: primaryCont.email_id || '',
-        contact_mobile: primaryCont.mobile_no || ''
+        disabled: cust.disabled || 0
       });
-    } catch (err) {
-      Swal.fire('Error', 'Failed to retrieve neural customer profile', 'error');
-    } finally {
-      setTimeout(() => setLoading(false), 500);
-    }
+    } catch (err) { Swal.fire('Error', 'Failed to retrieve profile data', 'error'); }
+    finally { setTimeout(() => setLoading(false), 500); }
   };
 
-  const fetchLinkedRecords = async () => {
+  const fetchDashboard = async () => {
     try {
-      const [addrRes, contactRes] = await Promise.all([
-        axios.get('/api/resource/Address', {
-          params: {
-            filters: JSON.stringify([['Dynamic Link', 'link_name', '=', id], ['Dynamic Link', 'link_doctype', '=', 'Customer']]),
-            fields: JSON.stringify(['name', 'address_title', 'address_type', 'city', 'country', 'address_line1']),
-            limit_page_length: 50
-          }
-        }),
-        axios.get('/api/resource/Contact', {
-          params: {
-            filters: JSON.stringify([['Dynamic Link', 'link_name', '=', id], ['Dynamic Link', 'link_doctype', '=', 'Customer']]),
-            fields: JSON.stringify(['name', 'first_name', 'last_name', 'designation', 'email_id', 'mobile_no']),
-            limit_page_length: 50
-          }
-        })
-      ]);
-      setAddresses(addrRes.data.data || []);
-      setContacts(contactRes.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch linked records:', err);
-    }
+      const res = await axios.get(`${API_BASE}.get_customer_dashboard_data`, { params: { customer_id: id } });
+      if (res.data.message?.success) setDashboard(res.data.message.data);
+    } catch (err) { console.error('Dashboard failed', err); }
   };
 
   const handleSave = async () => {
-    if (!form.customer_name) return Swal.fire('Error', 'Target Name is mandatory', 'error');
-
+    if (!form.customer_name.trim()) return Swal.fire('Field Missing', 'Customer Name is mandatory', 'warning');
     try {
       setSaving(true);
       const payload = {
-        customer_data: {
-          name: isNew ? undefined : id,
-          customer_name: form.customer_name,
-          customer_type: form.customer_type,
-          customer_group: form.customer_group,
-          territory: form.territory,
-          mobile_no: form.mobile_no,
-          email_id: form.email_id,
-          tax_id: form.tax_id
-        },
-        address_data: {
-          address_type: form.address_type,
-          address_line1: form.address_line1,
-          address_line2: form.address_line2,
-          city: form.city,
-          emirate: form.emirate,
-          country: form.country
-        },
-        contact_data: {
-          first_name: form.first_name || form.customer_name,
-          last_name: form.last_name,
-          mobile_no: form.contact_mobile || form.mobile_no,
-          email_id: form.contact_email || form.email_id
-        }
+        customer_data: { ...form, name: isNew ? undefined : id },
+        address_data: {}, 
+        contact_data: {}
       };
-
-      const res = await axios.post(`${API_BASE}.save_customer_details`, payload);
-
+      const res = await axios.post(`${API_BASE}.save_customer_details_retail`, payload);
       if (res.data.message?.success) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Profile Synchronized',
-          text: `Customer profile ${isNew ? 'initialized' : 'updated'} in the central matrix.`,
-          confirmButtonColor: themeColor
-        });
-        if (isNew) {
-          navigate(`/customer-details/${res.data.message.customer_name}`);
-        } else {
-          setShowEditModal(false);
-          fetchCustomerData();
-        }
-      } else {
-        throw new Error(res.data.message?.message || "Sync failed");
-      }
-    } catch (err) {
-      Swal.fire('Sync Error', err.message, 'error');
-    } finally {
-      setSaving(false);
-    }
+        Swal.fire({ icon: 'success', title: 'Saved Successfully', text: isNew ? 'Customer created.' : 'Customer profile updated.', confirmButtonColor: themeColor });
+        if (isNew) navigate(`/customer-details/${res.data.message.customer_name}`);
+        else { setShowEditModal(false); fetchCustomerData(); }
+      } else throw new Error(res.data.message?.message);
+    } catch (err) { Swal.fire('Save Failure', err.message, 'error'); }
+    finally { setSaving(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-gray-50 gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={48} />
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Calibrating Profile Matrix...</p>
-      </div>
-    );
-  }
+  const isActive = customer?.disabled === 0;
+
+  if (loading) return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-gray-50 gap-4">
+      <Loader2 className="animate-spin text-blue-600" size={36} />
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Loading Customer Details...</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] pb-20">
-
-      {/* Dynamic Header Shard */}
-      <div className="bg-white border-b border-gray-100 px-8 py-10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-8">
+    <div className="min-h-screen bg-[#f8fafc] pb-24">
+      {/* Page Header */}
+      <div className="bg-white border-b border-gray-100 px-8 py-8">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-6">
-            <button
-              onClick={() => navigate('/customerlist')}
-              className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-gray-900 hover:text-white transition-all shadow-sm active:scale-95"
-            >
+            <button onClick={() => navigate('/customerlist')} className="p-2.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 transition-all shadow-sm">
               <ChevronLeft size={20} />
             </button>
-            <div className="h-14 w-14 bg-blue-600 rounded-[1.25rem] flex items-center justify-center shadow-lg shadow-blue-200">
-              <User size={28} className="text-white" />
+            <div className="h-12 w-12 bg-slate-900 rounded-xl flex items-center justify-center">
+               <User size={24} className="text-white" />
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-                  {isNew ? 'Initialize Customer' : customer?.customer_name}
-                </h1>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">{isNew ? 'New Customer' : customer?.customer_name}</h1>
                 {!isNew && (
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${customer?.disabled === 0 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200'}`}>
-                    {customer?.disabled === 0 ? 'Active Stream' : 'Offline'}
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${customer?.disabled === 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                    {customer?.disabled === 0 ? 'Active' : 'Inactive'}
                   </span>
                 )}
               </div>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mt-1">
-                {isNew ? 'New Entry Discovery' : `Identity Ref: ${customer?.name}`}
-              </p>
+              {!isNew && <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{customer?.name}</p>}
             </div>
           </div>
-
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {!isNew ? (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="px-8 py-3 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl hover:bg-black hover:-translate-y-0.5 transition-all active:scale-95"
-              >
-                <Edit2 size={14} /> Refine Profile
+              <button onClick={() => setShowEditModal(true)} className="px-6 py-2.5 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all">
+                <Edit2 size={14} /> Edit Profile
               </button>
             ) : (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl hover:bg-blue-700 hover:-translate-y-0.5 transition-all active:scale-95"
-              >
+              <button onClick={handleSave} disabled={saving} className="px-8 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 shadow-sm hover:bg-blue-700 transition-all">
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {saving ? 'Saving...' : 'Execute Genesis'}
+                {saving ? 'Saving...' : 'Save Customer'}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Main Command Console */}
-      <div className="max-w-7xl mx-auto mt-12 px-8">
-        {/* Navigation Shard */}
-        <div className="flex items-center gap-1 mb-10 bg-white p-2 rounded-[2rem] border border-gray-100 shadow-sm w-fit">
-          {['Intelligence', 'Geospatial', 'Personnel', 'Transactions'].map((tab) => (
+      <div className="max-w-7xl mx-auto mt-8 px-8">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 mb-8 bg-white p-1.5 rounded-xl border border-gray-100 shadow-sm w-fit">
+          {['General', 'Dashboard', 'Addresses', 'Contacts'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900'}`}
+              className={`px-8 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-gray-900 text-white shadow-md' : 'text-gray-400 hover:text-gray-900'}`}
             >
-              {tab === 'Personnel' ? `Personnel (${contacts.length})` : tab}
+              {tab === 'Contacts' ? `Contacts (${contacts.length})` : tab}
             </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Central Intel Core */}
-          <div className="lg:col-span-2 space-y-10">
-            {activeTab === 'Intelligence' && (
-              <>
-                {/* Identity Matrix */}
-                <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-10">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
-                      <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
-                      Identity Matrix
-                    </h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <InfoShard label="Legal Entity Classification" value={customer?.customer_type} icon={Building2} />
-                    <InfoShard label="Strategic Collective" value={customer?.customer_group} icon={Layers} />
-                    <InfoShard label="Territorial Assignment" value={customer?.territory} icon={Globe} />
-                    <InfoShard label="Tax Protocol Index" value={customer?.tax_id || 'Not Registered'} icon={FileText} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            
+            {activeTab === 'General' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+                  <SectionLabel text="General Information" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                    <InfoRow label="Customer Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
+                    <InfoRow label="Customer Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
+                    <InfoRow label="Customer Group" value={customer?.customer_group} icon={Layers} themeColor={themeColor} />
+                    <InfoRow label="Territory" value={customer?.territory} icon={Globe} themeColor={themeColor} />
+                    <InfoRow label="Tax ID / TRN" value={customer?.tax_id} icon={FileText} themeColor={themeColor} />
                   </div>
                 </div>
-
-                {/* Primary Connection Gate */}
-                <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-10">
-                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
-                    <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
-                    Neural Communication Mesh
-                  </h3>
+                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+                  <SectionLabel text="Contact Details" />
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <ContactCard label="Voice Mesh" value={customer?.mobile_no} icon={Phone} />
-                    <ContactCard label="Digital Vector" value={customer?.email_id} icon={Mail} />
-                    <ContactCard label="Authorized Rep" value={contacts?.[0]?.full_name} icon={Users} />
+                    <div className="p-4 bg-gray-50 rounded-xl space-y-2">
+                       <Phone size={14} className="text-gray-400" />
+                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Mobile No</p>
+                       <p className="text-xs font-bold text-gray-900">{customer?.mobile_no || 'No Mobile'}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl space-y-2">
+                       <Mail size={14} className="text-gray-400" />
+                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Email Address</p>
+                       <p className="text-xs font-bold text-gray-900 truncate">{customer?.email_id || 'No Email'}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl space-y-2">
+                       <Users size={14} className="text-gray-400" />
+                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Primary Contact</p>
+                       <p className="text-xs font-bold text-gray-900">{contacts?.[0]?.full_name || 'None'}</p>
+                    </div>
                   </div>
                 </div>
-              </>
+              </div>
             )}
 
-            {activeTab === 'Geospatial' && (
-              <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-10">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
-                    <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
-                    Registered Vector Grid (Addresses - {addresses.length})
-                  </h3>
-                  <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input 
-                      className="pl-9 pr-4 py-2 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500/20"
-                      placeholder="Filter addresses..."
-                      value={linkedSearch}
-                      onChange={e => setLinkedSearch(e.target.value)}
-                    />
-                  </div>
+            {activeTab === 'Dashboard' && (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <StatCard label="Total Outstanding" value={dashboard.current_balance?.toLocaleString()} currency="AED" icon={Activity} themeColor="#ef4444" isGreen={false} />
+                  <StatCard label="Transaction Volume" value={Object.values(dashboard.counts).reduce((a,b)=>a+b,0)} icon={Layers} themeColor={themeColor} isGreen={isGreen} />
                 </div>
-                {addresses.length === 0 ? (
-                  <div className="py-20 text-center space-y-4 bg-gray-50 rounded-[2rem]">
-                    <MapPin size={40} className="mx-auto text-gray-200" />
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Geospatial Shards Detected</p>
-                  </div>
-                ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+                  <ConnectionCard title="Sales Orders" count={dashboard.counts.sales_orders} total_val="View List" icon={ShoppingCart} themeColor={themeColor} onClick={() => navigate(`/salesorderlist?customer=${id}`)} />
+                  <ConnectionCard title="Sales Invoices" count={dashboard.counts.sales_invoices} total_val="View List" icon={Receipt} themeColor={themeColor} onClick={() => navigate(`/salesinvoicelist?customer=${id}`)} />
+                  <ConnectionCard title="Delivery Notes" count={dashboard.counts.delivery_notes} total_val="View List" icon={Package} themeColor={themeColor} onClick={() => navigate(`/deliverynotelist?customer=${id}`)} />
+                  <ConnectionCard title="Payments" count={dashboard.counts.payment_entries} total_val="View List" icon={CreditCard} themeColor={themeColor} onClick={() => navigate(`/paymententrylist?customer=${id}`)} />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Addresses' && (
+              <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center justify-between">
+                  <SectionLabel text={`Linked Addresses (${addresses.length})`} />
+                </div>
+                {addresses.length === 0 ? <p className="text-center py-12 text-gray-400 text-xs font-bold uppercase tracking-widest">No Addresses Linked</p> : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {addresses.filter(a => !linkedSearch || a.address_title?.toLowerCase().includes(linkedSearch.toLowerCase()) || a.city?.toLowerCase().includes(linkedSearch.toLowerCase())).map((addr, idx) => (
-                      <div key={idx} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} className="p-6 bg-gray-50 rounded-[2rem] border border-transparent hover:border-gray-200 transition-all group cursor-pointer">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="px-3 py-1 bg-white rounded-lg border border-gray-100 text-[8px] font-black uppercase text-gray-500 tracking-widest">
-                            {addr.address_type}
-                          </div>
+                    {addresses.map((addr, i) => (
+                      <div key={i} onClick={() => navigate(`/addresslist?name=${addr.name}`)} className="p-5 bg-gray-50 rounded-xl border border-transparent hover:border-gray-200 transition-all cursor-pointer group">
+                        <div className="flex justify-between items-start mb-3">
+                          <span className="px-2 py-0.5 bg-white rounded text-[8px] font-bold uppercase text-gray-500 tracking-widest border border-gray-100">{addr.address_type}</span>
                           {addr.is_primary_address === 1 && <CheckCircle2 size={16} className="text-emerald-500" />}
                         </div>
-                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-1">{addr.address_title}</h4>
-                        <p className="text-sm font-bold text-gray-900 tracking-tight leading-relaxed">
-                          {addr.address_line1}, {addr.city}, {addr.country}
-                        </p>
+                        <h4 className="text-xs font-bold text-gray-800 uppercase tracking-tight mb-1">{addr.address_title}</h4>
+                        <p className="text-xs text-gray-500 leading-relaxed font-medium">{addr.address_line1}, {addr.city}</p>
                       </div>
                     ))}
                   </div>
@@ -361,247 +339,128 @@ const CustomerDetails = () => {
               </div>
             )}
 
-            {activeTab === 'Personnel' && (
-              <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-10">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
-                    <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
-                    Neural Communication Shards (Contacts - {contacts.length})
-                  </h3>
-                   <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input 
-                      className="pl-9 pr-4 py-2 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500/20"
-                      placeholder="Filter personnel..."
-                      value={linkedSearch}
-                      onChange={e => setLinkedSearch(e.target.value)}
-                    />
-                  </div>
-                </div>
-                {contacts.length === 0 ? (
-                   <div className="py-20 text-center space-y-4 bg-gray-50 rounded-[2rem]">
-                    <Users size={40} className="mx-auto text-gray-200" />
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Personal Vectors Registered</p>
-                  </div>
-                ) : (
+            {activeTab === 'Contacts' && (
+              <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6 animate-in fade-in duration-500">
+                <SectionLabel text={`Linked Contacts (${contacts.length})`} />
+                {contacts.length === 0 ? <p className="text-center py-12 text-gray-400 text-xs font-bold uppercase tracking-widest">No Contacts Found</p> : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {contacts.filter(c => !linkedSearch || `${c.first_name} ${c.last_name}`.toLowerCase().includes(linkedSearch.toLowerCase())).map((con, idx) => (
-                      <div key={idx} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} className="p-6 bg-gray-50 rounded-[2rem] border border-transparent hover:border-gray-200 transition-all group cursor-pointer">
-                        <div className="flex items-center gap-4 mb-4">
-                           <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-[10px] font-black text-slate-900">
-                             {con.first_name?.[0]}{con.last_name?.[0]}
-                           </div>
-                           <div>
-                             <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{con.first_name} {con.last_name}</h4>
-                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{con.designation || 'Specialist'}</p>
-                           </div>
-                        </div>
-                        <div className="space-y-2">
-                           {con.email_id && <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600"><Mail size={12} /> {con.email_id}</div>}
-                           {con.mobile_no && <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600"><Phone size={12} /> {con.mobile_no}</div>}
+                    {contacts.map((con, i) => (
+                      <div key={i} onClick={() => navigate(`/contactlist?name=${con.name}`)} className="p-5 bg-gray-50 rounded-xl border border-transparent hover:border-gray-200 transition-all cursor-pointer flex items-center gap-4">
+                        <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center text-xs font-bold text-gray-900 border border-gray-100">{con.first_name?.[0]}{con.last_name?.[0]}</div>
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-900 uppercase tracking-tight">{con.first_name} {con.last_name}</h4>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{con.designation || 'Specialist'}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
-            )}
-
-            {activeTab === 'Transactions' && (
-              <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-10">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
-                    <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
-                    Transaction Hub
-                  </h3>
-                  <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">View Analytics Stream</button>
-                </div>
-                <div className="py-20 text-center space-y-4 bg-gray-50 rounded-[2rem]">
-                  <Activity size={40} className="mx-auto text-gray-200" />
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Recent Transaction Shards Recorded</p>
-                </div>
               </div>
             )}
           </div>
 
-          {/* Side Intel Shard */}
-          <div className="space-y-10">
-            <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-10">
-              <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-4">
-                <div className="w-1 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
-                Executive Summary
-              </h3>
-              <div className="space-y-6">
-                <SummaryItem label="Relationship Age" value="Direct Entry" icon={Calendar} />
-                <SummaryItem label="System Index" value={customer?.name || 'QUEUED'} icon={Hash} />
-                <SummaryItem
-                  label="Auth Status"
-                  value={customer?.is_active ? 'High Confidence' : 'Restricted'}
-                  icon={ShieldCheck}
-                />
-              </div>
-            </div>
-
-            <div className="p-10 rounded-[3rem] bg-gray-900 text-white shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                <TrendingUp size={120} />
-              </div>
-              <div className="relative z-10">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Lifetime Vector Value</p>
-                <h4 className="text-4xl font-black tracking-tight mb-8">AED 0.00</h4>
-                <div className="space-y-4">
-                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest border-t border-white/10 pt-4">
-                    <span>Order Velocity</span>
-                    <span className="text-gray-400">0 Items</span>
-                  </div>
+          <div className="space-y-8">
+            <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+              <h3 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-6">Summary</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Created On</span>
+                  <span className="text-[11px] font-bold text-gray-900">{new Date(customer?.creation).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Status</span>
+                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                    {isActive ? 'Active' : 'Disabled'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">ID Alias</span>
+                  <span className="text-[10px] font-bold text-blue-600 font-mono italic">{customer?.name}</span>
                 </div>
               </div>
+            </div>
+            
+            <div className="bg-slate-900 p-8 rounded-2xl text-white shadow-xl relative overflow-hidden group">
+               <div className="relative z-10">
+                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Balance Due</p>
+                 <div className="flex items-baseline gap-2 mb-6">
+                   <span className="text-lg font-bold text-gray-500 uppercase">AED</span>
+                   <h4 className="text-3xl font-black tracking-tight" style={{ color: dashboard.current_balance > 0 ? '#fca5a5' : '#86efac' }}>
+                     {dashboard.current_balance?.toLocaleString()}
+                   </h4>
+                 </div>
+                 <button onClick={() => navigate(`/ledger?party=${id}&party_type=Customer`)} className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all">Account Statement</button>
+               </div>
+               <div className="absolute right-0 bottom-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                 <TrendingUp size={100} />
+               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Edit / Create Genesis Modal */}
+      {/* Edit Modal (Standard Clean Design) */}
       {(showEditModal || isNew) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-5xl max-h-[90vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-10 py-8 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-100">
+            <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-slate-50 text-slate-800 rounded-2xl">
-                  <Users size={20} />
-                </div>
+                <div className="p-2.5 bg-gray-900 text-white rounded-lg shadow-md"><Edit2 size={20} /></div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">{isNew ? 'Initialize Genesis Record' : 'Refine Customer Shards'}</h2>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Matrix Revision Protocol</p>
+                  <h2 className="text-xl font-black text-gray-900 tracking-tight">{isNew ? 'New Customer' : 'Edit Customer Profile'}</h2>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Revise Registry Specifications</p>
                 </div>
               </div>
-              {!isNew && (
-                <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-slate-50 rounded-full transition-all">
-                  <X size={24} className="text-slate-400" />
-                </button>
-              )}
+              {!isNew && <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all"><X size={22} /></button>}
             </div>
-
-            <div className="flex-1 overflow-y-auto p-10 space-y-12 pb-24 custom-scrollbar">
-              {/* Core Specifications */}
+            
+            <div className="flex-1 overflow-y-auto p-10 space-y-12 pb-24 custom-scrollbar bg-white">
               <div className="space-y-8">
-                <SectionLabel text="Core Identity Specifications" />
+                <SectionLabel text="Registration Details" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <InputGroup label="Target Customer Name" value={form.customer_name} onChange={v => setForm({ ...form, customer_name: v })} placeholder="Enter Legal Entity Name" />
-                  <SelectGroup label="Identity Classification" value={form.customer_type} options={meta.customer_types} onChange={v => setForm({ ...form, customer_type: v })} />
-                  <SelectGroup label="Strategic Collective" value={form.customer_group} options={meta.customer_groups} onChange={v => setForm({ ...form, customer_group: v })} />
-                  <SelectGroup label="Territorial Index" value={form.territory} options={meta.territories} onChange={v => setForm({ ...form, territory: v })} />
+                  <InputGroup label="Customer Name" value={form.customer_name} onChange={v => setForm({ ...form, customer_name: v })} />
+                  <SelectGroup label="Customer Type" value={form.customer_type} options={meta.customer_types} onChange={v => setForm({ ...form, customer_type: v })} />
+                  <SelectGroup label="Customer Group" value={form.customer_group} options={meta.customer_groups} onChange={v => setForm({ ...form, customer_group: v })} />
+                  <SelectGroup label="Territory" value={form.territory} options={meta.territories} onChange={v => setForm({ ...form, territory: v })} />
                 </div>
               </div>
-
-              {/* Communication Bridge */}
               <div className="space-y-8">
-                <SectionLabel text="Global Communication Channels" />
+                <SectionLabel text="Contact Hub" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <InputGroup label="Primary Mobile Lattice" value={form.mobile_no} onChange={v => setForm({ ...form, mobile_no: v })} placeholder="+971 -- --- ----" />
-                  <InputGroup label="Primary Digital Mesh" value={form.email_id} onChange={v => setForm({ ...form, email_id: v })} placeholder="entity@neural.link" />
-                </div>
-              </div>
-
-              {/* Geospatial Index */}
-              <div className="space-y-8">
-                <SectionLabel text="Geospatial Indexing (Primary Address)" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="md:col-span-2">
-                    <InputGroup label="Primary Vector Line 1" value={form.address_line1} onChange={v => setForm({ ...form, address_line1: v })} />
-                  </div>
-                  <InputGroup label="Postal/City Metrix" value={form.city} onChange={v => setForm({ ...form, city: v })} />
-                  <SelectGroup label="Federal Emirate" value={form.emirate} options={meta.emirates} onChange={v => setForm({ ...form, emirate: v })} />
+                   <InputGroup label="Mobile No" value={form.mobile_no} onChange={v => setForm({ ...form, mobile_no: v })} placeholder="+971 -- --- ----" />
+                   <InputGroup label="Email Address" value={form.email_id} onChange={v => setForm({ ...form, email_id: v })} />
+                   <InputGroup label="Tax ID (TRN)" value={form.tax_id} onChange={v => setForm({ ...form, tax_id: v })} />
+                   <div className="flex items-center gap-4 mt-6">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-0.5">Status</label>
+                      <button 
+                        onClick={() => setForm({...form, disabled: form.disabled ? 0 : 1})}
+                        className={`flex items-center gap-3 px-6 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${!form.disabled ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}
+                      >
+                         {!form.disabled ? 'Active' : 'Disabled'}
+                         <div className={`w-1.5 h-1.5 rounded-full ${!form.disabled ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500'}`} />
+                      </button>
+                   </div>
                 </div>
               </div>
             </div>
-
-            <div className="px-10 py-8 border-t border-gray-100 bg-gray-50 flex items-center justify-between sticky bottom-0">
-              {!isNew && (
-                <button onClick={() => setShowEditModal(false)} className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Discard Revisions</button>
-              )}
-              {isNew && (
-                <button onClick={() => navigate('/customerlist')} className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Abort Genesis</button>
-              )}
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{ backgroundColor: themeColor }}
-                className="px-10 py-4 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-widest flex items-center gap-4 hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-50"
-              >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                {saving ? 'Syncing Matrix...' : 'Commit to Neural Mesh'}
-              </button>
+            
+            <div className="px-8 py-6 border-t border-gray-100 bg-gray-50 flex items-center justify-between sticky bottom-0">
+               <button onClick={() => isNew ? navigate('/customerlist') : setShowEditModal(false)} className="text-[10px] font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">{isNew ? 'Cancel' : 'Discard'}</button>
+               <button onClick={handleSave} disabled={saving} style={{ backgroundColor: themeColor }} className="px-10 py-3 text-white rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-3 shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
+                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                 {saving ? 'Saving...' : 'Save Profile'}
+               </button>
             </div>
           </div>
         </div>
       )}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+      `}</style>
     </div>
   );
 };
-
-/* Internal UI Utility Shards */
-const InfoShard = ({ label, value, icon: Icon }) => (
-  <div className="space-y-2 group">
-    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-blue-600 transition-colors">
-      <Icon size={12} />
-      {label}
-    </p>
-    <p className="text-sm font-black text-gray-800 tracking-tight">{value || 'UNSPECIFIED'}</p>
-  </div>
-);
-
-const ContactCard = ({ label, value, icon: Icon }) => (
-  <div className="p-6 bg-gray-50 rounded-[2rem] space-y-2 group hover:bg-slate-900 transition-all duration-300">
-    <Icon size={16} className="text-gray-400 group-hover:text-white transition-colors" />
-    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest group-hover:text-gray-500">{label}</p>
-    <p className="text-xs font-black text-slate-900 group-hover:text-white truncate transition-colors">{value || 'NULL'}</p>
-  </div>
-);
-
-const SummaryItem = ({ label, value, icon: Icon }) => (
-  <div className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-2xl transition-all">
-    <div className="p-2 bg-gray-50 text-gray-400 rounded-lg">
-      <Icon size={14} />
-    </div>
-    <div>
-      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{label}</p>
-      <p className="text-[11px] font-black text-slate-900 tracking-tight">{value}</p>
-    </div>
-  </div>
-);
-
-const SectionLabel = ({ text }) => (
-  <div className="flex items-center gap-4">
-    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">{text}</h4>
-    <div className="h-px w-full bg-slate-100" />
-  </div>
-);
-
-const InputGroup = ({ label, value, onChange, placeholder, type = "text" }) => (
-  <div className="space-y-2">
-    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{label}</label>
-    <input
-      type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full px-6 py-4 bg-slate-50 border border-transparent rounded-2xl text-[13px] font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600/30 focus:shadow-sm transition-all"
-    />
-  </div>
-);
-
-const SelectGroup = ({ label, value, options, onChange }) => (
-  <div className="space-y-2">
-    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{label}</label>
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="w-full px-6 py-4 bg-slate-50 border border-transparent rounded-2xl text-[13px] font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600/30 focus:shadow-sm transition-all appearance-none cursor-pointer"
-    >
-      {options?.map(opt => <option key={opt.name || opt} value={opt.name || opt}>{opt.label || opt.name || opt}</option>)}
-    </select>
-  </div>
-);
 
 export default CustomerDetails;

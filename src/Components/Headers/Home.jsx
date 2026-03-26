@@ -1407,8 +1407,26 @@ function Home() {
         } else {
           barcodeInputRef.current?.focus();
         }
-      } else {
-        handleBarcodeScan(barcodeInput);
+      } else if (barcodeInput.trim()) {
+        const query = barcodeInput.trim();
+        const localMatch = Items.find(it => it.id.toLowerCase() === query.toLowerCase() || (it.barcodes || []).some(b => b.barcode.toLowerCase() === query.toLowerCase()));
+        if (localMatch) {
+            handleAddToBill(localMatch);
+            setBarcodeInput(''); setShowItemDropdown(false);
+        } else {
+            // NOT IN BRANCH PROMPT
+            Swal.fire({
+              title: 'Item Not in Branch!',
+              text: `"${query}" was not found in ${warehouse}. Would you like to check the Global Industry Registry?`,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: '🔄 Search Industry-wide',
+              cancelButtonText: 'Close',
+              confirmButtonColor: '#0284c7'
+            }).then((result) => {
+              if (result.isConfirmed) handleGlobalSearch(query);
+            });
+        }
       }
     } else if (e.key === 'Escape') {
       setShowItemDropdown(false);
@@ -3530,11 +3548,10 @@ function Home() {
                         </div>
                       ))}
                       {itemSearchResults.length === 0 && barcodeInput.length >= 2 && !searchLoading && (
-                        <div onClick={() => handleGlobalSearch(barcodeInput)} style={{ padding: '1rem', cursor: 'pointer', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                           <p style={{ fontSize: 11, fontWeight: 800, color: '#64748b' }}>NO LOCAL RESULTS FOUND</p>
-                           <button style={{ width: '100%', padding: '12px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '11px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s' }}>
-                             <Search size={14} /> SEARCH INDUSTRY REGISTRY
-                           </button>
+                        <div style={{ padding: '2rem', textAlign: 'center', background: '#f8fafc', color: '#64748b' }}>
+                           <SearchSlash size={24} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
+                           <p style={{ fontSize: 11, fontWeight: 800 }}>NOT IN THIS BRANCH</p>
+                           <p style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>Try scanning Industry Registry or Check Global</p>
                         </div>
                       )}
                     </div>

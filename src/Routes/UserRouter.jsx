@@ -35,6 +35,8 @@ import PurchaseReturnPage from '../Pages/PurchaseReturnPage'
 import SupplierDetailsPage from '../Pages/SupplierDetailsPage'
 import AddressList from '../Components/Admin/AddressList'
 import ContactList from '../Components/Admin/ContactList'
+import SalesReturnPage from '../Pages/SalesReturnPage'
+import PurchaseReturnList from '../Components/Admin/PurchaseReturnList'
 
 
 function UserRouter() {
@@ -78,7 +80,8 @@ function UserRouter() {
           <Route path='settings' element={<SettingsPage />} />
           <Route path='purchasetools' element={<PurchaseToolsPage />} />
           <Route path='quickstockin' element={<QuickStockInPage />} />
-          <Route path='purchasereturn' element={<PurchaseReturnPage />} />
+          <Route path='salesreturn' element={<SalesReturnPage />} />
+          <Route path='purchasereturn' element={<PurchaseReturnList />} />
           <Route path='supplier-details/:name' element={<SupplierDetailsPage />} />
           <Route path='addresslist' element={<AddressList />} />
           <Route path='contactlist' element={<ContactList />} />
