@@ -1,4 +1,5 @@
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
+import NavBar from '../Components/Nav/NavBar'
 import HomePage from '../Pages/HomePage'
 import LoginPage from '../Pages/LoginPage'
 import ClosingEntryPage from '../Pages/ClosingEntryPage'
@@ -11,6 +12,7 @@ import ItemWiseSalesReportPage from '../Pages/ItemWiseSalesReportPage'
 import DashboardPage from '../Pages/DashboardPage'
 import POSHealthPage from '../Pages/POSHealthPage'
 import CustomerList from '../Components/Admin/CustomerList'
+import CustomerDetails from '../Components/Admin/CustomerDetails';
 import ItemGroupList from '../Components/Admin/ItemGroupList'
 import ItemList from '../Components/Admin/ItemList'
 import ItemPriceList from '../Components/Admin/ItemPriceList'
@@ -34,44 +36,52 @@ import SupplierDetailsPage from '../Pages/SupplierDetailsPage'
 
 
 function UserRouter() {
+  const location = useLocation();
+  const showNavBar = location.pathname !== '/';
+  
   return (
     <>
-      <Routes>
-        <Route path='/' element={<LoginPage />} />
-        <Route path='homepage' element={<HomePage />} />
-        <Route path='closingentry' element={<ClosingEntryPage />} />
-        <Route path='invoicelist' element={<InvoiceListPage />} />
-        <Route path='purchaseorder' element={<PurchaseOrderPage />} />
-        <Route path='purchaseorderlist' element={<PurchaseOrderListPage />} />
-        <Route path='salesreport' element={<SalesReportPage />} />
-        <Route path='purchasereport' element={<PurchaseReportPage />} />
-        <Route path='itemwisereport' element={<ItemWiseSalesReportPage />} />
-        <Route path='dashboard' element={<DashboardPage />} />
-        <Route path='poshealth' element={<POSHealthPage />} />
-        <Route path='customerlist' element={<CustomerList />} />
-        <Route path='itemgrouplist' element={<ItemGroupList />} />
-        <Route path='itemlist' element={<ItemList />} />
-        <Route path='itempricelist' element={<ItemPriceList />} />
-        <Route path='posclosingentrylist' element={<PosClosingEntryList />} />
-        <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
-        <Route path='posprofilelist' element={<PosProfileList />} />
-        <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
-        <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />
-        <Route path='supplierlist' element={<SupplierList />} />
-        <Route path='salesorderlist' element={<SalesOrderList />} />
-        <Route path='salesorder-details/:name' element={<SalesOrderDetailsPage />} />
-        <Route path='salesorder/create' element={<SalesOrderDetailsPage />} />
-        <Route path='salesinvoice' element={<SalesInvoiceList />} />
-        <Route path='deliverynote' element={<DeliveryNoteList />} />
-        <Route path='syncmanager' element={<SyncManagerPage />} />
-        <Route path='settings' element={<SettingsPage />} />
-        <Route path='purchasetools' element={<PurchaseToolsPage />} />
-        <Route path='quickstockin' element={<QuickStockInPage />} />
-        <Route path='purchasereturn' element={<PurchaseReturnPage />} />
-        <Route path='supplier-details/:name' element={<SupplierDetailsPage />} />
-      </Routes>
+      {showNavBar && <NavBar />}
+      <div style={{ paddingTop: showNavBar ? '74px' : '0' }}>
+        <Routes>
+          <Route path='/' element={<LoginPage />} />
+          <Route path='homepage' element={<HomePage />} />
+          <Route path='closingentry' element={<ClosingEntryPage />} />
+          <Route path='invoicelist' element={<InvoiceListPage />} />
+          <Route path='purchaseorder' element={<PurchaseOrderPage />} />
+          <Route path='purchaseorderlist' element={<PurchaseOrderListPage />} />
+          <Route path='salesreport' element={<SalesReportPage />} />
+          <Route path='purchasereport' element={<PurchaseReportPage />} />
+          <Route path='itemwisereport' element={<ItemWiseSalesReportPage />} />
+          <Route path='dashboard' element={<DashboardPage />} />
+          <Route path='poshealth' element={<POSHealthPage />} />
+          <Route path='customerlist' element={<CustomerList />} />
+          <Route path='customer-details/:id' element={<CustomerDetails />} />
+          <Route path='customer-details/new' element={<CustomerDetails />} />
+          <Route path='itemgrouplist' element={<ItemGroupList />} />
+          <Route path='itemlist' element={<ItemList />} />
+          <Route path='itempricelist' element={<ItemPriceList />} />
+          <Route path='posclosingentrylist' element={<PosClosingEntryList />} />
+          <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
+          <Route path='posprofilelist' element={<PosProfileList />} />
+          <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
+          <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />
+          <Route path='supplierlist' element={<SupplierList />} />
+          <Route path='salesorderlist' element={<SalesOrderList />} />
+          <Route path='salesorder-details/:name' element={<SalesOrderDetailsPage />} />
+          <Route path='salesorder/create' element={<SalesOrderDetailsPage />} />
+          <Route path='salesinvoice' element={<SalesInvoiceList />} />
+          <Route path='deliverynote' element={<DeliveryNoteList />} />
+          <Route path='syncmanager' element={<SyncManagerPage />} />
+          <Route path='settings' element={<SettingsPage />} />
+          <Route path='purchasetools' element={<PurchaseToolsPage />} />
+          <Route path='quickstockin' element={<QuickStockInPage />} />
+          <Route path='purchasereturn' element={<PurchaseReturnPage />} />
+          <Route path='supplier-details/:name' element={<SupplierDetailsPage />} />
+        </Routes>
+      </div>
     </>
-  )
+  );
 }
 
 export default UserRouter

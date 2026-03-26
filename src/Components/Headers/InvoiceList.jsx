@@ -159,12 +159,15 @@ function InvoiceList() {
     };
 
     const handlePrint = (invoice) => {
-        const cashier = userData?.user?.split('@')[0].toUpperCase() || 'CASHIER';
+        const cashier = invoice.owner || userData?.user?.split('@')[0].toUpperCase() || 'CASHIER';
         const companyName = userData?.company || 'RETAIL POS';
         const address = userData?.warehouse || 'Main Store';
-        const tel = '+971 00 000 0000';
-
-        const invoiceItems = (invoice.pos_invoice_items || invoice.items || []);
+        
+        const items = invoice.items || [];
+        const payments = invoice.payments || [];
+        const taxes = invoice.taxes || [];
+        const subtotal = items.reduce((sum, it) => sum + (it.amount || 0), 0);
+        
         const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoice.name}&scale=2&height=10`;
 
         const printWindow = window.open('', '_blank');
@@ -174,17 +177,23 @@ function InvoiceList() {
                     <title>Bill Print - ${invoice.name}</title>
                     <style>
                         @page { size: 80mm auto; margin: 0; }
-                        body { width: 72mm; margin: 0 auto; padding: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.2; }
+                        body { width: 72mm; margin: 0 auto; padding: 10px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.2; color: #000; }
                         .center { text-align: center; }
+                        .right { text-align: right; }
                         .bold { font-weight: bold; }
-                        .divider { border-top: 1px dashed #000; margin: 8px 0; }
-                        .header h2 { margin: 0; font-size: 18px; text-transform: uppercase; }
-                        .info-row { display: flex; justify-content: space-between; font-size: 11px; }
-                        .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11px; }
+                        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+                        .header h2 { margin: 0; font-size: 16px; text-transform: uppercase; }
+                        .header p { margin: 2px 0; font-size: 10px; }
+                        .info-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px; }
+                        .items-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10px; }
                         .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; }
-                        .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 12px; }
-                        .grand-total { font-size: 16px; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
-                        .barcode { display: block; margin: 15px auto; width: 100%; max-height: 40px; }
+                        .items-table td { padding: 3px 0; vertical-align: top; }
+                        .total-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 11px; }
+                        .grand-total { font-size: 14px; border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; }
+                        .tax-table { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 5px; }
+                        .tax-table td { padding: 1px 0; }
+                        .barcode { display: block; margin: 10px auto; width: 80%; height: 35px; }
+                        .loyalty-box { border: 1px solid #000; padding: 4px; margin-top: 5px; font-size: 9px; }
                         @media print { body { width: 72mm; margin: 0 auto; } }
                     </style>
                 </head>
@@ -195,29 +204,73 @@ function InvoiceList() {
                     </div>
                     <div class="divider"></div>
                     <div class="info">
-                        <div class="info-row"><span>CASHIER:</span> <span class="bold">#${cashier}</span></div>
-                        <div class="info-row"><span>DATE:</span> <span>${invoice.posting_date}</span></div>
+                        <div class="info-row"><span>CASHIER:</span> <span class="bold">${cashier}</span></div>
+                        <div class="info-row"><span>DATE/TIME:</span> <span>${invoice.posting_date} ${invoice.posting_time?.split('.')[0] || ''}</span></div>
                         <div class="info-row"><span>INV NO:</span> <span class="bold">${invoice.name}</span></div>
+                        ${invoice.offline_id ? `<div class="info-row"><span>OFFLINE ID:</span> <span>${invoice.offline_id}</span></div>` : ''}
+                        <div class="info-row"><span>CUSTOMER:</span> <span>${invoice.customer_name}</span></div>
                     </div>
+                    <div class="divider"></div>
                     <table class="items-table">
                         <thead>
-                            <tr><th style="width: 50%;">ITEM</th><th style="text-align:right">QTY</th><th style="text-align:right">PRICE</th></tr>
+                            <tr>
+                                <th style="width: 50%;">ITEM</th>
+                                <th class="right">QTY</th>
+                                <th class="right">PRICE</th>
+                                <th class="right">TOTAL</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            ${invoiceItems.map(it => `
+                            ${items.map(it => `
                                 <tr>
-                                    <td>${String(it.item_name || it.item_code).substring(0, 20)}</td>
-                                    <td style="text-align:right">${it.qty || 1}</td>
-                                    <td style="text-align:right">${parseFloat(it.rate || 0).toFixed(2)}</td>
+                                    <td>${it.item_name || it.item_code}</td>
+                                    <td class="right">${it.qty}</td>
+                                    <td class="right">${parseFloat(it.rate || 0).toFixed(2)}</td>
+                                    <td class="right">${parseFloat(it.amount || 0).toFixed(2)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                     <div class="divider"></div>
                     <div class="totals">
-                        <div class="total-row bold grand-total"><span>TOTAL</span><span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span></div>
+                        <div class="total-row"><span>NET TOTAL:</span><span>${parseFloat(subtotal).toFixed(2)}</span></div>
+                        ${invoice.total_taxes_and_charges > 0 ? `<div class="total-row"><span>VAT/TAX:</span><span>${parseFloat(invoice.total_taxes_and_charges).toFixed(2)}</span></div>` : ''}
+                        ${invoice.discount_amount > 0 ? `<div class="total-row"><span>DISCOUNT:</span><span>-${parseFloat(invoice.discount_amount).toFixed(2)}</span></div>` : ''}
+                        <div class="total-row bold grand-total"><span>GRAND TOTAL:</span><span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span></div>
                     </div>
-                    <div class="center"><img class="barcode" src="${barCodeUrl}" /><p>THANK YOU!</p></div>
+                    
+                    <div class="divider"></div>
+                    <div class="payments">
+                        <span class="bold" style="font-size: 10px;">PAYMENTS:</span>
+                        ${payments.map(p => `
+                            <div class="info-row"><span>${p.mode_of_payment}:</span><span>${parseFloat(p.amount).toFixed(2)}</span></div>
+                        `).join('')}
+                    </div>
+
+                    ${taxes.length > 0 ? `
+                        <div class="divider"></div>
+                        <span class="bold" style="font-size: 9px;">TAX BREAKDOWN:</span>
+                        <table class="tax-table">
+                            ${taxes.map(t => `
+                                <tr><td>${t.description}</td><td class="right">${parseFloat(t.tax_amount).toFixed(2)}</td></tr>
+                            `).join('')}
+                        </table>
+                    ` : ''}
+
+                    ${invoice.loyalty_points > 0 || invoice.redeem_loyalty_points > 0 ? `
+                        <div class="loyalty-box center">
+                            <div class="bold">LOYALTY PROGRAM</div>
+                            <div class="info-row"><span>Points Earned:</span><span>${invoice.loyalty_points || 0}</span></div>
+                            <div class="info-row"><span>Points Redeemed:</span><span>${invoice.redeem_loyalty_points || 0}</span></div>
+                        </div>
+                    ` : ''}
+
+                    <div class="divider"></div>
+                    <div class="center" style="font-size: 10px; margin-top: 10px;">
+                        <p class="bold">THANK YOU FOR YOUR BUSINESS!</p>
+                        <img class="barcode" src="${barCodeUrl}" />
+                        <p style="font-size: 8px;">${invoice.name}</p>
+                    </div>
                     <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };</script>
                 </body>
             </html>
@@ -434,20 +487,52 @@ function InvoiceList() {
                             <div className="lg:col-span-1 flex flex-col gap-4">
                                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Transaction Details</h4>
-                                    <div className="space-y-5">
+                                    <div className="space-y-4">
                                         <div className="flex justify-between items-start">
                                             <span className="text-[11px] font-black text-slate-400 uppercase italic">Customer</span>
                                             <span className="text-sm font-black text-slate-800 text-right">{selectedInvoice.customer_name}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-[11px] font-black text-slate-400 uppercase italic">Date & Time</span>
-                                            <span className="text-sm font-black text-slate-800">{selectedInvoice.posting_date} · {selectedInvoice.posting_time || '00:00'}</span>
+                                            <span className="text-sm font-black text-slate-800">{selectedInvoice.posting_date} · {selectedInvoice.posting_time?.split('.')[0] || '00:00'}</span>
                                         </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[11px] font-black text-slate-400 uppercase italic">Payment Mode</span>
-                                            <span className="text-sm font-black text-slate-800 uppercase">{selectedInvoice.payment_mode || 'Cash'}</span>
+                                        <div className="flex justify-between items-start">
+                                            <span className="text-[11px] font-black text-slate-400 uppercase italic">Offline Ref</span>
+                                            <span className="text-sm font-black text-slate-500 uppercase">{selectedInvoice.offline_id || 'N/A'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-start">
+                                            <span className="text-[11px] font-black text-slate-400 uppercase italic">Cashier</span>
+                                            <span className="text-xs font-black text-slate-500">{selectedInvoice.owner}</span>
                                         </div>
                                     </div>
+
+                                    <div className="mt-6 pt-6 border-t border-slate-100">
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Payment Summary</h4>
+                                        <div className="space-y-3">
+                                            {(selectedInvoice.payments || []).map((p, idx) => (
+                                                <div key={idx} className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg">
+                                                    <span className="text-[11px] font-bold text-slate-600 uppercase">{p.mode_of_payment}</span>
+                                                    <span className="text-sm font-black text-slate-900">AED {parseFloat(p.amount).toFixed(2)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {(selectedInvoice.loyalty_points > 0 || selectedInvoice.redeem_loyalty_points > 0) && (
+                                        <div className="mt-6 pt-6 border-t border-slate-100">
+                                            <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-4">Loyalty Program</h4>
+                                            <div className="flex justify-between items-center bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
+                                                <div>
+                                                    <p className="text-[9px] font-black text-emerald-600 uppercase">Points Earned</p>
+                                                    <p className="text-lg font-black text-emerald-700">{selectedInvoice.loyalty_points || 0}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[9px] font-black text-rose-500 uppercase">Redeemed</p>
+                                                    <p className="text-lg font-black text-rose-600">{selectedInvoice.redeem_loyalty_points || 0}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                     
                                     <div className="mt-8 pt-6 border-t border-slate-100">
                                         <div className="bg-slate-900 rounded-xl p-5 text-white">
@@ -456,63 +541,99 @@ function InvoiceList() {
                                                 <small className="text-sm mr-1.5 opacity-40 italic">AED</small>
                                                 {parseFloat(selectedInvoice.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </div>
+                                            <p className="text-[10px] font-bold opacity-40 mt-2 uppercase italic leading-tight">
+                                                {selectedInvoice.in_words}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* RIGHT: ITEMS TABLE */}
-                            <div className="lg:col-span-2">
-                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                                    <div className="px-6 py-4 border-b border-slate-100 bg-white sticky top-0 z-10">
+                            <div className="lg:col-span-2 flex flex-col gap-6">
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-slate-100 bg-white flex justify-between items-center">
                                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Itemized Breakdown</h4>
+                                        <span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500">
+                                            {(selectedInvoice.items || []).length} ITEMS
+                                        </span>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="bg-slate-50/50">
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Item Description</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Qty</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-right">Rate</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-right">Amount</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Item</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Qty / UOM</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-right">Tax (VAT)</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-right">Net Amount</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {(selectedInvoice.pos_invoice_items || selectedInvoice.items || []).map((it, i) => (
+                                                {(selectedInvoice.items || []).map((it, i) => (
                                                     <tr key={i} className="hover:bg-slate-50/70 transition-colors border-b border-slate-50 last:border-0 font-medium">
                                                         <td className="px-6 py-5">
-                                                            <div className="text-[13px] font-black text-slate-800 leading-tight">{it.item_name || it.item_code}</div>
-                                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-1">{it.item_code}</div>
+                                                            <div className="text-[13px] font-black text-slate-800 leading-tight">{it.item_name}</div>
+                                                            <div className="flex gap-2 items-center mt-1">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{it.item_code}</span>
+                                                                <span className="w-1 h-1 rounded-full bg-slate-200"></span>
+                                                                <span className="text-[10px] font-bold text-slate-500 italic">{it.warehouse?.split(' - ')[0]}</span>
+                                                            </div>
                                                         </td>
                                                         <td className="px-6 py-5 text-center">
-                                                            <span className={`px-2.5 py-1 rounded-lg text-[11px] font-black ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
-                                                                {it.qty || it.quantity}
-                                                            </span>
+                                                            <div className="flex flex-col items-center">
+                                                                <span className={`px-2.5 py-1 rounded-lg text-[11px] font-black ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                                    {it.qty}
+                                                                </span>
+                                                                <span className="text-[9px] font-black text-slate-400 mt-1 uppercase">{it.uom}</span>
+                                                            </div>
                                                         </td>
-                                                        <td className="px-6 py-5 text-right text-[13px] font-black text-slate-600">
-                                                            {parseFloat(it.rate || 0).toFixed(2)}
+                                                        <td className="px-6 py-5 text-right">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[13px] font-black text-slate-700">AED {parseFloat(it.tax_amount || 0).toFixed(2)}</span>
+                                                                <span className="text-[9px] font-black text-slate-400 uppercase">{it.tax_rate}% VAT</span>
+                                                            </div>
                                                         </td>
-                                                        <td className="px-6 py-5 text-right text-[15px] font-black text-slate-900">
-                                                            {((it.qty || 1) * (it.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                        <td className="px-6 py-5 text-right">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[15px] font-black text-slate-900">AED {parseFloat(it.amount || 0).toFixed(2)}</span>
+                                                                <span className="text-[9px] font-bold text-slate-400 italic">Rate: {parseFloat(it.rate || 0).toFixed(2)}</span>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
-                                            <tfoot>
-                                                <tr className="bg-slate-50/30">
-                                                    <td colSpan="3" className="px-6 py-6 text-right">
-                                                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Total Amount</span>
-                                                    </td>
-                                                    <td className="px-6 py-6 text-right">
-                                                        <span className="text-xl font-black text-slate-900">
-                                                            AED {parseFloat(selectedInvoice.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
                                         </table>
                                     </div>
                                 </div>
+
+                                {/* TAXES BLOCK */}
+                                {(selectedInvoice.taxes || []).length > 0 && (
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                        <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Tax Analysis</h4>
+                                        </div>
+                                        <div className="p-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {(selectedInvoice.taxes).map((tax, idx) => (
+                                                    <div key={idx} className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase leading-tight max-w-[70%]">
+                                                                {tax.description}
+                                                            </p>
+                                                            <span className="text-xs font-black text-slate-900">AED {parseFloat(tax.tax_amount).toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+                                                            <div 
+                                                                className={`h-full ${isGreen ? 'bg-emerald-500' : 'bg-sky-500'}`} 
+                                                                style={{ width: `${(tax.tax_amount / selectedInvoice.grand_total) * 100}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

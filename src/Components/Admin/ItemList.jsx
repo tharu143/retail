@@ -9,7 +9,6 @@ import {
 import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { useNavigate } from 'react-router-dom';
-import NavBar from '../Nav/NavBar';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
 
@@ -644,7 +643,6 @@ export default function ItemList() {
   return (
     <>
       <GlobalStyle />
-      <NavBar />
       <div className="il-page">
 
         {/* PAGE HEADER */}

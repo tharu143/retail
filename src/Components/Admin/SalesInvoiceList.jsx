@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import NavBar from '../Nav/NavBar';
 import {
   Plus, X, Search, Filter, ChevronDown, FileText,
   Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette
@@ -667,7 +666,6 @@ const SalesInvoiceList = () => {
 
   return (
     <>
-      <NavBar />
       <div className="so-page">
         {/* Page Header */}
         <div className="so-page-header">

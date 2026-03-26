@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { db } from '../../db';
-import NavBar from '../Nav/NavBar';
 import '../Admin/SalesOrder.css';
 
 function ClosingEntry() {
@@ -409,7 +408,6 @@ function ClosingEntry() {
 
   return (
     <div className="so-page" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <NavBar />
 
       <style>{`
         .ce-scroll-area {

@@ -2,13 +2,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, X, Save, Building2, ChevronLeft,
-  Users, Trash2, Edit2, Filter, ChevronDown,
+  Users, Trash2, Edit2, ChevronDown,
   Palette, Loader2, ChevronRight, Eye, Mail, Phone,
   Globe, CreditCard, ShieldCheck,
   TrendingUp, Activity, MapPin, Tag
 } from 'lucide-react';
 import axios from 'axios';
-import NavBar from '../Nav/NavBar';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import './SalesOrder.css';
@@ -27,7 +26,7 @@ export default function SupplierList() {
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showFilters, setShowFilters] = useState(false);
+
 
   // Theme Hook
   const { isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
@@ -218,11 +217,10 @@ export default function SupplierList() {
     setEditingSupplier(null);
   };
 
-  const hasFilters = filterGroup || filterType || filterStatus || filterSearch;
+
 
   return (
     <>
-      <NavBar />
       <div className="so-page" style={{ height: 'auto', minHeight: '100vh', overflow: 'visible' }}>
         {/* Page Header */}
         <div className="so-page-header">
@@ -248,13 +246,7 @@ export default function SupplierList() {
               {isGreen ? 'BLUE' : 'GREEN'}
             </button>
 
-            <button
-              className="so-btn-secondary"
-              onClick={() => setShowFilters(!showFilters)}
-              style={hasFilters ? { borderColor: themeColor, color: themeColor } : {}}
-            >
-              <Filter size={14} /> Filters {hasFilters ? '●' : ''}
-            </button>
+
 
             <button className="so-btn-primary" onClick={() => setShowForm(true)}>
               <Plus size={16} /> Register Partner
@@ -263,7 +255,7 @@ export default function SupplierList() {
         </div>
 
         {/* Filters Bar */}
-        <div className="so-filter-bar" style={{ display: showFilters ? 'flex' : 'none' }}>
+        <div className="so-filter-bar">
           <div style={{ flex: '1 1 200px' }}>
             <label className="so-filter-label">Search Partner</label>
             <input

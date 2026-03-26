@@ -7,7 +7,6 @@ import {
   Calendar, Layers, Filter, FileText, CheckCircle2, Clock
 } from 'lucide-react';
 import axios from 'axios';
-import NavBar from '../Nav/NavBar';
 import { useNavigate } from 'react-router-dom';
 
 /* ==================== UI HELPERS ==================== */
@@ -96,7 +95,6 @@ export default function SalesOrderList() {
 
   return (
     <>
-      <NavBar />
       <div className="min-h-screen bg-[#f8fafc] pb-20 pt-8 px-6 lg:px-12">
         
         {/* Header Section */}

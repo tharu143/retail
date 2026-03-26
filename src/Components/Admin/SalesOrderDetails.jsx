@@ -8,7 +8,6 @@ import {
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
-import NavBar from '../Nav/NavBar';
 
 /* ==================== CORE LOGIC ==================== */
 function recalcForm(form) {

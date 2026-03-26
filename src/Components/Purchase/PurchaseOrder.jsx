@@ -96,6 +96,140 @@ function PurchaseOrder() {
   const [showDraftsList, setShowDraftsList] = useState(false);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
   const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const [allowedActions, setAllowedActions] = useState([]); // Workflow actions [save, submit, cancel, etc]
+
+  useEffect(() => {
+    if (formData.name) fetchWorkflowActions();
+  }, [formData.name, formData.docstatus]);
+
+  const fetchWorkflowActions = async () => {
+    if (!formData.name) return;
+    try {
+      const res = await axios.get(`${API_PATH}.get_document_status_details`, {
+        params: { doctype: 'Purchase Order', docname: formData.name },
+        withCredentials: true
+      });
+      // Handle both nested data and direct message response structures
+      const details = res.data.message?.data || res.data.message || {};
+      setAllowedActions(details.allowed_actions || []);
+    } catch (err) { console.error("Workflow fetch failed", err); }
+  };
+
+  const handleDocAction = async (action) => {
+    // Basic validation before save/submit
+    if (action === 'save' || action === 'submit') {
+      if (!validateForm(action === 'submit')) return;
+    }
+
+    const confirmMap = {
+      submit: 'Are you sure you want to SUBMIT this Purchase Order? Status will be Locked.',
+      cancel: 'Are you sure you want to CANCEL this Purchase Order? Status will change to Cancelled.',
+      delete: 'Are you sure you want to DELETE this Purchase Order? This action is IRREVERSIBLE.',
+      amend: 'This will create a new Draft based on this cancelled PO. Proceed?'
+    };
+
+    if (confirmMap[action]) {
+        const result = await Swal.fire({
+            title: action.toUpperCase(),
+            text: confirmMap[action],
+            icon: action === 'delete' ? 'error' : 'warning',
+            showCancelButton: true,
+            confirmButtonColor: action === 'cancel' || action === 'delete' ? '#ef4444' : '#0ea5e9',
+            confirmButtonText: `Yes, ${action} it!`
+        });
+        if (!result.isConfirmed) return;
+    }
+
+    setSaving(true);
+    try {
+      // 1. Prepare data for Save/Submit if needed
+      let payload = null;
+      if (action === 'save' || action === 'submit') {
+          payload = {
+            supplier: formData.supplier?.name || formData.supplier,
+            company: formData.company,
+            transaction_date: formData.transaction_date,
+            set_warehouse: formData.set_warehouse,
+            currency: formData.currency || 'AED',
+            conversion_rate: 1.0,
+            taxes_and_charges: formData.taxes_and_charges,
+            items: formData.items.filter(i => i.item_code).map(item => ({
+              item_code: item.item_code,
+              item_name: item.item_name,
+              qty: parseFloat(item.qty),
+              uom: item.uom,
+              rate: parseFloat(item.rate),
+              schedule_date: item.schedule_date || formData.transaction_date,
+              custom_pieces_per_box: parseFloat(item.custom_pieces_per_box || 1),
+              custom_box_qty: parseFloat(item.custom_box_qty || 0),
+              custom_box_price: parseFloat(item.custom_box_price || 0),
+              custom_selling_price: parseFloat(item.custom_selling_price || 0),
+              custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
+              supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || ""
+            })),
+            taxes: (formData.taxes || []).map(t => ({
+              charge_type: t.charge_type,
+              account_head: t.account_head,
+              rate: parseFloat(t.rate),
+              tax_amount: parseFloat(t.tax_amount),
+              description: t.description || t.account_head
+            })),
+            total: parseFloat(formData.total),
+            tax_total: parseFloat(formData.tax_total),
+            total_qty: parseFloat(formData.total_qty),
+            grand_total: parseFloat(formData.grand_total),
+            naming_series: formData.naming_series || 'PO-'
+          };
+      }
+
+      let res;
+      if (action === 'save' || action === 'submit') {
+          // Use NEW Generic API for Save/Submit
+          res = await axios.post(`${API_PATH}.save_transaction_document`, {
+            doctype: 'Purchase Order',
+            doc_data: payload,
+            action: action
+          }, { withCredentials: true });
+      } else {
+          // Use Workflow Engine for Lifecycle actions
+          res = await axios.post(`${API_PATH}.handle_document_action`, {
+            doctype: 'Purchase Order',
+            docname: formData.name || undefined,
+            action: action,
+            doc_data: undefined
+          }, { withCredentials: true });
+      }
+
+      const rawMsg = res.data.message || {};
+      const success = rawMsg.success || rawMsg.status === 'success';
+
+      if (success) {
+        Swal.fire('Success', `${action.toUpperCase()} operation completed successfully.`, 'success');
+        
+        if (action === 'delete') {
+            navigate('/purchaseorderlist');
+            return;
+        }
+
+        // Get the doc name from either response structure
+        const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || formData.name;
+        
+        if (nextDoc !== formData.name) {
+            // Amendment or new doc creation
+            loadDraft(nextDoc);
+            if (action === 'amend') setIsViewOnly(false);
+        } else {
+            loadDraft(formData.name);
+        }
+      } else {
+          throw new Error(rawMsg.message || "Operation failed");
+      }
+    } catch (err) {
+      Swal.fire('Matrix Error', err.response?.data?.message || err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('legacySubTheme', poTheme);
@@ -776,28 +910,21 @@ function PurchaseOrder() {
     }
   };
 
-  const handleSubmitDoc = async (docName, doctype) => {
-    if (!confirm(`Submit ${doctype}: ${docName}?`)) return;
+  const handleDocActionExternally = async (docname, doctype, action) => {
+    if (!confirm(`${action.toUpperCase()} ${doctype}: ${docname}?`)) return;
     try {
-      const res = await fetch(`/api/resource/${encodeURIComponent(doctype)}/${docName}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Frappe-SID': getSession(),
-          'X-Frappe-CSRF-Token': window.csrf_token || ''
-        },
-        credentials: 'include',
-        body: JSON.stringify({ docstatus: 1 })
-      });
-      if (res.ok) {
-        setSuccess(`✅ ${doctype} ${docName} submitted successfully!`);
-        setLinkedDocStatuses(prev => ({ ...prev, [docName]: { docstatus: 1, status: 'Submitted' } }));
-      } else {
-        const e = await res.json().catch(() => ({}));
-        setError(`Submit failed: ${e.message || res.status}`);
+      setSaving(true);
+      const res = await axios.post(`${API_PATH}.handle_document_action`, {
+        doctype, docname, action
+      }, { withCredentials: true });
+      if (res.data.message?.status === 'success') {
+        Swal.fire('Success', `${doctype} updated`, 'success');
+        fetchLinkedDocs(formData.name);
       }
     } catch (err) {
-      setError(`Submit failed: ${err.message}`);
+        Swal.fire('Error', err.response?.data?.message || err.message, 'error');
+    } finally {
+        setSaving(false);
     }
   };
 
@@ -1281,117 +1408,45 @@ function PurchaseOrder() {
             {/* ERP-style View/Edit Toggle */}
             {formData.name && (
               <div className="flex items-center gap-2">
-                {isViewOnly ? (
-                  formData.docstatus === 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsViewOnly(false)}
-                      className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
-                    >
-                      <Edit2 className="w-3.5 h-3.5 text-blue-500" />
-                      Edit Record
-                    </button>
-                  ) : formData.docstatus === 1 ? (
-                    <div className="flex items-center gap-2">
-                      {!isUpdateMode ? (
-                        <>
-                          {(formData.per_received === 0 && formData.per_billed === 0) && (
-                            <button
-                              type="button"
-                              onClick={() => setIsUpdateMode(true)}
-                              className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-black text-amber-700 hover:bg-amber-100 transition-all shadow-sm"
-                            >
-                              <Box className="w-3.5 h-3.5" />
-                              Update Items
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={handleCancelEntry}
-                            className="flex items-center gap-2 px-4 py-1.5 bg-red-50 border border-red-200 rounded-lg text-[11px] font-black text-red-700 hover:bg-red-100 transition-all shadow-sm"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Cancel PO
-                          </button>
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button onClick={handleUpdateItems} className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-[11px] font-bold">Save Updates</button>
-                          <button onClick={() => setIsUpdateMode(false)} className="px-4 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">Cancel</button>
-                        </div>
-                      )}
-                    </div>
-                  ) : formData.docstatus === 2 ? (
-                    <button
-                      type="button"
-                      onClick={handleAmendEntry}
-                      className="flex items-center gap-2 px-4 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-[11px] font-black text-sky-700 hover:bg-sky-100 transition-all shadow-sm"
-                    >
-                      <History className="w-3.5 h-3.5" />
-                      Amend PO
-                    </button>
-                  ) : null
-                ) : (
-                  formData.docstatus === 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setIsViewOnly(true)}
-                      className="flex items-center gap-2 px-4 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-black text-slate-500 hover:bg-white transition-all shadow-sm"
-                    >
-                      Cancel Edit
-                    </button>
-                  )
-                )}
-              </div>
-            )}
-
-
-            {/* Standard Action Buttons - Hidden/Disabled in View Only or Submitted status */}
-            {!isViewOnly && formData.docstatus === 0 && (
-              <div className="flex items-center gap-2">
-                {!formData.name ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSaveDraft();
-                      setLastSavedData(JSON.stringify(formData));
-                    }}
-                    disabled={saving || loading}
-                    className="po-btn-primary px-8"
-                  >
-                    {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    Save as Draft
+                {allowedActions.includes('save') && !isViewOnly && (
+                  <button onClick={() => handleDocAction('save')} className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-[11px] font-black text-blue-700 hover:bg-blue-100 transition-all shadow-sm">
+                    <Save size={14} /> Update Draft
                   </button>
-                ) : (
-                  <>
-                    {JSON.stringify(formData) !== lastSavedData ? (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const name = await handleSaveDraft();
-                          if (name) setLastSavedData(JSON.stringify(formData));
-                        }}
-                        disabled={saving || loading}
-                        className="po-btn-primary px-8"
-                      >
-                        {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                        Update Draft
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={loading || saving || !formData.supplier || formData.items.filter(i => i.item_code).length === 0}
-                        className={`po-btn-primary px-6 ${formData.quick_entry ? '!bg-[var(--po-primary)] border-[var(--po-primary)]' : ''}`}
-                      >
-                        {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                        {formData.quick_entry ? 'ZAP! Quick Stock In' : 'Submit Now'}
-                      </button>
-                    )}
-                  </>
+                )}
+                {allowedActions.includes('submit') && !isViewOnly && (
+                  <button onClick={() => handleDocAction('submit')} className="flex items-center gap-2 px-4 py-1.5 bg-[var(--po-primary)] text-white rounded-lg text-[11px] font-black hover:bg-[var(--po-primary-hover)] transition-all shadow-md">
+                    <Send size={14} /> Submit matrix
+                  </button>
+                )}
+                {allowedActions.includes('cancel') && (
+                  <button onClick={() => handleDocAction('cancel')} className="flex items-center gap-2 px-4 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-black text-rose-700 hover:bg-rose-100 transition-all shadow-sm">
+                    <X size={14} /> Cancel PO
+                  </button>
+                )}
+                {allowedActions.includes('amend') && (
+                  <button onClick={() => handleDocAction('amend')} className="flex items-center gap-2 px-4 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-[11px] font-black text-sky-700 hover:bg-sky-100 transition-all shadow-sm">
+                    <History size={14} /> Amend PO
+                  </button>
+                )}
+                {allowedActions.includes('delete') && (
+                   <button onClick={() => handleDocAction('delete')} className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-black text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm">
+                    <Trash2 size={14} /> Delete
+                  </button>
+                )}
+                {isViewOnly && formData.docstatus === 0 && (
+                  <button onClick={() => setIsViewOnly(false)} className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
+                    <Edit2 size={14} className="text-blue-500" /> Refine Draft
+                  </button>
                 )}
               </div>
             )}
+
+            {!formData.name && (
+              <button onClick={() => handleDocAction('save')} disabled={saving} className="po-btn-primary px-8">
+                {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Save Genesis
+              </button>
+            )}
+
 
             {formData.docstatus === 1 && (
               <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg text-[11px] font-black text-emerald-700 shadow-sm">
@@ -1463,9 +1518,11 @@ function PurchaseOrder() {
                                           <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
                                           <span className="text-[10px] font-bold text-slate-700 tabular-nums truncate" title={id}>{id}</span>
                                         </div>
-                                        {!isSub && (item.label === 'Purchase Receipt' || item.label === 'Purchase Invoice') && (
+                                        {isSub ? (
+                                            <div className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[7px] font-black uppercase">Active</div>
+                                        ) : (
                                           <button 
-                                            onClick={() => handleSubmitDoc(id, item.label)} 
+                                            onClick={() => handleDocActionExternally(id, item.label, 'submit')} 
                                             className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[7px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                                           >
                                             Submit

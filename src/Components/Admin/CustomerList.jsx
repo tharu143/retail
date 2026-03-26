@@ -3,10 +3,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Save, X, Phone, Mail, Users, ChevronLeft, Palette, Loader2
 } from 'lucide-react';
-import NavBar from '../Nav/NavBar';
+import { useNavigate } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 
 function CustomerList() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -75,74 +76,8 @@ function CustomerList() {
   const totalPages = Math.ceil(total / pageSize);
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  /* ────────────────────── CREATE/UPDATE CUSTOMER ────────────────────── */
-  const handleSave = async () => {
-    if (!form.customer_name.trim()) {
-      alert('Customer Name is required.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const res = await fetch(`${API_PATH}.create_or_update_customer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Frappe-SID': getSession()
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          customer_name: form.customer_name.trim(),
-          mobile_no: form.mobile_no.trim() || null,
-          email_id: form.email_id.trim() || null
-        })
-      });
-
-      const result = await res.json();
-
-      if (result.message?.success) {
-        alert('Customer saved successfully!');
-        setShowForm(false);
-        setForm({ customer_name: '', mobile_no: '', email_id: '' });
-
-        // Refresh customers list
-        const refresh = await fetch(`${API_PATH}.get_customers_list?order_by=modified desc`, {
-          headers: { 'X-Frappe-SID': getSession() },
-          credentials: 'include'
-        });
-        const data = await refresh.json();
-        setCustomers((data.message?.data || []).map(c => ({
-          value: c.value,
-          label: c.label,
-          mobile: c.mobile,
-          email: c.email
-        })));
-        setCurrentPage(1);
-      } else {
-        alert(result.message?.message || 'Failed to save customer');
-      }
-    } catch (err) {
-      alert('Network error. Please try again.');
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCloseForm = () => {
-    if (form.customer_name || form.mobile_no || form.email_id) {
-      if (window.confirm('Discard unsaved changes?')) {
-        setShowForm(false);
-        setForm({ customer_name: '', mobile_no: '', email_id: '' });
-      }
-    } else {
-      setShowForm(false);
-    }
-  };
-
   return (
     <>
-      <NavBar />
       <div className="so-page">
         {/* Page Header */}
         <div className="so-page-header">
@@ -153,7 +88,6 @@ function CustomerList() {
             <p className="so-page-subtitle">{total} customer(s) found</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Theme Toggle */}
             <button
               onClick={() => setClTheme(isGreen ? 'blue' : 'green')}
               style={{
@@ -169,23 +103,18 @@ function CustomerList() {
               <Palette size={13} />
               {clTheme.toUpperCase()}
             </button>
-            <button className="so-btn-primary" onClick={() => setShowForm(true)}>
+            <button className="so-btn-primary" onClick={() => navigate('/customer-details/new')}>
               <Plus size={16} /> Add Customer
             </button>
           </div>
         </div>
 
-        {/* Layout: Top Filters + Content */}
         <div className="so-layout" style={{ flexDirection: 'column' }}>
-          {/* Top Filters Bar */}
           <div className="so-filter-bar" style={{
             background: 'white',
             padding: '1.25rem 2rem',
             borderBottom: '1px solid var(--so-border)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '1.25rem',
-            alignItems: 'flex-end'
+            display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end'
           }}>
             <div style={{ flex: '1 1 300px' }}>
               <label className="so-filter-label">Search by Name</label>
@@ -197,7 +126,6 @@ function CustomerList() {
                 placeholder="Search customers..."
               />
             </div>
-
             <button
               className="so-clear-btn"
               onClick={() => { setFilterName(''); setCurrentPage(1); }}
@@ -207,7 +135,6 @@ function CustomerList() {
             </button>
           </div>
 
-          {/* Main Content */}
           <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
             <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{total} record(s) found</p>
             <div className="so-table-card">
@@ -236,7 +163,11 @@ function CustomerList() {
                       </tr>
                     ) : (
                       paginated.map(c => (
-                        <tr key={c.value}>
+                        <tr 
+                          key={c.value} 
+                          className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/customer-details/${c.value}`)}
+                        >
                           <td style={{ fontWeight: 600, color: themeColor }}>{c.label}</td>
                           <td>
                             {c.mobile ? (
@@ -261,21 +192,18 @@ function CustomerList() {
                 </table>
               </div>
 
-              {/* Pagination */}
               {!loading && total > 0 && (
                 <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                     Showing {Math.min((currentPage - 1) * pageSize + 1, total)}–{Math.min(currentPage * pageSize, total)} of {total}
                   </span>
-
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Rows:</span>
                       {[20, 50, 100].map(size => (
-                        <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); }} className={`so-page-btn ${pageSize === size ? 'active' : ''}`} style={{ padding: '0.2rem 0.5rem', minWidth: '2.5rem' }}>{size}</button>
+                        <button key={size} onClick={() => { setPageSize(size); setCurrentPage(1); }} className={`so-page-btn ${pageSize === size ? 'active' : ''}`}>{size}</button>
                       ))}
                     </div>
-
                     <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
                       <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
@@ -287,85 +215,6 @@ function CustomerList() {
             </div>
           </div>
         </div>
-
-        {/* ────── ADD CUSTOMER MODAL ────── */}
-        {showForm && (
-          <div
-            className="so-modal-overlay"
-            onClick={e => e.target === e.currentTarget && handleCloseForm()}
-          >
-            <div className="so-modal" style={{ maxWidth: '540px' }}>
-              <div className="so-modal-header">
-                <h2 className="so-modal-title">
-                  <Users size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
-                  New Customer
-                </h2>
-                <button className="so-modal-close" onClick={handleCloseForm}>
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="so-modal-body">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Customer Name <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      autoFocus
-                      value={form.customer_name}
-                      onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-base"
-                      style={{ '--tw-ring-color': themeColor }}
-                      placeholder="Enter customer name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Mobile Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={form.mobile_no}
-                      onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-base"
-                      placeholder="+91 98765 43210"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={form.email_id}
-                      onChange={e => setForm({ ...form, email_id: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-base"
-                      placeholder="customer@example.com"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={handleCloseForm}>
-                  Cancel
-                </button>
-                <button
-                  className="so-btn-primary"
-                  onClick={handleSave}
-                  disabled={saving || !form.customer_name.trim()}
-                  style={{ minWidth: '140px', opacity: (saving || !form.customer_name.trim()) ? 0.5 : 1 }}
-                >
-                  {saving ? <><Loader2 size={14} className="so-spinner" /> Saving...</> : 'Save Customer'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </>
   );

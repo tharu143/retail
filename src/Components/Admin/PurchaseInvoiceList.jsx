@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
-import NavBar from '../Nav/NavBar';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
@@ -29,6 +28,7 @@ function PurchaseInvoiceList() {
   const [formErrors, setFormErrors] = useState({});
   const [docName, setDocName] = useState('');
   const [docStatus, setDocStatus] = useState(null);
+  const [allowedActions, setAllowedActions] = useState([]);
   const theme = useSelector(state => state.user.theme);
 
   // Theme toggle (synced across pages)
@@ -146,7 +146,26 @@ function PurchaseInvoiceList() {
   useEffect(() => {
     fetchInvoices();
     fetchTaxTemplates();
-    fetchWarehouses(); // NEW: Fetch warehouses
+    fetchWarehouses(); 
+
+    // URL filtering logic
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    const nameParam = params.get('name');
+    const supplierParam = params.get('supplier');
+
+    if (supplierParam) {
+      setFilterSupplier(supplierParam);
+      setShowFilters(true);
+    }
+
+    if (nameParam) {
+      // Clear URL params after reading
+      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
+      fetchPurchaseInvoice(nameParam);
+      setIsViewMode(false);
+      setIsEditMode(true);
+      setIsModalOpen(true);
+    }
   }, []);
 
   // NEW: Auto-set default accepted warehouse if needed
@@ -155,6 +174,105 @@ function PurchaseInvoiceList() {
       setFormData(prev => ({ ...prev, accepted_warehouse: warehouses[0].name }));
     }
   }, [warehouses, formData.update_stock, formData.accepted_warehouse]);
+
+  useEffect(() => {
+    if (docName) fetchWorkflowActions();
+  }, [docName, docStatus]);
+
+  const fetchWorkflowActions = async () => {
+    if (!docName) return;
+    try {
+      const res = await axios.get(`${API_PATH}.get_document_status_details`, {
+        params: { doctype: 'Purchase Invoice', docname: docName },
+        withCredentials: true
+      });
+      const data = res.data.message?.data || res.data.message || {};
+      setAllowedActions(data.allowed_actions || []);
+    } catch (err) { console.error("Workflow fetch failed", err); }
+  };
+
+  const handleDocAction = async (action) => {
+    if (action === 'save' || action === 'submit') {
+        const errors = {};
+        if (!formData.supplier) errors.supplier = 'Supplier is required';
+        if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
+        if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
+        if (Object.keys(errors).length > 0) {
+          setFormErrors(errors);
+          return;
+        }
+    }
+
+    const confirmMap = {
+      submit: 'SUBMIT this Purchase Invoice? This will update stock and ledger if enabled.',
+      cancel: 'CANCEL this Purchase Invoice? This cannot be undone.',
+      delete: 'DELETE this Purchase Invoice? IRREVERSIBLE ACTION.',
+      amend: 'Create a new Draft based on this cancelled Invoice?'
+    };
+
+    if (confirmMap[action]) {
+        const result = await Swal.fire({
+            title: action.toUpperCase(),
+            text: confirmMap[action],
+            icon: action === 'delete' ? 'error' : 'warning',
+            showCancelButton: true,
+            confirmButtonColor: action === 'cancel' || action === 'delete' ? '#ef4444' : '#0ea5e9'
+        });
+        if (!result.isConfirmed) return;
+    }
+
+    setSaving(true);
+    try {
+      let payload = null;
+      if (action === 'save' || action === 'submit') {
+          payload = await getPayload();
+      }
+
+      let res;
+      if (action === 'save' || action === 'submit') {
+          res = await axios.post(`${API_PATH}.save_transaction_document`, {
+            doctype: 'Purchase Invoice',
+            doc_data: payload,
+            action: action
+          }, { withCredentials: true });
+      } else {
+          res = await axios.post(`${API_PATH}.handle_document_action`, {
+            doctype: 'Purchase Invoice',
+            docname: docName || undefined,
+            action: action,
+            doc_data: undefined
+          }, { withCredentials: true });
+      }
+
+      const rawMsg = res.data.message || {};
+      const success = rawMsg.success || rawMsg.status === 'success';
+
+      if (success) {
+        Swal.fire('Matrix Success', `${action.toUpperCase()} completed.`, 'success');
+        
+        if (action === 'delete') {
+            closeModal();
+            fetchInvoices();
+            return;
+        }
+
+        const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || docName;
+        if (nextDoc !== docName) {
+            fetchPurchaseInvoice(nextDoc);
+            if (action === 'amend') setIsViewMode(false);
+        } else {
+            fetchPurchaseInvoice(docName);
+        }
+        fetchInvoices();
+      } else {
+          throw new Error(rawMsg.message || "Operation failed");
+      }
+    } catch (err) {
+      Swal.fire('Matrix Error', err.response?.data?.message || err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
@@ -235,18 +353,7 @@ function PurchaseInvoiceList() {
     }
   };
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.split('?')[1]);
-    const nameParam = params.get('name');
-    if (nameParam) {
-      // Clear URL params after reading
-      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
-      fetchPurchaseInvoice(nameParam);
-      setIsViewMode(false);
-      setIsEditMode(true);
-      setIsModalOpen(true);
-    }
-  }, [invoices]);
+
 
   const fetchInvoices = async () => {
     try {
@@ -900,27 +1007,11 @@ function PurchaseInvoiceList() {
   };
 
   const handleDelete = async (name) => {
-    if (confirm('Delete this draft?')) {
-      try {
-        await axios.delete(`${RESOURCE_API}/${name}`, { withCredentials: true });
-        fetchInvoices();
-        setShowActions(null);
-      } catch (err) {
-        alert('Delete failed');
-      }
-    }
+    handleDocAction('delete');
   };
 
   const handleCancel = async (name) => {
-    if (confirm('Cancel this invoice?')) {
-      try {
-        await axios.put(`${RESOURCE_API}/${name}`, { docstatus: 2 }, { withCredentials: true });
-        fetchInvoices();
-        setShowActions(null);
-      } catch (err) {
-        alert('Cancel failed');
-      }
-    }
+     handleDocAction('cancel');
   };
 
   const closeModal = () => {
@@ -970,7 +1061,6 @@ function PurchaseInvoiceList() {
 
   return (
     <>
-      <NavBar />
       <div className="so-page">
         {/* Header */}
         <div className="so-page-header">
@@ -1214,8 +1304,8 @@ function PurchaseInvoiceList() {
         </div>
 
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0, zIndex: 9999 }}>
-            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0, zIndex: 9999, top: '74px', height: 'calc(100vh - 74px)' }}>
+            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                   <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1707,44 +1797,43 @@ function PurchaseInvoiceList() {
 
                 {/* Modal Footer */}
                 <div className="so-modal-footer">
-                  <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-                    {(docStatus === 0 || docStatus === null) ? (
-                      <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button onClick={closeModal} className="so-btn-secondary">Cancel</button>
-                        {!docName ? (
-                          <button
-                            onClick={handleSaveDraft}
-                            disabled={saving}
-                            className="so-btn-primary"
-                            style={{ minWidth: '180px' }}
-                          >
-                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'Save as Draft'}
-                          </button>
-                        ) : (
-                          <>
-                            {JSON.stringify(formData) !== lastSavedData ? (
-                              <button
-                                onClick={handleSaveDraft}
-                                disabled={saving}
-                                className="so-btn-primary"
-                                style={{ minWidth: '180px' }}
-                              >
-                                {saving ? <Loader2 size={16} className="so-spinner" /> : 'Update Draft'}
-                              </button>
-                            ) : (
-                              <button
-                                onClick={handleSubmit}
-                                disabled={saving}
-                                className="so-btn-primary"
-                              >
-                                {saving ? <Loader2 size={16} className="so-spinner" /> : 'Submit Invoice'}
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      <button onClick={closeModal} className="so-btn-primary" style={{ minWidth: '120px' }}>Done</button>
+                  <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <button onClick={closeModal} className="so-btn-secondary">Close Portal</button>
+                    
+                    {!docName && (
+                        <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px' }}>
+                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'Save Genesis'}
+                        </button>
+                    )}
+
+                    {allowedActions.includes('save') && (
+                        <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
+                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'Update Draft'}
+                        </button>
+                    )}
+
+                    {allowedActions.includes('submit') && (
+                        <button onClick={() => handleDocAction('submit')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px' }}>
+                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'Submit Matrix'}
+                        </button>
+                    )}
+
+                    {allowedActions.includes('cancel') && (
+                        <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
+                           Cancel Invoice
+                        </button>
+                    )}
+
+                    {allowedActions.includes('amend') && (
+                        <button onClick={() => handleDocAction('amend')} className="so-btn-primary" style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}>
+                           Amend Matrix
+                        </button>
+                    )}
+
+                    {allowedActions.includes('delete') && (
+                        <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
+                           <Trash2 size={16} /> Delete
+                        </button>
                     )}
                   </div>
                 </div>

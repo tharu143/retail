@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import NavBar from '../Nav/NavBar';
 import './SalesOrder.css';
 
 function ItemPriceList() {
@@ -216,7 +215,6 @@ function ItemPriceList() {
 
    return (
       <div className="so-page" style={{ background: '#f8fafc', overflowY: 'auto', display: 'block' }}>
-         <NavBar />
 
          {/* Page Header */}
          <div className="so-page-header">

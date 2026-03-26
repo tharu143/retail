@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import './SalesOrder.css';
-import NavBar from '../Nav/NavBar';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 
 
@@ -34,8 +33,18 @@ function PurchaseOrderLists() {
   const getSession = () => localStorage.getItem('session') || '';
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    const supplierParam = params.get('supplier');
+
+    if (supplierParam) {
+      setFilterSupplier(supplierParam);
+      setShowFilters(true);
+    }
+    // Clear URL params after reading if needed, though for filters it might be useful to keep them
+    // window.history.replaceState(null, '', window.location.hash.split('?')[0]);
+
     fetchOrders();
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
   const fetchOrders = async () => {
     try {
@@ -129,7 +138,6 @@ function PurchaseOrderLists() {
 
   return (
     <>
-      <NavBar />
       <div className="so-page">
         {/* Page Header */}
         <div className="so-page-header">

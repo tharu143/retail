@@ -5,7 +5,6 @@ import {
   ChevronLeft, ChevronRight, X, Check, AlertCircle, Trash2, Search, Filter,
   Palette, Loader2
 } from 'lucide-react';
-import NavBar from '../Nav/NavBar';
 import '../Admin/SalesOrder.css';
 
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -305,7 +304,6 @@ export default function PosProfileList() {
 
   return (
     <>
-      <NavBar />
       <div className="so-page">
         {/* Header (Matching Customer List) */}
         <div className="so-page-header">

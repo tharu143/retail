@@ -4,7 +4,6 @@ import {
     Calendar, Search, Filter, Palette, RefreshCw, 
     Download, Printer, ChevronDown, Package, Tag
 } from 'lucide-react';
-import NavBar from '../Nav/NavBar';
 import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 

@@ -3,7 +3,6 @@ import {
     Plus, Calendar, User, DollarSign, Package, Search, Filter, 
     ChevronLeft, ChevronRight, Palette, Receipt, Clock, Tag, Loader2
 } from 'lucide-react';
-import NavBar from '../Nav/NavBar';
 import { useNavigate } from 'react-router-dom';
 import './SalesOrder.css';
 
@@ -80,7 +79,6 @@ function PosClosingEntryList() {
 
   return (
     <div className="so-page">
-      <NavBar />
 
       {/* 1. PREMIUM HEADER */}
       <div className="so-page-header">

@@ -3,7 +3,6 @@ import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Package, ArrowLeft, Calculator, Search, Trash2, Plus, Box, Send } from 'lucide-react';
 import Swal from 'sweetalert2';
-import NavBar from '../Nav/NavBar';
 import { frappeCall } from '../../utils/frappe';
 import './Purchase.css';
 
@@ -148,7 +147,6 @@ export default function PurchaseTools() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans pb-20">
-      <NavBar />
       
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
         

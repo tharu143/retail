@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import NavBar from '../Nav/NavBar';
 import { Package, Plus, X, Search, Filter, ChevronDown, FileText, Loader2, ChevronLeft, ChevronRight, ArrowLeft, FileMinus, Palette } from 'lucide-react';
 import '../Admin/SalesOrder.css';
 
@@ -672,7 +671,6 @@ const DeliveryNoteList = () => {
 
     return (
         <>
-            <NavBar />
             <div className="so-page">
                 {/* Page Header */}
                 <div className="so-page-header">

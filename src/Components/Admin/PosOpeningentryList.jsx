@@ -4,7 +4,6 @@ import {
   Plus, Calendar, Store, Building, Clock, Search, 
   ChevronLeft, ChevronRight, Palette, Loader2, Layers, RefreshCw
 } from 'lucide-react';
-import NavBar from '../Nav/NavBar';
 import { useNavigate } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 
@@ -72,7 +71,6 @@ function PosOpeningentryList() {
 
   return (
     <>
-      <NavBar />
       <div className="so-page">
         {/* 1. Page Header (Matching CustomerList exactly) */}
         <div className="so-page-header">

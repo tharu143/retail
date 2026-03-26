@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
-import NavBar from '../Nav/NavBar';
 import { format } from 'date-fns';
 import '../Admin/SalesOrder.css';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
@@ -23,6 +22,7 @@ function PurchaseReceiptList() {
   const [docName, setDocName] = useState('');
   const [isViewMode, setIsViewMode] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [allowedActions, setAllowedActions] = useState([]);
   const [lastSavedData, setLastSavedData] = useState(null); // Added for dirty check
 
   const theme = useSelector(state => state.user.theme);
@@ -175,7 +175,115 @@ function PurchaseReceiptList() {
     fetchWarehouses();
     fetchTaxesTemplates();
     fetchTaxTypes();
+
+    // URL Filtering logic
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    const nameParam = params.get('name');
+    const supplierParam = params.get('supplier');
+
+    if (supplierParam) {
+      setFilterSupplier(supplierParam);
+      setShowFilters(true);
+    }
+
+    if (nameParam) {
+      // Clear URL params after reading
+      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
+      fetchReceiptForEdit(nameParam);
+    }
   }, []);
+
+  useEffect(() => {
+    if (docName) fetchWorkflowActions();
+  }, [docName, formData.docstatus]);
+
+  const fetchWorkflowActions = async () => {
+    if (!docName) return;
+    try {
+      const res = await axios.get(`${API_PATH}.get_document_status_details`, {
+        params: { doctype: 'Purchase Receipt', docname: docName },
+        withCredentials: true
+      });
+      const data = res.data.message?.data || res.data.message || {};
+      setAllowedActions(data.allowed_actions || []);
+    } catch (err) { console.error("Workflow fetch failed", err); }
+  };
+
+  const handleDocAction = async (action) => {
+    if (action === 'save' || action === 'submit') {
+       if (!validateForm()) return;
+    }
+
+    const confirmMap = {
+      submit: 'SUBMIT this Purchase Receipt? This will permanently update inventory.',
+      cancel: 'CANCEL this Purchase Receipt? This will reverse stock entries.',
+      delete: 'DELETE this Purchase Receipt? This action is permanent.',
+      amend: 'Create a new Draft from this cancelled receipt?'
+    };
+
+    if (confirmMap[action]) {
+        const result = await Swal.fire({
+            title: action.toUpperCase(),
+            text: confirmMap[action],
+            icon: action === 'delete' ? 'error' : 'warning',
+            showCancelButton: true,
+            confirmButtonColor: action === 'cancel' || action === 'delete' ? '#ef4444' : '#10b981'
+        });
+        if (!result.isConfirmed) return;
+    }
+
+    setSaving(true);
+    try {
+      let payload = null;
+      if (action === 'save' || action === 'submit') {
+          payload = await getPayload();
+      }
+
+      let res;
+      if (action === 'save' || action === 'submit') {
+          res = await axios.post(`${API_PATH}.save_transaction_document`, {
+            doctype: 'Purchase Receipt',
+            doc_data: payload,
+            action: action
+          }, { withCredentials: true });
+      } else {
+          res = await axios.post(`${API_PATH}.handle_document_action`, {
+            doctype: 'Purchase Receipt',
+            docname: docName || undefined,
+            action: action,
+            doc_data: undefined
+          }, { withCredentials: true });
+      }
+
+      const rawMsg = res.data.message || {};
+      const success = rawMsg.success || rawMsg.status === 'success';
+
+      if (success) {
+        Swal.fire('Operation Complete', `${action.toUpperCase()} processed successfully.`, 'success');
+        
+        if (action === 'delete') {
+            setIsModalOpen(false);
+            fetchReceipts();
+            return;
+        }
+
+        const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || docName;
+        if (nextDoc !== docName) {
+            fetchReceiptForEdit(nextDoc);
+            if (action === 'amend') setIsViewMode(false);
+        } else {
+            fetchReceiptForEdit(docName);
+        }
+        fetchReceipts();
+      } else {
+          throw new Error(rawMsg.message || "Operation failed");
+      }
+    } catch (err) {
+      Swal.fire('Matrix Failure', err.response?.data?.message || err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
   const handleBarcodeScan = async (e) => {
     if (e.key === 'Enter' && barcodeInput.trim()) {
       e.preventDefault();
@@ -418,15 +526,6 @@ function PurchaseReceiptList() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.split('?')[1]);
-    const nameParam = params.get('name');
-    if (nameParam) {
-      // Clear URL params after reading
-      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
-      fetchReceiptForEdit(nameParam);
-    }
-  }, []);
   const openCreateModal = useCallback(async () => {
     const companyData = await getDefaultCompany();
     const defaultWarehouse = warehouses.length > 0 ? warehouses[0].name : '';
@@ -995,72 +1094,10 @@ function PurchaseReceiptList() {
     };
   };
   const handleSaveDraft = async () => {
-    if (!validateForm()) return;
-    setSaving(true);
-    const payload = await getPayload();
-    try {
-      let response;
-      if (docName) {
-        // Existing draft → UPDATE (PUT)
-        response = await axios.put(`${RESOURCE_BASE}/Purchase Receipt/${docName}`, payload, {
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' }
-        });
-        alert(`Draft updated: ${docName}`);
-      } else {
-        // New → CREATE (POST)
-        response = await axios.post(`${RESOURCE_BASE}/Purchase Receipt`, payload, {
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (response.data?.data?.name) {
-          setDocName(response.data.data.name);
-          alert(`Draft saved: ${response.data.data.name}`);
-        } else {
-          throw new Error('Failed to create draft');
-        }
-      }
-      setLastSavedData(JSON.stringify(formData)); // Reset dirty check after save
-      // Refresh list to show updated status
-      fetchReceipts();
-    } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setSaving(false);
-    }
+    handleDocAction('save');
   };
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-    setSaving(true);
-    const payload = await getPayload();
-    try {
-      let name = docName;
-      if (!name) {
-        // First save as draft using generic doc creator
-        const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
-        const createRes = await axios.post(GENERIC_API, {
-          doctype: "Purchase Receipt",
-          data: payload
-        }, {
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const apiResp = createRes.data.message || createRes.data;
-        if (!apiResp.name) throw new Error('Create failed');
-        name = apiResp.name;
-        setDocName(name);
-      }
-      // Submit
-      await axios.put(`${RESOURCE_BASE}/Purchase Receipt/${name}`, { docstatus: 1 }, { withCredentials: true });
-      alert(`Purchase Receipt Submitted: ${name}`);
-      setIsModalOpen(false);
-      setDocName('');
-      fetchReceipts();
-    } catch (err) {
-      alert('Submit failed: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setSaving(false);
-    }
+    handleDocAction('submit');
   };
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -1200,7 +1237,6 @@ function PurchaseReceiptList() {
 
   return (
     <>
-      <NavBar />
       <div className="so-page">
         {/* Header */}
         <div className="so-page-header">
@@ -1407,8 +1443,8 @@ function PurchaseReceiptList() {
           </div>
         </div>
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ padding: 0, zIndex: 9999 }}>
-            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ padding: 0, zIndex: 9999, top: '74px', height: 'calc(100vh - 74px)' }}>
+            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                   <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1853,30 +1889,45 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </div> {/* Closes so-modal-body */}
               <div className="so-modal-footer">
-                <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary">
-                  Cancel
-                </button>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  {!docName ? (
-                    <button onClick={handleSaveDraft} disabled={saving} className="so-btn-primary" style={{ minWidth: '180px' }}>
-                      {saving ? 'Saving...' : 'Save as Draft'}
-                    </button>
-                  ) : (
-                    <>
-                      {JSON.stringify(formData) !== lastSavedData ? (
-                        <button onClick={handleSaveDraft} disabled={saving} className="so-btn-primary" style={{ minWidth: '180px' }}>
-                          {saving ? 'Saving...' : 'Update Draft'}
-                        </button>
-                      ) : (
-                        <button onClick={handleSubmit} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px' }}>
-                          {saving ? (
-                            <><Loader2 className="so-spinner" size={16} /> Processing...</>
-                          ) : 'Submit Receipt'}
-                        </button>
-                      )}
-                    </>
+                <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary">Close Vault</button>
+
+                  {!docName && (
+                      <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px' }}>
+                          {saving ? <Loader2 size={16} className="so-spinner" /> : 'Save Genesis'}
+                      </button>
+                  )}
+
+                  {allowedActions.includes('save') && (
+                      <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
+                          {saving ? <Loader2 size={16} className="so-spinner" /> : 'Update Draft'}
+                      </button>
+                  )}
+
+                  {allowedActions.includes('submit') && (
+                      <button onClick={() => handleDocAction('submit')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px' }}>
+                          {saving ? <Loader2 size={16} className="so-spinner" /> : 'Submit Inventory'}
+                      </button>
+                  )}
+
+                  {allowedActions.includes('cancel') && (
+                      <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
+                         Cancel Receipt
+                      </button>
+                  )}
+
+                  {allowedActions.includes('amend') && (
+                      <button onClick={() => handleDocAction('amend')} className="so-btn-primary" style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}>
+                         Amend Matrix
+                      </button>
+                  )}
+
+                  {allowedActions.includes('delete') && (
+                      <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
+                         <Trash2 size={16} /> Delete
+                      </button>
                   )}
                 </div>
               </div>
@@ -1887,4 +1938,5 @@ function PurchaseReceiptList() {
     </>
   );
 }
+
 export default PurchaseReceiptList;

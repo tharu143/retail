@@ -10,7 +10,6 @@ import { db } from '../../db';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { createPortal } from 'react-dom';
 import '../Admin/SalesOrder.css';
-import NavBar from '../Nav/NavBar';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 
 const QuickStockInStandalone = () => {
@@ -362,7 +361,6 @@ const QuickStockInStandalone = () => {
 
     return (
         <div className="so-page" style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <NavBar />
             
             {/* 1. PREMIUM HEADER */}
             <div className="so-page-header" style={{ padding: '0.75rem 1.5rem', flexShrink: 0 }}>

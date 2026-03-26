@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, X, Loader2, ChevronLeft, ChevronRight, Palette, Layers, Edit2, Package, Save, CheckCircle2, ChevronDown, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import axios from 'axios';
-import NavBar from '../Nav/NavBar';
 
 export default function ItemGroupList() {
   const [groups, setGroups] = useState([]);
@@ -240,7 +239,6 @@ export default function ItemGroupList() {
 
   return (
     <>
-      <NavBar />
       <div className="so-page">
         <div className="so-page-header">
           <div className="so-page-left">

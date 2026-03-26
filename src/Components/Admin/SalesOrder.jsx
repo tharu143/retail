@@ -5,7 +5,6 @@ import {
   ChevronLeft, ChevronRight, X, Search, ScanLine, Palette, Zap
 } from 'lucide-react';
 import axios from 'axios';
-import NavBar from '../Nav/NavBar';
 import './SalesOrder.css';
 
 const API_PATH_K = '/api/method/kyle_retail.retail_api.api';
@@ -514,7 +513,6 @@ function SalesOrder() {
   /* ================================================================ */
   return (
     <>
-      <NavBar />
       <div className="so-page">
 
         {/* ---- Page Header ---- */}
