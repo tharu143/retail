@@ -881,7 +881,7 @@ function PurchaseReceiptList() {
       setFormData({
         series: doc.name.split('-')[0] + '-...',
         posting_date: doc.posting_date,
-        posting_time: doc.posting_time?.slice(0, 5) || '',
+        posting_time: doc.posting_time ? doc.posting_time.split(':').slice(0, 2).map(p => p.padStart(2, '0')).join(':') : '',
         apply_putaway_rule: doc.apply_putaway_rule || false,
         is_return: doc.is_return || false,
         supplier: doc.supplier || '',
@@ -1443,8 +1443,24 @@ function PurchaseReceiptList() {
           </div>
         </div>
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ padding: 0, zIndex: 9999, top: '74px', height: 'calc(100vh - 74px)' }}>
-            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ 
+            padding: 0, 
+            zIndex: 9999, 
+            top: '74px', 
+            height: 'calc(100vh - 74px)',
+            background: 'rgba(15, 23, 42, 0.98)', /* High opacity to hide list header */
+            backdropFilter: 'blur(8px)'
+          }}>
+            <div className="so-modal" style={{ 
+              maxWidth: 'none', 
+              width: '100vw', 
+              height: '100%', 
+              margin: 0, 
+              borderRadius: 0, 
+              display: 'flex', 
+              flexDirection: 'column',
+              boxShadow: 'none'
+            }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                   <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1456,9 +1472,9 @@ function PurchaseReceiptList() {
                     <button 
                       onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
                       className="so-btn-primary" 
-                      style={{ padding: '0.35rem 1rem', fontSize: '0.7rem', background: 'white', color: themeColor, border: `1.5px solid ${themeColor}` }}
+                      style={{ padding: '0.45rem 1.25rem', fontSize: '0.75rem', background: themeColor, color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', boxShadow: `0 4px 12px ${themeColor}40` }}
                     >
-                      <Edit3 size={14} /> Edit Draft
+                      <Edit3 size={14} /> Edit Draft Matrix
                     </button>
                   )}
                   {isEditMode && docName && (
@@ -1487,12 +1503,16 @@ function PurchaseReceiptList() {
                     <div className="so-form-grid">
                       <div className="so-field">
                         <label className="so-label">Series <span style={{ color: 'var(--so-danger)' }}>*</span></label>
-                        <input
-                          type="text"
-                          value={formData.series}
-                          onChange={e => setFormData(prev => ({ ...prev, series: e.target.value }))}
-                          className="so-input"
-                        />
+                        {isViewMode ? (
+                          <div className="so-view-field">{formData.series || '—'}</div>
+                        ) : (
+                          <input
+                            type="text"
+                            value={formData.series}
+                            onChange={e => setFormData(prev => ({ ...prev, series: e.target.value }))}
+                            className="so-input"
+                          />
+                        )}
                       </div>
                       <div className="so-field">
                         <label className="so-label">Supplier <span style={{ color: 'var(--so-danger)' }}>*</span></label>
@@ -1503,50 +1523,67 @@ function PurchaseReceiptList() {
                           fetchData={fetchSuppliersAPI}
                           createOption={handleSupplierCreate}
                           optionsLabel="supplier_name"
+                          disabled={isViewMode}
                         />
                         {formErrors.supplier && <span style={{ color: 'var(--so-danger)', fontSize: '0.7rem', fontWeight: 600 }}>{formErrors.supplier}</span>}
                       </div>
                       <div className="so-field">
                         <label className="so-label">Posting Date <span style={{ color: 'var(--so-danger)' }}>*</span></label>
-                        <input
-                          type="date"
-                          value={formData.posting_date}
-                          onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
-                          className="so-input"
-                        />
+                        {isViewMode ? (
+                          <div className="so-view-field">{formData.posting_date || '—'}</div>
+                        ) : (
+                          <input
+                            type="date"
+                            value={formData.posting_date}
+                            onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
+                            className="so-input"
+                          />
+                        )}
                       </div>
                       <div className="so-field">
                         <label className="so-label">Posting Time <span style={{ color: 'var(--so-danger)' }}>*</span></label>
-                        <input
-                          type="time"
-                          value={formData.posting_time}
-                          onChange={e => setFormData(prev => ({ ...prev, posting_time: e.target.value }))}
-                          className="so-input"
-                        />
+                        {isViewMode ? (
+                          <div className="so-view-field">{formData.posting_time || '—'}</div>
+                        ) : (
+                          <input
+                            type="time"
+                            value={formData.posting_time}
+                            onChange={e => setFormData(prev => ({ ...prev, posting_time: e.target.value }))}
+                            className="so-input"
+                          />
+                        )}
                       </div>
                       <div className="so-field">
-                        <label className="so-label">Set Branch <span style={{ color: 'var(--so-danger)' }}>*</span></label>
-                        <select
-                          value={formData.set_warehouse}
-                          onChange={e => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
-                          className="so-select"
-                        >
-                          <option value="">Select Branch</option>
-                          {warehouses.map(w => (
-                            <option key={w.name} value={w.name}>{w.warehouse_name}</option>
-                          ))}
-                        </select>
+                        <label className="so-label">Branch/Warehouse <span style={{ color: 'var(--so-danger)' }}>*</span></label>
+                        {isViewMode ? (
+                          <div className="so-view-field">{formData.set_warehouse || '—'}</div>
+                        ) : (
+                          <select
+                            value={formData.set_warehouse}
+                            onChange={e => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
+                            className="so-select"
+                          >
+                            <option value="">Select Branch</option>
+                            {warehouses.map(w => (
+                              <option key={w.name} value={w.name}>{w.warehouse_name}</option>
+                            ))}
+                          </select>
+                        )}
                         {formErrors.set_warehouse && <span style={{ color: 'var(--so-danger)', fontSize: '0.7rem', fontWeight: 600 }}>{formErrors.set_warehouse}</span>}
                       </div>
                       <div className="so-field">
-                        <label className="so-label">Supplier Delivery Note</label>
-                        <input
-                          type="text"
-                          value={formData.supplier_delivery_note}
-                          onChange={e => setFormData(prev => ({ ...prev, supplier_delivery_note: e.target.value }))}
-                          placeholder="Reference number..."
-                          className="so-input"
-                        />
+                        <label className="so-label">Supplier Ref / Delivery Note</label>
+                        {isViewMode ? (
+                          <div className="so-view-field">{formData.supplier_delivery_note || '—'}</div>
+                        ) : (
+                          <input
+                            type="text"
+                            value={formData.supplier_delivery_note}
+                            onChange={e => setFormData(prev => ({ ...prev, supplier_delivery_note: e.target.value }))}
+                            placeholder="Reference number..."
+                            className="so-input"
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -1556,6 +1593,7 @@ function PurchaseReceiptList() {
                           type="checkbox"
                           checked={formData.apply_putaway_rule}
                           onChange={e => setFormData(prev => ({ ...prev, apply_putaway_rule: e.target.checked }))}
+                          disabled={isViewMode}
                         />
                         Apply Putaway Rule
                       </label>
@@ -1564,6 +1602,7 @@ function PurchaseReceiptList() {
                           type="checkbox"
                           checked={formData.is_return}
                           onChange={e => setFormData(prev => ({ ...prev, is_return: e.target.checked }))}
+                          disabled={isViewMode}
                         />
                         Is Return
                       </label>
@@ -1583,9 +1622,10 @@ function PurchaseReceiptList() {
                         value={barcodeInput}
                         onChange={(e) => setBarcodeInput(e.target.value)}
                         onKeyDown={handleBarcodeScan}
-                        placeholder="Scan or type barcode → press Enter..."
+                        placeholder={isViewMode ? "Scanner disabled in view mode" : "Scan or type barcode → press Enter..."}
                         className="so-barcode-input"
                         style={{ fontSize: '1rem' }}
+                        disabled={isViewMode}
                       />
                     </div>
                   </div>
@@ -1595,7 +1635,7 @@ function PurchaseReceiptList() {
                   <div className="so-card-header">
                     <p className="so-card-title">Items</p>
                     {/* Hide Add Row if mapped from PO */}
-                    {!formData.items.some(i => i.purchase_order) && (
+                    {!formData.items.some(i => i.purchase_order) && !isViewMode && (
                       <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
                         <Plus size={14} /> Add Row
                       </button>
@@ -1629,9 +1669,10 @@ function PurchaseReceiptList() {
                                     value={itemSearches[i] || ''}
                                     onChange={e => handleItemSearch(i, e.target.value)}
                                     onFocus={() => itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
-                                    placeholder="Search item..."
+                                    placeholder={isViewMode ? "" : "Search item..."}
                                     className="so-input"
                                     style={{ height: '36px', fontSize: '0.85rem' }}
+                                    readOnly={isViewMode}
                                   />
                                   {showItemDropdowns[i] && itemsList.length > 0 && (
                                     <div className="so-dropdown" style={{ minWidth: '300px' }}>
@@ -1651,52 +1692,73 @@ function PurchaseReceiptList() {
                                 </div>
                               </td>
                               <td>
-                                <input
-                                  type="text"
-                                  value={item.custom_supplier_sl_num || ''}
-                                  onChange={e => updateItem(i, 'custom_supplier_sl_num', e.target.value)}
-                                  className="so-input"
-                                  style={{ height: '36px', fontSize: '0.85rem' }}
-                                  placeholder="SL #"
-                                />
+                                {isViewMode ? (
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>{item.custom_supplier_sl_num || '—'}</div>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={item.custom_supplier_sl_num || ''}
+                                      onChange={e => updateItem(i, 'custom_supplier_sl_num', e.target.value)}
+                                      className="so-input"
+                                      style={{ height: '36px', fontSize: '0.85rem' }}
+                                      placeholder="SL #"
+                                    />
+                                  )}
                               </td>
                               <td>
-                                <input
-                                  type="number"
-                                  value={item.custom_box_qty || 0}
-                                  onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
-                                  className="so-input"
-                                  style={{ textAlign: 'center', height: '36px' }}
-                                />
+                                {isViewMode ? (
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}>{item.custom_box_qty || 0}</div>
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      value={item.custom_box_qty || 0}
+                                      onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
+                                      className="so-input"
+                                      style={{ textAlign: 'center', height: '36px' }}
+                                    />
+                                  )}
                               </td>
                               <td>
-                                <input
-                                  type="number"
-                                  value={item.custom_pieces_per_box || 1}
-                                  onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
-                                  className="so-input"
-                                  style={{ textAlign: 'center', height: '36px' }}
-                                />
+                                {isViewMode ? (
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}>{item.custom_pieces_per_box || 1}</div>
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      value={item.custom_pieces_per_box || 1}
+                                      onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                      className="so-input"
+                                      style={{ textAlign: 'center', height: '36px' }}
+                                    />
+                                  )}
                               </td>
                               <td>
-                                <input
-                                  type="number"
-                                  value={item.accepted_qty}
-                                  onChange={e => updateItem(i, 'accepted_qty', e.target.value)}
-                                  className="so-input"
-                                  style={{ textAlign: 'center', height: '36px' }}
-                                />
+                                {isViewMode ? (
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: themeColor }}>{item.accepted_qty}</div>
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      value={item.accepted_qty}
+                                      onChange={e => updateItem(i, 'accepted_qty', e.target.value)}
+                                      className="so-input"
+                                      style={{ textAlign: 'center', height: '36px' }}
+                                      readOnly={isViewMode}
+                                    />
+                                  )}
                               </td>
                               <td>
-                                <input
-                                  type="number"
-                                  value={item.custom_selling_price || 0}
-                                  onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                  className="so-input"
-                                  style={{ textAlign: 'right', height: '36px', color: '#6366f1', fontWeight: 'bold' }}
-                                  placeholder="Selling"
-                                  readOnly={isViewMode}
-                                />
+                                {isViewMode ? (
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'right', color: '#6366f1' }}>{formatPrice(item.custom_selling_price)}</div>
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      value={item.custom_selling_price || 0}
+                                      onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                      className="so-input"
+                                      style={{ textAlign: 'right', height: '36px', color: '#6366f1', fontWeight: 'bold' }}
+                                      placeholder="Selling"
+                                      readOnly={isViewMode}
+                                    />
+                                  )}
                               </td>
                               <td style={{ textAlign: 'right' }}>
                                 {isViewMode ? (
@@ -1719,8 +1781,8 @@ function PurchaseReceiptList() {
                                 {formatPrice(item.amount)}
                               </td>
                               <td style={{ textAlign: 'center' }}>
-                                <button onClick={() => removeItemRow(i)} className="so-btn-danger" style={{ padding: '0.25rem' }}>
-                                  <X size={14} />
+                                <button onClick={() => removeItemRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }} disabled={isViewMode}>
+                                  {!isViewMode && <X size={14} />}
                                 </button>
                               </td>
                             </tr>
@@ -1735,23 +1797,29 @@ function PurchaseReceiptList() {
                   <div className="so-card">
                     <div className="so-card-header">
                       <p className="so-card-title">Taxes & Charges</p>
+                      {!isViewMode && (
                       <button onClick={addTaxRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
                         <Plus size={14} /> Add Row
                       </button>
+                    )}
                     </div>
                     <div className="so-card-body">
                       <div className="so-field" style={{ marginBottom: '1.5rem' }}>
                         <label className="so-label">Tax Template</label>
-                        <select
-                          value={formData.taxes_and_charges}
-                          onChange={e => handleTaxesTemplateChange(e.target.value)}
-                          className="so-select"
-                        >
-                          <option value="">Select Template</option>
-                          {taxesTemplates.map(t => (
-                            <option key={t.name} value={t.name}>{t.name}</option>
-                          ))}
-                        </select>
+                        {isViewMode ? (
+                          <div className="so-view-field">{formData.taxes_and_charges || 'No Template'}</div>
+                        ) : (
+                          <select
+                            value={formData.taxes_and_charges}
+                            onChange={e => handleTaxesTemplateChange(e.target.value)}
+                            className="so-select"
+                          >
+                            <option value="">Select Template</option>
+                            {taxesTemplates.map(t => (
+                              <option key={t.name} value={t.name}>{t.name}</option>
+                            ))}
+                          </select>
+                        )}
                       </div>
 
                       <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
@@ -1769,30 +1837,38 @@ function PurchaseReceiptList() {
                             {formData.taxes.map((tax, i) => (
                               <tr key={i}>
                                 <td style={{ textAlign: 'center' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={tax.add_row}
-                                    onChange={e => updateTax(i, 'add_row', e.target.checked)}
-                                  />
+                                  {isViewMode ? (
+                                    tax.add_row ? <CheckCircle2 size={16} style={{ color: themeColor }} /> : <span style={{ opacity: 0.2 }}>—</span>
+                                  ) : (
+                                    <input
+                                      type="checkbox"
+                                      checked={tax.add_row}
+                                      onChange={e => updateTax(i, 'add_row', e.target.checked)}
+                                    />
+                                  )}
                                 </td>
                                 <td>
                                   <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{tax.account_head?.split(' - ')[0] || 'New Account'}</div>
                                   <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{tax.charge_type}</div>
                                 </td>
                                 <td>
-                                  <input
-                                    type="number"
-                                    value={tax.rate}
-                                    onChange={e => updateTax(i, 'rate', e.target.value)}
-                                    className="so-input"
-                                    style={{ height: '30px', textAlign: 'center', fontSize: '0.75rem' }}
-                                  />
+                                  {isViewMode ? (
+                                    <div className="so-view-field" style={{ textAlign: 'center' }}>{tax.rate}%</div>
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      value={tax.rate}
+                                      onChange={e => updateTax(i, 'rate', e.target.value)}
+                                      className="so-input"
+                                      style={{ height: '30px', textAlign: 'center', fontSize: '0.75rem' }}
+                                    />
+                                  )}
                                 </td>
                                 <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.75rem' }}>
                                   {(parseFloat(tax.total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </td>
                                 <td style={{ textAlign: 'center' }}>
-                                  <button onClick={() => removeTaxRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}><X size={12} /></button>
+                                  {!isViewMode && <button onClick={() => removeTaxRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}><X size={12} /></button>}
                                 </td>
                               </tr>
                             ))}
@@ -1811,43 +1887,59 @@ function PurchaseReceiptList() {
                         <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
                           <div className="so-field column-span-2">
                             <label className="so-label">Apply Discount On</label>
-                            <select
-                              value={formData.apply_discount_on}
-                              onChange={e => updateDiscount('apply_discount_on', e.target.value)}
-                              className="so-select"
-                            >
-                              <option value="Net Total">Net Total</option>
-                              <option value="Grand Total">Grand Total</option>
-                            </select>
+                            {isViewMode ? (
+                              <div className="so-view-field">{formData.apply_discount_on || 'Net Total'}</div>
+                            ) : (
+                              <select
+                                value={formData.apply_discount_on}
+                                onChange={e => updateDiscount('apply_discount_on', e.target.value)}
+                                className="so-select"
+                              >
+                                <option value="Net Total">Net Total</option>
+                                <option value="Grand Total">Grand Total</option>
+                              </select>
+                            )}
                           </div>
                           <div className="so-field">
                             <label className="so-label">Discount %</label>
-                            <input
-                              type="number"
-                              value={formData.additional_discount_percentage}
-                              onChange={e => updateDiscount('additional_discount_percentage', e.target.value)}
-                              className="so-input"
-                              step="0.01"
-                            />
+                            {isViewMode ? (
+                              <div className="so-view-field">{formData.additional_discount_percentage || 0}%</div>
+                            ) : (
+                              <input
+                                type="number"
+                                value={formData.additional_discount_percentage}
+                                onChange={e => updateDiscount('additional_discount_percentage', e.target.value)}
+                                className="so-input"
+                                step="0.01"
+                              />
+                            )}
                           </div>
                           <div className="so-field">
                             <label className="so-label">Discount Amount</label>
-                            <input
-                              type="number"
-                              value={formData.discount_amount}
-                              onChange={e => updateDiscount('discount_amount', e.target.value)}
-                              className="so-input"
-                              step="0.01"
-                            />
+                            {isViewMode ? (
+                              <div className="so-view-field">{formatPrice(formData.discount_amount)}</div>
+                            ) : (
+                              <input
+                                type="number"
+                                value={formData.discount_amount}
+                                onChange={e => updateDiscount('discount_amount', e.target.value)}
+                                className="so-input"
+                                step="0.01"
+                              />
+                            )}
                           </div>
                           <div className="so-field column-span-2">
                             <label className="so-label">Rounded Total</label>
-                            <input
-                              type="number"
-                              value={formData.rounded_total}
-                              onChange={e => updateDiscount('rounded_total', e.target.value)}
-                              className="so-input"
-                            />
+                            {isViewMode ? (
+                              <div className="so-view-field">{formatPrice(formData.rounded_total)}</div>
+                            ) : (
+                              <input
+                                type="number"
+                                value={formData.rounded_total}
+                                onChange={e => updateDiscount('rounded_total', e.target.value)}
+                                className="so-input"
+                              />
+                            )}
                           </div>
                         </div>
                       </div>

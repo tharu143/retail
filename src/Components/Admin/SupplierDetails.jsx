@@ -20,16 +20,16 @@ const StatCard = ({ label, value, currency, icon: Icon, themeColor, isGreen }) =
     className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group"
   >
     <div className="space-y-1">
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</p>
+      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">{label}</p>
       <div className="flex items-baseline gap-1.5">
-        {currency && <span className="text-[11px] font-bold text-gray-300 uppercase">{currency}</span>}
+        {currency && <span className="text-[11px] font-bold text-gray-500 uppercase">{currency}</span>}
         <h4 className="text-2xl font-black text-gray-900 tracking-tight">
           {value}
         </h4>
       </div>
     </div>
     <div className="p-3.5 rounded-xl bg-gray-50 group-hover:bg-opacity-10 transition-colors" style={{ backgroundColor: isGreen ? '#f0fdf4' : '#f0f9ff' }}>
-      <Icon size={22} className="text-gray-400 group-hover:opacity-100" style={{ color: themeColor }} strokeWidth={2.5} />
+      <Icon size={22} className="text-gray-500 group-hover:opacity-100" style={{ color: themeColor }} strokeWidth={2.5} />
     </div>
   </div>
 );
@@ -53,14 +53,14 @@ const ConnectionCard = ({ title, links, navigate, supplierName, icon: Icon, them
             <span className="text-xs font-bold text-gray-700 transition-colors" style={{ color: undefined }}>{link.doctype}</span>
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-bold px-2.5 py-0.5 bg-gray-100 text-gray-500 rounded-full group-hover:text-white transition-all" style={{ backgroundColor: undefined }}>{link.count}</span>
-              <ArrowRight size={12} className="text-gray-300 transition-all" />
+              <ArrowRight size={12} className="text-gray-500 transition-all" />
             </div>
           </div>
         ))}
         {links.length === 0 && (
           <div className="py-8 flex flex-col items-center justify-center text-center opacity-40">
             <Layers size={32} className="mb-2 text-gray-300" />
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Registry Empty</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-600">Registry Empty</p>
           </div>
         )}
       </div>
@@ -127,7 +127,6 @@ const SupplierDetails = () => {
   const [activeModule, setActiveModule] = useState('Procurement');
   const [connSearch, setConnSearch] = useState("");
   const [connDateRange, setConnDateRange] = useState({ start: '', end: '' });
-  const [expandedDocType, setExpandedDocType] = useState(null);
 
   const [supplierGroups] = useState(['Distributor', 'Manufacturer', 'Service Provider', 'Wholesaler', 'Retailer']);
 
@@ -450,19 +449,19 @@ const SupplierDetails = () => {
                 <InfoSection title="Core Specifications" icon={Hash} themeColor={themeColor}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Legal Name</label>
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Legal Name</label>
                       <p className="text-sm font-black text-gray-900">{supplier.supplier_name}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Industrial Cluster</label>
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Industrial Cluster</label>
                       <p className="text-sm font-black text-gray-900">{supplier.supplier_group}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Structural Format</label>
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Structural Format</label>
                       <p className="text-sm font-black text-gray-900">{supplier.supplier_type}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tax Identity (TRN)</label>
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Tax Identity (TRN)</label>
                       <p className="text-sm font-bold text-gray-900 font-mono tracking-tight bg-gray-50 px-3 py-1 rounded inline-block">
                         {supplier.tax_id || 'NOT REGISTERED'}
                       </p>
@@ -477,12 +476,12 @@ const SupplierDetails = () => {
                       <p className="text-xs font-black font-mono bg-blue-50/50 px-2 py-1 rounded" style={{ color: themeColor }}>{supplier.name}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Default Currency</label>
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Default Currency</label>
                       <p className="text-sm font-black text-gray-900">{supplier.default_currency || 'AED'}</p>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Creation Vector</label>
-                      <p className="text-[11px] font-bold text-gray-500">{new Date(supplier.creation).toLocaleDateString()}</p>
+                      <p className="text-[11px] font-bold text-gray-700">{new Date(supplier.creation).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </InfoSection>
@@ -497,14 +496,14 @@ const SupplierDetails = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Policy Sync: Active</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Policy Sync: Active</span>
                   </div>
                 </div>
                 <div className="p-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-12 gap-y-8">
                     {/* Column 1: Core Flags */}
                     <div className="space-y-6">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] pb-2 border-b border-gray-50">Core Entity Flags</p>
+                      <p className="text-[9px] font-black text-gray-600 uppercase tracking-[0.2em] pb-2 border-b border-gray-50">Core Entity Flags</p>
                       {[
                         { label: 'Is Transporter', val: supplier.is_transporter },
                         { label: 'Internal Supplier', val: supplier.is_internal_supplier },
@@ -547,7 +546,7 @@ const SupplierDetails = () => {
 
                     {/* Column 4: Operational State */}
                     <div className="space-y-6">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] pb-2 border-b border-gray-50">Operational State</p>
+                      <p className="text-[9px] font-black text-gray-600 uppercase tracking-[0.2em] pb-2 border-b border-gray-50">Operational State</p>
                       <div className="p-4 bg-gray-50 rounded-xl space-y-4">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-bold text-gray-600">On Hold</span>
@@ -583,7 +582,7 @@ const SupplierDetails = () => {
                         onClick={() => setActiveModule(module)}
                         className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeModule === module
                           ? 'bg-white shadow-sm ring-1 ring-gray-100 text-slate-800'
-                          : 'text-gray-400 hover:text-gray-600'}`}
+                          : 'text-gray-600 hover:text-gray-900'}`}
                         style={{ color: activeModule === module ? themeColor : undefined }}
                       >
                         {module}
@@ -595,10 +594,10 @@ const SupplierDetails = () => {
                 {/* Report-style Action Bar */}
                 <div className="px-8 py-4 bg-white border-b border-gray-50 flex flex-wrap items-center justify-between gap-6">
                   <div className="flex-1 min-w-[300px] relative">
-                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
                     <input
                       type="text"
-                      className="w-full pl-11 pr-4 py-2.5 bg-gray-50/50 border border-gray-100 rounded-xl text-xs font-bold placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all"
+                      className="w-full pl-11 pr-4 py-2.5 bg-gray-50/50 border border-gray-100 rounded-xl text-xs font-bold placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all"
                       placeholder={`Search inside ${activeModule}...`}
                       value={connSearch}
                       onChange={(e) => setConnSearch(e.target.value)}
@@ -606,12 +605,12 @@ const SupplierDetails = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center bg-gray-50/50 border border-gray-100 rounded-xl px-3 py-1.5 gap-3">
-                      <Calendar size={13} className="text-gray-400" />
+                      <Calendar size={13} className="text-gray-600" />
                       <input type="date" className="bg-transparent border-none text-[10px] font-bold text-gray-600 outline-none" />
-                      <span className="text-gray-300 text-xs">→</span>
+                      <span className="text-gray-500 text-xs">→</span>
                       <input type="date" className="bg-transparent border-none text-[10px] font-bold text-gray-600 outline-none" />
                     </div>
-                    <button className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-all">
+                    <button className="p-2.5 bg-gray-50 text-gray-700 rounded-xl hover:bg-gray-100 transition-all">
                       <Filter size={15} />
                     </button>
                   </div>
@@ -622,92 +621,48 @@ const SupplierDetails = () => {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-gray-50/50">
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">Document Blueprint</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">Quantifiable Shard</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-right">Action Gateway</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Document Blueprint</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Quantifiable Shard</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100 text-right">Action Gateway</th>
                       </tr>
                     </thead>
                     <tbody>
                       {currConnections.map((conn, idx) => (
-                        <React.Fragment key={idx}>
-                          <tr
-                            onClick={() => setExpandedDocType(expandedDocType === conn.doctype ? null : conn.doctype)}
-                            className={`group hover:bg-slate-50 transition-all cursor-pointer border-b border-slate-50 ${expandedDocType === conn.doctype ? 'bg-slate-50/80 shadow-[inset_4px_0_0_0_#000]' : ''}`}
-                          >
-                            <td className="px-8 py-6">
-                              <div className="flex items-center gap-5">
-                                <div className={`p-3 rounded-2xl ${expandedDocType === conn.doctype ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400'} group-hover:scale-110 transition-all shadow-sm`}>
-                                  <Layers size={18} />
-                                </div>
-                                <div>
-                                  <div className="text-[13px] font-black text-slate-900 tracking-tight">{conn.doctype}</div>
-                                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Unified System Entity</div>
-                                </div>
+                        <tr
+                          key={idx}
+                          className="group hover:bg-slate-50 transition-all border-b border-slate-50"
+                        >
+                          <td className="px-8 py-6">
+                            <div className="flex items-center gap-5">
+                              <div className="p-3 rounded-2xl bg-slate-50 text-slate-600 group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm">
+                                <Layers size={18} />
                               </div>
-                            </td>
-                            <td className="px-8 py-6">
-                              <div className="flex items-center gap-3">
-                                <span className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black shadow-md">{conn.count}</span>
-                                <div className="flex flex-col">
-                                  <div className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Quantifiable</div>
-                                  <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Shards</div>
-                                </div>
+                              <div>
+                                <div className="text-[13px] font-black text-slate-900 tracking-tight">{conn.doctype}</div>
+                                <div className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">Unified System Entity</div>
                               </div>
-                            </td>
-                            <td className="px-8 py-6 text-right">
-                              <div className="flex items-center justify-end gap-4">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); navigateDoc(conn.doctype); }}
-                                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 hover:text-white transition-all active:scale-95"
-                                >
-                                  Access Stream
-                                </button>
-                                <div className={`transform transition-transform duration-300 ${expandedDocType === conn.doctype ? 'rotate-180 text-slate-900' : 'text-slate-300'}`}>
-                                  <ChevronDown size={20} />
-                                </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black shadow-md">{conn.count}</span>
+                              <div className="flex flex-col">
+                                <div className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em]">Quantifiable</div>
+                                <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Shards</div>
                               </div>
-                            </td>
-                          </tr>
-                          {/* Expansion Portal */}
-                          {expandedDocType === conn.doctype && (
-                            <tr>
-                              <td colSpan="3" className="px-8 py-0 bg-slate-50/30">
-                                <div className="py-8 space-y-6 border-l-4 border-slate-900 pl-8 ml-3 animate-in fade-in slide-in-from-top-4 duration-300">
-                                  <div className="flex items-center justify-between">
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Registry Archive / Recent {conn.doctype}s</h4>
-                                    <div className="h-px flex-1 bg-slate-200/50 mx-6" />
-                                    <span className="text-[9px] font-black text-slate-900 bg-white px-3 py-1 rounded-full border border-slate-100 shadow-sm">{conn.count} Total Indices</span>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 max-h-[320px] overflow-y-auto pr-4 custom-scrollbar">
-                                    {conn.example_names && conn.example_names.map((ex, exIdx) => (
-                                      <button
-                                        key={exIdx}
-                                        onClick={() => navigateDetail(conn.doctype, ex)}
-                                        className="group/btn relative h-20 bg-white border border-slate-100 p-4 rounded-2xl flex flex-col justify-between hover:border-slate-900 hover:shadow-xl hover:-translate-y-1 transition-all text-left overflow-hidden ring-1 ring-slate-100/50"
-                                      >
-                                        <div className="absolute top-0 right-0 w-8 h-8 bg-slate-50 rounded-bl-2xl flex items-center justify-center opacity-0 group-hover/btn:opacity-100 transition-opacity">
-                                          <ArrowRight size={12} className="text-slate-900" />
-                                        </div>
-                                        <div className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] mb-1">Index Key</div>
-                                        <div className="text-[11px] font-black text-slate-900 tracking-tight truncate w-full group-hover/btn:text-blue-600 transition-colors">{ex}</div>
-                                      </button>
-                                    ))}
-                                    <button
-                                      onClick={() => navigateDoc(conn.doctype)}
-                                      className="h-20 bg-slate-900/5 border border-dashed border-slate-200 p-4 rounded-2xl flex items-center justify-center hover:bg-slate-900 group/all transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]"
-                                    >
-                                      <div className="text-center">
-                                        <div className="text-[9px] font-black text-slate-400 group-hover/all:text-white uppercase tracking-widest">Explore Full</div>
-                                        <div className="text-[10px] font-black text-slate-900 group-hover/all:text-blue-400 uppercase tracking-wider">Stream</div>
-                                      </div>
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                            <div className="flex items-center justify-end gap-4">
+                              <button
+                                onClick={() => navigateDoc(conn.doctype)}
+                                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 hover:text-white transition-all active:scale-95"
+                              >
+                                Access Stream
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
@@ -717,7 +672,7 @@ const SupplierDetails = () => {
                         <Layers size={48} className="text-gray-300" />
                       </div>
                       <h3 className="text-lg font-black text-gray-900 tracking-tighter uppercase mb-2">No Shards Initialized</h3>
-                      <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Transaction array is currently empty for this sector.</p>
+                      <p className="text-[11px] font-black text-gray-600 uppercase tracking-[0.2em]">Transaction array is currently empty for this sector.</p>
                     </div>
                   )}
                 </div>
@@ -730,14 +685,14 @@ const SupplierDetails = () => {
                     <div className="p-5 bg-gray-50/50 rounded-2xl border border-gray-100 space-y-4">
                       <div className="p-3 bg-white w-fit rounded-xl shadow-sm"><Mail size={20} className="text-blue-500" /></div>
                       <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email Protocol</p>
+                        <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Email Protocol</p>
                         <p className="text-[13px] font-black text-gray-800 break-all">{supplier.contact_details?.email_id || 'N/A'}</p>
                       </div>
                     </div>
                     <div className="p-5 bg-gray-50/50 rounded-2xl border border-gray-100 space-y-4">
                       <div className="p-3 bg-white w-fit rounded-xl shadow-sm"><Phone size={20} className="text-emerald-500" /></div>
                       <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Secure Voice</p>
+                        <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Secure Voice</p>
                         <p className="text-[13px] font-black text-gray-800">{supplier.contact_details?.mobile_no || 'N/A'}</p>
                       </div>
                     </div>
@@ -767,7 +722,7 @@ const SupplierDetails = () => {
                 <div className="flex items-center justify-between bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                   <div className="space-y-1">
                     <h5 className="text-base font-bold text-gray-900 uppercase tracking-tight">Lifecycle Permissions</h5>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current operational authorization</p>
+                    <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Current operational authorization</p>
                   </div>
                   <div
                     className="flex items-center gap-3 px-4 py-2 rounded-lg border border-transparent"
@@ -799,10 +754,10 @@ const SupplierDetails = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Authorized Revision</h2>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Registry Credentials Management</p>
+                  <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest mt-1">Registry Credentials Management</p>
                 </div>
               </div>
-              <button onClick={() => setShowEditModal(false)} className="p-2.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-colors">
+              <button onClick={() => setShowEditModal(false)} className="p-2.5 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-900 transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -819,7 +774,7 @@ const SupplierDetails = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Organization Title *</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Organization Title *</label>
                       <input
                         type="text"
                         value={form.supplier_name}
@@ -831,7 +786,7 @@ const SupplierDetails = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Activity Group *</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Activity Group *</label>
                       <select
                         value={form.supplier_group}
                         onChange={e => setForm({ ...form, supplier_group: e.target.value })}
@@ -841,7 +796,7 @@ const SupplierDetails = () => {
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Industrial Type</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Industrial Type</label>
                       <select
                         value={form.supplier_type}
                         onChange={e => setForm({ ...form, supplier_type: e.target.value })}
@@ -853,7 +808,7 @@ const SupplierDetails = () => {
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tax Identity (TRN)</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Tax Identity (TRN)</label>
                       <input
                         type="text"
                         value={form.tax_id}
@@ -912,7 +867,7 @@ const SupplierDetails = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Authorized Contact Name</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Authorized Contact Name</label>
                       <input
                         type="text"
                         value={form.first_name}
@@ -922,7 +877,7 @@ const SupplierDetails = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Vector</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Email Vector</label>
                       <input
                         type="email"
                         value={form.email_id}
@@ -931,7 +886,7 @@ const SupplierDetails = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mobile Channel</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Mobile Channel</label>
                       <input
                         type="text"
                         value={form.mobile_no}
@@ -950,7 +905,7 @@ const SupplierDetails = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Primary Address Line 1</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Primary Address Line 1</label>
                       <input
                         type="text"
                         value={form.address_line1}
@@ -959,7 +914,7 @@ const SupplierDetails = () => {
                       />
                     </div>
                     <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Address Line 2 (Optional)</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Address Line 2 (Optional)</label>
                       <input
                         type="text"
                         value={form.address_line2}
@@ -968,7 +923,7 @@ const SupplierDetails = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Metropolis / City</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Metropolis / City</label>
                       <input
                         type="text"
                         value={form.city}
@@ -977,7 +932,7 @@ const SupplierDetails = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Emirate / Province</label>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Emirate / Province</label>
                       <select
                         value={form.emirate}
                         onChange={e => setForm({ ...form, emirate: e.target.value })}
@@ -996,7 +951,7 @@ const SupplierDetails = () => {
             <div className="px-8 py-6 border-t border-gray-100 flex justify-end items-center gap-4 shrink-0 bg-white">
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-6 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors"
+                className="px-6 py-2.5 text-[10px] font-black text-gray-600 uppercase tracking-widest hover:text-gray-900 transition-colors"
               >
                 Discard Changes
               </button>

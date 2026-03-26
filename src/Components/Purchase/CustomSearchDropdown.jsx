@@ -9,7 +9,8 @@ const CustomSearchDropdown = ({
   fetchData,
   createOption,
   optionsLabel = "name",
-  extraCreateFields
+  extraCreateFields,
+  disabled = false
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -121,7 +122,7 @@ const CustomSearchDropdown = ({
   };
 
   const handleKeyDown = (e) => {
-    if (!show) return;
+    if (!show || disabled) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -151,14 +152,16 @@ const CustomSearchDropdown = ({
             ref={inputRef}
             value={query}
             onChange={(e) => {
+              if (disabled) return;
               setQuery(e.target.value);
               setJustCreated(false);
               setSelectedIndex(-1);
             }}
-            onFocus={() => setShow(true)}
+            onFocus={() => !disabled && setShow(true)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:border-[var(--po-primary)] outline-none transition-all text-xs font-bold text-slate-700"
+            disabled={disabled}
           />
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">

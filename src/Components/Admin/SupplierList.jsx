@@ -370,12 +370,12 @@ export default function SupplierList() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                             {s.email_id && (
                               <div style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569' }}>
-                                <Mail size={12} className="text-slate-400" /> {s.email_id}
+                                <Mail size={12} className="text-slate-600" /> {s.email_id}
                               </div>
                             )}
                             {s.mobile_no && (
                               <div style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569' }}>
-                                <Phone size={12} className="text-slate-400" /> {s.mobile_no}
+                                <Phone size={12} className="text-slate-600" /> {s.mobile_no}
                               </div>
                             )}
                           </div>
