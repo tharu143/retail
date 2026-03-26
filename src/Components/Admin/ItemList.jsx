@@ -357,7 +357,8 @@ const defaultForm = () => ({
   opening_stock: 0, valuation_rate: 0, standard_selling_rate: 0, brand: '',
   default_uom: 'Nos', description: '', image: null, imagePreview: null,
   uoms: [], hsn_code: '', country_of_origin: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
-  is_stock_item: 1, is_sales_item: 1, is_purchase_item: 1, supplier_items: []
+  is_stock_item: 1, is_sales_item: 1, is_purchase_item: 1, supplier_items: [],
+  branch_availability: []
 });
 
 /* ========== MAIN COMPONENT ========== */
@@ -454,6 +455,7 @@ export default function ItemList() {
         const item = result.item_details;
         setForm(prev => ({ ...prev, brand: item.brand || '', valuation_rate: item.valuation_rate || 0, uoms: item.uoms || [], hsn_code: item.hsn_code || '', country_of_origin: item.country_of_origin || '', custom_loyalty_eligible: item.custom_loyalty_eligible || 0, custom_allow_discount: item.custom_allow_discount || 0, is_stock_item: item.is_stock_item || 0, is_sales_item: item.is_sales_item || 0, is_purchase_item: item.is_purchase_item || 0, supplier_items: item.supplier_items || [], description: item.description || prev.description }));
         if (item.barcodes) setBarcodes(item.barcodes);
+        if (item.branch_availability) setForm(prev => ({ ...prev, branch_availability: item.branch_availability }));
       }
       try {
         const connRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_linked_documents', { params: { doctype: 'Item', name: code }, withCredentials: true });
@@ -573,6 +575,10 @@ export default function ItemList() {
   const removeSupplierRow = (i) => setForm(p => ({ ...p, supplier_items: p.supplier_items.filter((_, idx) => idx !== i) }));
   const updateSupplierRow = (i, f, v) => { const s = [...form.supplier_items]; s[i][f] = v; setForm({ ...form, supplier_items: s }); };
 
+  const addBranchRow = () => setForm(p => ({ ...p, branch_availability: [...p.branch_availability, { warehouse: '' }] }));
+  const removeBranchRow = (i) => setForm(p => ({ ...p, branch_availability: p.branch_availability.filter((_, idx) => idx !== i) }));
+  const updateBranchRow = (i, v) => { const b = [...form.branch_availability]; b[i].warehouse = v; setForm({ ...form, branch_availability: b }); };
+
   const filteredItems = useMemo(() => items.filter(item => {
     const s = filterName.toLowerCase();
     return (!filterName || item.item_code.toLowerCase().includes(s) || item.item_name.toLowerCase().includes(s))
@@ -594,7 +600,7 @@ export default function ItemList() {
     if (!form.item_code.trim() || !form.item_name.trim() || !form.item_group || !form.default_uom.trim()) { alert('Please fill all required fields'); return; }
     setSaving(true);
     try {
-      const data = { item_code: form.item_code, item_name: form.item_name, item_group: form.item_group, stock_uom: form.default_uom, standard_rate: parseFloat(form.standard_selling_rate) || 0, disabled: form.disabled ? 1 : 0, maintain_stock: form.maintain_stock ? 1 : 0, has_variants: form.has_variants ? 1 : 0, description: form.description || '', image: form.image || form.imagePreview || '', hsn_code: form.hsn_code, brand: form.brand, country_of_origin: form.country_of_origin, custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0, custom_allow_discount: form.custom_allow_discount ? 1 : 0, is_stock_item: form.is_stock_item ? 1 : 0, is_sales_item: form.is_sales_item ? 1 : 0, is_purchase_item: form.is_purchase_item ? 1 : 0, barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })), uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })), supplier_items: form.supplier_items };
+      const data = { item_code: form.item_code, item_name: form.item_name, item_group: form.item_group, stock_uom: form.default_uom, standard_rate: parseFloat(form.standard_selling_rate) || 0, disabled: form.disabled ? 1 : 0, maintain_stock: form.maintain_stock ? 1 : 0, has_variants: form.has_variants ? 1 : 0, description: form.description || '', image: form.image || form.imagePreview || '', hsn_code: form.hsn_code, brand: form.brand, country_of_origin: form.country_of_origin, custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0, custom_allow_discount: form.custom_allow_discount ? 1 : 0, is_stock_item: form.is_stock_item ? 1 : 0, is_sales_item: form.is_sales_item ? 1 : 0, is_purchase_item: form.is_purchase_item ? 1 : 0, barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })), uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })), supplier_items: form.supplier_items, branch_availability: form.branch_availability.filter(b => b.warehouse) };
       await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc', { doctype: 'Item', data }, { withCredentials: true });
       alert(isEditMode ? 'Item updated!' : 'Item created!');
       setShowForm(false); resetForm(); fetchItems();
@@ -620,7 +626,7 @@ export default function ItemList() {
 
   const handleRowClick = async (item) => {
     setIsViewMode(true); setIsEditMode(false); setEditingItemCode(item.item_code);
-    setForm({ ...defaultForm(), item_code: item.item_code, item_name: item.item_name, item_group: item.item_group, disabled: item.disabled === 1, has_variants: item.has_variants === 1, default_uom: item.stock_uom || 'Nos', standard_selling_rate: item.standard_rate || 0, imagePreview: item.image, brand: item.brand || '', country_of_origin: item.country_of_origin || '' });
+    setForm({ ...defaultForm(), item_code: item.item_code, item_name: item.item_name, item_group: item.item_group, disabled: item.disabled === 1, has_variants: item.has_variants === 1, default_uom: item.stock_uom || 'Nos', standard_selling_rate: item.standard_rate || 0, imagePreview: item.image, brand: item.brand || '', country_of_origin: item.country_of_origin || '', branch_availability: [] });
     setBarcodes([]); setShowForm(true); setActiveTab('General'); setDashboardData(null); setConnectionActiveTab(null);
     fetchPriceList(item.item_code);
     fetchItemDashboardDetails(item.item_code);
@@ -668,7 +674,12 @@ export default function ItemList() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}><Scale size={14} />Price Master</button>
               <button className="il-btn il-btn-secondary" onClick={fetchItems} title="Refresh"><RefreshCw size={14} /></button>
-              <button className="il-btn il-btn-primary" onClick={() => { resetForm(); setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); }}><Plus size={14} />Add Item</button>
+              <button className="il-btn il-btn-primary" onClick={() => { 
+                resetForm(); 
+                const myWh = localStorage.getItem('warehouse');
+                if (myWh) setForm(p => ({ ...p, branch_availability: [{ warehouse: myWh }] }));
+                setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); 
+              }}><Plus size={14} />Add Item</button>
             </div>
           </div>
         </div>
@@ -1031,7 +1042,40 @@ export default function ItemList() {
                         </div>
                       </div>
 
-                      {/* Suppliers */}
+                      <CardSection title="Branch Availability" icon={<MapPin size={14} />}>
+                        <div style={{ padding: '12px 14px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {form.branch_availability?.length > 0
+                            ? form.branch_availability.map((b, i) => (
+                              <div key={i} style={{ padding: '6px 12px', background: T.blueLight, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Warehouse size={12} color={T.blue} />
+                                <span style={{ fontSize: 11, fontWeight: 700, color: T.blue }}>{b.warehouse}</span>
+                              </div>
+                            ))
+                            : (
+                              <div style={{ width: '100%', padding: '16px', textAlign: 'center', background: T.bg, borderRadius: 12 }}>
+                                <p style={{ fontSize: 12, fontWeight: 700, color: T.textMuted }}>GLOBAL VISIBILITY</p>
+                                <p style={{ fontSize: 10, color: T.textMuted }}>Available in all regional clusters</p>
+                              </div>
+                            )}
+                          {form.branch_availability?.length > 0 && !form.branch_availability.some(b => b.warehouse === localStorage.getItem('warehouse')) && (
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_item_for_branch_retail', { item_code: editingItemCode, warehouse: localStorage.getItem('warehouse') }, { withCredentials: true });
+                                  if (res.data.message?.success) {
+                                    Swal.fire('Success', 'Item enabled for your branch', 'success');
+                                    fetchItemDashboardDetails(editingItemCode);
+                                  }
+                                } catch (e) { Swal.fire('Error', e.message, 'error'); }
+                              }}
+                              style={{ width: '100%', marginTop: 10, padding: 10, background: T.blue, color: '#fff', border: 'none', borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+                            >
+                              SYNC TO MY BRANCH
+                            </button>
+                          )}
+                        </div>
+                      </CardSection>
+
                       <CardSection title="Suppliers" icon={<Users size={14} />}>
                         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {form.supplier_items?.length > 0
@@ -1427,6 +1471,31 @@ export default function ItemList() {
                       ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No additional UOMs</div>}
                     </CardSection>
                   )}
+
+                  <CardSection title="Branch Visibility" icon={<MapPin size={14} />}
+                    action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addBranchRow}><Plus size={12} />Add Branch</button>}
+                  >
+                    {form.branch_availability.length > 0 ? (
+                      <table className="il-table">
+                        <thead><tr><th>Target Warehouse</th><th style={{ width: 40 }}></th></tr></thead>
+                        <tbody>
+                          {form.branch_availability.map((b, i) => (
+                            <tr key={i}>
+                              <td style={{ paddingTop: 8, paddingBottom: 8 }}>
+                                  <SearchableSelectInline
+                                    value={b.warehouse}
+                                    options={priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || []}
+                                    placeholder="Select Branch"
+                                    onChange={val => updateBranchRow(i, val)}
+                                  />
+                              </td>
+                              <td><button onClick={() => removeBranchRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : <div style={{ padding: '18px', textAlign: 'center', background: T.bg, borderRadius: 12, margin: 10 }}><p style={{ fontSize: 11, fontWeight: 700, color: T.textMuted }}>GLOBAL ALLOCATION</p></div>}
+                  </CardSection>
 
                   <CardSection title="Supplier Mapping" icon={<Users size={14} />}
                     action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addSupplierRow}><Plus size={12} />Add</button>}

@@ -136,6 +136,20 @@ const POSService = {
             type: 'GET'
         });
         return Array.isArray(res) ? res[0] : res;
+    },
+
+    findItemGlobally: async (searchTerm) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.find_item_globally_retail',
+            args: { search_term: searchTerm }
+        });
+    },
+
+    enableItemForBranch: async (itemCode, warehouse) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.enable_item_for_branch_retail',
+            args: { item_code: itemCode, warehouse: warehouse }
+        });
     }
 };
 

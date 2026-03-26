@@ -802,7 +802,7 @@ function Home() {
         ).slice(0, 12);
       }
       setItemSearchResults(results);
-      setShowItemDropdown(results.length > 0);
+      setShowItemDropdown(results.length > 0 || query.length > 2);
     } else {
       setItemSearchResults([]);
       setShowItemDropdown(false);
@@ -1417,6 +1417,44 @@ function Home() {
   };
 
   // NEW: Request Stock from other warehouses
+  const handleGlobalSearch = async (term) => {
+    try {
+      setSearchLoading(true);
+      const res = await POSService.findItemGlobally(term);
+      if (res && res.length > 0) {
+        setItemSearchResults(res.map(it => ({
+          ...it,
+          id: it.name,
+          name: it.item_name,
+          is_global: true
+        })));
+        setShowItemDropdown(true);
+      } else {
+        Swal.fire('Not Found', 'This item does not exist in any branch.', 'info');
+      }
+    } catch (err) {
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleEnableGlobalItem = async (item) => {
+    try {
+      Swal.fire({ title: 'Enabling Item for Branch...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await POSService.enableItemForBranch(item.id, warehouse);
+      if (res && (res.success || res.message?.success)) {
+        Swal.fire('Success', 'Item authorized for your branch!', 'success');
+        handleAddToBill({ ...item, is_global: false });
+        setBarcodeInput('');
+        setShowItemDropdown(false);
+        fetchItems(true);
+      }
+    } catch (err) {
+      Swal.fire('Error', err.message, 'error');
+    }
+  };
+
   const handleRequestStock = async (item) => {
     const { value: quantity } = await Swal.fire({
       title: 'Request Stock',
@@ -3475,21 +3513,30 @@ function Home() {
 
                   {/* Item Search Dropdown */}
                   {showItemDropdown && (
-                    <div ref={itemDropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '300px', overflowY: 'auto', zIndex: 20, marginTop: '4px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
+                    <div ref={itemDropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '300px', overflowY: 'auto', zIndex: 100, marginTop: '4px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
                       {itemSearchResults.map(it => (
-                        <div key={it.id} onClick={() => { handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); }} style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '0.75rem' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}>
-                          {it.barcode_image ? (
-                            <img src={getImageUrl(it.barcode_image)} alt="barcode" style={{ width: '60px', height: '30px', objectFit: 'contain' }} />
-                          ) : (
-                            it.image ? <img src={getImageUrl(it.image)} alt={it.name} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} /> : <div style={{ width: '32px', height: '32px', backgroundColor: '#f1f5f9', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#64748b' }}>No img</div>
-                          )}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{it.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Code: {it.id} | Stock: {it.local_qty}</div>
+                        <div key={it.id} onClick={() => it.is_global ? handleEnableGlobalItem(it) : (handleAddToBill(it), setBarcodeInput(''), setShowItemDropdown(false))} style={{ padding: '0.9rem 1.25rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '1rem', background: it.is_global ? '#fffbeb' : '#fff' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = it.is_global ? '#fef3c7' : '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = it.is_global ? '#fffbeb' : '#fff'}>
+                          {it.image ? <img src={getImageUrl(it.image)} alt={it.name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '8px' }} /> : <div style={{ width: '40px', height: '40px', backgroundColor: '#f1f5f9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#64748b', border: '1px dashed #cbd5e1' }}>IMG</div>}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 800, fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.name}</span>
+                              {it.is_global && <span style={{ fontSize: 9, background: '#f59e0b', color: '#fff', padding: '1px 5px', borderRadius: 4, fontWeight: 900 }}>GLOBAL</span>}
+                            </div>
+                            <div style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600 }}>{it.is_global ? 'Registry discovery - sync to branch' : `Stock: ${it.local_qty} UNITS | Code: ${it.id}`}</div>
                           </div>
-                          <div style={{ fontWeight: 700, color: '#1e293b' }}>AED {it.price}</div>
+                          <div style={{ fontWeight: 900, color: '#0f172a', textAlign: 'right' }}>
+                            {it.is_global ? <span style={{ color: '#d97706', fontSize: 10, letterSpacing: '-0.2px' }}>AUTHORIZE ENTRY</span> : `AED ${parseFloat(it.price).toFixed(2)}`}
+                          </div>
                         </div>
                       ))}
+                      {itemSearchResults.length === 0 && barcodeInput.length >= 2 && !searchLoading && (
+                        <div onClick={() => handleGlobalSearch(barcodeInput)} style={{ padding: '1rem', cursor: 'pointer', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                           <p style={{ fontSize: 11, fontWeight: 800, color: '#64748b' }}>NO LOCAL RESULTS FOUND</p>
+                           <button style={{ width: '100%', padding: '12px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '11px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s' }}>
+                             <Search size={14} /> SEARCH INDUSTRY REGISTRY
+                           </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
