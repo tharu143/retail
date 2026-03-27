@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
@@ -6,12 +6,26 @@ import Swal from 'sweetalert2';
 import {
   AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, Users,
   DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
-  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2
+  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Settings
 } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import CustomSearchDropdown from './CustomSearchDropdown';
+import ColumnConfigModal from './ColumnConfigModal';
 import './Purchase.css';
 import '../Headers/LegacyPOS.css';
+
+const DEFAULT_PO_COLUMNS = [
+  { id: 'item_code',          label: 'Item Code',         visible: true,  width: 240 },
+  { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 160 },
+  { id: 'custom_box_qty',     label: 'Box Qty',           visible: true,  width: 90  },
+  { id: 'uom',                label: 'UOM',               visible: true,  width: 80  },
+  { id: 'custom_pieces_per_box', label: 'Pcs/Box',        visible: true,  width: 90  },
+  { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 120 },
+  { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 120 },
+  { id: 'custom_selling_price', label: 'Selling Price',   visible: true,  width: 120 },
+  { id: 'qty',                label: 'Total Qty',         visible: true,  width: 100 },
+  { id: 'amount',             label: 'Subtotal',          visible: true,  width: 140 }
+];
 
 const POItemModel = {
   item_code: null,
@@ -24,7 +38,8 @@ const POItemModel = {
   custom_box_qty: 0,
   custom_pieces_per_box: 1,
   custom_box_price: 0,
-  use_box_entry: false,
+  use_box_entry: false,       // true = Box UOM selected, false = Nos/direct qty
+  uom_list: [],               // available UOMs from item metadata
   last_buying_rate: 0,
   custom_selling_price: 0,
   received_qty: 0,
@@ -98,9 +113,47 @@ function PurchaseOrder() {
   const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [allowedActions, setAllowedActions] = useState([]); // Workflow actions [save, submit, cancel, etc]
 
+  // ----- Column Config -----
+  const loadColumnConfig = () => {
+    try {
+      const saved = localStorage.getItem('po_column_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Merge with defaults to ensure any new columns are included
+        const defaultIds = DEFAULT_PO_COLUMNS.map(c => c.id);
+        const savedIds   = parsed.map(c => c.id);
+        const missing    = DEFAULT_PO_COLUMNS.filter(c => !savedIds.includes(c.id));
+        return [...parsed, ...missing];
+      }
+    } catch (e) { /* ignore */ }
+    return DEFAULT_PO_COLUMNS;
+  };
+  const [columnConfig, setColumnConfig]   = useState(loadColumnConfig);
+  const [showColConfig, setShowColConfig] = useState(false);
+
+  const handleColConfigUpdate = (newConfig) => {
+    if (newConfig === null) {
+      // Reset to default
+      setColumnConfig(DEFAULT_PO_COLUMNS);
+      localStorage.removeItem('po_column_config');
+    } else {
+      setColumnConfig(newConfig);
+      localStorage.setItem('po_column_config', JSON.stringify(newConfig));
+    }
+    setShowColConfig(false);
+  };
+
   useEffect(() => {
     if (formData.name) fetchWorkflowActions();
   }, [formData.name, formData.docstatus]);
+
+
+
+  const isDirty = useMemo(() => {
+    if (!formData.name) return true; // New docs are always dirty
+    const current = JSON.stringify(formData);
+    return lastSavedData !== current;
+  }, [formData, lastSavedData]);
 
   const fetchWorkflowActions = async () => {
     if (!formData.name) return;
@@ -164,6 +217,8 @@ function PurchaseOrder() {
               custom_box_qty: parseFloat(item.custom_box_qty || 0),
               custom_box_price: parseFloat(item.custom_box_price || 0),
               custom_selling_price: parseFloat(item.custom_selling_price || 0),
+              custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
+              custom_supplier_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
               custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
               supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || ""
             })),
@@ -178,18 +233,21 @@ function PurchaseOrder() {
             tax_total: parseFloat(formData.tax_total),
             total_qty: parseFloat(formData.total_qty),
             grand_total: parseFloat(formData.grand_total),
-            naming_series: formData.naming_series || 'PO-'
+            naming_series: formData.naming_series || 'PO-',
+            name: formData.name || undefined
           };
       }
 
       let res;
       if (action === 'save' || action === 'submit') {
-          // Use NEW Generic API for Save/Submit
           res = await axios.post(`${API_PATH}.save_transaction_document`, {
             doctype: 'Purchase Order',
             doc_data: payload,
             action: action
           }, { withCredentials: true });
+      } else if (action === 'amend') {
+          // Use Dedicated Amend logic
+          return handleAmendEntry();
       } else {
           // Use Workflow Engine for Lifecycle actions
           res = await axios.post(`${API_PATH}.handle_document_action`, {
@@ -204,6 +262,7 @@ function PurchaseOrder() {
       const success = rawMsg.success || rawMsg.status === 'success';
 
       if (success) {
+        setLastSavedData(JSON.stringify(payload)); // Update base for dirty check after save
         Swal.fire('Success', `${action.toUpperCase()} operation completed successfully.`, 'success');
         
         if (action === 'delete') {
@@ -484,7 +543,7 @@ function PurchaseOrder() {
       const draft = data.data;
 
       // Map Frappe doc to local formData state
-      setFormData({
+      const mapped = {
         name: draft.name,
         supplier: { name: draft.supplier, supplier_name: draft.supplier }, // Basic map
         transaction_date: draft.transaction_date,
@@ -505,6 +564,10 @@ function PurchaseOrder() {
           qty: parseFloat(it.qty) || 0,
           rate: parseFloat(it.rate) || 0,
           amount: parseFloat(it.amount) || 0,
+          purchase_order: it.purchase_order || '',
+          purchase_order_item: it.purchase_order_item || '',
+          use_box_entry: it.uom === 'Box' || 
+            (parseFloat(it.custom_box_qty) > 0 && Math.abs((parseFloat(it.qty) || parseFloat(it.accepted_qty)) - (parseFloat(it.custom_box_qty) * parseFloat(it.custom_pieces_per_box || 1))) < 0.1),
         })),
         total_qty: parseFloat(draft.total_qty) || 0,
         total: parseFloat(draft.total) || 0,
@@ -512,15 +575,17 @@ function PurchaseOrder() {
         taxes: draft.taxes || [],
         tax_total: parseFloat(draft.total_taxes_and_charges) || 0,
         grand_total: parseFloat(draft.grand_total) || 0,
-        docstatus: parseInt(draft.docstatus) || 0,   // ✅ Use actual docstatus from ERPNext
+        docstatus: parseInt(draft.docstatus) || 0,
         per_billed: parseFloat(draft.per_billed) || 0,
         per_received: parseFloat(draft.per_received) || 0,
         status: draft.status || '',
         quick_entry: false,
         naming_series: draft.naming_series || 'PO-'
-      });
+      };
+
+      setFormData(mapped);
       setIsEditMode(true);
-      setLastSavedData(JSON.stringify(draft)); // Base point for dirty check
+      setLastSavedData(JSON.stringify(mapped)); // Use mapped object for stable comparison
 
       // STRICT RULE: If submitted/cancelled, must be ViewOnly. If draft, default to view mode.
       setIsViewOnly(true);
@@ -676,10 +741,10 @@ function PurchaseOrder() {
         params: { doctype: 'Purchase Order', name: formData.name },
         withCredentials: true
       });
-      // Extract name robustly from varied response structures
-      const newDraftName = res.data?.message?.data?.name || res.data?.data?.name || res.data?.message?.name;
+      // Extract name robustly
+      const newDraftName = res.data?.message?.data?.name || res.data?.data?.name || res.data?.message?.name || res.data?.new_name;
       
-      if (!newDraftName) throw new Error("Could not extract new document name from response.");
+      if (!newDraftName) throw new Error("Could not extract new document name. Server response: " + JSON.stringify(res.data));
 
       Swal.fire('Amended!', `New draft created: ${newDraftName}`, 'success');
       loadDraft(newDraftName);
@@ -726,6 +791,55 @@ function PurchaseOrder() {
     }
   };
 
+  // Fetch UOM list for an item from ERPNext metadata
+  const fetchItemUOMs = async (item_code) => {
+    try {
+      const res = await fetch(`/api/resource/Item/${encodeURIComponent(item_code)}?fields=["uoms","stock_uom"]`, {
+        headers: { 'X-Frappe-SID': getSession() },
+        credentials: 'include'
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const doc = data.data || {};
+      const uomRows = doc.uoms || [];
+      // Return [{uom, conversion_factor}], always include stock_uom
+      const list = uomRows.map(u => ({ uom: u.uom, conversion_factor: parseFloat(u.conversion_factor) || 1 }));
+      if (!list.find(u => u.uom === doc.stock_uom)) {
+        list.unshift({ uom: doc.stock_uom, conversion_factor: 1 });
+      }
+      return list;
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // Called when user changes UOM dropdown for a row
+  const handleUOMChange = (uomValue, rowIndex) => {
+    setFormData(prev => {
+      const items = [...prev.items];
+      const item = { ...items[rowIndex] };
+      const isBox = uomValue.toLowerCase() === 'box';
+      item.uom = uomValue;
+      item.use_box_entry = isBox;
+
+      if (isBox) {
+        // Box mode: qty = box_qty × pcs_per_box
+        const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+        item.qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
+        item.custom_box_price = parseFloat(((item.rate || 0) * pPerBox).toFixed(2));
+      } else {
+        // Nos mode: box_qty IS the qty, pcs_per_box not relevant
+        item.custom_pieces_per_box = 1;
+        item.qty = parseFloat(item.custom_box_qty) || 0;
+        item.custom_box_price = item.rate || 0;
+      }
+      item.amount = (item.qty || 0) * (item.rate || 0);
+      items[rowIndex] = item;
+      const totals = calculateTotals(items, prev.taxes);
+      return { ...prev, items, ...totals };
+    });
+  };
+
   const handleInputChange = (e, rowIndex = null) => {
     const { name, value } = e.target;
     const val = value === '' ? '' : parseFloat(value) || 0;
@@ -735,6 +849,7 @@ function PurchaseOrder() {
       if (rowIndex !== null) {
         const items = [...prev.items];
         const item = { ...items[rowIndex] };
+        const isBoxMode = item.use_box_entry;
 
         if (name === 'qty' || name === 'rate') {
           item[name] = val === '' ? 0 : val;
@@ -749,7 +864,13 @@ function PurchaseOrder() {
         } else if (name === 'custom_box_qty') {
           const bQty = val === '' ? 0 : Math.round(val);
           item.custom_box_qty = bQty;
-          item.qty = parseFloat((bQty * (item.custom_pieces_per_box || 1)).toFixed(2));
+          if (isBoxMode) {
+            // Box mode: qty = box_qty × pcs_per_box
+            item.qty = parseFloat((bQty * (item.custom_pieces_per_box || 1)).toFixed(2));
+          } else {
+            // Nos mode: box_qty col is directly the qty
+            item.qty = bQty;
+          }
           item.amount = (item.qty || 0) * (item.rate || 0);
           item.received_qty = item.qty;
         } else if (name === 'custom_pieces_per_box') {
@@ -1242,12 +1363,17 @@ function PurchaseOrder() {
         setSuccess(`${type === 'receipt' ? '📦 Receipt' : '🧾 Invoice'} ${docName} created successfully (Draft)!`);
         setCreatedDocName(docName);
 
-        // Route immediately to the respective draft details screen
+        // Route immediately to the respective draft details screen in a NEW TAB
         if (type === 'receipt') {
-          window.location.href = `/#/purchasereceiptlist?name=${docName}`;
+          window.open(`/#/purchasereceiptlist?name=${docName}`, "_blank");
         } else {
-          window.location.href = `/#/purchaseinvoicelist?name=${docName}`;
+          window.open(`/#/purchaseinvoicelist?name=${docName}`, "_blank");
         }
+        Swal.fire({
+          title: 'Success',
+          text: `${type === 'receipt' ? 'Receipt' : 'Invoice'} ${docName} created and opened in a new tab.`,
+          icon: 'success'
+        });
       }
       fetchLinkedDocs(formData.name);
     } catch (err) {
@@ -1318,12 +1444,15 @@ function PurchaseOrder() {
         }
       } else {
         const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
+        const uomList = item.uom_list || [];
         items[rowIndex] = {
           ...items[rowIndex],
           item_code: item.item_code,
           item_name: item.item_name,
           stock_uom: item.stock_uom || '',
           uom: item.stock_uom || '',
+          uom_list: uomList,
+          use_box_entry: false, // default Nos mode
           rate: rate,
           last_buying_rate: rate,
           custom_pieces_per_box: pPerBox,
@@ -1337,6 +1466,16 @@ function PurchaseOrder() {
           supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
           custom_selling_price: parseFloat(item.selling_price || 0)
         };
+
+        // Async fetch UOMs and update row
+        fetchItemUOMs(item.item_code).then(uomList => {
+          setFormData(p => {
+            const its = [...p.items];
+            const ri = its.findIndex(i => i.item_code === item.item_code);
+            if (ri !== -1) its[ri] = { ...its[ri], uom_list: uomList };
+            return { ...p, items: its };
+          });
+        });
       }
 
       if (items.every(i => i.item_code)) {
@@ -1405,53 +1544,75 @@ function PurchaseOrder() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* ERP-style View/Edit Toggle */}
-            {formData.name && (
-              <div className="flex items-center gap-2">
-                {allowedActions.includes('save') && !isViewOnly && (
-                  <button onClick={() => handleDocAction('save')} className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-[11px] font-black text-blue-700 hover:bg-blue-100 transition-all shadow-sm">
-                    <Save size={14} /> Update Draft
-                  </button>
-                )}
-                {allowedActions.includes('submit') && !isViewOnly && (
-                  <button onClick={() => handleDocAction('submit')} className="flex items-center gap-2 px-4 py-1.5 bg-[var(--po-primary)] text-white rounded-lg text-[11px] font-black hover:bg-[var(--po-primary-hover)] transition-all shadow-md">
-                    <Send size={14} /> Submit matrix
-                  </button>
-                )}
-                {allowedActions.includes('cancel') && (
-                  <button onClick={() => handleDocAction('cancel')} className="flex items-center gap-2 px-4 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-black text-rose-700 hover:bg-rose-100 transition-all shadow-sm">
-                    <X size={14} /> Cancel PO
-                  </button>
-                )}
-                {allowedActions.includes('amend') && (
-                  <button onClick={() => handleDocAction('amend')} className="flex items-center gap-2 px-4 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-[11px] font-black text-sky-700 hover:bg-sky-100 transition-all shadow-sm">
-                    <History size={14} /> Amend PO
-                  </button>
-                )}
-                {allowedActions.includes('delete') && (
-                   <button onClick={() => handleDocAction('delete')} className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-black text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm">
-                    <Trash2 size={14} /> Delete
-                  </button>
-                )}
-                {isViewOnly && formData.docstatus === 0 && (
-                  <button onClick={() => setIsViewOnly(false)} className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-                    <Edit2 size={14} className="text-blue-500" /> Refine Draft
-                  </button>
-                )}
-              </div>
-            )}
-
+            {/* New Document Save */}
             {!formData.name && (
-              <button onClick={() => handleDocAction('save')} disabled={saving} className="po-btn-primary px-8">
-                {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Save Genesis
+              <button 
+                onClick={() => handleDocAction('save')} 
+                disabled={saving} 
+                className="flex items-center gap-2 px-8 py-2 bg-[var(--po-primary)] text-white rounded-xl text-xs font-black hover:bg-[var(--po-primary-hover)] transition-all shadow-lg shadow-emerald-200 active:scale-95"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} />}
+                SAVE DRAFT
               </button>
             )}
 
+            {/* Existing Document Actions */}
+            {formData.name && (
+              <div className="flex items-center gap-2">
+                {/* Draft Phase */}
+                {formData.docstatus === 0 && (
+                  <>
+                     {(allowedActions.includes('save') && isDirty) && !isViewOnly && (
+                      <button onClick={() => handleDocAction('save')} className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-[11px] font-black text-blue-700 hover:bg-blue-100 transition-all shadow-sm">
+                        <Save size={14} /> UPDATE DRAFT
+                      </button>
+                    )}
+                    {allowedActions.includes('submit') && !isDirty && (
+                      <button onClick={() => handleDocAction('submit')} className="flex items-center gap-2 px-6 py-1.5 bg-emerald-600 text-white rounded-lg text-[11px] font-black hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 ring-2 ring-emerald-500/20">
+                        <Send size={14} /> SUBMIT
+                      </button>
+                    )}
+                    {isViewOnly && (
+                      <button onClick={() => setIsViewOnly(false)} className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
+                        <Edit2 size={14} className="text-blue-500" /> EDIT DRAFT
+                      </button>
+                    )}
+                  </>
+                )}
 
-            {formData.docstatus === 1 && (
-              <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg text-[11px] font-black text-emerald-700 shadow-sm">
-                <CheckCircle2 className="w-4 h-4" />
-                Submitted
+                {/* Submitted Phase */}
+                {formData.docstatus === 1 && (
+                  <div className="flex items-center gap-2">
+                    {allowedActions.includes('cancel') && (
+                      <button onClick={() => handleDocAction('cancel')} className="flex items-center gap-2 px-4 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-black text-rose-700 hover:bg-rose-100 transition-all shadow-sm">
+                        <X size={14} /> CANCEL
+                      </button>
+                    )}
+                    <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg text-[11px] font-black text-emerald-700 shadow-sm">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Submitted
+                    </div>
+                  </div>
+                )}
+
+                {/* Cancelled Phase */}
+                {formData.docstatus === 2 && (
+                  <div className="flex items-center gap-2">
+                    {allowedActions.includes('amend') && (
+                      <button onClick={() => handleDocAction('amend')} className="flex items-center gap-2 px-4 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-[11px] font-black text-sky-700 hover:bg-sky-100 transition-all shadow-sm">
+                        <History size={14} /> AMEND
+                      </button>
+                    )}
+                    <div className="px-3 py-1 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase">Cancelled</div>
+                  </div>
+                )}
+
+                {/* Always show delete for drafts */}
+                {formData.docstatus === 0 && allowedActions.includes('delete') && (
+                   <button onClick={() => handleDocAction('delete')} className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-black text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm">
+                    <Trash2 size={14} /> DELETE
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1480,7 +1641,7 @@ function PurchaseOrder() {
                           className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50"
                         >
                           <Plus className="w-4 h-4" />
-                          GET RECEIPTS
+                          Create Receipt
                         </button>
                       )}
                       {formData.per_billed < 100 && (
@@ -1490,7 +1651,7 @@ function PurchaseOrder() {
                           className="w-full flex items-center justify-center gap-2 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-sky-200 transition-all active:scale-95 disabled:opacity-50"
                         >
                           <Plus className="w-4 h-4" />
-                          GET INVOICE
+                          Create Invoice
                         </button>
                       )}
                     </div>
@@ -1681,8 +1842,17 @@ function PurchaseOrder() {
               </div>
 
               <div className="po-card">
-                <div className="po-card-header">
+                <div className="po-card-header flex items-center justify-between">
                   <h3 className="po-card-title">Product Inventory Basket</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowColConfig(true)}
+                    title="Configure Columns"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all text-[11px] font-bold"
+                  >
+                    <Settings size={15} />
+                    <span>Columns</span>
+                  </button>
                 </div>
 
                 {!isViewOnly && formData.docstatus === 0 && (
@@ -1775,168 +1945,228 @@ function PurchaseOrder() {
                   <table className="purchase-table">
                     <thead>
                       <tr>
-                        <th className="purchase-th !pl-3 w-[140px] text-center">Scanner</th>
-                        <th className="purchase-th min-w-[240px]">Item Code</th>
-                        <th className="purchase-th w-[90px] text-center">Box Qty</th>
-                        <th className="purchase-th w-[90px] text-center">Pcs/Box</th>
-                        <th className="purchase-th w-[140px] text-center">Box Price</th>
-                        <th className="purchase-th w-[140px] text-center">Selling Price</th>
-                        <th className="purchase-th w-[160px] text-center">Ref / Supplier SL #</th>
-                        <th className="purchase-th w-[100px] text-center">Total Qty</th>
-                        <th className="purchase-th w-[80px] text-center">UOM</th>
-                        <th className="purchase-th w-[140px] text-center">Rate</th>
-                        <th className="purchase-th w-[170px] text-center !pr-3">Subtotal</th>
+                        {columnConfig.filter(c => c.visible).map(col => {
+                          const hasAnyBox = formData.items.some(i => i.use_box_entry);
+                          let finalLabel = col.label;
+
+                          if (!hasAnyBox) {
+                            if (col.id === 'custom_box_qty') finalLabel = 'Qty';
+                            if (col.id === 'custom_box_price') finalLabel = 'Price';
+                            if (col.id === 'custom_pieces_per_box') finalLabel = ''; // hide the Pcs/Box header label 
+                          }
+
+                          return (
+                            <th
+                              key={col.id}
+                              className="purchase-th text-center"
+                              style={{ width: col.width, minWidth: col.id === 'item_code' ? 200 : undefined }}
+                            >
+                              {finalLabel}
+                            </th>
+                          );
+                        })}
                         <th className="purchase-th w-[50px]"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {formData.items.map((item, idx) => (
                         <tr key={idx} className="group hover:bg-slate-50 transition-colors">
-                          <td className="purchase-td !pl-5">
-                            <input
-                              type="text"
-                              value={item.temp_barcode ?? ''}
-                              placeholder={isViewOnly ? "" : "Barcode"}
-                              readOnly={isViewOnly || formData.docstatus !== 0}
-                              onChange={(e) => handleBarcodeScan(e, idx)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && e.target.value) {
-                                  handleBarcodeEnter(e, idx);
-                                } else {
-                                  handleNextFocus(e);
-                                }
-                              }}
-                              className="w-full text-[11px] font-bold outline-none disabled:text-slate-400"
-                            />
-                          </td>
-                          <td className="purchase-td">
-                            <div className="relative product-search-container">
-                              <input
-                                type="text"
-                                value={item.item_name ?? ''}
-                                placeholder="Search product..."
-                                readOnly={isViewOnly || formData.docstatus !== 0}
-                                onFocus={async (e) => {
-                                  if (isViewOnly || formData.docstatus !== 0) return;
-                                  const q = e.target.value;
-                                  const results = await fetchItems(q);
-                                  setAllItems(results || []);
-                                  setActiveDropdownRow(idx);
-                                  setSelectedProductIndex(0);
-                                  const rect = e.target.getBoundingClientRect();
-                                  setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-                                }}
-                                onBlur={() => setTimeout(() => setActiveDropdownRow(null), 200)}
-                                onKeyDown={(e) => {
-                                  if (isViewOnly || formData.docstatus !== 0) return;
-                                  if (e.key === 'ArrowDown') {
-                                    e.preventDefault();
-                                    setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev));
-                                  } else if (e.key === 'ArrowUp') {
-                                    e.preventDefault();
-                                    setSelectedProductIndex(prev => (prev > 0 ? prev - 1 : 0));
-                                  } else if (e.key === 'Enter') {
-                                    if (activeDropdownRow !== null && allItems[selectedProductIndex]) {
-                                      e.preventDefault();
-                                      handleItemSelect(allItems[selectedProductIndex], idx);
-                                      setActiveDropdownRow(null);
-                                    } else {
-                                      handleNextFocus(e);
-                                    }
-                                  }
-                                }}
-                                onChange={async (e) => {
-                                  if (isViewOnly || formData.docstatus !== 0) return;
-                                  const q = e.target.value;
-                                  setFormData(prev => {
-                                    const its = [...prev.items];
-                                    its[idx] = { ...its[idx], item_name: q };
-                                    return { ...prev, items: its };
-                                  });
-                                  if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-                                  searchTimeoutRef.current = setTimeout(async () => {
-                                    const results = await fetchItems(q);
-                                    setAllItems(results || []);
-                                    setActiveDropdownRow(idx);
-                                    setSelectedProductIndex(0);
-                                    const rect = e.target.getBoundingClientRect();
-                                    setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-                                  }, 300);
-                                }}
-                                className="w-full outline-none disabled:bg-transparent"
-                              />
-                              {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
-                                <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
-                                  {allItems.map((it, i) => (
-                                    <div
-                                      key={it.item_code}
-                                      onMouseDown={(e) => {
-                                        e.preventDefault(); // Prevent blur
-                                        handleItemSelect(it, idx);
-                                        setActiveDropdownRow(null);
+                          {columnConfig.filter(c => c.visible).map(col => {
+                            switch (col.id) {
+                              case 'scanner':
+                                return (
+                                  <td key={col.id} className="purchase-td !pl-5">
+                                    <input
+                                      type="text"
+                                      value={item.temp_barcode ?? ''}
+                                      placeholder={isViewOnly ? '' : 'Barcode'}
+                                      readOnly={isViewOnly || formData.docstatus !== 0}
+                                      onChange={(e) => handleBarcodeScan(e, idx)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && e.target.value) handleBarcodeEnter(e, idx);
+                                        else handleNextFocus(e);
                                       }}
-                                      className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
-                                    >
-                                      <div className="flex justify-between items-center gap-3">
-                                        <div className={`text-[11px] font-bold ${selectedProductIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-800'}`}>{it.item_name}</div>
-                                        <div className="text-[9px] font-bold text-[#003d7c] bg-slate-100 px-1.5 py-0.5 rounded italic opacity-70 group-hover:opacity-100">{it.item_code}</div>
-                                      </div>
+                                      className="w-full text-[11px] font-bold outline-none disabled:text-slate-400"
+                                    />
+                                  </td>
+                                );
+                              case 'item_code':
+                                return (
+                                  <td key={col.id} className="purchase-td">
+                                    <div className="relative product-search-container">
+                                      <input
+                                        type="text"
+                                        value={item.item_name ?? ''}
+                                        placeholder="Search product..."
+                                        readOnly={isViewOnly || formData.docstatus !== 0}
+                                        onFocus={async (e) => {
+                                          if (isViewOnly || formData.docstatus !== 0) return;
+                                          const q = e.target.value;
+                                          const results = await fetchItems(q);
+                                          setAllItems(results || []);
+                                          setActiveDropdownRow(idx);
+                                          setSelectedProductIndex(0);
+                                          const rect = e.target.getBoundingClientRect();
+                                          setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+                                        }}
+                                        onBlur={() => setTimeout(() => setActiveDropdownRow(null), 200)}
+                                        onKeyDown={(e) => {
+                                          if (isViewOnly || formData.docstatus !== 0) return;
+                                          if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev)); }
+                                          else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedProductIndex(prev => (prev > 0 ? prev - 1 : 0)); }
+                                          else if (e.key === 'Enter') {
+                                            if (activeDropdownRow !== null && allItems[selectedProductIndex]) {
+                                              e.preventDefault();
+                                              handleItemSelect(allItems[selectedProductIndex], idx);
+                                              setActiveDropdownRow(null);
+                                            } else handleNextFocus(e);
+                                          }
+                                        }}
+                                        onChange={async (e) => {
+                                          if (isViewOnly || formData.docstatus !== 0) return;
+                                          const q = e.target.value;
+                                          setFormData(prev => { const its = [...prev.items]; its[idx] = { ...its[idx], item_name: q }; return { ...prev, items: its }; });
+                                          if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                                          searchTimeoutRef.current = setTimeout(async () => {
+                                            const results = await fetchItems(q);
+                                            setAllItems(results || []);
+                                            setActiveDropdownRow(idx);
+                                            setSelectedProductIndex(0);
+                                            const rect = e.target.getBoundingClientRect();
+                                            setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+                                          }, 300);
+                                        }}
+                                        className="w-full outline-none disabled:bg-transparent"
+                                      />
+                                      {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
+                                        <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
+                                          {allItems.map((it, i) => (
+                                            <div key={it.item_code} onMouseDown={(e) => { e.preventDefault(); handleItemSelect(it, idx); setActiveDropdownRow(null); }} className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}>
+                                              <div className="flex justify-between items-center gap-3">
+                                                <div className={`text-[11px] font-bold ${selectedProductIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-800'}`}>{it.item_name}</div>
+                                                <div className="text-[9px] font-bold text-[#003d7c] bg-slate-100 px-1.5 py-0.5 rounded italic opacity-70">{it.item_code}</div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>, document.body
+                                      )}
                                     </div>
-                                  ))}
-                                </div>, document.body
-                              )}
-                            </div>
-                          </td>
-                          <td className="purchase-td">
-                            <input type="number" name="custom_box_qty" step="1" value={item.custom_box_qty ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center font-bold outline-none" />
-                          </td>
-                          <td className="purchase-td">
-                            <input type="number" name="custom_pieces_per_box" step="1" value={item.custom_pieces_per_box ?? ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-center outline-none" />
-                          </td>
-                          <td className="purchase-td text-right">
-                            {isViewOnly ? (
-                              <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.custom_box_price)}</span>
-                            ) : (
-                              <input type="number" name="custom_box_price" step="0.01" value={item.custom_box_price ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />
-                            )}
-                          </td>
-                          <td className="purchase-td text-right">
-                            {isViewOnly ? (
-                              <span className="text-[11px] font-bold text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</span>
-                            ) : (
-                              <input type="number" name="custom_selling_price" step="0.01" value={item.custom_selling_price ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />
-                            )}
-                          </td>
-                          <td className="purchase-td">
-                            <input 
-                              type="text" 
-                              name="custom_ref_sl_no" 
-                              value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''} 
-                              readOnly={isViewOnly || formData.docstatus !== 0} 
-                              onChange={(e) => handleInputChange(e, idx)} 
-                              onKeyDown={handleNextFocus} 
-                              placeholder={isViewOnly ? "" : "Serial..."} 
-                              className="w-full text-center text-[10px] outline-none" 
-                            />
-                          </td>
-                          <td className="purchase-td text-center">
-                            <input type="number" name="qty" step="0.01" value={item.qty ?? ''} readOnly={!isUpdateMode && (isViewOnly || formData.docstatus !== 0)} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className={`w-full text-right outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`} />
-                          </td>
-                          <td className="purchase-td text-center">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">{item.uom ?? 'UNIT'}</span>
-                          </td>
-                          <td className="purchase-td text-right !text-center">
-                            {isViewOnly && !isUpdateMode ? (
-                              <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span>
-                            ) : (
-                              <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={!isUpdateMode && formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className={`w-full text-center outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`} />
-                            )}
-                          </td>
-                          <td className="purchase-td text-right !pr-5 !text-center">
-                            <span className="text-xs font-bold text-slate-900 tabular-nums">
-                              {formatPrice(item.amount)}
-                            </span>
-                          </td>
+                                  </td>
+                                );
+                              case 'custom_box_qty':
+                                return (
+                                  <td key={col.id} className="purchase-td">
+                                    <div className="flex flex-col items-center gap-0.5">
+                                      <input
+                                        type="number"
+                                        name="custom_box_qty"
+                                        step="1"
+                                        value={item.custom_box_qty ?? ''}
+                                        readOnly={isViewOnly || formData.docstatus !== 0}
+                                        onChange={(e) => handleInputChange(e, idx)}
+                                        onFocus={(e) => e.target.select()}
+                                        onKeyDown={handleNextFocus}
+                                        className="w-full text-center font-bold outline-none"
+                                        title={item.use_box_entry ? 'Number of Boxes' : 'Quantity'}
+                                      />
+                                      {item.item_code && (
+                                        <span className={`text-[8px] font-black uppercase tracking-wider px-1 py-0.5 rounded ${item.use_box_entry ? 'text-sky-500 bg-sky-50' : 'text-slate-400 bg-slate-100'}`}>
+                                          {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                );
+                              case 'custom_pieces_per_box':
+                                return (
+                                  <td key={col.id} className="purchase-td">
+                                    {item.use_box_entry ? (
+                                      <input
+                                        type="number"
+                                        name="custom_pieces_per_box"
+                                        step="1"
+                                        value={item.custom_pieces_per_box ?? ''}
+                                        readOnly={isViewOnly || formData.docstatus !== 0}
+                                        onChange={(e) => handleInputChange(e, idx)}
+                                        onFocus={(e) => e.target.select()}
+                                        onKeyDown={handleNextFocus}
+                                        className="w-full text-center outline-none"
+                                        title="Pieces per Box"
+                                      />
+                                    ) : (
+                                      <span className="w-full flex items-center justify-center text-[10px] text-slate-300 font-bold">—</span>
+                                    )}
+                                  </td>
+                                );
+                              case 'custom_box_price':
+                                return (
+                                  <td key={col.id} className="purchase-td text-right">
+                                    {isViewOnly ? <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.custom_box_price)}</span> : <input type="number" name="custom_box_price" step="0.01" value={item.custom_box_price ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />}
+                                  </td>
+                                );
+                              case 'custom_selling_price':
+                                return (
+                                  <td key={col.id} className="purchase-td text-right">
+                                    {isViewOnly ? <span className="text-[11px] font-bold text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</span> : <input type="number" name="custom_selling_price" step="0.01" value={item.custom_selling_price ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />}
+                                  </td>
+                                );
+                              case 'custom_ref_sl_no':
+                                return <td key={col.id} className="purchase-td"><input type="text" name="custom_ref_sl_no" value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onKeyDown={handleNextFocus} placeholder={isViewOnly ? '' : 'Serial...'} className="w-full text-center text-[10px] outline-none" /></td>;
+                              case 'qty':
+                                return (
+                                  <td key={col.id} className="purchase-td text-center">
+                                    <div className="flex flex-col items-center">
+                                      <input 
+                                        type="number" 
+                                        name="qty" 
+                                        step="0.01" 
+                                        value={item.qty ?? ''} 
+                                        readOnly={!isUpdateMode && (isViewOnly || formData.docstatus !== 0)} 
+                                        onChange={(e) => handleInputChange(e, idx)} 
+                                        onFocus={(e) => e.target.select()} 
+                                        onKeyDown={handleNextFocus} 
+                                        className={`w-full text-center outline-none font-bold ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`} 
+                                      />
+                                      {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8' }}>NOS</div>}
+                                    </div>
+                                  </td>
+                                );
+                              case 'uom':
+                                return (
+                                  <td key={col.id} className="purchase-td text-center">
+                                    {!item.item_code || isViewOnly || formData.docstatus !== 0 ? (
+                                      <span className="text-[10px] font-bold text-slate-700 uppercase">
+                                        {item.use_box_entry ? 'BOX' : (item.uom || item.stock_uom || 'NOS')}
+                                      </span>
+                                    ) : (
+                                      <select
+                                        value={item.uom || item.stock_uom || ''}
+                                        onChange={(e) => handleUOMChange(e.target.value, idx)}
+                                        className="w-full text-center text-[10px] font-bold text-slate-600 bg-transparent border-none outline-none cursor-pointer hover:text-indigo-600 transition-colors"
+                                        title="Select Unit of Measure"
+                                      >
+                                        {(item.uom_list && item.uom_list.length > 0
+                                          ? item.uom_list
+                                          : [{ uom: item.stock_uom || item.uom || 'Nos' }]
+                                        ).map(u => (
+                                          <option key={u.uom} value={u.uom}>{u.uom}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </td>
+                                );
+                              case 'rate':
+                                return (
+                                  <td key={col.id} className="purchase-td text-right !text-center">
+                                    {isViewOnly && !isUpdateMode ? <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span> : <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={!isUpdateMode && formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className={`w-full text-center outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`} />}
+                                  </td>
+                                );
+                              case 'amount':
+                                return <td key={col.id} className="purchase-td text-right !pr-5 !text-center"><span className="text-xs font-bold text-slate-900 tabular-nums">{formatPrice(item.amount)}</span></td>;
+                              default:
+                                return null;
+                            }
+                          })}
                           <td className="purchase-td text-center">
                             {!isViewOnly && formData.docstatus === 0 && (
                               <button type="button" onClick={() => removeItemRow(idx)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 className="w-4 h-4" /></button>
@@ -1992,6 +2222,16 @@ function PurchaseOrder() {
             </div>
           </div>
         </div>
+
+      {/* Column Config Modal */}
+      <ColumnConfigModal
+        isOpen={showColConfig}
+        onClose={() => setShowColConfig(false)}
+        config={columnConfig}
+        onUpdate={handleColConfigUpdate}
+        doctype="Purchase Order"
+        themeColor="var(--po-primary)"
+      />
 
       {/* Drafts List Sidebar/Overlay */}
       {showDraftsList && createPortal(

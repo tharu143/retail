@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
   Plus, Filter, MoreVertical, Search, Calendar, Building2,
-  Package, DollarSign, Loader2, Edit2, Trash2, Eye, Palette, ChevronDown, ChevronRight, X, ChevronLeft
+  Package, DollarSign, Loader2, Edit2, Trash2, Eye, Palette, ChevronDown, ChevronRight, X, ChevronLeft, ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
 import './SalesOrder.css';
@@ -288,9 +288,21 @@ function PurchaseOrderLists() {
                         onMouseLeave={e => e.currentTarget.style.background = ''}
                       >
                         <td>
-                          <span style={{ color: themeColor, fontWeight: 700, fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                            {po.name}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <a 
+                              href={`/#/purchaseorder?name=${po.name}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Open in new tab"
+                              style={{ color: themeColor, textDecoration: 'none' }}
+                            >
+                              <ExternalLink size={12} style={{ opacity: 0.6 }} />
+                            </a>
+                            <span style={{ color: themeColor, fontWeight: 700, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                              {po.name}
+                            </span>
+                          </div>
                         </td>
                         <td>
                           <div style={{ fontWeight: 600 }}>{po.supplier_name || po.supplier}</div>

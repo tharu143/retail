@@ -1,16 +1,38 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, X, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
-  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link
+  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { format } from 'date-fns';
 import '../Admin/SalesOrder.css';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
-const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+
+// Custom APIs (moved to standardized path)
+const API_PATH = '/api/method/kyle_retail.retail_api.api';
+const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const RESOURCE_BASE = '/api/resource';
+
+const DEFAULT_PR_COLUMNS = [
+  { id: 'item_code',          label: 'Item Code',         visible: true,  width: 240 },
+  { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 160 },
+  { id: 'custom_box_qty',     label: 'Box Qty',           visible: true,  width: 90  },
+  { id: 'uom',                label: 'UOM',               visible: true,  width: 80  },
+  { id: 'custom_pieces_per_box', label: 'Pcs/Box',        visible: true,  width: 90  },
+  { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 120 },
+  { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 120 },
+  { id: 'custom_selling_price', label: 'Selling Price',   visible: true,  width: 120 },
+  { id: 'accepted_qty',       label: 'Total Qty',         visible: true,  width: 100 },
+  { id: 'rejected_qty',       label: 'Rejected Qty',      visible: true,  width: 100 },
+  { id: 'amount',             label: 'Subtotal',          visible: true,  width: 140 }
+];
+
 function PurchaseReceiptList() {
+  const navigate = useNavigate();
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -23,7 +45,37 @@ function PurchaseReceiptList() {
   const [isViewMode, setIsViewMode] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [allowedActions, setAllowedActions] = useState([]);
-  const [lastSavedData, setLastSavedData] = useState(null); // Added for dirty check
+  const [lastSavedData, setLastSavedData] = useState(null); // Snapshot tracking
+
+
+
+  // ----- Column Config -----
+  const loadColumnConfig = () => {
+    try {
+      const saved = localStorage.getItem('pr_column_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const defaultIds = DEFAULT_PR_COLUMNS.map(c => c.id);
+        const savedIds   = parsed.map(c => c.id);
+        const missing    = DEFAULT_PR_COLUMNS.filter(c => !savedIds.includes(c.id));
+        return [...parsed, ...missing];
+      }
+    } catch (e) { /* ignore */ }
+    return DEFAULT_PR_COLUMNS;
+  };
+  const [columnConfig, setColumnConfig]   = useState(loadColumnConfig);
+  const [showColConfig, setShowColConfig] = useState(false);
+
+  const handleColConfigUpdate = (newConfig) => {
+    if (newConfig === null) {
+      setColumnConfig(DEFAULT_PR_COLUMNS);
+      localStorage.removeItem('pr_column_config');
+    } else {
+      setColumnConfig(newConfig);
+      localStorage.setItem('pr_column_config', JSON.stringify(newConfig));
+    }
+    setShowColConfig(false);
+  };
 
   const theme = useSelector(state => state.user.theme);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -86,6 +138,12 @@ function PurchaseReceiptList() {
     grand_total: '0.00',
     docstatus: 0
   });
+
+  const isDirty = useMemo(() => {
+    if (!docName) return true; // New docs are always dirty
+    const current = JSON.stringify(formData);
+    return lastSavedData !== current;
+  }, [formData, lastSavedData, docName]);
   const [searchSupplier, setSearchSupplier] = useState('');
   const [suppliers, setSuppliers] = useState([]);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
@@ -209,6 +267,14 @@ function PurchaseReceiptList() {
     } catch (err) { console.error("Workflow fetch failed", err); }
   };
 
+  const handleCreateFlow = (type) => {
+    // Navigate to respective module with mapping data
+    if (type === 'invoice') {
+      sessionStorage.setItem('mapped_pr', formData.name);
+      navigate('/purchaseinvoice');
+    }
+  };
+
   const handleDocAction = async (action) => {
     if (action === 'save' || action === 'submit') {
        if (!validateForm()) return;
@@ -267,15 +333,16 @@ function PurchaseReceiptList() {
             return;
         }
 
-        const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || docName;
-        if (nextDoc !== docName) {
-            fetchReceiptForEdit(nextDoc);
-            if (action === 'amend') setIsViewMode(false);
+          setLastSavedData(JSON.stringify(payload)); // Update base for dirty check after save
+          const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || docName;
+          if (nextDoc !== docName) {
+              fetchReceiptForEdit(nextDoc);
+              if (action === 'amend') setIsViewMode(false);
+          } else {
+              fetchReceiptForEdit(docName);
+          }
+          fetchReceipts();
         } else {
-            fetchReceiptForEdit(docName);
-        }
-        fetchReceipts();
-      } else {
           throw new Error(rawMsg.message || "Operation failed");
       }
     } catch (err) {
@@ -290,7 +357,7 @@ function PurchaseReceiptList() {
       const barcode = barcodeInput.trim();
       try {
         // Fetch items by barcode (your existing endpoint supports it)
-        const res = await axios.get(`${API_PATH}.get_items_for_pr`, {
+        const res = await axios.get(`${LEGACY_API}.get_items_for_pr`, {
           params: { query: barcode },
           withCredentials: true
         });
@@ -341,7 +408,7 @@ function PurchaseReceiptList() {
   const fetchReceipts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_PATH}.get_purchase_receipts`, { 
+      const res = await axios.get(`${LEGACY_API}.get_purchase_receipts`, { 
         params: { 
           limit: 2000, 
           limit_page_length: 2000, 
@@ -361,7 +428,7 @@ function PurchaseReceiptList() {
   };
   const fetchSuppliers = async (query = '') => {
     try {
-      const res = await axios.get(`${API_PATH}.get_suppliers_pr`, {
+      const res = await axios.get(`${LEGACY_API}.get_suppliers_pr`, {
         params: { query: query || undefined },
         withCredentials: true
       });
@@ -374,7 +441,7 @@ function PurchaseReceiptList() {
   };
   const fetchItems = async (query = '') => {
     try {
-      const res = await axios.get(`${API_PATH}.get_items_for_pr`, {
+      const res = await axios.get(`${LEGACY_API}.get_items_for_pr`, {
         params: { query: query || undefined },
         withCredentials: true
       });
@@ -387,7 +454,7 @@ function PurchaseReceiptList() {
   };
   const fetchWarehouses = async () => {
     try {
-      const res = await axios.get(`${API_PATH}.get_company_warehouses`, { withCredentials: true });
+      const res = await axios.get(`${LEGACY_API}.get_company_warehouses`, { withCredentials: true });
       const data = Array.isArray(res.data.message) ? res.data.message : [];
       setWarehouses(data);
     } catch (err) {
@@ -398,7 +465,7 @@ function PurchaseReceiptList() {
   const fetchTaxesTemplates = async () => {
     try {
       const companyData = await getDefaultCompany();
-      const res = await axios.get(`${API_PATH}.get_purchase_taxes_templates`, {
+      const res = await axios.get(`${LEGACY_API}.get_purchase_taxes_templates`, {
         params: { company: companyData.company },
         withCredentials: true
       });
@@ -422,7 +489,8 @@ function PurchaseReceiptList() {
   };
   const getDefaultCompany = async () => {
     try {
-      const res = await axios.get(`${API_PATH}.get_default_company`, { withCredentials: true });
+      const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const res = await axios.get(`${LEGACY_API}.get_default_company`, { withCredentials: true });
       return res.data.message;
     } catch (err) {
       return { company: '', currency: 'AED' };
@@ -493,7 +561,8 @@ function PurchaseReceiptList() {
       
       const msg = res.data.message || res.data;
       if ((msg.success || msg.status === 'success') && msg.name) {
-        window.location.hash = `#/purchaseinvoicelist?name=${msg.name}`;
+        window.open(`/#/purchaseinvoicelist?name=${msg.name}`, "_blank");
+        Swal.fire('Success', `Purchase Invoice ${msg.name} created and opened in a new tab.`, 'success');
       } else {
         alert(msg.message || 'Failed to create Invoice');
       }
@@ -552,7 +621,8 @@ function PurchaseReceiptList() {
       rounded_total: 0,
       items: [{
         item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0, received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00',
-        custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: ''
+        custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: '',
+        use_box_entry: false, uom_list: [], stock_uom: ''
       }],
       taxes: [{
         add_row: true,
@@ -582,33 +652,97 @@ function PurchaseReceiptList() {
     setIsModalOpen(true);
     setLastSavedData(JSON.stringify(formData)); // Set base point for dirty check
   }, [warehouses, formData]);
+  // Fetch UOM list for an item from ERPNext metadata
+  const fetchItemUOMs = async (item_code) => {
+    try {
+      const res = await fetch(`/api/resource/Item/${encodeURIComponent(item_code)}?fields=["uoms","stock_uom"]`, {
+        headers: { 'X-Frappe-SID': localStorage.getItem('session') || '' },
+        credentials: 'include'
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const doc = data.data || {};
+      const uomRows = doc.uoms || [];
+      const list = uomRows.map(u => ({ uom: u.uom, conversion_factor: parseFloat(u.conversion_factor) || 1 }));
+      if (!list.find(u => u.uom === doc.stock_uom)) {
+        list.unshift({ uom: doc.stock_uom, conversion_factor: 1 });
+      }
+      return list;
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const handleUOMChange = (uomValue, rowIndex) => {
+    setFormData(prev => {
+      const items = [...prev.items];
+      const item = { ...items[rowIndex] };
+      const isBox = uomValue.toLowerCase() === 'box';
+      item.uom = uomValue;
+      item.use_box_entry = isBox;
+
+      if (isBox) {
+        // Box mode
+        const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+        item.accepted_qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
+      } else {
+        // Nos mode
+        item.custom_pieces_per_box = 1;
+        item.accepted_qty = parseFloat(item.custom_box_qty) || 0;
+      }
+      item.received_qty = item.accepted_qty + (parseFloat(item.rejected_qty) || 0);
+      item.qty = item.accepted_qty;
+      item.amount = (item.accepted_qty * (parseFloat(item.rate) || 0)).toFixed(2);
+      
+      items[rowIndex] = item;
+      const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
+      const net_total = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+      const totals = recalcTaxesAndTotals(items, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
+      return { ...prev, items, total_qty, net_total, ...totals };
+    });
+  };
+
   // UPDATED: Combined recalc for items update
   const updateItem = (index, field, value) => {
     setFormData(prev => {
       const items = [...prev.items];
       items[index][field] = value;
+      const isBoxMode = items[index].use_box_entry;
 
       // Real-time calculation for Box Qty and Pieces per Box
       if (field === 'custom_box_qty' || field === 'custom_pieces_per_box') {
         const box_qty = parseFloat(items[index].custom_box_qty) || 0;
-        const pcs_per_box = parseFloat(items[index].custom_pieces_per_box) || 1;
-        const total_qty = box_qty * pcs_per_box;
+        const pcs_per_box = Math.max(1, parseFloat(items[index].custom_pieces_per_box) || 1);
+        
+        const total_qty = isBoxMode ? box_qty * pcs_per_box : box_qty;
         items[index].accepted_qty = total_qty;
         items[index].received_qty = total_qty + (parseFloat(items[index].rejected_qty) || 0);
         items[index].qty = total_qty;
         items[index].amount = (total_qty * (parseFloat(items[index].rate) || 0)).toFixed(2);
-      } else if (field === 'accepted_qty' || field === 'rejected_qty' || field === 'rate') {
-        const accepted_qty = parseFloat(items[index].accepted_qty) || 0;
-        const rejected_qty = parseFloat(items[index].rejected_qty) || 0;
-        const rate = parseFloat(items[index].rate) || 0;
+      } else if (field === 'accepted_qty' || field === 'rejected_qty' || field === 'rate' || field === 'custom_box_price') {
+        const accepted_qty = parseFloat(field === 'accepted_qty' ? value : items[index].accepted_qty) || 0;
+        const rejected_qty = parseFloat(field === 'rejected_qty' ? value : items[index].rejected_qty) || 0;
+        const rate = parseFloat(field === 'rate' ? value : items[index].rate) || 0;
+        const pPerBox = parseFloat(items[index].custom_pieces_per_box) || 1;
+
+        if (field === 'custom_box_price') {
+          const bp = parseFloat(value) || 0;
+          const newRate = pPerBox > 0 ? bp / pPerBox : 0;
+          items[index].rate = newRate.toFixed(2);
+          items[index].amount = (accepted_qty * newRate).toFixed(2);
+        } else if (field === 'rate') {
+          items[index].amount = (accepted_qty * rate).toFixed(2);
+          if (items[index].use_box_entry) items[index].custom_box_price = (rate * pPerBox).toFixed(2);
+        } else {
+          items[index].amount = (accepted_qty * rate).toFixed(2);
+        }
+        
         items[index].received_qty = accepted_qty + rejected_qty;
         items[index].qty = accepted_qty;
-        items[index].amount = (accepted_qty * rate).toFixed(2);
         
         // Back-calculate Box Qty if needed
-        const pcs_per_box = parseFloat(items[index].custom_pieces_per_box) || 1;
-        if (field === 'accepted_qty' && pcs_per_box > 0) {
-          items[index].custom_box_qty = accepted_qty / pcs_per_box;
+        if (field === 'accepted_qty' && pPerBox > 0) {
+          items[index].custom_box_qty = isBoxMode ? accepted_qty / pPerBox : accepted_qty;
         }
       }
       const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
@@ -629,7 +763,8 @@ function PurchaseReceiptList() {
       const newItems = [...prev.items, {
         item_code: '', item_name: '', accepted_qty: 0, rejected_qty: 0,
         received_qty: 0, qty: 0, uom: '', rate: 0, amount: '0.00',
-        custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: ''
+        custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: '',
+        use_box_entry: false, uom_list: [], stock_uom: ''
       }];
       const total_qty = newItems.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
       const net_total = newItems.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
@@ -882,8 +1017,8 @@ function PurchaseReceiptList() {
         alert('Receipt not found');
         return;
       }
-      // Map doc to formData
-      setFormData({
+      const mapped = {
+        name: doc.name,
         series: doc.name.split('-')[0] + '-...',
         posting_date: doc.posting_date,
         posting_time: doc.posting_time ? doc.posting_time.split(':').slice(0, 2).map(p => p.padStart(2, '0')).join(':') : '',
@@ -903,45 +1038,51 @@ function PurchaseReceiptList() {
         items: (doc.items || []).map(i => ({
           item_code: i.item_code || '',
           item_name: i.item_name || '',
-          accepted_qty: i.qty || 0,
-          rejected_qty: i.rejected_qty || 0,
-          received_qty: i.received_qty || 0,
-          qty: i.qty || 0,
+          accepted_qty: parseFloat(i.qty) || 0,
+          rejected_qty: parseFloat(i.rejected_qty) || 0,
+          received_qty: parseFloat(i.received_qty) || 0,
+          qty: parseFloat(i.qty) || 0,
           uom: i.uom || '',
-          rate: i.rate || 0,
-          amount: i.amount?.toFixed(2) || '0.00',
-          custom_box_qty: i.custom_box_qty || 0,
-          custom_pieces_per_box: i.custom_pieces_per_box || 1,
-          custom_selling_price: i.custom_selling_price || 0,
-          custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
+          rate: parseFloat(i.rate) || 0,
+          amount: parseFloat(i.amount || 0).toFixed(2),
+          custom_box_qty: parseFloat(i.custom_box_qty) || 0,
+          custom_pieces_per_box: parseFloat(i.custom_pieces_per_box) || 1,
+          custom_box_price: parseFloat(i.custom_box_price || 0),
+          custom_selling_price: parseFloat(i.custom_selling_price || 0),
+          custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+          custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
-          purchase_order: i.purchase_order || '', // Mapping PO ref
-          purchase_order_item: i.purchase_order_item || '' // Mapping PO Item ref
+          purchase_order: i.purchase_order || '',
+          purchase_order_item: i.purchase_order_item || '',
+          use_box_entry: i.uom === 'Box' || 
+            (parseFloat(i.custom_box_qty) > 0 && Math.abs((parseFloat(i.qty) || parseFloat(i.accepted_qty)) - (parseFloat(i.custom_box_qty) * parseFloat(i.custom_pieces_per_box || 1))) < 0.1)
         })),
         taxes: (doc.taxes || []).map(t => ({
           add_row: t.add_deduct_tax === "Add",
           charge_type: t.charge_type || '',
           account_head: t.account_head || '',
-          rate: t.rate || 0,
-          tax_amount: t.tax_amount || 0,
-          total: t.total?.toFixed(2) || '0.00',
+          rate: parseFloat(t.rate) || 0,
+          tax_amount: parseFloat(t.tax_amount) || 0,
+          total: parseFloat(t.total || 0).toFixed(2),
           row_id: t.name || ''
         })),
-        total_qty: doc.total_qty || 0,
-        net_total: doc.net_total || 0,
-        taxes_added: doc.taxes_added || '0.00',
-        taxes_deducted: doc.taxes_deducted || '0.00',
-        total_taxes_and_charges: doc.total_taxes_and_charges || '0.00',
-        discounted_amount: doc.discounted_amount || '0.00',
-        grand_total: doc.grand_total || '0.00',
-        docstatus: doc.docstatus || 0
-      });
+        total_qty: parseFloat(doc.total_qty) || 0,
+        net_total: parseFloat(doc.net_total) || 0,
+        taxes_added: parseFloat(doc.taxes_added || 0).toFixed(2),
+        taxes_deducted: parseFloat(doc.taxes_deducted || 0).toFixed(2),
+        total_taxes_and_charges: parseFloat(doc.total_taxes_and_charges || 0).toFixed(2),
+        discounted_amount: parseFloat(doc.discounted_amount || 0).toFixed(2),
+        grand_total: parseFloat(doc.grand_total || 0).toFixed(2),
+        docstatus: parseInt(doc.docstatus) || 0
+      };
+
+      setFormData(mapped);
       setDocName(doc.name);
       setSearchSupplier(doc.supplier_name || '');
       setIsViewMode(true);
       setIsEditMode(false);
       setIsModalOpen(true);
-      setLastSavedData(JSON.stringify(doc)); // Set base point for dirty check
+      setLastSavedData(JSON.stringify(mapped)); // Use mapped object for stable comparison
       if (doc.name) fetchLinkedDocuments(doc.name);
     } catch (err) {
       console.error('Error fetching receipt:', err);
@@ -1042,6 +1183,7 @@ function PurchaseReceiptList() {
     // conversion_rate usually 1 for AED, but safe aa include
     const conversion_rate = 1.0; // or fetch from company if multi-currency
     return {
+      name: docName || undefined,
       doctype: "Purchase Receipt",
       company: companyData.company,
       supplier: formData.supplier,
@@ -1074,6 +1216,7 @@ function PurchaseReceiptList() {
           uom: i.uom,
           custom_box_qty: parseFloat(i.custom_box_qty || 0),
           custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+          custom_box_price: parseFloat(i.custom_box_price || 0),
           custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           warehouse: formData.set_warehouse,
@@ -1387,7 +1530,19 @@ function PurchaseReceiptList() {
                           paginated.map(rec => (
                             <tr key={rec.name} onClick={() => fetchReceiptForEdit(rec.name)}>
                               <td>
-                                <span style={{ fontWeight: 700, color: themeColor }}>{rec.name}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                  <a 
+                                    href={`/#/purchasereceiptlist?name=${rec.name}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    title="Open in new tab"
+                                    style={{ color: themeColor, textDecoration: 'none' }}
+                                  >
+                                    <ExternalLink size={12} style={{ opacity: 0.6 }} />
+                                  </a>
+                                  <span style={{ fontWeight: 700, color: themeColor }}>{rec.name}</span>
+                                </div>
                               </td>
                               <td>
                                 <div style={{ fontWeight: 500 }}>{rec.supplier_name}</div>
@@ -1450,11 +1605,11 @@ function PurchaseReceiptList() {
         {isModalOpen && (
           <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ 
             padding: 0, 
-            zIndex: 9999, 
-            top: '74px', 
-            height: 'calc(100vh - 74px)',
-            background: 'rgba(15, 23, 42, 0.98)', /* High opacity to hide list header */
-            backdropFilter: 'blur(8px)'
+            zIndex: 1000, 
+            top: '0', 
+            height: '100vh',
+            background: 'rgba(255, 255, 255, 1)', 
+            backdropFilter: 'none'
           }}>
             <div className="so-modal" style={{ 
               maxWidth: 'none', 
@@ -1651,140 +1806,264 @@ function PurchaseReceiptList() {
                       <table className="so-items-table">
                         <thead>
                           <tr>
-                            <th style={{ width: '50px', textAlign: 'center' }}>No.</th>
-                            <th>Item Details</th>
-                            <th style={{ width: '120px', textAlign: 'center' }}>Supplier SL #</th>
-                            <th style={{ width: '80px', textAlign: 'center' }}>Box Qty</th>
-                            <th style={{ width: '80px', textAlign: 'center' }}>Pcs/Box</th>
-                            <th style={{ width: '90px', textAlign: 'center' }}>Accepted</th>
-                            <th style={{ width: '100px', textAlign: 'right' }}>Selling (AED)</th>
-                            <th style={{ width: '110px', textAlign: 'right' }}>Rate (AED)</th>
-                            <th style={{ width: '130px', textAlign: 'right' }}>Amount</th>
-                            <th style={{ width: '50px' }}></th>
+                            <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
+                            {columnConfig.filter(c => c.visible).map(col => {
+                              const hasAnyBox = formData.items.some(i => i.use_box_entry);
+                              let finalLabel = col.label;
+
+                              if (!hasAnyBox) {
+                                if (col.id === 'custom_box_qty') finalLabel = 'Qty';
+                                if (col.id === 'custom_pieces_per_box') finalLabel = ''; // hide the Pcs/Box header label 
+                              }
+
+                              return (
+                                <th
+                                  key={col.id}
+                                  style={{ width: col.width, minWidth: col.id === 'item_code' ? 200 : undefined, textAlign: ['rate', 'amount', 'custom_selling_price'].includes(col.id) ? 'right' : ['custom_box_qty', 'custom_pieces_per_box', 'accepted_qty', 'rejected_qty', 'uom', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left' }}
+                                >
+                                  {finalLabel}
+                                </th>
+                              );
+                            })}
+                            <th style={{ width: '40px', textAlign: 'center' }}>
+                              {!isViewMode && (
+                                <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Configure Columns">
+                                  <Settings size={16} />
+                                </button>
+                              )}
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {formData.items.map((item, i) => (
                             <tr key={i}>
                               <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>{i + 1}</td>
-                              <td ref={el => itemRefs.current[i] = el}>
-                                <div style={{ position: 'relative' }}>
-                                  <input
-                                    type="text"
-                                    value={itemSearches[i] || ''}
-                                    onChange={e => handleItemSearch(i, e.target.value)}
-                                    onFocus={() => itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
-                                    placeholder={isViewMode ? "" : "Search item..."}
-                                    className="so-input"
-                                    style={{ height: '36px', fontSize: '0.85rem' }}
-                                    readOnly={isViewMode}
-                                  />
-                                  {showItemDropdowns[i] && itemsList.length > 0 && (
-                                    <div className="so-dropdown" style={{ minWidth: '300px' }}>
-                                      {itemsList.map(itm => (
-                                        <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="so-dropdown-item">
-                                          <div style={{ fontWeight: 700 }}>{itm.item_name}</div>
-                                          <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{itm.item_code}</div>
+                              
+                              {columnConfig.filter(c => c.visible).map(col => {
+                                switch (col.id) {
+                                  case 'custom_box_qty':
+                                    return (
+                                      <td key={col.id}>
+                                        {isViewMode || !item.use_box_entry ? (
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: item.use_box_entry ? themeColor : '#94a3b8' }}>{item.use_box_entry ? (item.custom_box_qty || 0) : '—'}</div>
+                                            {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: themeColor }}>BOXES</div>}
+                                          </div>
+                                        ) : (
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <input
+                                              type="number"
+                                              value={item.custom_box_qty || 0}
+                                              onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
+                                              className="so-input"
+                                              style={{ textAlign: 'center', height: '36px', border: `1px solid ${themeColor}40` }}
+                                            />
+                                            {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: themeColor }}>BOXES</div>}
+                                          </div>
+                                        )}
+                                      </td>
+                                    );
+                                  case 'custom_ref_sl_no':
+                                      return (
+                                        <td key={col.id}>
+                                          <input
+                                            type="text"
+                                            value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
+                                            onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
+                                            className="so-input"
+                                            style={{ textAlign: 'center', height: '36px', fontSize: '0.75rem' }}
+                                            placeholder="REF / SL #"
+                                            disabled={isViewMode}
+                                          />
+                                        </td>
+                                      )
+                                  case 'item_code':
+                                    return (
+                                      <td key={col.id} ref={el => itemRefs.current[i] = el}>
+                                        <div style={{ position: 'relative' }}>
+                                          <input
+                                            type="text"
+                                            value={itemSearches[i] || ''}
+                                            onChange={e => handleItemSearch(i, e.target.value)}
+                                            onFocus={() => itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
+                                            placeholder={isViewMode ? "" : "Search item..."}
+                                            className="so-input"
+                                            style={{ height: '36px', fontSize: '0.85rem' }}
+                                            readOnly={isViewMode}
+                                          />
+                                          {showItemDropdowns[i] && itemsList.length > 0 && (
+                                            <div className="so-dropdown" style={{ minWidth: '300px' }}>
+                                              {itemsList.map(itm => (
+                                                <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="so-dropdown-item">
+                                                  <div style={{ fontWeight: 700 }}>{itm.item_name}</div>
+                                                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{itm.item_code}</div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                          {item.item_name && (
+                                            <div style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: themeColor, fontWeight: 700 }}>
+                                              {item.item_name} — {item.item_code}
+                                            </div>
+                                          )}
                                         </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {item.item_name && (
-                                    <div style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: themeColor, fontWeight: 700 }}>
-                                      {item.item_name} — {item.item_code}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td>
-                                {isViewMode ? (
-                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>{item.custom_supplier_sl_num || '—'}</div>
-                                  ) : (
-                                    <input
-                                      type="text"
-                                      value={item.custom_supplier_sl_num || ''}
-                                      onChange={e => updateItem(i, 'custom_supplier_sl_num', e.target.value)}
-                                      className="so-input"
-                                      style={{ height: '36px', fontSize: '0.85rem' }}
-                                      placeholder="SL #"
-                                    />
-                                  )}
-                              </td>
-                              <td>
-                                {isViewMode ? (
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}>{item.custom_box_qty || 0}</div>
-                                  ) : (
-                                    <input
-                                      type="number"
-                                      value={item.custom_box_qty || 0}
-                                      onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
-                                      className="so-input"
-                                      style={{ textAlign: 'center', height: '36px' }}
-                                    />
-                                  )}
-                              </td>
-                              <td>
-                                {isViewMode ? (
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}>{item.custom_pieces_per_box || 1}</div>
-                                  ) : (
-                                    <input
-                                      type="number"
-                                      value={item.custom_pieces_per_box || 1}
-                                      onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
-                                      className="so-input"
-                                      style={{ textAlign: 'center', height: '36px' }}
-                                    />
-                                  )}
-                              </td>
-                              <td>
-                                {isViewMode ? (
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: themeColor }}>{item.accepted_qty}</div>
-                                  ) : (
-                                    <input
-                                      type="number"
-                                      value={item.accepted_qty}
-                                      onChange={e => updateItem(i, 'accepted_qty', e.target.value)}
-                                      className="so-input"
-                                      style={{ textAlign: 'center', height: '36px' }}
-                                      readOnly={isViewMode}
-                                    />
-                                  )}
-                              </td>
-                              <td>
-                                {isViewMode ? (
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'right', color: '#6366f1' }}>{formatPrice(item.custom_selling_price)}</div>
-                                  ) : (
-                                    <input
-                                      type="number"
-                                      value={item.custom_selling_price || 0}
-                                      onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                      className="so-input"
-                                      style={{ textAlign: 'right', height: '36px', color: '#6366f1', fontWeight: 'bold' }}
-                                      placeholder="Selling"
-                                      readOnly={isViewMode}
-                                    />
-                                  )}
-                              </td>
-                              <td style={{ textAlign: 'right' }}>
-                                {isViewMode ? (
-                                  <span style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>{formatPrice(item.rate)}</span>
-                                ) : (
-                                  <input
-                                    type="number"
-                                    value={item.rate}
-                                    onChange={e => updateItem(i, 'rate', e.target.value)}
-                                    className="so-input"
-                                    style={{ textAlign: 'right', height: '36px' }}
-                                    step="0.01"
-                                    placeholder={rateLoading[i] ? "..." : "0.00"}
-                                    disabled={rateLoading[i]}
-                                  />
-                                )}
-                                {rateLoading[i] && <div style={{ fontSize: '0.6rem', color: themeColor, textAlign: 'right', fontWeight: 700 }}>Fetching...</div>}
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.85rem' }}>
-                                {formatPrice(item.amount)}
-                              </td>
+                                      </td>
+                                    );
+                                  case 'custom_supplier_sl_num':
+                                    return (
+                                      <td key={col.id}>
+                                        {isViewMode ? (
+                                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>{item.custom_supplier_sl_num || '—'}</div>
+                                          ) : (
+                                            <input
+                                              type="text"
+                                              value={item.custom_supplier_sl_num || ''}
+                                              onChange={e => updateItem(i, 'custom_supplier_sl_num', e.target.value)}
+                                              className="so-input"
+                                              style={{ height: '36px', fontSize: '0.85rem' }}
+                                              placeholder="SL #"
+                                            />
+                                          )}
+                                      </td>
+                                    );
+                                  case 'custom_pieces_per_box':
+                                    return (
+                                      <td key={col.id}>
+                                        {isViewMode || !item.use_box_entry ? (
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}>{item.use_box_entry ? (item.custom_pieces_per_box || 1) : '—'}</div>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.custom_pieces_per_box || 1}
+                                              onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                              className="so-input"
+                                              style={{ textAlign: 'center', height: '36px' }}
+                                            />
+                                          )}
+                                      </td>
+                                    );
+                                  case 'uom':
+                                    return (
+                                      <td key={col.id} style={{ textAlign: 'center' }}>
+                                        {!item.item_code || isViewMode ? (
+                                          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase' }}>
+                                            {item.use_box_entry ? 'BOX' : (item.uom || item.stock_uom || 'NOS')}
+                                          </span>
+                                        ) : (
+                                          <select
+                                            value={item.uom || item.stock_uom || ''}
+                                            onChange={(e) => handleUOMChange(e.target.value, i)}
+                                            style={{ width: '100%', textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer', outline: 'none' }}
+                                          >
+                                            {(item.uom_list && item.uom_list.length > 0 ? item.uom_list : [{ uom: item.stock_uom || item.uom || 'Nos' }]).map(u => (
+                                              <option key={u.uom} value={u.uom}>{u.uom}</option>
+                                            ))}
+                                          </select>
+                                        )}
+                                      </td>
+                                    );
+                                  case 'accepted_qty':
+                                    return (
+                                      <td key={col.id}>
+                                        {isViewMode ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                              <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: themeColor }}>{item.accepted_qty}</div>
+                                              {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8' }}>NOS</div>}
+                                            </div>
+                                          ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                              <input
+                                                type="number"
+                                                value={item.accepted_qty}
+                                                onChange={e => updateItem(i, 'accepted_qty', e.target.value)}
+                                                className="so-input"
+                                                style={{ textAlign: 'center', height: '36px' }}
+                                              />
+                                              {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8' }}>NOS</div>}
+                                            </div>
+                                          )}
+                                      </td>
+                                    );
+                                  case 'rejected_qty':
+                                    return (
+                                      <td key={col.id}>
+                                        {isViewMode ? (
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: '#ef4444' }}>{item.rejected_qty}</div>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.rejected_qty}
+                                              onChange={e => updateItem(i, 'rejected_qty', e.target.value)}
+                                              className="so-input"
+                                              style={{ textAlign: 'center', height: '36px', color: '#ef4444' }}
+                                            />
+                                          )}
+                                      </td>
+                                    );
+                                  case 'custom_selling_price':
+                                    return (
+                                      <td key={col.id}>
+                                        {isViewMode ? (
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'right', color: '#6366f1' }}>{formatPrice(item.custom_selling_price)}</div>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.custom_selling_price || 0}
+                                              onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                              className="so-input"
+                                              style={{ textAlign: 'right', height: '36px', color: '#6366f1', fontWeight: 'bold' }}
+                                              placeholder="Selling"
+                                            />
+                                          )}
+                                      </td>
+                                    );
+                                   case 'custom_box_price':
+                                     return (
+                                       <td key={col.id} style={{ textAlign: 'right' }}>
+                                         {isViewMode ? (
+                                           <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{formatPrice(item.custom_box_price)}</span>
+                                         ) : (
+                                           <input
+                                             type="number"
+                                             value={item.custom_box_price || 0}
+                                             onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
+                                             className="so-input"
+                                             style={{ textAlign: 'right', height: '36px' }}
+                                             step="0.01"
+                                           />
+                                         )}
+                                       </td>
+                                     );
+                                   case 'rate':
+                                    return (
+                                      <td key={col.id} style={{ textAlign: 'right' }}>
+                                        {isViewMode ? (
+                                          <span style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>{formatPrice(item.rate)}</span>
+                                        ) : (
+                                          <input
+                                            type="number"
+                                            value={item.rate}
+                                            onChange={e => updateItem(i, 'rate', e.target.value)}
+                                            className="so-input"
+                                            style={{ textAlign: 'right', height: '36px' }}
+                                            step="0.01"
+                                            placeholder={rateLoading[i] ? "..." : "0.00"}
+                                            disabled={rateLoading[i]}
+                                          />
+                                        )}
+                                        {rateLoading[i] && <div style={{ fontSize: '0.6rem', color: themeColor, textAlign: 'right', fontWeight: 700 }}>Fetching...</div>}
+                                      </td>
+                                    );
+                                  case 'amount':
+                                    return (
+                                      <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.85rem' }}>
+                                        {formatPrice(item.amount)}
+                                      </td>
+                                    );
+                                  default: return null;
+                                }
+                              })}
+
                               <td style={{ textAlign: 'center' }}>
                                 <button onClick={() => removeItemRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }} disabled={isViewMode}>
                                   {!isViewMode && <X size={14} />}
@@ -1989,42 +2268,79 @@ function PurchaseReceiptList() {
               </div> {/* Closes so-modal-body */}
               <div className="so-modal-footer">
                 <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary">Close Vault</button>
+                  <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary">Close</button>
 
-                  {!docName && (
-                      <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px' }}>
-                          {saving ? <Loader2 size={16} className="so-spinner" /> : 'Save Genesis'}
-                      </button>
+                  {/* DRAFT PHASE */}
+                  {formData.docstatus === 0 && (
+                    <>
+                      {(!docName || (allowedActions.includes('save') && isDirty)) && (
+                        <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
+                            {saving ? <Loader2 size={16} className="so-spinner" /> : (docName ? 'UPDATE DRAFT' : 'SAVE DRAFT')}
+                        </button>
+                      )}
+
+                      {allowedActions.includes('submit') && !isDirty && (
+                        <button onClick={() => handleDocAction('submit')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#10b981', borderColor: '#10b981' }}>
+                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'SUBMIT'}
+                        </button>
+                      )}
+
+                      {isViewMode && (
+                        <button onClick={() => setIsViewMode(false)} className="so-btn-secondary" style={{ minWidth: '150px' }}>
+                           <Edit3 size={16} /> EDIT DRAFT
+                        </button>
+                      )}
+
+                      {formData.docstatus === 1 && (
+                        <button 
+                          onClick={() => handleCreateFlow('invoice')} 
+                          className="so-btn-primary" 
+                          style={{ minWidth: '150px', background: '#0284c7', borderColor: '#0284c7' }}
+                        >
+                            <Plus size={16} /> CREATE INVOICE
+                        </button>
+                      )}
+
+                      {docName && allowedActions.includes('delete') && (
+                         <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
+                            <Trash2 size={16} /> DELETE
+                         </button>
+                      )}
+                    </>
                   )}
 
-                  {allowedActions.includes('save') && (
-                      <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
-                          {saving ? <Loader2 size={16} className="so-spinner" /> : 'Update Draft'}
-                      </button>
-                  )}
+                    {formData.docstatus === 1 && (
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        {allowedActions.includes('cancel') && (
+                          <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
+                             CANCEL
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleCreateFlow('invoice')} 
+                          className="so-btn-primary" 
+                          style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}
+                        >
+                           <FileText size={16} /> CREATE BILL
+                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', background: '#ecfdf5', borderRadius: '0.375rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.7rem', fontWeight: 800 }}>
+                          <CheckCircle2 size={14} /> SUBMITTED
+                        </div>
+                      </div>
+                    )}
 
-                  {allowedActions.includes('submit') && (
-                      <button onClick={() => handleDocAction('submit')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px' }}>
-                          {saving ? <Loader2 size={16} className="so-spinner" /> : 'Submit Inventory'}
-                      </button>
-                  )}
-
-                  {allowedActions.includes('cancel') && (
-                      <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
-                         Cancel Receipt
-                      </button>
-                  )}
-
-                  {allowedActions.includes('amend') && (
-                      <button onClick={() => handleDocAction('amend')} className="so-btn-primary" style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}>
-                         Amend Matrix
-                      </button>
-                  )}
-
-                  {allowedActions.includes('delete') && (
-                      <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
-                         <Trash2 size={16} /> Delete
-                      </button>
+                  {/* CANCELLED PHASE */}
+                  {formData.docstatus === 2 && (
+                    <>
+                      {allowedActions.includes('amend') && (
+                        <button onClick={() => handleDocAction('amend')} className="so-btn-primary" style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}>
+                           AMEND
+                        </button>
+                      )}
+                      <div style={{ padding: '0.4rem 0.8rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.7rem', fontWeight: 800, borderRadius: '0.375rem' }}>
+                        CANCELLED
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -2032,8 +2348,14 @@ function PurchaseReceiptList() {
           </div>
         )}
       </div>
+      {showColConfig && (
+        <ColumnConfigModal
+          columns={columnConfig}
+          onUpdate={handleColConfigUpdate}
+          onClose={() => setShowColConfig(false)}
+        />
+      )}
     </>
   );
 }
-
 export default PurchaseReceiptList;

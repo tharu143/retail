@@ -1,65 +1,67 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  ShoppingCart, Package, MapPin, Phone, Mail, ChevronLeft, Loader2, 
-  AlertCircle, Globe, Tag, Receipt, Layers, CreditCard, 
-  ArrowRight, Settings, Edit2, Save, X, CheckCircle2, Clock,
-  Plus, Search, ScanLine, Trash2, Calendar, User, FileText, Info
+import {
+    ShoppingCart, Package, MapPin, Phone, Mail, ChevronLeft, Loader2,
+    AlertCircle, Globe, Tag, Receipt, Layers, CreditCard,
+    ArrowRight, Settings, Edit2, Save, X, CheckCircle2, Clock,
+    Plus, Search, ScanLine, Trash2, Calendar, User, FileText, Info, Palette
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import './SalesOrder.css';
 
 /* ==================== CORE LOGIC ==================== */
 function recalcForm(form) {
     const items = form.items || [];
     const taxes = form.taxes || [];
-  
+
     const total_qty = items.reduce((s, i) => s + (parseFloat(i.qty) || 0), 0);
     const base_total = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
-  
+
     let total_taxes = 0;
     let prev_total = base_total;
-  
+
     const updatedTaxes = taxes.map(tax => {
-      const rate = parseFloat(tax.rate) || 0;
-      let taxAmount = 0;
-      if (tax.charge_type === 'Actual') {
-        taxAmount = parseFloat(tax.tax_amount) || 0;
-      } else if (tax.charge_type === 'On Previous Row Amount') {
-        taxAmount = prev_total * (rate / 100);
-      } else {
-        taxAmount = base_total * (rate / 100);
-      }
-      const signed = tax.add_deduct_tax === 'Add' ? taxAmount : -taxAmount;
-      total_taxes += signed;
-      prev_total += signed;
-      return {
-        ...tax,
-        tax_amount: tax.charge_type === 'Actual' ? parseFloat(tax.tax_amount || 0) : parseFloat(taxAmount.toFixed(3)),
-        total: signed.toFixed(3),
-      };
+        const rate = parseFloat(tax.rate) || 0;
+        let taxAmount = 0;
+        if (tax.charge_type === 'Actual') {
+            taxAmount = parseFloat(tax.tax_amount) || 0;
+        } else if (tax.charge_type === 'On Previous Row Amount') {
+            taxAmount = prev_total * (rate / 100);
+        } else {
+            taxAmount = base_total * (rate / 100);
+        }
+        const signed = tax.add_deduct_tax === 'Add' ? taxAmount : -taxAmount;
+        total_taxes += signed;
+        prev_total += signed;
+        return {
+            ...tax,
+            tax_amount: tax.charge_type === 'Actual' ? parseFloat(tax.tax_amount || 0) : parseFloat(taxAmount.toFixed(3)),
+            total: signed.toFixed(3),
+        };
     });
-  
+
     const net = base_total + total_taxes;
     const disc_perc = parseFloat(form.additional_discount_percentage) || 0;
     const disc_amt = parseFloat(form.discount_amount) || 0;
     const discount = form.apply_discount_on === 'Grand Total'
-      ? (net * disc_perc / 100) + disc_amt
-      : (base_total * disc_perc / 100) + disc_amt;
-  
+        ? (net * disc_perc / 100) + disc_amt
+        : (base_total * disc_perc / 100) + disc_amt;
+
     const grand_total = net - discount;
     const rounded_total = Math.round(grand_total * 100) / 100;
-  
+
     return {
-      ...form,
-      total_qty,
-      base_total,
-      total: base_total,
-      total_taxes_and_charges: parseFloat(total_taxes.toFixed(2)),
-      grand_total: parseFloat(grand_total.toFixed(2)),
-      rounded_total: parseFloat(rounded_total.toFixed(2)),
-      rounding_adjustment: parseFloat((rounded_total - grand_total).toFixed(2)),
-      taxes: updatedTaxes,
+        ...form,
+        total_qty,
+        base_total,
+        total: base_total,
+        total_taxes_and_charges: parseFloat(total_taxes.toFixed(2)),
+        grand_total: parseFloat(grand_total.toFixed(2)),
+        rounded_total: parseFloat(rounded_total.toFixed(2)),
+        rounding_adjustment: parseFloat((rounded_total - grand_total).toFixed(2)),
+        taxes: updatedTaxes,
     };
 }
 
@@ -89,57 +91,66 @@ const emptyForm = () => ({
     docstatus: 0
 });
 
-/* ==================== UI COMPONENTS ==================== */
-const StatCard = ({ label, value, currency, icon: Icon, color }) => (
-  <div className="bg-white p-8 rounded-[1.5rem] border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group">
-    <div className="space-y-3">
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</p>
-      <div className="flex items-baseline gap-2">
-        {currency && <span className="text-sm font-bold text-gray-400">{currency}</span>}
-        <h4 className="text-2xl font-black text-gray-900 leading-none" style={{ color: color || '#111827' }}>
-          {value}
-        </h4>
-      </div>
-    </div>
-    <div className="p-4 rounded-xl transition-colors" style={{ backgroundColor: `${color}10` || '#f8fafc' }}>
-      <Icon size={24} style={{ color: color || '#94a3b8' }} />
-    </div>
-  </div>
-);
+//* ==================== UI HELPERS ==================== */
+const StatusBadge = ({ status, themeColor }) => {
+    const isCompleted = status === 'Submitted' || status === 'Authorized';
+    const isDraft = status === 'Draft' || status === 'Pending Authorization';
 
-const ConnectionCard = ({ title, links, onTransistion, loadingLinks }) => (
-    <div className="bg-white rounded-[1.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full">
-      <div className="px-8 py-5 border-b border-gray-50 bg-gray-50/30">
-        <h5 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{title}</h5>
-      </div>
-      <div className="p-4 flex-1">
-        <div className="space-y-2">
-          {links && links.map((link, idx) => (
-            <div 
-              key={idx} 
-              className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-all cursor-pointer group"
-            >
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-semibold text-gray-700">{link}</span>
-              </div>
-              <ArrowRight size={14} className="text-gray-300 group-hover:translate-x-1 transition-all" />
-            </div>
-          ))}
-          {(!links || links.length === 0) && (
-            <div className="py-10 text-center flex flex-col items-center gap-3">
-               <AlertCircle size={32} className="text-gray-100" />
-               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No Active Connections</p>
-               <button 
-                onClick={onTransistion} 
-                disabled={loadingLinks}
-                className="mt-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 hover:-translate-y-0.5 transition-all disabled:opacity-50"
-               >
-                 {loadingLinks ? 'Syncing...' : `Generate ${title.split(' ')[0]}`}
-               </button>
-            </div>
-          )}
+    let bg = '#f1f5f9';
+    let color = '#64748b';
+    let border = '#e2e8f0';
+
+    if (isCompleted) {
+        bg = `${themeColor}15`;
+        color = themeColor;
+        border = `${themeColor}30`;
+    } else if (isDraft) {
+        bg = '#fffbeb';
+        color = '#d97706';
+        border = '#fef3c7';
+    }
+
+    return (
+        <span className="so-badge" style={{ backgroundColor: bg, color: color, border: `1px solid ${border}` }}>
+            {status}
+        </span>
+    );
+};
+
+const ConnectionCard = ({ title, links, onTransistion, loadingLinks, themeColor }) => (
+    <div className="so-card" style={{ height: '100%' }}>
+        <div className="so-card-header">
+            <h5 className="so-card-title">{title}</h5>
         </div>
-      </div>
+        <div className="so-card-body">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {links && links.map((link, idx) => (
+                    <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer group"
+                    >
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>{link}</span>
+                        <ArrowRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-all" />
+                    </div>
+                ))}
+                {(!links || links.length === 0) && (
+                    <div style={{ padding: '2rem 1rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#f8fafc', color: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <AlertCircle size={24} />
+                        </div>
+                        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>No connections detected</p>
+                        <button
+                            onClick={onTransistion}
+                            disabled={loadingLinks}
+                            className="so-btn-primary"
+                            style={{ fontSize: '0.7rem', padding: '0.4rem 1rem' }}
+                        >
+                            {loadingLinks ? 'Syncing...' : `Generate ${title.split(' ')[0]}`}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
     </div>
 );
 
@@ -147,7 +158,9 @@ export default function SalesOrderDetails() {
     const { name } = useParams();
     const navigate = useNavigate();
     const isNew = name === 'create';
-    
+
+    const { themeColor, themeLight, isGreen, toggleTheme, legacySubTheme } = useLegacyTheme();
+
     // States
     const [loading, setLoading] = useState(!isNew);
     const [saving, setSaving] = useState(false);
@@ -156,7 +169,7 @@ export default function SalesOrderDetails() {
     const [form, setForm] = useState(emptyForm());
     const [linkedDocs, setLinkedDocs] = useState({});
     const [loadingLinks, setLoadingLinks] = useState(false);
-    
+
     // Dropdowns
     const [customers, setCustomers] = useState([]);
     const [taxTemplates, setTaxTemplates] = useState([]);
@@ -330,310 +343,341 @@ export default function SalesOrderDetails() {
     );
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] pb-24">
-            
-            {/* 1. Dynamic Header */}
-            <div className="bg-white border-b border-gray-100 px-6 lg:px-12 py-6 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                        <button onClick={() => navigate('/salesorderlist')} className="px-4 py-2.5 bg-gray-50 rounded-2xl text-gray-400 hover:text-gray-900 transition-colors shadow-sm flex items-center gap-2">
-                            <ChevronLeft size={20} />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
-                        </button>
-                        <div>
-                            <div className="flex items-center gap-3 mb-1">
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight">
-                                    {isNew ? 'Generate Sales Order' : (isEditing ? 'Modify Active Order' : name)}
-                                </h1>
-                                {!isEditing && (
-                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${form.docstatus === 1 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
-                                        {form.docstatus === 1 ? 'Submitted' : 'Draft'}
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-0.5">
-                                {isNew ? 'New Orchestration' : `Customer: ${form.customer_name || 'Individual Partner'}`}
-                            </p>
-                        </div>
-                    </div>
+        <div className="so-page">
+            {/* 1. Page Header */}
+            <div className="so-page-header">
+                <div>
+                    <h1 className="so-page-title">
+                        <Package size={20} />
+                        {isNew ? 'Create Sales Order' : (isEditing ? 'Edit Sales Order' : name)}
+                    </h1>
+                    <p className="so-page-subtitle">
+                        {isNew ? 'New procurement orchestration' : `Customer: ${form.customer_name || 'Individual Partner'}`}
+                    </p>
+                </div>
 
-                    <div className="flex items-center gap-4">
-                        {isEditing ? (
-                            <>
-                                <button onClick={() => isNew ? navigate('/salesorderlist') : setIsEditing(false)} className="px-6 py-3 text-xs font-black text-gray-400 uppercase tracking-widest">Discard Changes</button>
-                                <button onClick={() => handleSave(false)} disabled={saving} className="px-8 py-3 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-3 disabled:opacity-50 hover:-translate-y-0.5 transition-all">
-                                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save Artifact
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                        onClick={toggleTheme}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                            padding: '0.45rem 0.9rem', background: '#f8fafc',
+                            border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                            fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                            cursor: 'pointer', transition: 'all 0.2s',
+                            textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}
+                    >
+                        <Palette size={13} />
+                        {legacySubTheme.toUpperCase()}
+                    </button>
+
+                    {isEditing ? (
+                        <>
+                            <button
+                                onClick={() => isNew ? navigate('/salesorderlist') : setIsEditing(false)}
+                                className="so-btn-secondary"
+                            >
+                                <X size={16} /> Discard
+                            </button>
+                            <button
+                                onClick={() => handleSave(false)}
+                                disabled={saving}
+                                className="so-btn-primary"
+                            >
+                                {saving ? <Loader2 size={16} className="so-spinner" /> : <Save size={16} />} Save Draft
+                            </button>
+                            {!isNew && form.docstatus === 0 && (
+                                <button
+                                    onClick={() => handleSave(true)}
+                                    disabled={saving}
+                                    className="so-btn-primary"
+                                    style={{ background: '#4f46e5', borderColor: '#4f46e5' }}
+                                >
+                                    <CheckCircle2 size={16} /> Submit Order
                                 </button>
-                                {!isNew && form.docstatus === 0 && (
-                                    <button onClick={() => handleSave(true)} disabled={saving} className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-3 disabled:opacity-50 hover:-translate-y-0.5 transition-all">
-                                        <CheckCircle2 size={16} /> Finalize Order
-                                    </button>
-                                )}
-                            </>
-                        ) : (
-                            <>
-                                <button onClick={() => setIsEditing(true)} className="px-8 py-3 bg-white border border-gray-100 text-gray-600 rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 shadow-sm hover:border-gray-300 transition-all">
-                                    <Edit2 size={14} /> Modify Detail
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            {form.docstatus === 0 && (
+                                <button
+                                    onClick={() => setIsEditing(true)}
+                                    className="so-btn-primary"
+                                >
+                                    <Edit2 size={16} /> Modify Detail
                                 </button>
-                                {form.docstatus === 1 && (
-                                    <div className="h-10 w-px bg-gray-100 mx-2" />
-                                )}
-                            </>
-                        )}
-                    </div>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-6 lg:px-12 mt-10">
-                {isEditing ? (
-                    /* EDITING / CREATION VIEW (Full View Form) */
-                    <div className="space-y-10 animate-slideUp">
-                        {/* Section 1: Partner & Timeline */}
-                        <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl space-y-10">
-                            <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-4">
-                                <div className="w-2.5 h-8 bg-blue-600 rounded-full" /> Partner & Timeline
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                                <div className="space-y-2 relative">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Target Customer Partner *</label>
-                                    <div className="relative group">
-                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-                                        <input 
-                                            type="text" 
-                                            value={searchCustomer} 
-                                            onChange={(e) => {
-                                                setSearchCustomer(e.target.value);
-                                                setShowCustomerDropdown(true);
-                                            }}
-                                            placeholder="Lookup registered customer..."
-                                            className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all shadow-inner"
-                                        />
-                                        {showCustomerDropdown && (
-                                            <div className="absolute top-full left-0 right-0 mt-3 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 max-h-60 overflow-y-auto overflow-x-hidden p-2 animate-fadeIn">
-                                                {customers.filter(c => c.customer_name.toLowerCase().includes(searchCustomer.toLowerCase())).map(c => (
-                                                    <div key={c.name} onClick={() => {
-                                                        setForm({ ...form, customer: c.name, customer_name: c.customer_name });
-                                                        setSearchCustomer(c.customer_name);
-                                                        setShowCustomerDropdown(false);
-                                                    }} className="p-4 hover:bg-blue-50 rounded-xl cursor-pointer text-sm font-bold text-gray-700 transition-colors flex justify-between items-center group">
-                                                        {c.customer_name}
-                                                        <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 text-blue-600 transition-all" />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+            <div className="so-layout">
+                <div className="so-content">
+                    {isEditing ? (
+                        /* EDITING / CREATION VIEW */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+                            <div className="so-card">
+                                <div className="so-card-header">
+                                    <h5 className="so-card-title">Order Context & Timeline</h5>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Date of Issuance</label>
-                                    <div className="relative">
-                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" size={16} />
-                                        <input 
-                                            type="date" 
-                                            value={form.transaction_date} 
-                                            onChange={e => setForm({...form, transaction_date: e.target.value})}
-                                            className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:border-blue-600"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Fulfillment Target</label>
-                                    <div className="relative">
-                                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" size={16} />
-                                        <input 
-                                            type="date" 
-                                            value={form.delivery_date} 
-                                            onChange={e => setForm({...form, delivery_date: e.target.value})}
-                                            className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:border-blue-600"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Section 2: Items Orchestration */}
-                        <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl space-y-8 overflow-visible">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-4">
-                                    <div className="w-2.5 h-8 bg-indigo-600 rounded-full" /> Order Items
-                                </h3>
-                                <button onClick={addItemRow} className="px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2">
-                                    <Plus size={14} /> Add Line Item
-                                </button>
-                            </div>
-                            
-                            <div className="overflow-x-auto overflow-y-visible">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="border-b border-gray-50">
-                                            <th className="pb-5 text-[10px] font-black text-gray-400 uppercase tracking-widest w-1/3 pl-4">Product Catalog</th>
-                                            <th className="pb-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Quantity</th>
-                                            <th className="pb-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Unit Rate</th>
-                                            <th className="pb-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Total Amount</th>
-                                            <th className="pb-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {form.items.map((item, idx) => (
-                                            <tr key={idx} className="group">
-                                                <td className="py-6 pl-4 relative">
-                                                    <div className="relative group/search">
-                                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
-                                                        <input 
-                                                            type="text" 
-                                                            value={item.item_code} 
-                                                            autoFocus={!item.item_code}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value;
-                                                                const itms = [...form.items];
-                                                                itms[idx].item_code = val;
-                                                                setForm({...form, items: itms});
-                                                                searchItems(val, idx);
-                                                            }}
-                                                            placeholder="SKU or Item Name..."
-                                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm font-bold text-gray-900 focus:bg-white focus:border-blue-600/30 transition-all outline-none"
-                                                        />
-                                                        {showItemDropdowns[idx] && (
-                                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto p-1.5 animate-fadeIn">
-                                                                {itemsList.map(it => (
-                                                                    <div key={it.item_code} onClick={() => selectItem(idx, it)} className="p-3 hover:bg-blue-50 rounded-lg cursor-pointer text-xs font-bold text-gray-700 flex flex-col gap-0.5">
-                                                                        <span>{it.item_name}</span>
-                                                                        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{it.item_code}</span>
-                                                                    </div>
-                                                                ))}
+                                <div className="so-card-body">
+                                    <div className="so-form-grid">
+                                        <div className="so-field">
+                                            <label className="so-label">Target Customer *</label>
+                                            <div style={{ position: 'relative' }}>
+                                                <input
+                                                    className="so-input"
+                                                    type="text"
+                                                    value={searchCustomer}
+                                                    onChange={(e) => {
+                                                        setSearchCustomer(e.target.value);
+                                                        setShowCustomerDropdown(true);
+                                                    }}
+                                                    placeholder="Search customer..."
+                                                />
+                                                {showCustomerDropdown && (
+                                                    <div className="so-dropdown">
+                                                        {customers.filter(c => c.customer_name.toLowerCase().includes(searchCustomer.toLowerCase())).map(c => (
+                                                            <div key={c.name} onClick={() => {
+                                                                setForm({ ...form, customer: c.name, customer_name: c.customer_name });
+                                                                setSearchCustomer(c.customer_name);
+                                                                setShowCustomerDropdown(false);
+                                                            }} className="so-dropdown-item">
+                                                                <div className="so-dropdown-item-name">{c.customer_name}</div>
+                                                                <div className="so-dropdown-item-code">{c.name}</div>
                                                             </div>
-                                                        )}
+                                                        ))}
                                                     </div>
-                                                </td>
-                                                <td className="py-6 px-4">
-                                                    <input 
-                                                        type="number" 
-                                                        step="any"
-                                                        value={item.qty} 
-                                                        onChange={e => {
-                                                            const itms = [...form.items];
-                                                            itms[idx].qty = e.target.value;
-                                                            itms[idx].amount = (parseFloat(e.target.value) || 0) * (parseFloat(itms[idx].rate) || 0);
-                                                            setForm(recalcForm({...form, items: itms}));
-                                                        }}
-                                                        className="w-24 mx-auto text-center py-3 bg-gray-50 border border-transparent rounded-xl text-sm font-black text-gray-900 outline-none focus:bg-white focus:border-blue-600/30"
-                                                    />
-                                                </td>
-                                                <td className="py-6 px-4">
-                                                    <input 
-                                                        type="number" 
-                                                        step="any"
-                                                        value={item.rate} 
-                                                        onChange={e => {
-                                                            const itms = [...form.items];
-                                                            itms[idx].rate = e.target.value;
-                                                            itms[idx].amount = (parseFloat(itms[idx].qty) || 0) * (parseFloat(e.target.value) || 0);
-                                                            setForm(recalcForm({...form, items: itms}));
-                                                        }}
-                                                        className="w-32 ml-auto text-right py-3 bg-gray-50 border border-transparent rounded-xl text-sm font-black text-gray-900 outline-none focus:bg-white focus:border-blue-600/30"
-                                                    />
-                                                </td>
-                                                <td className="py-6 px-4 text-right">
-                                                    <div className="text-sm font-black text-gray-900 px-4">
-                                                        {(parseFloat(item.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                    </div>
-                                                </td>
-                                                <td className="py-6 px-4 text-center">
-                                                    <button onClick={() => removeItemRow(idx)} className="p-3 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </td>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="so-form-grid" style={{ gap: '1rem' }}>
+                                            <div className="so-field">
+                                                <label className="so-label">Issue Date</label>
+                                                <input
+                                                    className="so-input"
+                                                    type="date"
+                                                    value={form.transaction_date}
+                                                    onChange={e => setForm({ ...form, transaction_date: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="so-field">
+                                                <label className="so-label">Delivery Target</label>
+                                                <input
+                                                    className="so-input"
+                                                    type="date"
+                                                    value={form.delivery_date}
+                                                    onChange={e => setForm({ ...form, delivery_date: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="so-card">
+                                <div className="so-card-header">
+                                    <h5 className="so-card-title">Orchestration Itemized Bill</h5>
+                                    <button onClick={addItemRow} className="so-btn-ghost">
+                                        <Plus size={14} /> Add Line Item
+                                    </button>
+                                </div>
+                                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
+                                    <table className="so-table">
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: '40%' }}>Product SKU / Description</th>
+                                                <th style={{ width: '15%', textAlign: 'center' }}>Qty</th>
+                                                <th style={{ width: '20%', textAlign: 'right' }}>Unit Rate</th>
+                                                <th style={{ width: '20%', textAlign: 'right' }}>Line Total</th>
+                                                <th style={{ width: '50px' }}></th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {form.items.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td>
+                                                        <div style={{ position: 'relative' }}>
+                                                            <input
+                                                                className="so-td-input"
+                                                                type="text"
+                                                                value={item.item_code}
+                                                                placeholder="SKU or Name..."
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    const itms = [...form.items];
+                                                                    itms[idx].item_code = val;
+                                                                    setForm({ ...form, items: itms });
+                                                                    searchItems(val, idx);
+                                                                }}
+                                                            />
+                                                            {showItemDropdowns[idx] && (
+                                                                <div className="so-dropdown">
+                                                                    {itemsList.map(it => (
+                                                                        <div key={it.item_code} onClick={() => selectItem(idx, it)} className="so-dropdown-item">
+                                                                            <div className="so-dropdown-item-name">{it.item_name}</div>
+                                                                            <div className="so-dropdown-item-code">{it.item_code}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            className="so-td-input"
+                                                            style={{ textAlign: 'center' }}
+                                                            type="number"
+                                                            value={item.qty}
+                                                            onChange={e => {
+                                                                const itms = [...form.items];
+                                                                itms[idx].qty = e.target.value;
+                                                                itms[idx].amount = (parseFloat(e.target.value) || 0) * (parseFloat(itms[idx].rate) || 0);
+                                                                setForm(recalcForm({ ...form, items: itms }));
+                                                            }}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            className="so-td-input"
+                                                            style={{ textAlign: 'right' }}
+                                                            type="number"
+                                                            value={item.rate}
+                                                            onChange={e => {
+                                                                const itms = [...form.items];
+                                                                itms[idx].rate = e.target.value;
+                                                                itms[idx].amount = (parseFloat(itms[idx].qty) || 0) * (parseFloat(e.target.value) || 0);
+                                                                setForm(recalcForm({ ...form, items: itms }));
+                                                            }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                                                        {(parseFloat(item.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <button onClick={() => removeItemRow(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div className="so-summary-bar" style={{ alignSelf: 'flex-end', minWidth: '350px' }}>
+                                <div className="so-summary-item">
+                                    <span className="so-summary-label">Base Total</span>
+                                    <span className="so-summary-value">AED {form.base_total.toLocaleString()}</span>
+                                </div>
+                                <div className="so-summary-divider" />
+                                <div className="so-summary-item" style={{ textAlign: 'right' }}>
+                                    <span className="so-summary-label">Net Payable</span>
+                                    <span className="so-summary-value grand">AED {form.grand_total.toLocaleString()}</span>
+                                </div>
                             </div>
                         </div>
+                    ) : (
+                        /* VIEW MODE */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
+                            {/* Summary Bar for Stats */}
+                            <div className="so-summary-bar">
+                                <div className="so-summary-item">
+                                    <span className="so-summary-label">Artifact Valuation</span>
+                                    <span className="so-summary-value grand">AED {form.grand_total.toLocaleString()}</span>
+                                </div>
+                                <div className="so-summary-divider" />
+                                <div className="so-summary-item">
+                                    <span className="so-summary-label">Quantity Items</span>
+                                    <span className="so-summary-value">{form.total_qty} Units</span>
+                                </div>
+                                <div className="so-summary-divider" />
+                                <div className="so-summary-item">
+                                    <span className="so-summary-label">Lifecycle Status</span>
+                                    <StatusBadge status={form.docstatus === 1 ? 'Authorized' : 'Pending Authorization'} themeColor={themeColor} />
+                                </div>
+                                <div className="so-summary-divider" />
+                                <div className="so-summary-item" style={{ textAlign: 'right' }}>
+                                    <span className="so-summary-label">Created On</span>
+                                    <span className="so-summary-value" style={{ fontSize: '0.85rem' }}>{form.creation?.split(' ')[0] || form.transaction_date}</span>
+                                </div>
+                            </div>
 
-                        {/* Totals & Net Pay */}
-                        <div className="max-w-xl ml-auto bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl space-y-6">
-                             <div className="flex justify-between items-center pb-6 border-b border-gray-50">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Base Orchestration Amount</span>
-                                <span className="text-lg font-black text-gray-900">AED {form.base_total.toLocaleString()}</span>
-                             </div>
-                             <div className="flex justify-between items-center text-emerald-600">
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Applied Artifact Discount</span>
-                                <span className="text-sm font-black">- AED {form.discount_amount.toLocaleString()}</span>
-                             </div>
-                             <div className="flex justify-between items-center py-6 border-t border-gray-100">
-                                <span className="text-sm font-black text-gray-900 uppercase tracking-widest">Payable Net Value</span>
-                                <span className="text-4xl font-black text-blue-600 tracking-tighter">AED {form.grand_total.toLocaleString()}</span>
-                             </div>
-                        </div>
-                    </div>
-                ) : (
-                    /* VIEW MODE (Dashboard-Oriented Detail) */
-                    <div className="space-y-10 animate-slideUp">
-                        {/* Highlights Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            <StatCard label="Total Artifact Value" value={form.grand_total.toLocaleString()} currency="AED" icon={CreditCard} color="#4f46e5" />
-                            <StatCard label="Order Quantity" value={form.total_qty} icon={Package} color="#0891b2" />
-                            <StatCard label="Lifecycle Progress" value={form.docstatus === 1 ? 'Authorized' : 'Pending Authorization'} icon={form.docstatus === 1 ? CheckCircle2 : Clock} color={form.docstatus === 1 ? '#10b981' : '#f59e0b'} />
-                        </div>
-
-                        {/* Connection Matrices */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            <ConnectionCard title="Delivery Connections" links={linkedDocs.Delivery_Note} onTransistion={() => handleTransistion('Delivery Note')} loadingLinks={loadingLinks} />
-                            <ConnectionCard title="Revenue Triggers" links={linkedDocs.Sales_Invoice} onTransistion={() => handleTransistion('Sales Invoice')} loadingLinks={loadingLinks} />
-                            
-                            {/* Summary Artifact */}
-                            <div className="bg-white rounded-[1.5rem] border border-gray-100 shadow-sm p-8 flex flex-col justify-center gap-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-blue-50 rounded-2xl text-blue-600"><Info size={24} /></div>
-                                    <div>
-                                        <h4 className="text-lg font-black text-gray-900 tracking-tight">Order Artifact</h4>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Created {form.creation?.split(' ')[0]}</p>
+                            {/* Main Detail Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                                <ConnectionCard
+                                    title="Delivery Connections"
+                                    links={linkedDocs.Delivery_Note}
+                                    onTransistion={() => handleTransistion('Delivery Note')}
+                                    loadingLinks={loadingLinks}
+                                    themeColor={themeColor}
+                                />
+                                <ConnectionCard
+                                    title="Revenue Triggers"
+                                    links={linkedDocs.Sales_Invoice}
+                                    onTransistion={() => handleTransistion('Sales Invoice')}
+                                    loadingLinks={loadingLinks}
+                                    themeColor={themeColor}
+                                />
+                                <div className="so-card">
+                                    <div className="so-card-header">
+                                        <h5 className="so-card-title">Order Properties</h5>
+                                    </div>
+                                    <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Currency</span>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.currency}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Selling Price List</span>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.selling_price_list}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Fulfilment Data</span>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: themeColor }}>{form.delivery_date || 'N/A'}</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-widest">
-                                        <span>Items Count</span>
-                                        <span className="text-gray-900">{form.items.length}</span>
-                                    </div>
-                                    <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-widest">
-                                        <span>Currency</span>
-                                        <span className="text-gray-900">{form.currency}</span>
-                                    </div>
+                            </div>
+
+                            {/* Items Table Presentation */}
+                            <div className="so-table-card">
+                                <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+                                    <h5 className="so-card-title">Orchestration Itemized Bill</h5>
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>{form.items.length} ACTIVE ITEMS</span>
+                                </div>
+                                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
+                                    <table className="so-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Product SKU / Description</th>
+                                                <th style={{ textAlign: 'center' }}>Qty Authorized</th>
+                                                <th style={{ textAlign: 'right' }}>Authorized Rate</th>
+                                                <th style={{ textAlign: 'right' }}>Line Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {form.items.map((i, idx) => (
+                                                <tr key={idx} style={{ cursor: 'default' }}>
+                                                    <td>
+                                                        <div style={{ fontWeight: 700, color: '#1e293b' }}>{i.item_code}</div>
+                                                        <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{i.item_name}</div>
+                                                    </td>
+                                                    <td style={{ textAlign: 'center', fontWeight: 800, color: '#475569' }}>{i.qty}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>AED {parseFloat(i.rate || 0).toLocaleString()}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>AED {parseFloat(i.amount || 0).toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
-
-                        {/* Items Presentation */}
-                        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
-                            <div className="px-10 py-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/20">
-                                <h3 className="text-[11px] font-black text-gray-500 uppercase tracking-[0.2em]">Orchestration Itemized Bill</h3>
-                            </div>
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="bg-gray-50/50">
-                                        <th className="px-10 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Product SKU / Desription</th>
-                                        <th className="px-10 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Qty Authorized</th>
-                                        <th className="px-10 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Authorized Rate</th>
-                                        <th className="px-10 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Line Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {form.items.map((i, idx) => (
-                                        <tr key={idx}>
-                                            <td className="px-10 py-6">
-                                                <div className="text-sm font-black text-gray-900">{i.item_code}</div>
-                                                <div className="text-[11px] font-bold text-gray-400 uppercase mt-0.5">{i.item_name}</div>
-                                            </td>
-                                            <td className="px-10 py-6 text-center text-sm font-black text-gray-700">{i.qty}</td>
-                                            <td className="px-10 py-6 text-right text-sm font-bold text-gray-700">AED {parseFloat(i.rate || 0).toLocaleString()}</td>
-                                            <td className="px-10 py-6 text-right text-sm font-black text-gray-900">AED {parseFloat(i.amount || 0).toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );
