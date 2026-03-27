@@ -217,8 +217,9 @@ const CustomerDetails = () => {
       <div className="bg-white border-b border-gray-100 px-8 py-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-6">
-            <button onClick={() => navigate('/customerlist')} className="p-2.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 transition-all shadow-sm">
+            <button onClick={() => navigate('/customerlist')} className="px-4 py-2.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 transition-all shadow-sm flex items-center gap-2">
               <ChevronLeft size={20} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Back</span>
             </button>
             <div className="h-12 w-12 bg-slate-900 rounded-xl flex items-center justify-center">
                <User size={24} className="text-white" />

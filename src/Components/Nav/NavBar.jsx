@@ -228,7 +228,10 @@ function NavBar() {
       <div className="container-fluid justify-content-between">
         <div className="d-flex align-items-center gap-2">
           {location.pathname !== '/homepage' && location.pathname !== '/' && (
-            <ChevronLeft className="cursor-pointer" size={22} style={{ color: '#64748b' }} onClick={() => navigate(-1)} />
+            <div className="d-flex align-items-center cursor-pointer gap-1 back-link" onClick={() => navigate(-1)} style={{ color: '#64748b' }}>
+              <ChevronLeft size={22} />
+              <span style={{ fontWeight: 700, fontSize: '14px' }}>Back</span>
+            </div>
           )}
           <div onClick={() => navigate('/homepage')} className="cursor-pointer">
             <h1 className="nav-title">

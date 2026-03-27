@@ -80,7 +80,7 @@ const GlobalStyle = () => (
     .il-section-label { font-size: 11px; font-weight: 700; color: ${T.textMuted}; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 7px; display: block; }
     .il-check { width: 16px; height: 16px; accent-color: ${T.blue}; cursor: pointer; flex-shrink: 0; }
     .il-divider { height: 1.5px; background: ${T.borderLight}; border: none; }
-    .il-modal-panel { position: fixed; inset: 0; z-index: 1040; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
+    .il-modal-panel { position: fixed; inset: 0; z-index: 11000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
     .il-modal-header { background: ${T.surface}; border-bottom: 1.5px solid ${T.border}; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
     .il-modal-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
     .il-modal-footer { background: ${T.surface}; border-top: 1.5px solid ${T.border}; padding: 14px 28px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
@@ -118,6 +118,18 @@ const GlobalStyle = () => (
     .spin { animation: spin 0.8s linear infinite; }
     .il-group-tabs-scroll { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; display: flex; gap: 8px; padding: 4px; }
     .il-group-tabs-scroll::-webkit-scrollbar { display: none; }
+    
+    /* Custom SweetAlert Styles */
+    .swal2-container { z-index: 20000 !important; }
+    .swal2-popup-custom { border-radius: 32px !important; padding: 2rem !important; font-family: 'DM Sans', sans-serif !important; z-index: 20001 !important; }
+    .swal2-title-custom { font-size: 28px !important; font-weight: 800 !important; color: #1e293b !important; margin-bottom: 0.5rem !important; }
+    .swal2-text-custom { font-size: 16px !important; font-weight: 500 !important; color: #64748b !important; line-height: 1.6 !important; margin-bottom: 2rem !important; padding: 0 1rem !important; }
+    .swal2-confirm-btn-custom { background-color: #ef4444 !important; color: white !important; padding: 14px 40px !important; border-radius: 12px !important; font-size: 15px !important; font-weight: 700 !important; border: none !important; margin: 0 10px !important; cursor: pointer; transition: all 0.2s; }
+    .swal2-confirm-btn-custom:hover { background-color: #dc2626 !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+    .swal2-cancel-btn-custom { background-color: #94a3b8 !important; color: white !important; padding: 14px 40px !important; border-radius: 12px !important; font-size: 15px !important; font-weight: 700 !important; border: none !important; margin: 0 10px !important; cursor: pointer; transition: all 0.2s; }
+    .swal2-cancel-btn-custom:hover { background-color: #64748b !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(148, 163, 184, 0.2); }
+    .swal2-actions-custom { margin-top: 1rem !important; }
+    .swal2-icon-custom { border-color: #fdba74 !important; color: #f97316 !important; }
   `}</style>
 );
 
@@ -556,10 +568,18 @@ export default function ItemList() {
         text: "This will hide the item from active registers and transaction lists.",
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: T.red,
-        cancelButtonColor: T.textMuted,
         confirmButtonText: 'Yes, Deactivate',
-        backdrop: `rgba(0,0,0,0.2)` // Lighter backdrop to still see details
+        cancelButtonText: 'Cancel',
+        buttonsStyling: false,
+        customClass: {
+          popup: 'swal2-popup-custom',
+          title: 'swal2-title-custom',
+          htmlContainer: 'swal2-text-custom',
+          actions: 'swal2-actions-custom',
+          confirmButton: 'swal2-confirm-btn-custom',
+          cancelButton: 'swal2-cancel-btn-custom',
+          icon: 'swal2-icon-custom'
+        }
       });
       if (result.isConfirmed) setForm({ ...form, disabled: true });
     } else {
@@ -765,9 +785,29 @@ export default function ItemList() {
 
   const resetForm = () => { setForm(defaultForm()); setBarcodes([]); setIsEditMode(false); setIsViewMode(false); setEditingItemCode(null); setValuationData(null); };
 
-  const handleCloseForm = () => {
+  const handleCloseForm = async () => {
     const dirty = !isViewMode && (form.item_code || form.item_name || form.item_group || barcodes.length > 0 || form.image);
-    if (dirty && !window.confirm('Discard unsaved changes?')) return;
+    if (dirty) {
+      const result = await Swal.fire({
+        title: 'Discard Changes?',
+        text: 'You have unsaved changes that will be lost.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Discard',
+        cancelButtonText: 'No, Keep Editing',
+        buttonsStyling: false,
+        customClass: {
+          popup: 'swal2-popup-custom',
+          title: 'swal2-title-custom',
+          htmlContainer: 'swal2-text-custom',
+          actions: 'swal2-actions-custom',
+          confirmButton: 'swal2-confirm-btn-custom',
+          cancelButton: 'swal2-cancel-btn-custom',
+          icon: 'swal2-icon-custom'
+        }
+      });
+      if (!result.isConfirmed) return;
+    }
     setShowForm(false); setBarcodes([]);
     setForm(p => ({ ...p, item_code: '', item_name: '', item_group: '', image: null, imagePreview: null }));
   };
@@ -1032,8 +1072,9 @@ export default function ItemList() {
         <div className="il-modal-panel anim-in">
           <div className="il-modal-header" style={{ height: 'auto', minHeight: 64, padding: '12px 28px', flexWrap: 'wrap', gap: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 'fit-content' }}>
-              <button className="il-btn il-btn-secondary" style={{ width: 36, height: 36, padding: 0, borderRadius: 10 }} onClick={handleCloseForm}>
+              <button className="il-btn il-btn-secondary" style={{ height: 36, padding: '0 12px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4 }} onClick={handleCloseForm}>
                 <ChevronLeft size={18} />
+                <span style={{ fontSize: 11, fontWeight: 800 }}>Back</span>
               </button>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: T.text, lineHeight: 1.2 }}>
@@ -1084,7 +1125,7 @@ export default function ItemList() {
                     style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff' }}
                     onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
                   >
-                    <Edit2 size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>REVISE</span>
+                    <Edit2 size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>Edit</span>
                   </button>
                   <button className="il-btn il-btn-danger" style={{ height: 36, padding: '0 12px', borderRadius: 10 }} onClick={() => handleDelete(editingItemCode)}>
                     <Trash2 size={14} />
@@ -1092,14 +1133,7 @@ export default function ItemList() {
                 </div>
                )}
 
-               {!isViewMode && (
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button className="il-btn il-btn-secondary" style={{ borderRadius: 10 }} onClick={handleCloseForm}>Discard</button>
-                    <button className="il-btn il-btn-primary" style={{ borderRadius: 10, padding: '0 24px' }} onClick={handleSave} disabled={saving}>
-                      {saving ? 'Syncing...' : (isEditMode ? 'Commit Changes' : 'Execute Genesis')}
-                    </button>
-                  </div>
-               )}
+
             </div>
           </div>
 

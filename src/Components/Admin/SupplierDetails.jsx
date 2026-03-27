@@ -335,8 +335,9 @@ const SupplierDetails = () => {
         {/* Page Header */}
         <div className="so-page-header" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <button onClick={() => navigate(-1)} className="so-btn-ghost" style={{ padding: '0.5rem' }}>
+            <button onClick={() => navigate(-1)} className="so-btn-ghost" style={{ padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <ChevronLeft size={18} />
+              <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>BACK</span>
             </button>
             <div>
               <h1 className="so-page-title">
