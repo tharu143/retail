@@ -500,7 +500,7 @@ function PurchaseReceiptList() {
   const fetchItemRate = useCallback(async (rowIndex, itemCode) => {
     if (!itemCode) {
       console.warn('Item code missing; skipping rate fetch.');
-      return;
+      return;1
     }
     // Show loading
     setRateLoading(prev => ({ ...prev, [rowIndex]: true }));

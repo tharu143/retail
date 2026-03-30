@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../Redux/Slices/userSlice';
@@ -84,24 +84,27 @@ function Login() {
       const data = await response.json();
       const resp = data.message || data;
 
-      let { user, session, pos_profile, company, warehouse, branch_prefix } = resp;
+      let { user, session, pos_profile, company, warehouse, branch_prefix, active_pos_opening } = resp;
 
-      // Check for Active Shift
-      let existingOpeningEntry = "";
-      try {
-        const openRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries?sid=${session}`, {
-          headers: { "X-Frappe-SID": session },
-          credentials: "omit"
-        });
-        if (openRes.ok) {
-          const openData = await openRes.json();
-          const openEntry = openData.message?.data?.[0];
-          if (openEntry && openEntry.status === "Open") {
-            existingOpeningEntry = openEntry.name;
+      // Check for Active Shift (Backend now returns this in login response, but we keep fallback for compatibility)
+      let existingOpeningEntry = active_pos_opening || "";
+      
+      if (!existingOpeningEntry && session) {
+        try {
+          const openRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries?sid=${session}`, {
+            headers: { "X-Frappe-SID": session },
+            credentials: 'omit'
+          });
+          if (openRes.ok) {
+            const openData = await openRes.json();
+            const openEntry = openData.message?.data?.[0];
+            if (openEntry && openEntry.status === "Open") {
+              existingOpeningEntry = openEntry.name;
+            }
           }
+        } catch (ex) {
+          console.warn("Shift check failed:", ex);
         }
-      } catch (ex) {
-        console.warn("Shift check failed:", ex);
       }
 
       // Store in Redux + localStorage

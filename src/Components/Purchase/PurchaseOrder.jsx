@@ -116,29 +116,32 @@ function PurchaseOrder() {
   // ----- Column Config -----
   const loadColumnConfig = () => {
     try {
-      const saved = localStorage.getItem('po_column_config');
+      const saved = localStorage.getItem('purchase_matrix_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Merge with defaults to ensure any new columns are included
         const defaultIds = DEFAULT_PO_COLUMNS.map(c => c.id);
-        const savedIds   = parsed.map(c => c.id);
-        const missing    = DEFAULT_PO_COLUMNS.filter(c => !savedIds.includes(c.id));
-        return [...parsed, ...missing];
+        const savedIds = parsed.map(c => c.id);
+        
+        // Match only valid PO columns and append any missing defaults
+        const existing = parsed.filter(c => defaultIds.includes(c.id));
+        const missing = DEFAULT_PO_COLUMNS.filter(c => !savedIds.includes(c.id));
+        
+        return [...existing, ...missing];
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { console.error("PO Style Config Error:", e); }
     return DEFAULT_PO_COLUMNS;
   };
-  const [columnConfig, setColumnConfig]   = useState(loadColumnConfig);
+
+  const [poColumns, setPoColumns] = useState(loadColumnConfig);
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
     if (newConfig === null) {
-      // Reset to default
-      setColumnConfig(DEFAULT_PO_COLUMNS);
-      localStorage.removeItem('po_column_config');
+      setPoColumns(DEFAULT_PO_COLUMNS);
+      localStorage.removeItem('purchase_matrix_config');
     } else {
-      setColumnConfig(newConfig);
-      localStorage.setItem('po_column_config', JSON.stringify(newConfig));
+      setPoColumns(newConfig);
+      localStorage.setItem('purchase_matrix_config', JSON.stringify(newConfig));
     }
     setShowColConfig(false);
   };
@@ -557,27 +560,27 @@ function PurchaseOrder() {
           custom_ref_sl_no: it.custom_ref_sl_no || it.custom_supplier_sl_num || it.supplier_sl_no || '',
           custom_supplier_sl_num: it.custom_supplier_sl_num || it.custom_ref_sl_no || it.supplier_sl_no || '',
           supplier_part_no: it.supplier_part_no || it.custom_supplier_sl_num || '',
-          custom_box_qty: parseFloat(it.custom_box_qty) || 0,
-          custom_pieces_per_box: parseFloat(it.custom_pieces_per_box) || 1,
-          custom_box_price: parseFloat(it.custom_box_price) || 0,
-          custom_selling_price: parseFloat(it.custom_selling_price) || 0,
-          qty: parseFloat(it.qty) || 0,
-          rate: parseFloat(it.rate) || 0,
-          amount: parseFloat(it.amount) || 0,
+          custom_box_qty: parseFloat(parseFloat(it.custom_box_qty || 0).toFixed(2)),
+          custom_pieces_per_box: parseFloat(parseFloat(it.custom_pieces_per_box || 1).toFixed(2)),
+          custom_box_price: parseFloat(parseFloat(it.custom_box_price || 0).toFixed(2)),
+          custom_selling_price: parseFloat(parseFloat(it.custom_selling_price || 0).toFixed(2)),
+          qty: parseFloat(parseFloat(it.qty || 0).toFixed(2)),
+          rate: parseFloat(parseFloat(it.rate || 0).toFixed(2)),
+          amount: parseFloat(parseFloat(it.amount || 0).toFixed(2)),
           purchase_order: it.purchase_order || '',
           purchase_order_item: it.purchase_order_item || '',
           use_box_entry: it.uom === 'Box' || 
             (parseFloat(it.custom_box_qty) > 0 && Math.abs((parseFloat(it.qty) || parseFloat(it.accepted_qty)) - (parseFloat(it.custom_box_qty) * parseFloat(it.custom_pieces_per_box || 1))) < 0.1),
         })),
-        total_qty: parseFloat(draft.total_qty) || 0,
-        total: parseFloat(draft.total) || 0,
+        total_qty: parseFloat(parseFloat(draft.total_qty || 0).toFixed(2)),
+        total: parseFloat(parseFloat(draft.total || 0).toFixed(2)),
         taxes_and_charges: draft.taxes_and_charges,
         taxes: draft.taxes || [],
-        tax_total: parseFloat(draft.total_taxes_and_charges) || 0,
-        grand_total: parseFloat(draft.grand_total) || 0,
+        tax_total: parseFloat(parseFloat(draft.total_taxes_and_charges || 0).toFixed(2)),
+        grand_total: parseFloat(parseFloat(draft.grand_total || 0).toFixed(2)),
         docstatus: parseInt(draft.docstatus) || 0,
-        per_billed: parseFloat(draft.per_billed) || 0,
-        per_received: parseFloat(draft.per_received) || 0,
+        per_billed: parseFloat(parseFloat(draft.per_billed || 0).toFixed(2)),
+        per_received: parseFloat(parseFloat(draft.per_received || 0).toFixed(2)),
         status: draft.status || '',
         quick_entry: false,
         naming_series: draft.naming_series || 'PO-'
@@ -798,18 +801,27 @@ function PurchaseOrder() {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
-      if (!res.ok) return [];
+      if (!res.ok) return [{ uom: 'Nos', conversion_factor: 1 }, { uom: 'Box', conversion_factor: 0 }];
       const data = await res.json();
       const doc = data.data || {};
       const uomRows = doc.uoms || [];
-      // Return [{uom, conversion_factor}], always include stock_uom
       const list = uomRows.map(u => ({ uom: u.uom, conversion_factor: parseFloat(u.conversion_factor) || 1 }));
-      if (!list.find(u => u.uom === doc.stock_uom)) {
-        list.unshift({ uom: doc.stock_uom, conversion_factor: 1 });
+      
+      const stockUom = doc.stock_uom || 'Nos';
+      if (!list.find(u => u.uom === stockUom)) {
+        list.unshift({ uom: stockUom, conversion_factor: 1 });
+      }
+
+      // Mandatory high-density options
+      if (!list.find(u => (u.uom || '').toLowerCase() === "nos")) {
+        list.push({ uom: "Nos", conversion_factor: 1 });
+      }
+      if (!list.find(u => (u.uom || '').toLowerCase() === "box")) {
+        list.push({ uom: "Box", conversion_factor: 0 }); 
       }
       return list;
-    } catch (e) {
-      return [];
+    } catch (err) {
+      return [{ uom: 'Nos', conversion_factor: 1 }, { uom: 'Box', conversion_factor: 0 }];
     }
   };
 
@@ -842,49 +854,49 @@ function PurchaseOrder() {
 
   const handleInputChange = (e, rowIndex = null) => {
     const { name, value } = e.target;
-    const val = value === '' ? '' : parseFloat(value) || 0;
-
+    
+    // We strictly use the raw string 'value' for the field being typed to avoid stripping dots
     setFormData(prev => {
       const newState = { ...prev };
+      const items = [...prev.items];
+      
       if (rowIndex !== null) {
-        const items = [...prev.items];
         const item = { ...items[rowIndex] };
+        item[name] = value; // PRESERVE TYPING
+        
+        // Calculate numeric equivalent for dependencies
+        const val = (value === '' || value === '.') ? 0 : parseFloat(value);
         const isBoxMode = item.use_box_entry;
 
         if (name === 'qty' || name === 'rate') {
-          item[name] = val === '' ? 0 : val;
-          item.amount = (item.qty || 0) * (item.rate || 0);
+          // Update amount using raw values converted to numbers
+          const q = name === 'qty' ? val : (parseFloat(item.qty) || 0);
+          const r = name === 'rate' ? val : (parseFloat(item.rate) || 0);
+          item.amount = parseFloat((q * r).toFixed(2));
 
-          // Sync box fields
+          // Sync box fields based on which one changed
           if (name === 'rate') {
-            item.custom_box_price = parseFloat((item.rate * (item.custom_pieces_per_box || 1)).toFixed(2));
-          } else {
-            item.custom_box_qty = (item.custom_pieces_per_box > 0) ? Math.floor(item.qty / item.custom_pieces_per_box) : 0;
+            item.custom_box_price = parseFloat((val * (item.custom_pieces_per_box || 1)).toFixed(2));
+          } else if (name === 'qty') {
+            item.custom_box_qty = (item.custom_pieces_per_box > 0) ? parseFloat((val / item.custom_pieces_per_box).toFixed(2)) : 0;
           }
         } else if (name === 'custom_box_qty') {
-          const bQty = val === '' ? 0 : Math.round(val);
-          item.custom_box_qty = bQty;
           if (isBoxMode) {
-            // Box mode: qty = box_qty × pcs_per_box
-            item.qty = parseFloat((bQty * (item.custom_pieces_per_box || 1)).toFixed(2));
+            item.qty = parseFloat((val * (item.custom_pieces_per_box || 1)).toFixed(2));
           } else {
-            // Nos mode: box_qty col is directly the qty
-            item.qty = bQty;
+            item.qty = val;
           }
-          item.amount = (item.qty || 0) * (item.rate || 0);
+          item.amount = parseFloat(((item.qty || 0) * (parseFloat(item.rate) || 0)).toFixed(2));
           item.received_qty = item.qty;
         } else if (name === 'custom_pieces_per_box') {
-          const pPerBox = Math.max(1, val === '' ? 1 : parseFloat(val));
-          item.custom_pieces_per_box = pPerBox;
-          item.qty = parseFloat(((item.custom_box_qty || 0) * pPerBox).toFixed(2));
-          item.custom_box_price = parseFloat(((item.rate || 0) * pPerBox).toFixed(2));
-          item.amount = (item.qty || 0) * (item.rate || 0);
+          const pPerBox = Math.max(1, isNaN(val) ? 1 : val);
+          item.qty = parseFloat(((parseFloat(item.custom_box_qty) || 0) * pPerBox).toFixed(2));
+          item.custom_box_price = parseFloat(((parseFloat(item.rate) || 0) * pPerBox).toFixed(2));
+          item.amount = parseFloat(((item.qty || 0) * (parseFloat(item.rate) || 0)).toFixed(2));
           item.received_qty = item.qty;
         } else if (name === 'custom_box_price') {
-          const bPrice = val === '' ? 0 : parseFloat(val);
-          item.custom_box_price = bPrice;
-          item.rate = parseFloat((bPrice / (item.custom_pieces_per_box || 1)).toFixed(2));
-          item.amount = (item.qty || 0) * (item.rate || 0);
+          item.rate = parseFloat((val / (item.custom_pieces_per_box || 1)).toFixed(2));
+          item.amount = parseFloat(((parseFloat(item.qty) || 0) * item.rate).toFixed(2));
         } else {
           item[name] = value;
         }
@@ -1309,19 +1321,19 @@ function PurchaseOrder() {
 
     // VALIDATION: Check if already received
     if (type === 'receipt' && formData.per_received >= 100) {
-      setError(`This Purchase Order has already been fully received. Please check existing Purchase Receipts below.`);
+      setError(`Notice: This Purchase Order has been 100% received. No further receipts can be generated.`);
       return;
     }
 
     // VALIDATION: Check if already billed
     if (type === 'invoice' && formData.per_billed >= 100) {
-      setError(`This Purchase Order has already been fully billed. Please check existing Purchase Invoices below.`);
+      setError(`Notice: This Purchase Order has been 100% billed. No further invoices can be generated.`);
       return;
     }
 
     // VALIDATION: Check status
     if (['Closed', 'Cancelled'].includes(formData.status)) {
-      setError(`Cannot create transition for a ${formData.status} document.`);
+      setError(`Workflow Error: Cannot create transitions for a ${formData.status} document.`);
       return;
     }
 
@@ -1945,7 +1957,7 @@ function PurchaseOrder() {
                   <table className="purchase-table">
                     <thead>
                       <tr>
-                        {columnConfig.filter(c => c.visible).map(col => {
+                        {poColumns.filter(c => c.visible).map(col => {
                           const hasAnyBox = formData.items.some(i => i.use_box_entry);
                           let finalLabel = col.label;
 
@@ -1971,7 +1983,7 @@ function PurchaseOrder() {
                     <tbody>
                       {formData.items.map((item, idx) => (
                         <tr key={idx} className="group hover:bg-slate-50 transition-colors">
-                          {columnConfig.filter(c => c.visible).map(col => {
+                          {poColumns.filter(c => c.visible).map(col => {
                             switch (col.id) {
                               case 'scanner':
                                 return (
@@ -2058,10 +2070,10 @@ function PurchaseOrder() {
                                   <td key={col.id} className="purchase-td">
                                     <div className="flex flex-col items-center gap-0.5">
                                       <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="decimal"
                                         name="custom_box_qty"
-                                        step="1"
-                                        value={item.custom_box_qty ?? ''}
+                                        value={item.custom_box_qty || ''}
                                         readOnly={isViewOnly || formData.docstatus !== 0}
                                         onChange={(e) => handleInputChange(e, idx)}
                                         onFocus={(e) => e.target.select()}
@@ -2082,10 +2094,10 @@ function PurchaseOrder() {
                                   <td key={col.id} className="purchase-td">
                                     {item.use_box_entry ? (
                                       <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="decimal"
                                         name="custom_pieces_per_box"
-                                        step="1"
-                                        value={item.custom_pieces_per_box ?? ''}
+                                        value={item.custom_pieces_per_box || ''}
                                         readOnly={isViewOnly || formData.docstatus !== 0}
                                         onChange={(e) => handleInputChange(e, idx)}
                                         onFocus={(e) => e.target.select()}
@@ -2101,13 +2113,27 @@ function PurchaseOrder() {
                               case 'custom_box_price':
                                 return (
                                   <td key={col.id} className="purchase-td text-right">
-                                    {isViewOnly ? <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.custom_box_price)}</span> : <input type="number" name="custom_box_price" step="0.01" value={item.custom_box_price ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right outline-none" />}
+                                    {isViewOnly ? (
+                                      <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.custom_box_price)}</span>
+                                    ) : (
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        name="custom_box_price"
+                                        value={item.custom_box_price || ''}
+                                        readOnly={formData.docstatus !== 0}
+                                        onChange={(e) => handleInputChange(e, idx)}
+                                        onFocus={(e) => e.target.select()}
+                                        onKeyDown={handleNextFocus}
+                                        className="w-full text-right outline-none"
+                                      />
+                                    )}
                                   </td>
                                 );
                               case 'custom_selling_price':
                                 return (
                                   <td key={col.id} className="purchase-td text-right">
-                                    {isViewOnly ? <span className="text-[11px] font-bold text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</span> : <input type="number" name="custom_selling_price" step="0.01" value={item.custom_selling_price ?? ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />}
+                                    {isViewOnly ? <span className="text-[11px] font-bold text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</span> : <input type="text" inputMode="decimal" name="custom_selling_price" value={item.custom_selling_price || ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />}
                                   </td>
                                 );
                               case 'custom_ref_sl_no':
@@ -2117,10 +2143,10 @@ function PurchaseOrder() {
                                   <td key={col.id} className="purchase-td text-center">
                                     <div className="flex flex-col items-center">
                                       <input 
-                                        type="number" 
+                                        type="text" 
+                                        inputMode="decimal"
                                         name="qty" 
-                                        step="0.01" 
-                                        value={item.qty ?? ''} 
+                                        value={item.qty || ''} 
                                         readOnly={!isUpdateMode && (isViewOnly || formData.docstatus !== 0)} 
                                         onChange={(e) => handleInputChange(e, idx)} 
                                         onFocus={(e) => e.target.select()} 
@@ -2158,7 +2184,21 @@ function PurchaseOrder() {
                               case 'rate':
                                 return (
                                   <td key={col.id} className="purchase-td text-right !text-center">
-                                    {isViewOnly && !isUpdateMode ? <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span> : <input type="number" name="rate" step="0.01" value={item.rate ?? ''} readOnly={!isUpdateMode && formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className={`w-full text-center outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`} />}
+                                    {isViewOnly && !isUpdateMode ? (
+                                      <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span>
+                                    ) : (
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        name="rate"
+                                        value={item.rate || ''}
+                                        readOnly={!isUpdateMode && formData.docstatus !== 0}
+                                        onChange={(e) => handleInputChange(e, idx)}
+                                        onFocus={(e) => e.target.select()}
+                                        onKeyDown={handleNextFocus}
+                                        className={`w-full text-center outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`}
+                                      />
+                                    )}
                                   </td>
                                 );
                               case 'amount':
@@ -2227,7 +2267,7 @@ function PurchaseOrder() {
       <ColumnConfigModal
         isOpen={showColConfig}
         onClose={() => setShowColConfig(false)}
-        config={columnConfig}
+        config={poColumns}
         onUpdate={handleColConfigUpdate}
         doctype="Purchase Order"
         themeColor="var(--po-primary)"
