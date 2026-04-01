@@ -181,6 +181,8 @@ export default function SalesOrderDetails() {
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [itemSearches, setItemSearches] = useState({});
     const [showItemDropdowns, setShowItemDropdowns] = useState({});
+    const [barcodeInput, setBarcodeInput] = useState('');
+    const barcodeRef = useRef(null);
 
     // Fetch Initial Data
     useEffect(() => {
@@ -310,10 +312,78 @@ export default function SalesOrderDetails() {
             return;
         }
         try {
-            const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_items_so', { params: { query }, withCredentials: true });
-            setItemsList(res.data.message || []);
+            // 1. Try specialized Sales Order search
+            let res = await axios.get('/api/method/kyle_retail.retail_api.api.get_items_so', { 
+                params: { query }, 
+                withCredentials: true 
+            });
+            
+            let items = res.data.message || res.data.data || [];
+            if (items.data && Array.isArray(items.data)) items = items.data;
+
+            // 2. Global fallback
+            if (!Array.isArray(items) || items.length === 0) {
+                const fallback = await axios.post('/api/method/kyle_retail.retail_api.api.find_item_global', {
+                    search_term: query || ''
+                }, { withCredentials: true });
+                items = fallback.data.message?.data || fallback.data.message || [];
+            }
+
+            setItemsList(items || []);
             setShowItemDropdowns(p => ({ ...p, [idx]: true }));
-        } catch { setItemsList([]); }
+        } catch (err) { 
+            console.error(err);
+            setItemsList([]); 
+        }
+    };
+
+    const handleBarcodeSearch = async (e) => {
+        if (e.key !== 'Enter' || !barcodeInput.trim()) return;
+        const val = barcodeInput.trim();
+        try {
+            const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_by_barcode_retail', {
+                params: { barcode: val },
+                withCredentials: true
+            });
+            const item = Array.isArray(res.data.message) ? res.data.message[0] : res.data.message;
+            if (!item || item.status === 'error' || (!item.item_code && !item.name)) {
+                throw new Error(item?.message || 'Item not found');
+            }
+            
+            // Add to a new row or find the first empty row
+            setForm(prev => {
+                const items = [...prev.items];
+                const emptyIdx = items.findIndex(i => !i.item_code);
+                const targetIdx = emptyIdx !== -1 ? emptyIdx : items.length;
+                
+                const rate = item.rate || item.last_selling_rate || item.standard_rate || 0;
+                const newRow = {
+                    item_code: item.item_code,
+                    item_name: item.item_name,
+                    uom: item.stock_uom || 'Nos',
+                    qty: 1,
+                    rate,
+                    amount: rate,
+                    warehouse: prev.set_source_warehouse || localStorage.getItem('warehouse') || ''
+                };
+
+                if (emptyIdx !== -1) {
+                    items[emptyIdx] = newRow;
+                } else {
+                    items.push(newRow);
+                }
+
+                // Append an extra blank row if needed
+                if (items.every(i => i.item_code)) {
+                    items.push({ item_code: '', delivery_date: prev.delivery_date || prev.transaction_date, qty: 1, rate: 0, amount: 0 });
+                }
+
+                return recalcForm({ ...prev, items });
+            });
+            setBarcodeInput('');
+        } catch (err) {
+            Swal.fire('Scan Error', err.message, 'error');
+        }
     };
 
     const selectItem = async (idx, item) => {
@@ -494,6 +564,21 @@ export default function SalesOrderDetails() {
                                     <h5 className="so-card-title">Orchestration Itemized Bill</h5>
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
+                                            <label className="so-label" style={{ marginBottom: '0.25rem', color: themeColor }}>Scan Barcode / SKU</label>
+                                            <div style={{ position: 'relative' }}>
+                                                <input 
+                                                    className="so-select"
+                                                    style={{ height: '2.5rem', fontSize: '0.75rem', fontWeight: 700, paddingRight: '2.5rem' }}
+                                                    placeholder="Focus here to scan..."
+                                                    ref={barcodeRef}
+                                                    value={barcodeInput}
+                                                    onChange={e => setBarcodeInput(e.target.value)}
+                                                    onKeyDown={handleBarcodeSearch}
+                                                />
+                                                <ScanLine size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                                            </div>
+                                        </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
                                             <label className="so-label" style={{ marginBottom: '0.25rem', color: themeColor }}>Set Source Warehouse</label>
                                             <select

@@ -111,6 +111,8 @@ export default function SalesOrderList() {
   const [customerResults, setCustomerResults] = useState([]);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const barcodeRef = useRef(null);
   const [isAdvancedSearchModalOpen, setIsAdvancedSearchModalOpen] = useState(false);
   const [advancedSearchTerm, setAdvancedSearchTerm] = useState('');
   const [allCustomers, setAllCustomers] = useState([]);
@@ -389,6 +391,57 @@ export default function SalesOrderList() {
   const selectTaxAccount = (idx, accName) => {
     handleTaxChange(idx, 'account_head', accName);
     setShowTaxDropdowns(prev => ({ ...prev, [idx]: false }));
+  };
+
+  const handleBarcodeSearchModal = async (e) => {
+    if (e.key !== 'Enter' || !barcodeInput.trim()) return;
+    const val = barcodeInput.trim();
+    try {
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_by_barcode_retail', {
+        params: { barcode: val },
+        withCredentials: true
+      });
+      const item = Array.isArray(res.data.message) ? res.data.message[0] : res.data.message;
+      if (!item || item.status === 'error' || (!item.item_code && !item.name)) {
+        throw new Error(item?.message || 'Item not found');
+      }
+
+      const rateRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_selling_rate_so', {
+        params: {
+          item_code: item.item_code,
+          price_list: formData.selling_price_list || 'Standard Selling'
+        },
+        withCredentials: true
+      });
+      const rate = rateRes.data?.message?.message?.rate || rateRes.data?.message?.rate || item.rate || item.last_selling_rate || 0;
+
+      setFormData(prev => {
+        const items = [...(prev.items || [])];
+        const emptyIdx = items.findIndex(i => !i.item_code);
+        const targetIdx = emptyIdx !== -1 ? emptyIdx : items.length;
+
+        const newRow = {
+          item_code: item.item_code,
+          item_name: item.item_name,
+          uom: item.stock_uom || 'Nos',
+          qty: 1,
+          rate: rate,
+          amount: rate * 1,
+          warehouse: item.warehouse || prev.set_source_warehouse || localStorage.getItem('warehouse') || ''
+        };
+
+        if (emptyIdx !== -1) items[emptyIdx] = newRow;
+        else items.push(newRow);
+
+        if (items.every(i => i.item_code)) {
+          items.push({ item_code: '', delivery_date: prev.delivery_date || '', qty: 0, rate: 0, amount: 0 });
+        }
+        return recalculate({ ...prev, items });
+      });
+      setBarcodeInput('');
+    } catch (err) {
+      Swal.fire('Scan Error', err.message, 'error');
+    }
   };
 
   const handleItemSearch = async (idx, query) => {
@@ -894,10 +947,17 @@ export default function SalesOrderList() {
                         <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Items</h3>
                         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                           <div className="so-field">
-                            <label className="so-label">Scan Barcode</label>
+                            <label className="so-label">Scan Barcode / SKU</label>
                             <div style={{ position: 'relative' }}>
-                              <input className="so-input" placeholder="Point scanner here..." />
-                              <Search size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                              <input 
+                                className="so-input" 
+                                placeholder="Point scanner here..." 
+                                ref={barcodeRef}
+                                value={barcodeInput}
+                                onChange={e => setBarcodeInput(e.target.value)}
+                                onKeyDown={handleBarcodeSearchModal}
+                              />
+                              <ScanLine size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
                             </div>
                           </div>
                           <div className="so-field">
