@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import './SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import SupplierFormModal from './SupplierFormModal';
 
 /* ==================== UI COMPONENTS ==================== */
 const StatusBadge = ({ isInactive, themeColor }) => (
@@ -226,9 +227,9 @@ export default function SupplierList() {
         <div className="so-page-header">
           <div>
             <h1 className="so-page-title">
-              <Building2 size={20} /> Supplier Directory
+              <Building2 size={20} /> Suppliers
             </h1>
-            <p className="so-page-subtitle">Authorized Procurement & Vendor Registry</p>
+            <p className="so-page-subtitle">Manage procurement and vendor records</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
@@ -249,7 +250,7 @@ export default function SupplierList() {
 
 
             <button className="so-btn-primary" onClick={() => setShowForm(true)}>
-              <Plus size={16} /> Register Partner
+              <Plus size={16} /> Create Supplier
             </button>
           </div>
         </div>
@@ -257,7 +258,7 @@ export default function SupplierList() {
         {/* Filters Bar */}
         <div className="so-filter-bar">
           <div style={{ flex: '1 1 200px' }}>
-            <label className="so-filter-label">Search Partner</label>
+            <label className="so-filter-label">Search Supplier</label>
             <input
               className="so-filter-input"
               type="text"
@@ -298,22 +299,22 @@ export default function SupplierList() {
         <div style={{ padding: '1.25rem 2rem 0' }}>
           <div className="so-summary-bar">
             <div className="so-summary-item">
-              <span className="so-summary-label">Total Assets</span>
+              <span className="so-summary-label">Total Suppliers</span>
               <span className="so-summary-value grand">{stats.total}</span>
             </div>
             <div className="so-summary-divider" />
             <div className="so-summary-item">
-              <span className="so-summary-label">Operational</span>
+              <span className="so-summary-label">Active</span>
               <span className="so-summary-value" style={{ color: '#059669' }}>{stats.active}</span>
             </div>
             <div className="so-summary-divider" />
             <div className="so-summary-item">
-              <span className="so-summary-label">Risk Analysis</span>
+              <span className="so-summary-label">On Hold / Frozen</span>
               <span className="so-summary-value" style={{ color: '#ef4444' }}>{stats.inactive}</span>
             </div>
             <div className="so-summary-divider" />
             <div className="so-summary-item">
-              <span className="so-summary-label">Geo Diversity</span>
+              <span className="so-summary-label">Categories</span>
               <span className="so-summary-value">{stats.types} Types</span>
             </div>
           </div>
@@ -430,114 +431,15 @@ export default function SupplierList() {
         </div>
       </div>
 
-      {/* Initialize/Edit Partner Modal */}
-      {showForm && (
-        <div className="so-modal-overlay">
-          <div className="so-modal" style={{ maxWidth: '850px' }}>
-            <div className="so-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ padding: '0.5rem', background: themeLight, color: themeColor, borderRadius: '0.5rem' }}>
-                  <Building2 size={20} />
-                </div>
-                <h2 className="so-modal-title">{isEditMode ? 'Authorize Profile Revision' : 'Initialize Global Partner'}</h2>
-              </div>
-              <button className="so-modal-close" onClick={handleCloseForm}><X size={22} /></button>
-            </div>
-            <div className="so-modal-body">
-              <div className="so-card">
-                <div className="so-card-header"><h3 className="so-card-title">Registry Specifications</h3></div>
-                <div className="so-card-body">
-                  <div className="so-form-grid">
-                    <div className="so-field">
-                      <label className="so-label">Legal Organization Name *</label>
-                      <input className="so-input" value={form.supplier_name} onChange={e => setForm({ ...form, supplier_name: e.target.value })} placeholder="Corporate Title" />
-                    </div>
-                    <div className="so-field">
-                      <label className="so-label">Economic Activity Group *</label>
-                      <select className="so-select" value={form.supplier_group} onChange={e => setForm({ ...form, supplier_group: e.target.value })}>
-                        <option value="">Functional Cluster</option>
-                        {supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
-                    <div className="so-field">
-                      <label className="so-label">Entity Classification</label>
-                      <select className="so-select" value={form.supplier_type} onChange={e => setForm({ ...form, supplier_type: e.target.value })}>
-                        <option value="Company">Corporate / B2B Venture</option>
-                        <option value="Individual">Individual / Proprietorship</option>
-                      </select>
-                    </div>
-                    <div className="so-field">
-                      <label className="so-label">Tax Residency (TRN)</label>
-                      <input className="so-input" value={form.tax_id} onChange={e => setForm({ ...form, tax_id: e.target.value })} placeholder="VAT / TRN Registration" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="so-card">
-                <div className="so-card-header"><h3 className="so-card-title">Logistics & Communication</h3></div>
-                <div className="so-card-body">
-                  <div className="so-form-grid">
-                    <div className="so-field">
-                      <label className="so-label">Digital Channel (Email)</label>
-                      <input className="so-input" type="email" value={form.email_id} onChange={e => setForm({ ...form, email_id: e.target.value })} placeholder="protocol@organization.com" />
-                    </div>
-                    <div className="so-field">
-                      <label className="so-label">Communication Line (Mobile)</label>
-                      <input className="so-input" value={form.mobile_no} onChange={e => setForm({ ...form, mobile_no: e.target.value })} placeholder="+000 0000000" />
-                    </div>
-                    <div className="so-field" style={{ gridColumn: 'span 2' }}>
-                      <label className="so-label">Registered Headquarters / Warehouse</label>
-                      <textarea className="so-input" rows={2} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Complete physical logistics vector" style={{ resize: 'none' }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="so-card">
-                <div className="so-card-header"><h3 className="so-card-title">Fiscal Framework</h3></div>
-                <div className="so-card-body">
-                  <div className="so-form-grid">
-                    <div className="so-field">
-                      <label className="so-label">Base Currency</label>
-                      <select className="so-select" value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>
-                        <option value="AED">AED - UAE Dirham</option>
-                        <option value="USD">USD - US Dollar</option>
-                        <option value="EUR">EUR - Euro</option>
-                      </select>
-                    </div>
-                    <div className="so-field">
-                      <label className="so-label">Lifecycle Protocol</label>
-                      <button
-                        onClick={() => setForm({ ...form, disabled: !form.disabled })}
-                        className={`flex items-center justify-between px-4 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${!form.disabled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}
-                      >
-                        {!form.disabled ? 'Operational' : 'Restricted Access'}
-                        <div className={`w-2 h-2 rounded-full ml-3 ${!form.disabled ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="so-modal-footer">
-              <button className="so-btn-secondary" onClick={handleCloseForm}>Discard Draft</button>
-              <button
-                className="so-btn-primary"
-                onClick={handleSave}
-                disabled={saving}
-                style={{ minWidth: '180px', justifyContent: 'center' }}
-              >
-                {saving ? (
-                  <><Loader2 size={16} className="animate-spin" /> Synchronizing...</>
-                ) : (
-                  <><Save size={16} /> {isEditMode ? 'Authorize Revision' : 'Confirm Registration'}</>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SupplierFormModal
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        onSave={() => {
+           fetchSuppliers();
+           handleCloseForm();
+        }}
+        editingSupplier={editingSupplier}
+      />
     </>
   );
 }

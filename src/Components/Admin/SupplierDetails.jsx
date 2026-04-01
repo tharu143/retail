@@ -11,6 +11,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import './SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import SupplierFormModal from './SupplierFormModal';
 import { Palette } from 'lucide-react';
 import { ChevronDown } from "lucide-react";
 
@@ -118,7 +119,18 @@ const SupplierDetails = () => {
     warn_pos: 0,
     prevent_rfqs: 0,
     prevent_pos: 0,
-    disabled: 0
+    disabled: 0,
+    // New fields confirmed by metadata
+    default_currency: 'AED',
+    default_price_list: '',
+    tax_category: '',
+    tax_withholding_category: '',
+    payment_terms: '',
+    supplier_primary_address: '',
+    supplier_primary_contact: '',
+    supplier_details: '',
+    allow_purchase_invoice_creation_without_purchase_order: 0,
+    allow_purchase_invoice_creation_without_purchase_receipt: 0
   });
 
   const [emirates] = useState(['Abu Dhabi', 'Dubai', 'Sharjah', 'Ajman', 'Umm Al Quwain', 'Ras Al Khaimah', 'Fujairah']);
@@ -175,7 +187,18 @@ const SupplierDetails = () => {
           warn_pos: data.warn_pos || 0,
           prevent_rfqs: data.prevent_rfqs || 0,
           prevent_pos: data.prevent_pos || 0,
-          disabled: data.disabled || 0
+          disabled: data.disabled || 0,
+          // New fields payload map
+          default_currency: data.default_currency || 'AED',
+          default_price_list: data.default_price_list || '',
+          tax_category: data.tax_category || '',
+          tax_withholding_category: data.tax_withholding_category || '',
+          payment_terms: data.payment_terms || '',
+          supplier_primary_address: data.supplier_primary_address || '',
+          supplier_primary_contact: data.supplier_primary_contact || '',
+          supplier_details: data.supplier_details || '',
+          allow_purchase_invoice_creation_without_purchase_order: data.allow_purchase_invoice_creation_without_purchase_order || 0,
+          allow_purchase_invoice_creation_without_purchase_receipt: data.allow_purchase_invoice_creation_without_purchase_receipt || 0
         });
       }
       const dash = dashRes.data.message || dashRes.data;
@@ -343,7 +366,7 @@ const SupplierDetails = () => {
               <h1 className="so-page-title">
                 <Building2 size={20} /> {supplier.supplier_name}
               </h1>
-              <p className="so-page-subtitle">Authorized Procurement & Partner Intelligence</p>
+              <p className="so-page-subtitle">Supplier Detail</p>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -364,7 +387,7 @@ const SupplierDetails = () => {
               {isGreen ? 'BLUE' : 'GREEN'}
             </button>
             <button className="so-btn-primary" onClick={() => setShowEditModal(true)} style={{ backgroundColor: themeColor }}>
-              <Edit2 size={16} /> Authorized Revision
+              <Edit2 size={16} /> Edit
             </button>
           </div>
         </div>
@@ -373,7 +396,7 @@ const SupplierDetails = () => {
         <div style={{ padding: '1.25rem 2rem 0', position: 'relative', zIndex: 1 }}>
           <div className="so-summary-bar">
             <div className="so-summary-item">
-              <span className="so-summary-label">Procurement Alias</span>
+              <span className="so-summary-label">Supplier ID</span>
               <span className="so-summary-value grand">{supplier.name}</span>
             </div>
             <div className="so-summary-divider" />
@@ -385,12 +408,12 @@ const SupplierDetails = () => {
             </div>
             <div className="so-summary-divider" />
             <div className="so-summary-item">
-              <span className="so-summary-label">Industrial Cluster</span>
+              <span className="so-summary-label">Supplier Group</span>
               <span className="so-summary-value">{supplier.supplier_group}</span>
             </div>
             <div className="so-summary-divider" />
             <div className="so-summary-item">
-              <span className="so-summary-label">Geospatial Origin</span>
+              <span className="so-summary-label">Country</span>
               <span className="so-summary-value">{supplier.country || 'Global Site'}</span>
             </div>
           </div>
@@ -400,10 +423,10 @@ const SupplierDetails = () => {
         <div style={{ padding: '1.5rem 2rem 1rem', position: 'relative', zIndex: 1 }}>
           <div className="inline-flex p-1 bg-gray-100/80 rounded-xl">
             {[
-              { id: 'Overview', icon: Layers },
-              { id: 'Intelligence', icon: FileText },
+              { id: 'Dashboard', icon: Layers },
+              { id: 'General', icon: FileText },
               { id: 'Connectivity', icon: Globe },
-              { id: 'Protocols', icon: ShieldCheck }
+              { id: 'Settings', icon: ShieldCheck }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -423,7 +446,7 @@ const SupplierDetails = () => {
 
         {/* Content Shard */}
         <div style={{ padding: '0 2rem' }}>
-          {activeTab === 'Overview' && dashboardData && (
+          {activeTab === 'Dashboard' && dashboardData && (
             <div className="space-y-10 animate-in slide-in-from-bottom-6 duration-700 pb-20">
               {/* Highlights Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -472,10 +495,10 @@ const SupplierDetails = () => {
             </div>
           )}
 
-          {activeTab === 'Intelligence' && (
+          {activeTab === 'General' && (
             <div className="space-y-8 pb-20 animate-in slide-in-from-bottom-4 duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <InfoSection title="Core Specifications" icon={Hash} themeColor={themeColor}>
+                <InfoSection title="General Information" icon={Hash} themeColor={themeColor}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Legal Name</label>
@@ -495,18 +518,38 @@ const SupplierDetails = () => {
                         {supplier.tax_id || 'NOT REGISTERED'}
                       </p>
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Tax Category</label>
+                      <p className="text-sm font-black text-gray-900">{supplier.tax_category || 'General'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Withholding Category</label>
+                      <p className="text-sm font-black text-gray-900">{supplier.tax_withholding_category || 'None'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Payment Terms</label>
+                      <p className="text-sm font-black text-gray-900">{supplier.payment_terms || 'Not Set'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Primary Contact Link</label>
+                      <p className="text-sm font-black text-gray-900 text-blue-600">{supplier.supplier_primary_contact || 'N/A'}</p>
+                    </div>
                   </div>
                 </InfoSection>
 
-                <InfoSection title="Metadata Registry" icon={Calendar} themeColor={themeColor}>
+                <InfoSection title="Supplier Registry" icon={Calendar} themeColor={themeColor}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">System Key</label>
                       <p className="text-xs font-black font-mono bg-blue-50/50 px-2 py-1 rounded" style={{ color: themeColor }}>{supplier.name}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Default Currency</label>
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Billing Currency</label>
                       <p className="text-sm font-black text-gray-900">{supplier.default_currency || 'AED'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Price List</label>
+                      <p className="text-sm font-black text-gray-900">{supplier.default_price_list || 'Standard Buying'}</p>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Creation Vector</label>
@@ -516,12 +559,19 @@ const SupplierDetails = () => {
                 </InfoSection>
               </div>
 
+              {/* Bio / Details Section */}
+              <InfoSection title="Supplier Intelligence Bio" icon={FileText} themeColor={themeColor}>
+                    <p className="text-sm font-medium text-gray-700 leading-relaxed italic whitespace-pre-wrap">
+                      {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
+                    </p>
+              </InfoSection>
+
               {/* Status & Governance Section */}
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden auto-cols-max">
                 <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <ShieldCheck size={18} style={{ color: themeColor }} strokeWidth={2.5} />
-                    <h5 className="text-[10px] font-bold text-gray-700 uppercase tracking-widest">Governance & Status Framework</h5>
+                    <h5 className="text-[10px] font-bold text-gray-700 uppercase tracking-widest">Settings & Status</h5>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
@@ -536,7 +586,9 @@ const SupplierDetails = () => {
                       {[
                         { label: 'Is Transporter', val: supplier.is_transporter },
                         { label: 'Internal Supplier', val: supplier.is_internal_supplier },
-                        { label: 'Is Frozen', val: supplier.is_frozen }
+                        { label: 'Is Frozen', val: supplier.is_frozen },
+                        { label: 'Bill Without PO', val: supplier.allow_purchase_invoice_creation_without_purchase_order },
+                        { label: 'Bill Without Receipt', val: supplier.allow_purchase_invoice_creation_without_purchase_receipt }
                       ].map((item, i) => (
                         <div key={i} className="flex items-center justify-between">
                           <span className="text-[11px] font-bold text-gray-600">{item.label}</span>
@@ -809,9 +861,9 @@ const SupplierDetails = () => {
             </div>
           )}
 
-          {activeTab === 'Protocols' && (
+          {activeTab === 'Settings' && (
             <div className="max-w-2xl">
-              <InfoSection title="Security Framework" icon={ShieldCheck} themeColor={themeColor}>
+              <InfoSection title="Policy Controls" icon={ShieldCheck} themeColor={themeColor}>
                 <div className="flex items-center justify-between bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                   <div className="space-y-1">
                     <h5 className="text-base font-bold text-gray-900 uppercase tracking-tight">Lifecycle Permissions</h5>
@@ -834,237 +886,19 @@ const SupplierDetails = () => {
         </div>
       </div>
 
-      {/* Premium Edit Modal Canvas */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-400">
-
-            {/* Modal Header */}
-            <div className="px-8 py-6 flex justify-between items-center bg-white border-b border-gray-50 shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl shadow-lg shadow-opacity-10" style={{ backgroundColor: themeColor }}>
-                  <Building2 size={20} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Authorized Revision</h2>
-                  <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest mt-1">Registry Credentials Management</p>
-                </div>
-              </div>
-              <button onClick={() => setShowEditModal(false)} className="p-2.5 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-900 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-8 bg-gray-50/20">
-              <div className="max-w-3xl mx-auto space-y-8 pb-8">
-
-                {/* Identification */}
-                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-8">
-                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-3">
-                    <div className="w-1 h-5 rounded-full" style={{ backgroundColor: themeColor }} />
-                    Registry Identity
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Organization Title *</label>
-                      <input
-                        type="text"
-                        value={form.supplier_name}
-                        onChange={e => setForm({ ...form, supplier_name: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm transition-all outline-none"
-                        style={{ focusBorderColor: themeColor }}
-                        onFocus={e => e.target.style.borderColor = `${themeColor}40`}
-                        onBlur={e => e.target.style.borderColor = 'transparent'}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Activity Group *</label>
-                      <select
-                        value={form.supplier_group}
-                        onChange={e => setForm({ ...form, supplier_group: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white focus:border-blue-500/30 transition-all outline-none"
-                      >
-                        {supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Industrial Type</label>
-                      <select
-                        value={form.supplier_type}
-                        onChange={e => setForm({ ...form, supplier_type: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white focus:border-blue-500/30 transition-all outline-none"
-                      >
-                        <option value="Company">Company</option>
-                        <option value="Individual">Individual</option>
-                        <option value="Partnership">Partnership</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Tax Identity (TRN)</label>
-                      <input
-                        type="text"
-                        value={form.tax_id}
-                        onChange={e => setForm({ ...form, tax_id: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white focus:border-blue-500/30 transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Governance Checkboxes in Edit Modal */}
-                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-8">
-                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-3">
-                    <div className="w-1 h-5 rounded-full bg-rose-500" />
-                    Governance Framework
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[
-                      { id: 'is_transporter', label: 'Is Transporter' },
-                      { id: 'is_internal_supplier', label: 'Internal Supplier' },
-                      { id: 'is_frozen', label: 'Is Frozen' },
-                      { id: 'on_hold', label: 'On Hold' },
-                      { id: 'warn_rfqs', label: 'Warn RFQs' },
-                      { id: 'warn_pos', label: 'Warn POs' },
-                      { id: 'prevent_rfqs', label: 'Prevent RFQs' },
-                      { id: 'prevent_pos', label: 'Prevent POs' },
-                      { id: 'disabled', label: 'Disabled' }
-                    ].map(f => (
-                      <div key={f.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-white border border-transparent hover:border-gray-100 transition-all cursor-pointer" onClick={() => setForm({ ...form, [f.id]: form[f.id] ? 0 : 1 })}>
-                        <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${form[f.id] ? 'bg-slate-900 text-white' : 'bg-white border border-gray-200'}`}>
-                          {form[f.id] && <CheckSquare size={14} />}
-                        </div>
-                        <span className="text-[11px] font-bold text-gray-700">{f.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {form.on_hold === 1 && (
-                    <div className="mt-4 space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <label className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Hold Authorization Reason</label>
-                      <input
-                        type="text"
-                        value={form.hold_type}
-                        onChange={e => setForm({ ...form, hold_type: e.target.value })}
-                        className="w-full px-4 py-3 bg-rose-50/30 border border-rose-100 rounded-lg font-bold text-rose-800 text-sm focus:bg-white outline-none"
-                        placeholder="Specify nature of hold..."
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Logistics & Contact Details */}
-                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-8">
-                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-3">
-                    <div className="w-1 h-5 rounded-full" style={{ backgroundColor: themeColor }} />
-                    Contact Protocol
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Authorized Contact Name</label>
-                      <input
-                        type="text"
-                        value={form.first_name}
-                        onChange={e => setForm({ ...form, first_name: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white focus:border-blue-500/30 transition-all outline-none"
-                        placeholder="Primary Representative"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Email Vector</label>
-                      <input
-                        type="email"
-                        value={form.email_id}
-                        onChange={e => setForm({ ...form, email_id: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white focus:border-blue-500/30 transition-all outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Mobile Channel</label>
-                      <input
-                        type="text"
-                        value={form.mobile_no}
-                        onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white focus:border-blue-500/30 transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Geospatial Matrix (Address Split) */}
-                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-8">
-                  <h3 className="text-xs font-black text-gray-900 tracking-widest uppercase flex items-center gap-3">
-                    <div className="w-1 h-5 rounded-full" style={{ backgroundColor: themeColor }} />
-                    Geospatial Matrix
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Primary Address Line 1</label>
-                      <input
-                        type="text"
-                        value={form.address_line1}
-                        onChange={e => setForm({ ...form, address_line1: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white outline-none"
-                      />
-                    </div>
-                    <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Address Line 2 (Optional)</label>
-                      <input
-                        type="text"
-                        value={form.address_line2}
-                        onChange={e => setForm({ ...form, address_line2: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Metropolis / City</label>
-                      <input
-                        type="text"
-                        value={form.city}
-                        onChange={e => setForm({ ...form, city: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Emirate / Province</label>
-                      <select
-                        value={form.emirate}
-                        onChange={e => setForm({ ...form, emirate: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-lg font-bold text-gray-800 text-sm focus:bg-white outline-none"
-                      >
-                        <option value="">Select Emirate</option>
-                        {emirates.map(em => <option key={em} value={em}>{em}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-8 py-6 border-t border-gray-100 flex justify-end items-center gap-4 shrink-0 bg-white">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-6 py-2.5 text-[10px] font-black text-gray-600 uppercase tracking-widest hover:text-gray-900 transition-colors"
-              >
-                Discard Changes
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-8 py-2.5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50"
-                style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}20` }}
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {saving ? 'Synchronizing...' : 'Commit Updates'}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      <SupplierFormModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={() => {
+           fetchData();
+           setShowEditModal(false);
+        }}
+        editingSupplier={supplier}
+      />
     </>
   );
 };
+
 
 
 
