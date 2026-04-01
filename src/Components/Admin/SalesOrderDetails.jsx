@@ -65,31 +65,33 @@ function recalcForm(form) {
     };
 }
 
-const emptyForm = () => ({
-    naming_series: 'SAL-ORD-.YYYY.-',
-    transaction_date: new Date().toISOString().split('T')[0],
-    delivery_date: '',
-    customer: '',
-    customer_name: '',
-    order_type: 'Sales',
-    currency: 'AED',
-    selling_price_list: 'Standard Selling',
-    price_list_currency: 'AED',
-    items: [],
-    taxes_and_charges: '',
-    taxes: [],
-    apply_discount_on: 'Grand Total',
-    additional_discount_percentage: 0,
-    discount_amount: 0,
-    total_qty: 0,
-    base_total: 0,
-    total: 0,
-    total_taxes_and_charges: 0,
-    grand_total: 0,
-    rounding_adjustment: 0,
-    rounded_total: 0,
-    docstatus: 0
-});
+const emptyForm = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return {
+        naming_series: 'SAL-ORD-.YYYY.-',
+        transaction_date: today,
+        delivery_date: '',
+        customer: '',
+        customer_name: '',
+        order_type: 'Sales',
+        po_no: '',
+        po_date: today,
+        company: localStorage.getItem('company') || '',
+        set_source_warehouse: localStorage.getItem('warehouse') || '',
+        items: [{ item_code: '', delivery_date: today, qty: 1, rate: 0, amount: 0 }],
+        taxes: [],
+        total_qty: 0,
+        base_total: 0,
+        total_taxes_and_charges: 0,
+        grand_total: 0,
+        rounded_total: 0,
+        rounding_adjustment: 0,
+        status: 'Draft',
+        docstatus: 0,
+        currency: 'AED',
+        selling_price_list: 'Standard Selling'
+    };
+};
 
 //* ==================== UI HELPERS ==================== */
 const StatusBadge = ({ status, themeColor }) => {
@@ -174,6 +176,7 @@ export default function SalesOrderDetails() {
     const [customers, setCustomers] = useState([]);
     const [taxTemplates, setTaxTemplates] = useState([]);
     const [itemsList, setItemsList] = useState([]);
+    const [warehouses, setWarehouses] = useState([]);
     const [searchCustomer, setSearchCustomer] = useState('');
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [itemSearches, setItemSearches] = useState({});
@@ -190,12 +193,14 @@ export default function SalesOrderDetails() {
 
     const fetchMetadata = async () => {
         try {
-            const [custRes, taxRes] = await Promise.all([
+            const [custRes, taxRes, whRes] = await Promise.all([
                 axios.get('/api/method/kyle_retail.retail_api.api.get_customers_list_so', { withCredentials: true }),
-                axios.get('/api/method/kyle_retail.retail_api.api.get_sales_taxes_templates_so', { withCredentials: true })
+                axios.get('/api/method/kyle_retail.retail_api.api.get_sales_taxes_templates_so', { withCredentials: true }),
+                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_warehouses', { params: { is_group: 0 }, withCredentials: true })
             ]);
             setCustomers(custRes.data.message || []);
             setTaxTemplates(taxRes.data.message || []);
+            setWarehouses(whRes.data.message || []);
         } catch (err) { console.error(err); }
     };
 
@@ -327,8 +332,15 @@ export default function SalesOrderDetails() {
                     uom: item.stock_uom || 'Nos',
                     qty: 1,
                     rate,
-                    amount: rate
+                    amount: rate,
+                    warehouse: prev.set_source_warehouse || ''
                 };
+
+                // Auto-add next row
+                if (idx === items.length - 1) {
+                    items.push({ item_code: '', delivery_date: prev.delivery_date || prev.transaction_date, qty: 1, rate: 0, amount: 0 });
+                }
+
                 return recalcForm({ ...prev, items });
             });
         } catch (err) { console.error(err); }
@@ -480,16 +492,41 @@ export default function SalesOrderDetails() {
                             <div className="so-card">
                                 <div className="so-card-header">
                                     <h5 className="so-card-title">Orchestration Itemized Bill</h5>
-                                    <button onClick={addItemRow} className="so-btn-ghost">
-                                        <Plus size={14} /> Add Line Item
-                                    </button>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
+                                            <label className="so-label" style={{ marginBottom: '0.25rem', color: themeColor }}>Set Source Warehouse</label>
+                                            <select
+                                                className="so-select"
+                                                style={{ height: '2.5rem', fontSize: '0.75rem', fontWeight: 700 }}
+                                                value={form.set_source_warehouse || ''}
+                                                onChange={e => {
+                                                    const wh = e.target.value;
+                                                    setForm(prev => ({
+                                                        ...prev,
+                                                        set_source_warehouse: wh,
+                                                        items: prev.items.map(item => ({ ...item, warehouse: wh }))
+                                                    }));
+                                                }}
+                                            >
+                                                <option value="">Select Warehouse...</option>
+                                                {warehouses.map(w => (
+                                                    <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <button onClick={addItemRow} className="so-btn-ghost" style={{ marginTop: 'auto' }}>
+                                            <Plus size={14} /> Add Row
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
                                     <table className="so-table">
                                         <thead>
                                             <tr>
-                                                <th style={{ width: '40%' }}>Product SKU / Description</th>
-                                                <th style={{ width: '15%', textAlign: 'center' }}>Qty</th>
+                                                <th style={{ width: '35%' }}>Product SKU / Description</th>
+                                                <th style={{ width: '15%' }}>UOM</th>
+                                                <th style={{ width: '10%', textAlign: 'center' }}>Qty</th>
                                                 <th style={{ width: '20%', textAlign: 'right' }}>Unit Rate</th>
                                                 <th style={{ width: '20%', textAlign: 'right' }}>Line Total</th>
                                                 <th style={{ width: '50px' }}></th>
@@ -524,6 +561,23 @@ export default function SalesOrderDetails() {
                                                                 </div>
                                                             )}
                                                         </div>
+                                                    </td>
+                                                    <td>
+                                                        <select
+                                                            className="so-td-input"
+                                                            value={item.uom || 'Nos'}
+                                                            onChange={e => {
+                                                                const itms = [...form.items];
+                                                                itms[idx].uom = e.target.value;
+                                                                setForm({ ...form, items: itms });
+                                                            }}
+                                                        >
+                                                            <option value="Nos">Nos</option>
+                                                            <option value="Box">Box</option>
+                                                            {item.uom && item.uom !== 'Nos' && item.uom !== 'Box' && (
+                                                                <option value={item.uom}>{item.uom}</option>
+                                                            )}
+                                                        </select>
                                                     </td>
                                                     <td>
                                                         <input
@@ -639,6 +693,10 @@ export default function SalesOrderDetails() {
                                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Fulfilment Data</span>
                                             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: themeColor }}>{form.delivery_date || 'N/A'}</span>
                                         </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Source Warehouse</span>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: themeColor }}>{form.set_source_warehouse || 'Not Specified'}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -654,6 +712,7 @@ export default function SalesOrderDetails() {
                                         <thead>
                                             <tr>
                                                 <th>Product SKU / Description</th>
+                                                <th style={{ textAlign: 'center' }}>UOM</th>
                                                 <th style={{ textAlign: 'center' }}>Qty Authorized</th>
                                                 <th style={{ textAlign: 'right' }}>Authorized Rate</th>
                                                 <th style={{ textAlign: 'right' }}>Line Total</th>
@@ -666,6 +725,7 @@ export default function SalesOrderDetails() {
                                                         <div style={{ fontWeight: 700, color: '#1e293b' }}>{i.item_code}</div>
                                                         <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{i.item_name}</div>
                                                     </td>
+                                                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{i.uom}</td>
                                                     <td style={{ textAlign: 'center', fontWeight: 800, color: '#475569' }}>{i.qty}</td>
                                                     <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>AED {parseFloat(i.rate || 0).toLocaleString()}</td>
                                                     <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>AED {parseFloat(i.amount || 0).toLocaleString()}</td>
