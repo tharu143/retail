@@ -10,7 +10,8 @@ const CustomSearchDropdown = ({
   createOption,
   optionsLabel = "name",
   extraCreateFields,
-  disabled = false
+  disabled = false,
+  themeColor = "#10b981" // Default to green
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -25,12 +26,25 @@ const CustomSearchDropdown = ({
   // Sync with external value
   useEffect(() => {
     if (show && inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + window.scrollY,
-        left: rect.left + window.scrollX,
-        width: rect.width
-      });
+      const updatePosition = () => {
+        if (inputRef.current) {
+          const rect = inputRef.current.getBoundingClientRect();
+          setPosition({
+            top: rect.bottom,
+            left: rect.left,
+            width: rect.width
+          });
+        }
+      };
+
+      updatePosition();
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
     }
   }, [show]);
 
@@ -144,7 +158,14 @@ const CustomSearchDropdown = ({
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div 
+      className="relative w-full" 
+      ref={ref}
+      style={{ 
+        '--po-primary': themeColor,
+        '--po-primary-light': `${themeColor}15`
+      }}
+    >
       <div className="flex gap-2">
         <div className="relative flex-1" ref={inputRef}>
           <input
@@ -183,11 +204,13 @@ const CustomSearchDropdown = ({
 
       {show && createPortal(
         <div
-          className="custom-dropdown-portal absolute z-[9999] bg-white border border-slate-200 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] max-h-72 overflow-auto animate-fadeIn py-1"
+          className="custom-dropdown-portal fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] max-h-72 overflow-auto animate-fadeIn py-1"
           style={{
             top: position.top + 8,
             left: position.left,
-            width: position.width
+            width: position.width,
+            '--po-primary': themeColor || '#6366f1',
+            '--po-primary-light': themeColor ? `${themeColor}15` : '#6366f115'
           }}
         >
           {results.length > 0 && (
@@ -200,11 +223,11 @@ const CustomSearchDropdown = ({
                   className={`px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
                 >
                   <div className="flex flex-col">
-                    <span className={`font-bold text-[13px] transition-colors ${selectedIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-700'}`}>
-                      {item[optionsLabel]}
+                    <span className={`font-bold text-[13px] transition-colors ${selectedIndex === i ? 'text-[var(--po-primary,#6366f1)]' : 'text-slate-700'}`}>
+                      {item[optionsLabel] || item.name || item.item_code || 'Unknown'}
                     </span>
-                    {item.name !== item[optionsLabel] && (
-                      <span className="text-[10px] text-slate-400 font-medium">{item.name}</span>
+                    {(item.name || item.item_code) && (item.name || item.item_code) !== item[optionsLabel] && (
+                      <span className="text-[10px] text-slate-400 font-medium">{item.item_name || item.name || item.item_code}</span>
                     )}
                   </div>
                   {item.supplier_type && (

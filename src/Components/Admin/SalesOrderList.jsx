@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, ShoppingCart, Receipt, Calendar, User, Layers,
   CheckCircle2, Clock, CreditCard, Palette, Loader2, ChevronLeft, ChevronRight,
-  ArrowRight, FileText, Filter, Save
+  ArrowRight, FileText, Filter, Save, ScanLine
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';

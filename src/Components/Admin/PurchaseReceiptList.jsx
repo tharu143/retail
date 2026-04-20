@@ -270,8 +270,7 @@ function PurchaseReceiptList() {
   const handleCreateFlow = (type) => {
     // Navigate to respective module with mapping data
     if (type === 'invoice') {
-      sessionStorage.setItem('mapped_pr', formData.name);
-      navigate('/purchaseinvoice');
+      navigate(`/purchaseinvoicelist?pr=${encodeURIComponent(docName || formData.name)}`);
     }
   };
 
@@ -554,24 +553,9 @@ function PurchaseReceiptList() {
   const handleCreateInvoice = async () => {
     if (!docName) return;
     try {
-      setSaving(true);
-      const res = await axios.post(`${API_PATH}.create_purchase_invoice_from_pr`, {
-        purchase_receipt: docName
-      }, { withCredentials: true });
-      
-      const msg = res.data.message || res.data;
-      if ((msg.success || msg.status === 'success') && msg.name) {
-        window.open(`/#/purchaseinvoicelist?name=${msg.name}`, "_blank");
-        Swal.fire('Success', `Purchase Invoice ${msg.name} created and opened in a new tab.`, 'success');
-      } else {
-        alert(msg.message || 'Failed to create Invoice');
-      }
+      handleCreateFlow('invoice');
     } catch (err) {
       console.error('Error creating PI:', err);
-      const errorMsg = err.response?.data?.message || err.message;
-      alert('Error creating Purchase Invoice: ' + errorMsg);
-    } finally {
-      setSaving(false);
     }
   };
   useEffect(() => {
@@ -817,10 +801,11 @@ function PurchaseReceiptList() {
   const selectItem = (rowIndex, item) => {
     setFormData(prev => {
       const items = [...prev.items];
+      const isBoxUom = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box';
       const currentAccepted = parseFloat(items[rowIndex].accepted_qty) || 0;
       const newAccepted = currentAccepted > 0 ? currentAccepted : 1;
       const currentRejected = parseFloat(items[rowIndex].rejected_qty) || 0;
-      const currentRate = parseFloat(items[rowIndex].rate) || 0;
+      
       items[rowIndex] = {
         ...items[rowIndex],
         item_code: item.item_code,
@@ -829,9 +814,15 @@ function PurchaseReceiptList() {
         accepted_qty: newAccepted,
         received_qty: newAccepted + currentRejected,
         qty: newAccepted,
-        custom_selling_price: item.custom_selling_price || 0,
-        amount: (newAccepted * currentRate).toFixed(2)
+        custom_box_qty: parseFloat(item.custom_box_qty || 0),
+        custom_pieces_per_box: parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1),
+        custom_selling_price: parseFloat(item.custom_selling_price || 0),
+        custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
+        custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
+        use_box_entry: isBoxUom || (parseFloat(item.custom_pieces_per_box || 0) > 1),
+        amount: (newAccepted * (parseFloat(items[rowIndex].rate) || 0)).toFixed(2)
       };
+      
       const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
       const net_total = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
       const totals = recalcTaxesAndTotals(items, net_total, prev.taxes, prev.additional_discount_percentage, prev.discount_amount, prev.rounded_total, prev.apply_discount_on);
@@ -845,7 +836,6 @@ function PurchaseReceiptList() {
     });
     setItemSearches(prev => ({ ...prev, [rowIndex]: item.item_name }));
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
-    // Fetch rate (non-blocking)
     fetchItemRate(rowIndex, item.item_code);
   };
   const handleSupplierCreate = async (name) => {
@@ -1036,6 +1026,7 @@ function PurchaseReceiptList() {
         discount_amount: doc.discount_amount || 0,
         rounded_total: doc.rounded_total || 0,
         items: (doc.items || []).map(i => ({
+          name: i.name || '',
           item_code: i.item_code || '',
           item_name: i.item_name || '',
           accepted_qty: parseFloat(i.qty) || 0,
@@ -1075,6 +1066,32 @@ function PurchaseReceiptList() {
         grand_total: parseFloat(doc.grand_total || 0).toFixed(2),
         docstatus: parseInt(doc.docstatus) || 0
       };
+
+      // Data Enrichment: If this is a draft created from a PO, sync missing custom fields
+      if (mapped.docstatus === 0) {
+        const sourcePOName = doc.items?.find(i => i.purchase_order)?.purchase_order;
+        if (sourcePOName) {
+          try {
+            const poRes = await axios.get(`${RESOURCE_BASE}/Purchase Order/${sourcePOName}`, { withCredentials: true });
+            const poDoc = poRes.data.data;
+            if (poDoc && poDoc.items) {
+               mapped.items = mapped.items.map(item => {
+                 const poItem = poDoc.items.find(pi => pi.item_code === item.item_code);
+                 if (poItem) {
+                   return {
+                     ...item,
+                     custom_selling_price: item.custom_selling_price || parseFloat(poItem.custom_selling_price || 0),
+                     custom_box_qty: item.custom_box_qty || parseFloat(poItem.custom_box_qty || 0),
+                     custom_pieces_per_box: item.custom_pieces_per_box || parseFloat(poItem.custom_pieces_per_box || 1),
+                     custom_box_price: item.custom_box_price || parseFloat(poItem.custom_box_price || 0)
+                   };
+                 }
+                 return item;
+               });
+            }
+          } catch (e) { console.error("Auto-sync from PO failed", e); }
+        }
+      }
 
       setFormData(mapped);
       setDocName(doc.name);
@@ -1204,6 +1221,7 @@ function PurchaseReceiptList() {
       items: formData.items
         .filter(i => i.item_code && parseFloat(i.accepted_qty) > 0)
         .map(i => ({
+          name: i.name || undefined,
           doctype: "Purchase Receipt Item",
           item_code: i.item_code,
           received_qty: parseFloat(i.accepted_qty) + parseFloat(i.rejected_qty),
@@ -1217,6 +1235,9 @@ function PurchaseReceiptList() {
           custom_box_qty: parseFloat(i.custom_box_qty || 0),
           custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
           custom_box_price: parseFloat(i.custom_box_price || 0),
+          custom_selling_price: parseFloat(i.custom_selling_price || 0),
+          purchase_order: i.purchase_order || undefined,
+          purchase_order_item: i.purchase_order_item || undefined,
           custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           warehouse: formData.set_warehouse,
@@ -1273,19 +1294,29 @@ function PurchaseReceiptList() {
         .map(i => {
           const accepted_qty = parseFloat(i.accepted_qty);
           const rejected_qty = parseFloat(i.rejected_qty);
-          return {
-            doctype: "Purchase Receipt Item",
-            item_code: i.item_code,
-            received_qty: accepted_qty + rejected_qty,
-            qty: accepted_qty,
-            rejected_qty: rejected_qty,
-            rate: parseFloat(i.rate || 0),
-            amount: parseFloat(i.amount || 0),
-            uom: i.uom,
-            warehouse: formData.set_warehouse,
-            accepted_warehouse: formData.set_warehouse,
-            rejected_warehouse: rejected_qty > 0 ? formData.set_warehouse : ''
-          };
+            return {
+              name: i.name || undefined,
+              doctype: "Purchase Receipt Item",
+              item_code: i.item_code,
+              received_qty: accepted_qty + rejected_qty,
+              qty: accepted_qty,
+              rejected_qty: rejected_qty,
+              rate: parseFloat(i.rate || 0),
+              amount: parseFloat(i.amount || 0),
+              uom: i.uom,
+              warehouse: formData.set_warehouse,
+              accepted_warehouse: formData.set_warehouse,
+              rejected_warehouse: rejected_qty > 0 ? formData.set_warehouse : '',
+              custom_box_qty: parseFloat(i.custom_box_qty || 0),
+              custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+              custom_box_price: parseFloat(i.custom_box_price || 0),
+              custom_selling_price: parseFloat(i.custom_selling_price || 0),
+              purchase_order: i.purchase_order || undefined,
+              purchase_order_item: i.purchase_order_item || undefined,
+              custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+              custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+              custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || ''
+            };
         }),
       taxes_and_charges: formData.taxes_and_charges,
       taxes: formData.taxes
@@ -1389,8 +1420,20 @@ function PurchaseReceiptList() {
         {/* Header */}
         <div className="so-page-header">
           <div className="so-page-left">
-            <h1 className="so-page-title">
-              <Package size={20} /> Purchase Receipts
+            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button 
+                onClick={() => navigate(-1)} 
+                style={{ 
+                  background: 'none', border: 'none', padding: '0.25rem', cursor: 'pointer', 
+                  color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: '0.375rem', transition: 'all 0.2s'
+                }}
+                className="hover:bg-slate-100"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <Package size={20} style={{ color: themeColor }} /> 
+              Purchase Receipts
             </h1>
             <p className="so-page-subtitle">{total} total record(s) found</p>
           </div>
@@ -1813,17 +1856,22 @@ function PurchaseReceiptList() {
 
                               if (!hasAnyBox) {
                                 if (col.id === 'custom_box_qty') finalLabel = 'Qty';
-                                if (col.id === 'custom_pieces_per_box') finalLabel = ''; // hide the Pcs/Box header label 
+                                if (col.id === 'custom_pieces_per_box') finalLabel = 'Pcs/Box';
                               }
 
-                              return (
-                                <th
-                                  key={col.id}
-                                  style={{ width: col.width, minWidth: col.id === 'item_code' ? 200 : undefined, textAlign: ['rate', 'amount', 'custom_selling_price'].includes(col.id) ? 'right' : ['custom_box_qty', 'custom_pieces_per_box', 'accepted_qty', 'rejected_qty', 'uom', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left' }}
-                                >
-                                  {finalLabel}
-                                </th>
-                              );
+                                return (
+                                 <th
+                                   key={col.id}
+                                   style={{ 
+                                     width: col.width, 
+                                     minWidth: col.id === 'item_code' ? 200 : undefined, 
+                                     textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
+                                                ['custom_box_qty', 'custom_pieces_per_box', 'accepted_qty', 'rejected_qty', 'uom', 'custom_ref_sl_no', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left' 
+                                   }}
+                                 >
+                                   {finalLabel}
+                                 </th>
+                               );
                             })}
                             <th style={{ width: '40px', textAlign: 'center' }}>
                               {!isViewMode && (
@@ -1881,25 +1929,17 @@ function PurchaseReceiptList() {
                                     return (
                                       <td key={col.id} ref={el => itemRefs.current[i] = el}>
                                         <div style={{ position: 'relative' }}>
-                                          <input
-                                            type="text"
-                                            value={itemSearches[i] || ''}
-                                            onChange={e => handleItemSearch(i, e.target.value)}
-                                            onFocus={() => itemSearches[i] && setShowItemDropdowns(prev => ({ ...prev, [i]: true }))}
-                                            placeholder={isViewMode ? "" : "Search item..."}
-                                            className="so-input"
-                                            style={{ height: '36px', fontSize: '0.85rem' }}
-                                            readOnly={isViewMode}
-                                          />
-                                          {showItemDropdowns[i] && itemsList.length > 0 && (
-                                            <div className="so-dropdown" style={{ minWidth: '300px' }}>
-                                              {itemsList.map(itm => (
-                                                <div key={itm.item_code} onClick={() => selectItem(i, itm)} className="so-dropdown-item">
-                                                  <div style={{ fontWeight: 700 }}>{itm.item_name}</div>
-                                                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{itm.item_code}</div>
-                                                </div>
-                                              ))}
-                                            </div>
+                                          {isViewMode ? (
+                                            <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{item.item_code}</div>
+                                          ) : (
+                                            <CustomSearchDropdown
+                                              value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                              placeholder="Search item..."
+                                              onSelect={(val) => selectItem(i, val)}
+                                              fetchData={fetchItems}
+                                              themeColor={themeColor}
+                                              optionsLabel="name"
+                                            />
                                           )}
                                           {item.item_name && (
                                             <div style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: themeColor, fontWeight: 700 }}>
@@ -1928,7 +1968,7 @@ function PurchaseReceiptList() {
                                     );
                                   case 'custom_pieces_per_box':
                                     return (
-                                      <td key={col.id}>
+                                      <td key={col.id} style={{ textAlign: 'center' }}>
                                         {isViewMode || !item.use_box_entry ? (
                                             <div style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}>{item.use_box_entry ? (item.custom_pieces_per_box || 1) : '—'}</div>
                                           ) : (
@@ -1964,7 +2004,7 @@ function PurchaseReceiptList() {
                                     );
                                   case 'accepted_qty':
                                     return (
-                                      <td key={col.id}>
+                                      <td key={col.id} style={{ textAlign: 'center' }}>
                                         {isViewMode ? (
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                               <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: themeColor }}>{item.accepted_qty}</div>
@@ -1986,7 +2026,7 @@ function PurchaseReceiptList() {
                                     );
                                   case 'rejected_qty':
                                     return (
-                                      <td key={col.id}>
+                                      <td key={col.id} style={{ textAlign: 'center' }}>
                                         {isViewMode ? (
                                             <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: '#ef4444' }}>{item.rejected_qty}</div>
                                           ) : (
@@ -2267,8 +2307,8 @@ function PurchaseReceiptList() {
                 </div>
               </div> {/* Closes so-modal-body */}
               <div className="so-modal-footer">
-                <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary">Close</button>
+                <div className="flex gap-2 w-full justify-end flex-wrap items-center" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary" style={{ minWidth: '100px' }}>CLOSE</button>
 
                   {/* DRAFT PHASE */}
                   {formData.docstatus === 0 && (
@@ -2291,16 +2331,6 @@ function PurchaseReceiptList() {
                         </button>
                       )}
 
-                      {formData.docstatus === 1 && (
-                        <button 
-                          onClick={() => handleCreateFlow('invoice')} 
-                          className="so-btn-primary" 
-                          style={{ minWidth: '150px', background: '#0284c7', borderColor: '#0284c7' }}
-                        >
-                            <Plus size={16} /> CREATE INVOICE
-                        </button>
-                      )}
-
                       {docName && allowedActions.includes('delete') && (
                          <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
                             <Trash2 size={16} /> DELETE
@@ -2309,25 +2339,28 @@ function PurchaseReceiptList() {
                     </>
                   )}
 
-                    {formData.docstatus === 1 && (
-                      <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        {allowedActions.includes('cancel') && (
-                          <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
-                             CANCEL
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => handleCreateFlow('invoice')} 
-                          className="so-btn-primary" 
-                          style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}
-                        >
-                           <FileText size={16} /> CREATE BILL
+                  {/* SUBMITTED PHASE */}
+                  {formData.docstatus === 1 && (
+                    <>
+                      {allowedActions.includes('cancel') && (
+                        <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
+                           CANCEL
                         </button>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', background: '#ecfdf5', borderRadius: '0.375rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.7rem', fontWeight: 800 }}>
-                          <CheckCircle2 size={14} /> SUBMITTED
-                        </div>
+                      )}
+                      
+                      <button 
+                        onClick={() => handleCreateFlow('invoice')} 
+                        className="so-btn-primary" 
+                        style={{ minWidth: '150px', background: '#0284c7', borderColor: '#0284c7' }}
+                      >
+                          <Plus size={16} /> CREATE INVOICE
+                      </button>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', background: '#ecfdf5', borderRadius: '0.375rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.7rem', fontWeight: 800 }}>
+                        <CheckCircle2 size={14} /> SUBMITTED
                       </div>
-                    )}
+                    </>
+                  )}
 
                   {/* CANCELLED PHASE */}
                   {formData.docstatus === 2 && (
@@ -2350,9 +2383,12 @@ function PurchaseReceiptList() {
       </div>
       {showColConfig && (
         <ColumnConfigModal
-          columns={columnConfig}
+          isOpen={showColConfig}
+          config={columnConfig}
           onUpdate={handleColConfigUpdate}
           onClose={() => setShowColConfig(false)}
+          themeColor={themeColor}
+          doctype="Purchase Receipt"
         />
       )}
     </>

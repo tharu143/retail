@@ -9,6 +9,7 @@ import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 
 // Custom APIs (moved to standardized path)
@@ -16,6 +17,7 @@ const API_PATH = '/api/method/kyle_retail.retail_api.api';
 const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
 const RESOURCE_API = '/api/resource/Purchase Invoice';
+const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PI_COLUMNS = [
   { id: 'item_code',          label: 'Item Code',         visible: true,  width: 240 },
@@ -36,6 +38,7 @@ function PurchaseInvoiceList() {
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
   const [lastSavedData, setLastSavedData] = useState(null); // Dirty Check Base
@@ -206,6 +209,7 @@ function PurchaseInvoiceList() {
     // URL filtering logic
     const params = new URLSearchParams(window.location.hash.split('?')[1]);
     const nameParam = params.get('name');
+    const prParam   = params.get('pr');
     const supplierParam = params.get('supplier');
 
     if (supplierParam) {
@@ -220,8 +224,91 @@ function PurchaseInvoiceList() {
       setIsViewMode(false);
       setIsEditMode(true);
       setIsModalOpen(true);
+    } else if (prParam) {
+      // Create a new PI pre-filled from a Purchase Receipt
+      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
+      createPIFromPR(prParam);
     }
   }, []);
+
+  // Opens a blank PI modal pre-filled with data from Purchase Receipt `prName`
+  const createPIFromPR = async (prName) => {
+    try {
+      const res = await axios.get(`/api/resource/Purchase Receipt/${encodeURIComponent(prName)}`, {
+        withCredentials: true
+      });
+      const pr = res.data.data;
+      if (!pr) { alert('Purchase Receipt not found: ' + prName); return; }
+
+      const mappedItems = (pr.items || []).map(i => {
+        const isBoxUom = (i.uom || '').toLowerCase() === 'box' || parseFloat(i.custom_box_qty || 0) > 0;
+        const boxQty   = parseFloat(i.custom_box_qty || 0);
+        const pcsPerBox = parseFloat(i.custom_pieces_per_box || 1);
+        // For Box UOM: qty in PI should be number of boxes (not total pieces)
+        // For other UOM: qty is the normal qty
+        const invoiceQty = isBoxUom && boxQty > 0 ? boxQty : parseFloat(i.qty) || 1;
+
+        return {
+          name: '',
+          item_code: i.item_code || '',
+          item_name: i.item_name || '',
+          qty: invoiceQty,
+          uom: i.uom || '',
+          rate: parseFloat(i.rate || 0),
+          amount: parseFloat(i.amount || 0),
+          custom_box_qty: boxQty,
+          custom_pieces_per_box: pcsPerBox,
+          custom_box_price: parseFloat(i.custom_box_price || 0),
+          custom_selling_price: parseFloat(i.custom_selling_price || 0),
+          custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+          purchase_order: i.purchase_order || undefined,
+          purchase_order_item: i.purchase_order_item || undefined,
+          purchase_receipt: pr.name,
+          purchase_receipt_item: i.name,
+          use_box_entry: isBoxUom,
+        };
+      });
+
+      setFormData({
+        name: '',
+        supplier: pr.supplier || '',
+        supplier_name: pr.supplier_name || pr.supplier || '',
+        posting_date: pr.posting_date || new Date().toISOString().split('T')[0],
+        due_date: '',
+        bill_no: pr.supplier_delivery_note || '',
+        update_stock: false,
+        accepted_warehouse: pr.set_warehouse || '',
+        rejected_warehouse: '',
+        is_subcontracted: false,
+        apply_discount_on: pr.apply_discount_on || 'Grand Total',
+        additional_discount_percentage: parseFloat(pr.additional_discount_percentage || 0),
+        discount_amount: parseFloat(pr.discount_amount || 0),
+        taxes_and_charges: pr.taxes_and_charges || '',
+        items: mappedItems.length > 0 ? mappedItems : [{ item_code:'', item_name:'', qty:1, uom:'', rate:0, amount:0, custom_box_qty:0, custom_pieces_per_box:1, custom_selling_price:0, custom_supplier_sl_num:'', custom_ref_sl_no:'' }],
+        taxes: (pr.taxes || []).map(t => ({
+          add_row: t.add_deduct_tax === 'Add',
+          charge_type: t.charge_type || 'On Net Total',
+          account_head: t.account_head || '',
+          rate: parseFloat(t.rate || 0),
+          tax_amount: parseFloat(t.tax_amount || 0),
+          total: t.total || '0.00',
+          description: t.description || t.account_head || ''
+        })),
+        docstatus: 0,
+      });
+      setSearchSupplier(pr.supplier_name || pr.supplier || '');
+      setFormErrors({});
+      setDocName('');
+      setDocStatus(null);
+      setIsEditMode(false);
+      setIsViewMode(false);
+      setIsModalOpen(true);
+    } catch (err) {
+      console.error('createPIFromPR error:', err);
+      alert('Failed to load Purchase Receipt data: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   // NEW: Auto-set default accepted warehouse if needed
   useEffect(() => {
@@ -448,7 +535,7 @@ function PurchaseInvoiceList() {
 
   const fetchSuppliers = async (query = '') => {
     try {
-      const res = await axios.get(`${API_PATH}.get_suppliers_pi`, {
+      const res = await axios.get(`${LEGACY_API}.get_suppliers_pi`, {
         params: { query: query || undefined },
         withCredentials: true
       });
@@ -534,7 +621,7 @@ function PurchaseInvoiceList() {
       const res = await axios.get(`${LEGACY_API}.get_purchase_invoice`, { params: { name }, withCredentials: true });
       if (res.data.message?.success) {
         const d = res.data.message.data;
-        setFormData({
+        const mapped = {
           name: d.name,
           supplier: d.supplier,
           supplier_name: d.supplier_name || d.supplier,
@@ -550,6 +637,7 @@ function PurchaseInvoiceList() {
           discount_amount: d.discount_amount || 0,
           taxes_and_charges: d.taxes_and_charges || '',
           items: (d.items || []).map(i => ({
+            name: i.name || '',
             item_code: i.item_code,
             item_name: i.item_name,
             qty: i.qty || 1,
@@ -564,6 +652,7 @@ function PurchaseInvoiceList() {
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             purchase_order: i.purchase_order || '',
             purchase_order_item: i.purchase_order_item || '',
+            purchase_receipt: i.purchase_receipt || '',
             use_box_entry: i.uom === 'Box' || 
               (parseFloat(i.custom_box_qty) > 0 && Math.abs(parseFloat(i.qty) - (parseFloat(i.custom_box_qty) * parseFloat(i.custom_pieces_per_box || 1))) < 0.1)
           })),
@@ -575,7 +664,8 @@ function PurchaseInvoiceList() {
           grand_total: d.grand_total || 0,
           rounded_total: d.rounded_total || 0,
           outstanding_amount: d.outstanding_amount !== undefined ? d.outstanding_amount : (d.grand_total || 0)
-        });
+        };
+        setFormData(mapped);
         
         // Populate tax preview for UI/Calculations
         if (d.taxes && d.taxes.length > 0) {
@@ -586,6 +676,66 @@ function PurchaseInvoiceList() {
             description: t.description || t.account_head
           })));
         }
+        // Data Enrichment: Cascading sync from PR and PO
+        if ((d.docstatus || 0) === 0) {
+          try {
+            const sourcePRName = d.items?.find(i => i.purchase_receipt)?.purchase_receipt;
+            const sourcePOName = d.items?.find(i => i.purchase_order)?.purchase_order;
+            
+            let enrichedItems = [...mapped.items];
+            
+            // 1. Sync from PR if available
+            if (sourcePRName) {
+              const prRes = await axios.get(`${RESOURCE_BASE}/Purchase Receipt/${sourcePRName}`, { withCredentials: true });
+              const prDoc = prRes.data.data;
+              if (prDoc) {
+                // Sync date if it's the default today's date
+                if (mapped.posting_date === new Date().toISOString().split('T')[0]) {
+                   mapped.posting_date = prDoc.posting_date;
+                }
+                if (prDoc.items) {
+                  enrichedItems = enrichedItems.map(item => {
+                    const prItem = prDoc.items.find(pi => pi.item_code === item.item_code);
+                    if (prItem) {
+                      return {
+                        ...item,
+                        custom_selling_price: item.custom_selling_price || parseFloat(prItem.custom_selling_price || 0),
+                        custom_box_qty: item.custom_box_qty || parseFloat(prItem.custom_box_qty || 0),
+                        custom_pieces_per_box: item.custom_pieces_per_box || parseFloat(prItem.custom_pieces_per_box || 1),
+                        custom_box_price: item.custom_box_price || parseFloat(prItem.custom_box_price || 0)
+                      };
+                    }
+                    return item;
+                  });
+                }
+              }
+            }
+            
+            // 2. Further sync from PO if PR was missing fields or no PR
+            if (sourcePOName) {
+              const poRes = await axios.get(`${RESOURCE_BASE}/Purchase Order/${sourcePOName}`, { withCredentials: true });
+              const poDoc = poRes.data.data;
+              if (poDoc && poDoc.items) {
+                enrichedItems = enrichedItems.map(item => {
+                  const poItem = poDoc.items.find(pi => pi.item_code === item.item_code);
+                  if (poItem) {
+                    return {
+                      ...item,
+                      custom_selling_price: item.custom_selling_price || parseFloat(poItem.custom_selling_price || 0),
+                      custom_box_qty: item.custom_box_qty || parseFloat(poItem.custom_box_qty || 0),
+                      custom_pieces_per_box: item.custom_pieces_per_box || parseFloat(poItem.custom_pieces_per_box || 1),
+                      custom_box_price: item.custom_box_price || parseFloat(poItem.custom_box_price || 0)
+                    };
+                  }
+                  return item;
+                });
+              }
+            }
+            mapped.items = enrichedItems;
+          } catch (e) { console.error("PI Data Enrichment failed", e); }
+        }
+
+        setFormData(mapped);
         setSearchSupplier(d.supplier_name || d.supplier);
         setDocName(d.name);
         setDocStatus(d.docstatus || 0); // Store docstatus
@@ -887,6 +1037,7 @@ function PurchaseInvoiceList() {
   const selectItem = async (rowIndex, item) => {
     setFormData(prev => {
       const items = [...prev.items];
+      const isBoxUom = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box';
       items[rowIndex] = {
         item_code: item.item_code,
         item_name: item.item_name,
@@ -894,11 +1045,12 @@ function PurchaseInvoiceList() {
         qty: 1,
         rate: 0,
         amount: 0,
-        custom_box_qty: 0,
-        custom_pieces_per_box: 1,
-        custom_selling_price: item.custom_selling_price || 0,
-        custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
-        custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || ''
+        custom_box_qty: parseFloat(item.custom_box_qty || 0),
+        custom_pieces_per_box: parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1),
+        custom_selling_price: parseFloat(item.custom_selling_price || 0),
+        custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
+        custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
+        use_box_entry: isBoxUom || (parseFloat(item.custom_pieces_per_box || 0) > 1)
       };
       return { ...prev, items };
     });
@@ -967,6 +1119,8 @@ function PurchaseInvoiceList() {
       items: formData.items
         .filter(i => i.item_code && i.qty > 0)
         .map(i => ({
+          name: i.name || undefined,
+          doctype: "Purchase Invoice Item",
           item_code: i.item_code,
           qty: parseFloat(i.qty) || 1,
           rate: parseFloat(i.rate || 0),
@@ -977,6 +1131,10 @@ function PurchaseInvoiceList() {
           custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+          purchase_order: i.purchase_order || undefined,
+          purchase_order_item: i.purchase_order_item || undefined,
+          purchase_receipt: i.purchase_receipt || undefined,
+          purchase_receipt_item: i.purchase_receipt_item || undefined,
           warehouse: formData.update_stock ? formData.accepted_warehouse : '',
           target_warehouse: formData.update_stock ? formData.accepted_warehouse : ''
         })),
@@ -1131,8 +1289,20 @@ function PurchaseInvoiceList() {
         {/* Header */}
         <div className="so-page-header">
           <div className="so-page-left">
-            <h1 className="so-page-title">
-              <Package size={20} /> Purchase Invoices
+            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button 
+                onClick={() => navigate(-1)} 
+                style={{ 
+                  background: 'none', border: 'none', padding: '0.25rem', cursor: 'pointer', 
+                  color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: '0.375rem', transition: 'all 0.2s'
+                }}
+                className="hover:bg-slate-100"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <Package size={20} style={{ color: themeColor }} /> 
+              Purchase Invoices
             </h1>
             <p className="so-page-subtitle">{total} total record(s) found</p>
           </div>
@@ -1598,16 +1768,21 @@ function PurchaseInvoiceList() {
                           <tr>
                             <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
                             {columnConfig.filter(c => c.visible).map(col => {
-                              const hasAnyBox = false; // formData.items.some(i => i.use_box_entry) if exists
+                              const hasAnyBox = formData.items.some(i => i.use_box_entry);
                               let finalLabel = col.label;
                               if (!hasAnyBox) {
                                 if (col.id === 'custom_box_qty') finalLabel = 'Qty';
-                                if (col.id === 'custom_pieces_per_box') finalLabel = ''; // hide the Pcs/Box header label 
+                                if (col.id === 'custom_pieces_per_box') finalLabel = 'Pcs/Box'; 
                               }
                               return (
                                 <th
                                   key={col.id}
-                                  style={{ width: col.width, minWidth: col.id === 'item_code' ? 200 : undefined, textAlign: ['rate', 'amount', 'custom_selling_price'].includes(col.id) ? 'right' : ['custom_box_qty', 'custom_pieces_per_box', 'qty', 'uom', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left' }}
+                                  style={{ 
+                                    width: col.width, 
+                                    minWidth: col.id === 'item_code' ? 200 : undefined, 
+                                    textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
+                                               ['custom_box_qty', 'custom_pieces_per_box', 'qty', 'accepted_qty', 'rejected_qty', 'uom', 'custom_ref_sl_no', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left' 
+                                  }}
                                 >
                                   {finalLabel}
                                 </th>
@@ -1675,11 +1850,12 @@ function PurchaseInvoiceList() {
                                             <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{item.item_code}</div>
                                           ) : (
                                             <CustomSearchDropdown
-                                              value={item.item_code}
+                                              value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
                                               placeholder="Search..."
-                                              onSelect={(val) => handleItemSelect(val, i)}
+                                              onSelect={(val) => selectItem(i, val)}
                                               fetchData={fetchItemsAPI}
                                               themeColor={themeColor}
+                                              optionsLabel="name"
                                             />
                                           )}
                                           <div style={{ fontSize: '0.65rem', color: '#64748b', marginTop: '0.2rem', fontWeight: 500 }}>{item.item_name}</div>
@@ -1768,7 +1944,7 @@ function PurchaseInvoiceList() {
                                     );
                                   case 'custom_selling_price':
                                     return (
-                                      <td key={col.id}>
+                                      <td key={col.id} style={{ textAlign: 'right' }}>
                                         <input
                                           type="number"
                                           value={item.custom_selling_price || 0}
@@ -1952,49 +2128,56 @@ function PurchaseInvoiceList() {
                   </div>
                 </div>
 
-                {/* Modal Footer */}
                 <div className="so-modal-footer">
-                  <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                    <button onClick={closeModal} className="so-btn-secondary">Close</button>
-                    
-                  <div className="flex gap-2 w-full justify-end flex-wrap items-center">
-                    <button onClick={closeModal} className="so-btn-secondary">Close</button>
+                  <div className="flex gap-2 w-full justify-end flex-wrap items-center" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+                    <button onClick={closeModal} className="so-btn-secondary" style={{ minWidth: '100px' }}>CLOSE</button>
 
-                    {/* DRAFT PHASE */}
-                    {docStatus === 0 && (
+                    {/* NEW DOC — not yet saved (docName is empty) */}
+                    {!docName && (
+                      <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
+                        {saving ? <Loader2 size={16} className="so-spinner" /> : 'SAVE DRAFT'}
+                      </button>
+                    )}
+
+                    {/* DRAFT PHASE — allowedActions from get_document_status_details */}
+                    {docName && formData.docstatus === 0 && (
                       <>
-                        {(!docName || (allowedActions.includes('save') && isDirty)) && (
+                        {/* UPDATE DRAFT — when dirty and server allows save */}
+                        {(allowedActions.includes('save') && isDirty) && (
                           <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
-                              {saving ? <Loader2 size={16} className="so-spinner" /> : (docName ? 'UPDATE DRAFT' : 'SAVE DRAFT')}
+                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'UPDATE DRAFT'}
                           </button>
                         )}
 
+                        {/* SUBMIT — when server allows and no unsaved changes */}
                         {allowedActions.includes('submit') && !isDirty && (
                           <button onClick={() => handleDocAction('submit')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#10b981', borderColor: '#10b981' }}>
-                              {saving ? <Loader2 size={16} className="so-spinner" /> : 'SUBMIT'}
+                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'SUBMIT'}
                           </button>
                         )}
 
+                        {/* EDIT DRAFT — view mode only */}
                         {isViewMode && (
                           <button onClick={() => setIsViewMode(false)} className="so-btn-secondary" style={{ minWidth: '150px' }}>
-                             <Edit2 size={16} /> EDIT DRAFT
+                            <Edit2 size={16} /> EDIT DRAFT
                           </button>
                         )}
 
-                        {docName && allowedActions.includes('delete') && (
-                           <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
-                              <Trash2 size={16} /> DELETE
-                           </button>
+                        {/* DELETE */}
+                        {allowedActions.includes('delete') && (
+                          <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
+                            <Trash2 size={16} /> DELETE
+                          </button>
                         )}
                       </>
                     )}
 
                     {/* SUBMITTED PHASE */}
-                    {docStatus === 1 && (
+                    {docName && formData.docstatus === 1 && (
                       <>
                         {allowedActions.includes('cancel') && (
                           <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
-                             CANCEL
+                            CANCEL
                           </button>
                         )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', background: '#ecfdf5', borderRadius: '0.375rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.7rem', fontWeight: 800 }}>
@@ -2004,11 +2187,11 @@ function PurchaseInvoiceList() {
                     )}
 
                     {/* CANCELLED PHASE */}
-                    {docStatus === 2 && (
+                    {docName && formData.docstatus === 2 && (
                       <>
                         {allowedActions.includes('amend') && (
                           <button onClick={() => handleDocAction('amend')} className="so-btn-primary" style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}>
-                             AMEND
+                            AMEND
                           </button>
                         )}
                         <div style={{ padding: '0.4rem 0.8rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.7rem', fontWeight: 800, borderRadius: '0.375rem' }}>
@@ -2016,7 +2199,6 @@ function PurchaseInvoiceList() {
                         </div>
                       </>
                     )}
-                  </div>
                   </div>
                 </div>
               </div>
@@ -2026,9 +2208,12 @@ function PurchaseInvoiceList() {
       </div>
       {showColConfig && (
         <ColumnConfigModal
-          columns={columnConfig}
+          isOpen={showColConfig}
+          config={columnConfig}
           onUpdate={handleColConfigUpdate}
           onClose={() => setShowColConfig(false)}
+          themeColor={themeColor}
+          doctype="Purchase Invoice"
         />
       )}
     </>
