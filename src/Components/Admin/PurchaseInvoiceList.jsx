@@ -244,9 +244,7 @@ function PurchaseInvoiceList() {
         const isBoxUom = (i.uom || '').toLowerCase() === 'box' || parseFloat(i.custom_box_qty || 0) > 0;
         const boxQty   = parseFloat(i.custom_box_qty || 0);
         const pcsPerBox = parseFloat(i.custom_pieces_per_box || 1);
-        // For Box UOM: qty in PI should be number of boxes (not total pieces)
-        // For other UOM: qty is the normal qty
-        const invoiceQty = isBoxUom && boxQty > 0 ? boxQty : parseFloat(i.qty) || 1;
+        const invoiceQty = parseFloat(i.qty) || 0;
 
         return {
           name: '',
@@ -663,7 +661,8 @@ function PurchaseInvoiceList() {
           additional_discount_percentage: d.additional_discount_percentage || 0,
           grand_total: d.grand_total || 0,
           rounded_total: d.rounded_total || 0,
-          outstanding_amount: d.outstanding_amount !== undefined ? d.outstanding_amount : (d.grand_total || 0)
+          outstanding_amount: d.outstanding_amount !== undefined ? d.outstanding_amount : (d.grand_total || 0),
+          docstatus: parseInt(d.docstatus) || 0
         };
         setFormData(mapped);
         
@@ -738,11 +737,11 @@ function PurchaseInvoiceList() {
         setFormData(mapped);
         setSearchSupplier(d.supplier_name || d.supplier);
         setDocName(d.name);
-        setDocStatus(d.docstatus || 0); // Store docstatus
+        setDocStatus(parseInt(d.docstatus) || 0); // Store docstatus
         
         // Fetch linked documents if it's already created
         if (d.name) fetchLinkedDocuments(d.name);
-        setLastSavedData(JSON.stringify(d)); // Set base point for dirty check
+        setLastSavedData(JSON.stringify(mapped)); // Set base point for dirty check
       }
     } catch (err) {
       alert('Failed to load invoice');
