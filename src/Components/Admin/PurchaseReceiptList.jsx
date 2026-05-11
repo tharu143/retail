@@ -1240,9 +1240,9 @@ function PurchaseReceiptList() {
           purchase_order_item: i.purchase_order_item || undefined,
           custom_supplier_sl_num: i.custom_supplier_sl_num || i.custom_ref_sl_no || '',
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
-          warehouse: formData.set_warehouse,
-          accepted_warehouse: formData.set_warehouse,
-          rejected_warehouse: parseFloat(i.rejected_qty) > 0 ? formData.set_warehouse : ''
+          warehouse: (formData.set_warehouse && formData.set_warehouse !== "undefined" && formData.set_warehouse !== "null") ? formData.set_warehouse : "",
+          accepted_warehouse: (formData.set_warehouse && formData.set_warehouse !== "undefined" && formData.set_warehouse !== "null") ? formData.set_warehouse : "",
+          rejected_warehouse: (parseFloat(i.rejected_qty) > 0 && formData.set_warehouse && formData.set_warehouse !== "undefined" && formData.set_warehouse !== "null") ? formData.set_warehouse : ""
         })),
       taxes_and_charges: formData.taxes_and_charges,
       taxes: formData.taxes

@@ -412,6 +412,7 @@ export default function ItemList() {
   const [dashboardData, setDashboardData] = useState(null);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [priceData, setPriceData] = useState({ prices: [], metrics: {}, warehouse_breakdown: [] });
+  const [warehouses, setWarehouses] = useState([]);
   const [isPriceDetailView, setIsPriceDetailView] = useState(false);
   const [priceForm, setPriceForm] = useState({ price_list: '', uom: '', price_list_rate: 0, buying: 0, selling: 1, name: '' });
   const [expandedLinks, setExpandedLinks] = useState({});
@@ -448,7 +449,7 @@ export default function ItemList() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showForm, isScanning]);
 
-  useEffect(() => { fetchItems(); fetchBrands(); fetchUoms(); fetchSuppliers(); }, []);
+  useEffect(() => { fetchItems(); fetchBrands(); fetchUoms(); fetchSuppliers(); fetchWarehouses(); }, []);
 
   useEffect(() => {
     if (showForm || isEditMode) { const t = setTimeout(() => fetchItemGroups(groupSearch), 300); return () => clearTimeout(t); }
@@ -543,14 +544,24 @@ export default function ItemList() {
     } catch { }
   };
 
+  const fetchWarehouses = async () => {
+    try {
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses', { withCredentials: true });
+      const raw = res.data.message || [];
+      setWarehouses((Array.isArray(raw) ? raw : []).map(w => ({
+        label: w.warehouse_name || w.name,
+        value: w.name
+      })));
+    } catch { }
+  };
+
   const fetchSuppliers = async () => {
     try {
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_suppliers_list', { params: { limit: 1000 }, withCredentials: true });
+      const res = await axios.get("/api/method/kyle_retail.retail_api.api.get_suppliers_list", { params: { limit: 1000 }, withCredentials: true });
       const raw = res.data.message?.data || res.data.message || [];
       setSuppliers(Array.isArray(raw) ? raw : []);
     } catch { }
   };
-
   const handleCreateBrand = async (name) => {
     try { const res = await axios.post('/api/resource/Brand', { brand: name }, { withCredentials: true }); if (res.data.data) { await fetchBrands(); setForm(p => ({ ...p, brand: name })); } }
     catch (e) { alert('Failed: ' + (e.response?.data?.message || e.message)); }
@@ -736,7 +747,9 @@ export default function ItemList() {
         barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })), 
         uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })), 
         supplier_items: form.supplier_items, 
-        branch_availability: form.branch_availability.filter(b => b.warehouse) 
+        branch_availability: form.branch_availability
+          .filter(b => b.warehouse && b.warehouse !== 'undefined' && b.warehouse !== 'null')
+          .map(b => ({ warehouse: b.warehouse }))
       };
       await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc', { doctype: 'Item', data }, { withCredentials: true });
       alert(isEditMode ? 'Item updated!' : 'Item created!');
@@ -1726,7 +1739,7 @@ export default function ItemList() {
                               <td style={{ paddingTop: 8, paddingBottom: 8 }}>
                                   <SearchableSelectInline
                                     value={b.warehouse}
-                                    options={priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || []}
+                                    options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
                                     placeholder="Select Branch"
                                     onChange={val => updateBranchRow(i, val)}
                                   />

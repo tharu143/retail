@@ -645,7 +645,6 @@ function PurchaseInvoiceList() {
             custom_box_qty: parseFloat(i.custom_box_qty || 0),
             custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
             custom_selling_price: parseFloat(i.custom_selling_price || 0),
-            custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             purchase_order: i.purchase_order || '',
@@ -657,8 +656,6 @@ function PurchaseInvoiceList() {
           total_qty: d.total_qty || 0,
           net_total: d.net_total || 0,
           total_taxes_and_charges: d.total_taxes_and_charges || 0,
-          discount_amount: d.discount_amount || 0,
-          additional_discount_percentage: d.additional_discount_percentage || 0,
           grand_total: d.grand_total || 0,
           rounded_total: d.rounded_total || 0,
           outstanding_amount: d.outstanding_amount !== undefined ? d.outstanding_amount : (d.grand_total || 0),
@@ -1128,14 +1125,13 @@ function PurchaseInvoiceList() {
           custom_box_price: parseFloat(i.custom_box_price || 0),
           custom_selling_price: parseFloat(i.custom_selling_price || 0),
           custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
-          custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           purchase_order: i.purchase_order || undefined,
           purchase_order_item: i.purchase_order_item || undefined,
           purchase_receipt: i.purchase_receipt || undefined,
           purchase_receipt_item: i.purchase_receipt_item || undefined,
-          warehouse: formData.update_stock ? formData.accepted_warehouse : '',
-          target_warehouse: formData.update_stock ? formData.accepted_warehouse : ''
+          warehouse: (formData.update_stock && formData.accepted_warehouse && formData.accepted_warehouse !== 'undefined' && formData.accepted_warehouse !== 'null') ? formData.accepted_warehouse : '',
+          target_warehouse: (formData.update_stock && formData.accepted_warehouse && formData.accepted_warehouse !== 'undefined' && formData.accepted_warehouse !== 'null') ? formData.accepted_warehouse : ''
         })),
       name: docName || undefined
     };

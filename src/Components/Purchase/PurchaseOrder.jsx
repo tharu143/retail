@@ -1158,10 +1158,10 @@ function PurchaseOrder() {
           new_selling_price: parseFloat(item.custom_selling_price || 0),
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
           custom_supplier_sl_num: item.custom_supplier_sl_num || item.custom_ref_sl_no || "",
-          supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || ""
+          supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || "",
+          warehouse: (formData.set_warehouse && formData.set_warehouse !== "undefined" && formData.set_warehouse !== "null") ? formData.set_warehouse : ""
         })),
-        taxes_and_charges: formData.taxes_and_charges,
-        taxes: (formData.taxes || []).map(t => ({
+          taxes: (formData.taxes || []).map(t => ({
           charge_type: t.charge_type,
           account_head: t.account_head,
           rate: parseFloat(t.rate),

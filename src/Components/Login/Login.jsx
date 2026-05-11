@@ -113,15 +113,15 @@ function Login() {
         is_manager: resp.is_manager,
         user_roles: resp.user_roles
       }));
-      localStorage.setItem("session", session);
-      localStorage.setItem("user", user);
-      localStorage.setItem("pos_profile", pos_profile);
-      localStorage.setItem("company", company);
-      localStorage.setItem("warehouse", warehouse);
-      localStorage.setItem("branch_prefix", branch_prefix);
+      localStorage.setItem("session", session || "");
+      localStorage.setItem("user", user || "");
+      localStorage.setItem("pos_profile", pos_profile || "");
+      localStorage.setItem("company", company || "");
+      localStorage.setItem("warehouse", (warehouse && warehouse !== "undefined" && warehouse !== "null") ? warehouse : "");
+      localStorage.setItem("branch_prefix", branch_prefix || "");
       localStorage.setItem("is_manager", resp.is_manager || false);
       localStorage.setItem("user_roles", JSON.stringify(resp.user_roles || []));
-      localStorage.setItem("posOpeningEntry", existingOpeningEntry);
+      localStorage.setItem("posOpeningEntry", existingOpeningEntry || "");
 
       Swal.fire({
         icon: 'success',
