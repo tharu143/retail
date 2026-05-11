@@ -17,6 +17,11 @@
   --so-danger-hover: #dc2626;
 }
 
+/* Ensure SweetAlert popups appear in front of the modal */
+.swal2-container {
+  z-index: 30000 !important;
+}
+
 /* ---- Page Layout ---- */
 .so-page {
   min-height: 100vh;

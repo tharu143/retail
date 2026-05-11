@@ -1648,7 +1648,7 @@ function PurchaseReceiptList() {
         {isModalOpen && (
           <div className="so-modal-overlay" onClick={() => setIsModalOpen(false)} style={{ 
             padding: 0, 
-            zIndex: 1000, 
+            zIndex: 20000, 
             top: '0', 
             height: '100vh',
             background: 'rgba(255, 255, 255, 1)', 
@@ -1665,34 +1665,120 @@ function PurchaseReceiptList() {
               boxShadow: 'none'
             }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                     <Package size={20} style={{ color: themeColor }} />
                     {isEditMode ? 'Modify' : isViewMode ? 'View' : 'New'} Purchase Receipt
                     {docName && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginLeft: '0.5rem' }}>{docName}</span>}
                   </h2>
-                  {isViewMode && formData.docstatus === 0 && (
-                    <button 
-                      onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
-                      className="so-btn-primary" 
-                      style={{ padding: '0.45rem 1.25rem', fontSize: '0.75rem', background: themeColor, color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', boxShadow: `0 4px 12px ${themeColor}40` }}
-                    >
-                      <Edit3 size={14} /> Edit Draft Matrix
-                    </button>
-                  )}
-                  {isEditMode && docName && (
-                    <button 
-                      onClick={() => setIsViewMode(true)}
-                      className="so-btn-ghost" 
-                      style={{ padding: '0.35rem 1rem', fontSize: '0.7rem', color: '#64748b' }}
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
-                  <X size={20} />
-                </button>
+
+                <div className="flex items-center gap-3" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  {/* ACTIONS CONTAINER */}
+                  <div className="flex items-center gap-2" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    {/* DRAFT PHASE */}
+                    {formData.docstatus === 0 && (
+                      <>
+                        {(!docName || (allowedActions.includes('save') && isDirty)) && !isViewMode && (
+                          <button 
+                            onClick={() => handleDocAction('save')} 
+                            disabled={saving} 
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)', transition: 'all 0.2s' }}
+                          >
+                              {saving ? <Loader2 size={14} className="so-spinner" /> : (docName ? 'UPDATE DRAFT' : 'SAVE DRAFT')}
+                          </button>
+                        )}
+
+                        {allowedActions.includes('submit') && !isDirty && (
+                          <button 
+                            onClick={() => handleDocAction('submit')} 
+                            disabled={saving} 
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                          >
+                              {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                          </button>
+                        )}
+
+                        {isViewMode && (
+                          <button 
+                            onClick={() => setIsViewMode(false)} 
+                            className="so-btn-secondary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
+                          >
+                             <Edit3 size={14} /> EDIT DRAFT
+                          </button>
+                        )}
+
+                        {docName && allowedActions.includes('delete') && (
+                           <button 
+                            onClick={() => handleDocAction('delete')} 
+                            className="so-btn-ghost" 
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase' }}
+                           >
+                              <Trash2 size={14} /> DELETE
+                           </button>
+                        )}
+                      </>
+                    )}
+
+                    {/* SUBMITTED PHASE */}
+                    {formData.docstatus === 1 && (
+                      <>
+                        {allowedActions.includes('cancel') && (
+                          <button 
+                            onClick={() => handleDocAction('cancel')} 
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
+                          >
+                             CANCEL
+                          </button>
+                        )}
+                        
+                        <button 
+                          onClick={() => handleCreateFlow('invoice')} 
+                          className="so-btn-primary" 
+                          style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0284c7', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)' }}
+                        >
+                            <Plus size={14} /> CREATE INVOICE
+                        </button>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 1rem', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                          <CheckCircle2 size={14} /> SUBMITTED
+                        </div>
+                      </>
+                    )}
+
+                    {/* CANCELLED PHASE */}
+                    {formData.docstatus === 2 && (
+                      <>
+                        {allowedActions.includes('amend') && (
+                          <button 
+                            onClick={() => handleDocAction('amend')} 
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)' }}
+                          >
+                             AMEND
+                          </button>
+                        )}
+                        <div style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.5rem', textTransform: 'uppercase' }}>
+                          CANCELLED
+                        </div>
+                      </>
+                    )}
+                    <button 
+                      onClick={() => setIsModalOpen(false)} 
+                      className="so-btn-secondary" 
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#fff', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
+                    >
+                      CLOSE
+                    </button>
+                  </div>
+                  <button onClick={() => setIsModalOpen(false)} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
               <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
@@ -2306,77 +2392,6 @@ function PurchaseReceiptList() {
                   </div>
                 </div>
               </div> {/* Closes so-modal-body */}
-              <div className="so-modal-footer">
-                <div className="flex gap-2 w-full justify-end flex-wrap items-center" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-                  <button onClick={() => setIsModalOpen(false)} className="so-btn-secondary" style={{ minWidth: '100px' }}>CLOSE</button>
-
-                  {/* DRAFT PHASE */}
-                  {formData.docstatus === 0 && (
-                    <>
-                      {(!docName || (allowedActions.includes('save') && isDirty)) && (
-                        <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
-                            {saving ? <Loader2 size={16} className="so-spinner" /> : (docName ? 'UPDATE DRAFT' : 'SAVE DRAFT')}
-                        </button>
-                      )}
-
-                      {allowedActions.includes('submit') && !isDirty && (
-                        <button onClick={() => handleDocAction('submit')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#10b981', borderColor: '#10b981' }}>
-                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'SUBMIT'}
-                        </button>
-                      )}
-
-                      {isViewMode && (
-                        <button onClick={() => setIsViewMode(false)} className="so-btn-secondary" style={{ minWidth: '150px' }}>
-                           <Edit3 size={16} /> EDIT DRAFT
-                        </button>
-                      )}
-
-                      {docName && allowedActions.includes('delete') && (
-                         <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
-                            <Trash2 size={16} /> DELETE
-                         </button>
-                      )}
-                    </>
-                  )}
-
-                  {/* SUBMITTED PHASE */}
-                  {formData.docstatus === 1 && (
-                    <>
-                      {allowedActions.includes('cancel') && (
-                        <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
-                           CANCEL
-                        </button>
-                      )}
-                      
-                      <button 
-                        onClick={() => handleCreateFlow('invoice')} 
-                        className="so-btn-primary" 
-                        style={{ minWidth: '150px', background: '#0284c7', borderColor: '#0284c7' }}
-                      >
-                          <Plus size={16} /> CREATE INVOICE
-                      </button>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', background: '#ecfdf5', borderRadius: '0.375rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.7rem', fontWeight: 800 }}>
-                        <CheckCircle2 size={14} /> SUBMITTED
-                      </div>
-                    </>
-                  )}
-
-                  {/* CANCELLED PHASE */}
-                  {formData.docstatus === 2 && (
-                    <>
-                      {allowedActions.includes('amend') && (
-                        <button onClick={() => handleDocAction('amend')} className="so-btn-primary" style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}>
-                           AMEND
-                        </button>
-                      )}
-                      <div style={{ padding: '0.4rem 0.8rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.7rem', fontWeight: 800, borderRadius: '0.375rem' }}>
-                        CANCELLED
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         )}

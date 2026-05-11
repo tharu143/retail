@@ -1547,37 +1547,130 @@ function PurchaseInvoiceList() {
         </div>
 
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0, zIndex: 1000, top: '0', height: '100vh', background: 'white' }}>
+          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0, zIndex: 20000, top: '0', height: '100vh', background: 'white' }}>
             <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                     <Package size={20} style={{ color: themeColor }} />
                     {isEditMode ? 'Modify' : isViewMode ? 'View' : 'New'} Purchase Invoice
                     {formData.name && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginLeft: '0.5rem' }}>{formData.name}</span>}
                   </h2>
-                  {isViewMode && formData.docstatus === 0 && (
-                    <button 
-                      onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
-                      className="so-btn-primary" 
-                      style={{ padding: '0.35rem 1rem', fontSize: '0.7rem', background: 'white', color: themeColor, border: `1.5px solid ${themeColor}` }}
-                    >
-                      <Edit2 size={14} /> Edit Draft
-                    </button>
-                  )}
-                  {isEditMode && formData.name && (
-                    <button 
-                      onClick={() => setIsViewMode(true)}
-                      className="so-btn-ghost" 
-                      style={{ padding: '0.35rem 1rem', fontSize: '0.7rem', color: '#64748b' }}
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
                 </div>
-                <button onClick={closeModal} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
-                  <X size={20} />
-                </button>
+
+                <div className="flex items-center gap-3" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  {/* ACTIONS CONTAINER */}
+                  <div className="flex items-center gap-2" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    {/* NEW DOC — not yet saved (docName is empty) */}
+                    {!docName && (
+                      <button 
+                        onClick={() => handleDocAction('save')} 
+                        disabled={saving} 
+                        className="so-btn-primary" 
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
+                      </button>
+                    )}
+
+                    {/* DRAFT PHASE — allowedActions from get_document_status_details */}
+                    {docName && formData.docstatus === 0 && (
+                      <>
+                        {/* UPDATE DRAFT — when dirty and server allows save */}
+                        {(allowedActions.includes('save') && isDirty) && !isViewMode && (
+                          <button 
+                            onClick={() => handleDocAction('save')} 
+                            disabled={saving} 
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)', transition: 'all 0.2s' }}
+                          >
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
+                          </button>
+                        )}
+
+                        {/* SUBMIT — when server allows and no unsaved changes */}
+                        {allowedActions.includes('submit') && !isDirty && (
+                          <button 
+                            onClick={() => handleDocAction('submit')} 
+                            disabled={saving} 
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                          >
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                          </button>
+                        )}
+
+                        {/* EDIT DRAFT — view mode only */}
+                        {isViewMode && (
+                          <button 
+                            onClick={() => setIsViewMode(false)} 
+                            className="so-btn-secondary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
+                          >
+                            <Edit2 size={14} /> EDIT DRAFT
+                          </button>
+                        )}
+
+                        {/* DELETE */}
+                        {allowedActions.includes('delete') && (
+                          <button 
+                            onClick={() => handleDocAction('delete')} 
+                            className="so-btn-ghost" 
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase' }}
+                          >
+                            <Trash2 size={14} /> DELETE
+                          </button>
+                        )}
+                      </>
+                    )}
+
+                    {/* SUBMITTED PHASE */}
+                    {docName && formData.docstatus === 1 && (
+                      <>
+                        {allowedActions.includes('cancel') && (
+                          <button 
+                            onClick={() => handleDocAction('cancel')} 
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
+                          >
+                            CANCEL
+                          </button>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 1rem', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                          <CheckCircle2 size={14} /> SUBMITTED
+                        </div>
+                      </>
+                    )}
+
+                    {/* CANCELLED PHASE */}
+                    {docName && formData.docstatus === 2 && (
+                      <>
+                        {allowedActions.includes('amend') && (
+                          <button 
+                            onClick={() => handleDocAction('amend')} 
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)' }}
+                          >
+                            AMEND
+                          </button>
+                        )}
+                        <div style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.5rem', textTransform: 'uppercase' }}>
+                          CANCELLED
+                        </div>
+                      </>
+                    )}
+                    <button 
+                      onClick={closeModal} 
+                      className="so-btn-secondary" 
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#fff', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
+                    >
+                      CLOSE
+                    </button>
+                  </div>
+                  <button onClick={closeModal} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
               <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
                 {renderConnectionsDashboard()}
@@ -2123,79 +2216,6 @@ function PurchaseInvoiceList() {
                   </div>
                 </div>
 
-                <div className="so-modal-footer">
-                  <div className="flex gap-2 w-full justify-end flex-wrap items-center" style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-                    <button onClick={closeModal} className="so-btn-secondary" style={{ minWidth: '100px' }}>CLOSE</button>
-
-                    {/* NEW DOC — not yet saved (docName is empty) */}
-                    {!docName && (
-                      <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
-                        {saving ? <Loader2 size={16} className="so-spinner" /> : 'SAVE DRAFT'}
-                      </button>
-                    )}
-
-                    {/* DRAFT PHASE — allowedActions from get_document_status_details */}
-                    {docName && formData.docstatus === 0 && (
-                      <>
-                        {/* UPDATE DRAFT — when dirty and server allows save */}
-                        {(allowedActions.includes('save') && isDirty) && (
-                          <button onClick={() => handleDocAction('save')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#3b82f6', borderColor: '#3b82f6' }}>
-                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'UPDATE DRAFT'}
-                          </button>
-                        )}
-
-                        {/* SUBMIT — when server allows and no unsaved changes */}
-                        {allowedActions.includes('submit') && !isDirty && (
-                          <button onClick={() => handleDocAction('submit')} disabled={saving} className="so-btn-primary" style={{ minWidth: '150px', background: '#10b981', borderColor: '#10b981' }}>
-                            {saving ? <Loader2 size={16} className="so-spinner" /> : 'SUBMIT'}
-                          </button>
-                        )}
-
-                        {/* EDIT DRAFT — view mode only */}
-                        {isViewMode && (
-                          <button onClick={() => setIsViewMode(false)} className="so-btn-secondary" style={{ minWidth: '150px' }}>
-                            <Edit2 size={16} /> EDIT DRAFT
-                          </button>
-                        )}
-
-                        {/* DELETE */}
-                        {allowedActions.includes('delete') && (
-                          <button onClick={() => handleDocAction('delete')} className="so-btn-ghost" style={{ color: '#ef4444' }}>
-                            <Trash2 size={16} /> DELETE
-                          </button>
-                        )}
-                      </>
-                    )}
-
-                    {/* SUBMITTED PHASE */}
-                    {docName && formData.docstatus === 1 && (
-                      <>
-                        {allowedActions.includes('cancel') && (
-                          <button onClick={() => handleDocAction('cancel')} className="so-btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
-                            CANCEL
-                          </button>
-                        )}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', background: '#ecfdf5', borderRadius: '0.375rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.7rem', fontWeight: 800 }}>
-                          <CheckCircle2 size={14} /> SUBMITTED
-                        </div>
-                      </>
-                    )}
-
-                    {/* CANCELLED PHASE */}
-                    {docName && formData.docstatus === 2 && (
-                      <>
-                        {allowedActions.includes('amend') && (
-                          <button onClick={() => handleDocAction('amend')} className="so-btn-primary" style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}>
-                            AMEND
-                          </button>
-                        )}
-                        <div style={{ padding: '0.4rem 0.8rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.7rem', fontWeight: 800, borderRadius: '0.375rem' }}>
-                          CANCELLED
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           </div>

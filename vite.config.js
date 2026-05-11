@@ -8,15 +8,15 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://75.119.130.59',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
         logLevel: 'debug',
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req) => {
+            proxyReq.setHeader('Host', 'retailpos');
             // Remove problematic headers
             proxyReq.removeHeader('Expect');     // FIX 417
-            proxyReq.removeHeader('Origin');
 
             // Forward cookies manually or via X-Frappe-SID injected fallback 
             let cookieStr = req.headers.cookie || '';
@@ -52,9 +52,14 @@ export default defineConfig({
         },
       },
       '/files': {
-        target: 'http://75.119.130.59',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Host', 'retailpos');
+          });
+        }
       },
     },
   },

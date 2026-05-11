@@ -1,4 +1,5 @@
 import { Route, Routes, useLocation } from 'react-router-dom'
+import { useSelector } from 'react-redux';
 import NavBar from '../Components/Nav/NavBar'
 import HomePage from '../Pages/HomePage'
 import LoginPage from '../Pages/LoginPage'
@@ -39,14 +40,20 @@ import SalesReturnPage from '../Pages/SalesReturnPage'
 import PurchaseReturnList from '../Components/Admin/PurchaseReturnList'
 
 
+
+
 function UserRouter() {
   const location = useLocation();
+  const theme = useSelector((state) => state.user.theme);
   const showNavBar = location.pathname !== '/';
-  
+
+  // Don't apply padding if the NavBar is hidden (e.g., legacy theme on homepage)
+  const applyPadding = showNavBar && !(theme === 'legacy' && location.pathname === '/homepage');
+
   return (
     <>
       {showNavBar && <NavBar />}
-      <div style={{ paddingTop: showNavBar ? '74px' : '0' }}>
+      <div style={{ paddingTop: applyPadding ? '74px' : '0' }}>
         <Routes>
           <Route path='/' element={<LoginPage />} />
           <Route path='homepage' element={<HomePage />} />
@@ -91,4 +98,6 @@ function UserRouter() {
   );
 }
 
+
 export default UserRouter
+

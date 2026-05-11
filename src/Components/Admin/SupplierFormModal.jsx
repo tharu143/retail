@@ -1,382 +1,671 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, Save, Building2, ChevronLeft, ShieldCheck, Globe, 
-  Mail, Phone, MapPin, CreditCard, Tag, Loader2 
+import {
+   X, Save, Building2, ChevronLeft, ShieldCheck, Globe,
+   Mail, Phone, MapPin, CreditCard, Tag, Loader2
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 
 const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) => {
-  const [form, setForm] = useState({
-    supplier_name: '',
-    supplier_name_in_arabic: '',
-    supplier_group: '',
-    supplier_type: 'Company',
-    country: 'United Arab Emirates',
-    disabled: false,
-    tax_id: '',
-    tax_category: '',
-    tax_withholding_category: '',
-    website: '',
-    address: '',
-    contact_person: '',
-    supplier_details: '',
-    default_currency: 'AED',
-    default_price_list: '',
-    payment_terms: '',
-    supplier_primary_address: '',
-    supplier_primary_contact: '',
-    // Settings Checkboxes
-    allow_purchase_invoice_creation_without_purchase_order: false,
-    allow_purchase_invoice_creation_without_purchase_receipt: false,
-    is_frozen: false,
-    on_hold: false,
-    is_internal_supplier: false,
-    is_transporter: false,
-    warn_rfqs: false,
-    warn_pos: false,
-    prevent_rfqs: false,
-    prevent_pos: false
-  });
+   const { themeColor, isGreen } = useLegacyTheme();
+   const [focusedField, setFocusedField] = useState(null);
 
-  const [saving, setSaving] = useState(false);
-  const [meta, setMeta] = useState({
-    supplierGroups: [],
-    priceLists: [],
-    countries: [],
-    currencies: [],
-    taxCategories: [],
-    taxWithholdingCategories: [],
-    paymentTerms: []
-  });
+   const getInputStyle = (fieldId) => ({
+      borderColor: focusedField === fieldId ? themeColor : '#cbd5e1',
+      boxShadow: focusedField === fieldId ? `0 0 0 3px ${themeColor}15` : 'none',
+      backgroundColor: focusedField === fieldId ? '#ffffff' : '#f8fafc',
+      transition: 'all 0.2s ease-in-out',
+      outline: 'none'
+   });
 
-  useEffect(() => {
-    if (editingSupplier) {
-      setForm({ 
-        ...editingSupplier, 
-        disabled: !!editingSupplier.disabled,
-        allow_purchase_invoice_creation_without_purchase_order: !!editingSupplier.allow_purchase_invoice_creation_without_purchase_order,
-        allow_purchase_invoice_creation_without_purchase_receipt: !!editingSupplier.allow_purchase_invoice_creation_without_purchase_receipt,
-        is_frozen: !!editingSupplier.is_frozen,
-        on_hold: !!editingSupplier.on_hold,
-        is_internal_supplier: !!editingSupplier.is_internal_supplier,
-        is_transporter: !!editingSupplier.is_transporter,
-        warn_rfqs: !!editingSupplier.warn_rfqs,
-        warn_pos: !!editingSupplier.warn_pos,
-        prevent_rfqs: !!editingSupplier.prevent_rfqs,
-        prevent_pos: !!editingSupplier.prevent_pos
-      });
-    } else {
-      setForm({
-        supplier_name: '', supplier_name_in_arabic: '', supplier_group: '', supplier_type: 'Company',
-        country: 'United Arab Emirates',
-        disabled: false, tax_id: '', tax_category: '', tax_withholding_category: '',
-        website: '', email_id: '', mobile_no: '', address: '',
-        contact_person: '', supplier_details: '', default_currency: 'AED',
-        default_price_list: '', payment_terms: '',
-        supplier_primary_address: '', supplier_primary_contact: '',
-        allow_purchase_invoice_creation_without_purchase_order: false,
-        allow_purchase_invoice_creation_without_purchase_receipt: false,
-        is_frozen: false, on_hold: false, is_internal_supplier: false,
-        is_transporter: false, warn_rfqs: false, warn_pos: false,
-        prevent_rfqs: false, prevent_pos: false
-      });
-    }
-  }, [editingSupplier, isOpen]);
+   const [form, setForm] = useState({
+      supplier_name: '',
+      supplier_name_in_arabic: '',
+      supplier_group: '',
+      supplier_type: 'Company',
+      country: 'United Arab Emirates',
+      disabled: false,
+      tax_id: '',
+      tax_category: '',
+      tax_withholding_category: '',
+      website: '',
+      address: '',
+      contact_person: '',
+      supplier_details: '',
+      default_currency: 'AED',
+      default_price_list: '',
+      payment_terms: '',
+      supplier_primary_address: '',
+      supplier_primary_contact: '',
+      // Settings Checkboxes
+      allow_purchase_invoice_creation_without_purchase_order: false,
+      allow_purchase_invoice_creation_without_purchase_receipt: false,
+      is_frozen: false,
+      on_hold: false,
+      is_internal_supplier: false,
+      is_transporter: false,
+      warn_rfqs: false,
+      warn_pos: false,
+      prevent_rfqs: false,
+      prevent_pos: false
+   });
 
-  useEffect(() => {
-     const fetchMeta = async () => {
-        try {
-           const [groups, prices, countries, currencies, taxCat, taxWith, payTerms] = await Promise.all([
-              axios.get('/api/resource/Supplier Group?fields=["name"]&limit=100', { withCredentials: true }),
-              axios.get('/api/resource/Price List?fields=["name"]&limit=100', { withCredentials: true }),
-              axios.get('/api/resource/Country?fields=["name"]&limit=250', { withCredentials: true }),
-              axios.get('/api/resource/Currency?fields=["name"]&limit=250', { withCredentials: true }),
-              axios.get('/api/resource/Tax Category?fields=["name"]&limit=100', { withCredentials: true }),
-              axios.get('/api/resource/Tax Withholding Category?fields=["name"]&limit=100', { withCredentials: true }),
-              axios.get('/api/resource/Payment Terms Template?fields=["name"]&limit=100', { withCredentials: true })
-           ]);
+   const [saving, setSaving] = useState(false);
+   const [meta, setMeta] = useState({
+      supplierGroups: [],
+      priceLists: [],
+      countries: [],
+      currencies: [],
+      taxCategories: [],
+      taxWithholdingCategories: [],
+      paymentTerms: []
+   });
 
-           setMeta({
-              supplierGroups: (groups.data?.data || []).map(g => g.name),
-              priceLists: (prices.data?.data || []).map(g => g.name),
-              countries: (countries.data?.data || []).map(g => g.name),
-              currencies: (currencies.data?.data || []).map(g => g.name),
-              taxCategories: (taxCat.data?.data || []).map(g => g.name),
-              taxWithholdingCategories: (taxWith.data?.data || []).map(g => g.name),
-              paymentTerms: (payTerms.data?.data || []).map(g => g.name)
-           });
-        } catch (e) { console.error('Meta fetch error:', e); }
-     };
-     if (isOpen) fetchMeta();
-  }, [isOpen]);
-
-  const handleSave = async () => {
-    if (!form.supplier_name.trim() || !form.supplier_group) {
-        Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Supplier Name and Group are mandatory.' });
-        return;
-    }
-
-    setSaving(true);
-    try {
-      const payload = { 
-        ...form, 
-        disabled: form.disabled ? 1 : 0,
-        is_frozen: form.is_frozen ? 1 : 0,
-        on_hold: form.on_hold ? 1 : 0,
-        is_internal_supplier: form.is_internal_supplier ? 1 : 0,
-        is_transporter: form.is_transporter ? 1 : 0,
-        allow_purchase_invoice_creation_without_purchase_order: form.allow_purchase_invoice_creation_without_purchase_order ? 1 : 0,
-        allow_purchase_invoice_creation_without_purchase_receipt: form.allow_purchase_invoice_creation_without_purchase_receipt ? 1 : 0,
-        warn_rfqs: form.warn_rfqs ? 1 : 0,
-        warn_pos: form.warn_pos ? 1 : 0,
-        prevent_rfqs: form.prevent_rfqs ? 1 : 0,
-        prevent_pos: form.prevent_pos ? 1 : 0
-      };
-      let response;
+   useEffect(() => {
       if (editingSupplier) {
-        response = await axios.put(`/api/resource/Supplier/${editingSupplier.name}`, payload, { withCredentials: true });
+         setForm({
+            ...editingSupplier,
+            disabled: !!editingSupplier.disabled,
+            allow_purchase_invoice_creation_without_purchase_order: !!editingSupplier.allow_purchase_invoice_creation_without_purchase_order,
+            allow_purchase_invoice_creation_without_purchase_receipt: !!editingSupplier.allow_purchase_invoice_creation_without_purchase_receipt,
+            is_frozen: !!editingSupplier.is_frozen,
+            on_hold: !!editingSupplier.on_hold,
+            is_internal_supplier: !!editingSupplier.is_internal_supplier,
+            is_transporter: !!editingSupplier.is_transporter,
+            warn_rfqs: !!editingSupplier.warn_rfqs,
+            warn_pos: !!editingSupplier.warn_pos,
+            prevent_rfqs: !!editingSupplier.prevent_rfqs,
+            prevent_pos: !!editingSupplier.prevent_pos
+         });
       } else {
-        response = await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc',
-          { doctype: "Supplier", data: payload }, { withCredentials: true }
-        );
+         setForm({
+            supplier_name: '', supplier_name_in_arabic: '', supplier_group: '', supplier_type: 'Company',
+            country: 'United Arab Emirates',
+            disabled: false, tax_id: '', tax_category: '', tax_withholding_category: '',
+            website: '', email_id: '', mobile_no: '', address: '',
+            contact_person: '', supplier_details: '', default_currency: 'AED',
+            default_price_list: '', payment_terms: '',
+            supplier_primary_address: '', supplier_primary_contact: '',
+            allow_purchase_invoice_creation_without_purchase_order: false,
+            allow_purchase_invoice_creation_without_purchase_receipt: false,
+            is_frozen: false, on_hold: false, is_internal_supplier: false,
+            is_transporter: false, warn_rfqs: false, warn_pos: false,
+            prevent_rfqs: false, prevent_pos: false
+         });
       }
-      
-      const successData = response.data.message?.data || response.data.data;
-      Swal.fire({ icon: 'success', title: 'Partner Registry Updated', timer: 2000, showConfirmButton: false });
-      if (onSave) onSave(successData || payload);
-      onClose();
-    } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Registry Error', text: err.response?.data?.message || 'Process failed.' });
-    } finally {
-      setSaving(false);
-    }
-  };
+   }, [editingSupplier, isOpen]);
 
-  if (!isOpen) return null;
+   useEffect(() => {
+      const fetchMeta = async () => {
+         try {
+            const [groups, prices, countries, currencies, taxCat, taxWith, payTerms] = await Promise.all([
+               axios.get('/api/resource/Supplier Group?fields=["name"]&limit=100', { withCredentials: true }),
+               axios.get('/api/resource/Price List?fields=["name"]&limit=100', { withCredentials: true }),
+               axios.get('/api/resource/Country?fields=["name"]&limit=250', { withCredentials: true }),
+               axios.get('/api/resource/Currency?fields=["name"]&limit=250', { withCredentials: true }),
+               axios.get('/api/resource/Tax Category?fields=["name"]&limit=100', { withCredentials: true }),
+               axios.get('/api/resource/Tax Withholding Category?fields=["name"]&limit=100', { withCredentials: true }),
+               axios.get('/api/resource/Payment Terms Template?fields=["name"]&limit=100', { withCredentials: true })
+            ]);
 
-  return (
-    <div className="fixed inset-0 z-[2000] bg-white flex flex-col animate-slideUp font-sans">
-       {/* UI Header */}
-       <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-5 flex items-center justify-between shadow-sm z-10">
-          <div className="flex items-center gap-6">
-             <button onClick={onClose} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-900 transition-colors uppercase text-[10px] font-black tracking-widest">
-                <ChevronLeft size={16} /> BACK
-             </button>
-             <div className="h-6 w-[1.5px] bg-slate-200 mx-2" />
-             <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                   <Building2 size={20} strokeWidth={2.5} />
-                </div>
-                <div>
-                    <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none uppercase">
-                       {editingSupplier ? 'Edit Supplier' : 'Create Supplier'}
-                    </h2>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Registry Authority</p>
-                </div>
-             </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-             <button onClick={onClose} className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-all">Discard</button>
-             <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-10 py-3 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-slate-200 hover:bg-black hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
-             >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {saving ? 'Saving...' : (editingSupplier ? 'Save' : 'Create')}
-             </button>
-          </div>
-       </div>
+            setMeta({
+               supplierGroups: (groups.data?.data || []).map(g => g.name),
+               priceLists: (prices.data?.data || []).map(g => g.name),
+               countries: (countries.data?.data || []).map(g => g.name),
+               currencies: (currencies.data?.data || []).map(g => g.name),
+               taxCategories: (taxCat.data?.data || []).map(g => g.name),
+               taxWithholdingCategories: (taxWith.data?.data || []).map(g => g.name),
+               paymentTerms: (payTerms.data?.data || []).map(g => g.name)
+            });
+         } catch (e) { console.error('Meta fetch error:', e); }
+      };
+      if (isOpen) fetchMeta();
+   }, [isOpen]);
 
-       {/* Form Body */}
-       <div className="flex-1 overflow-y-auto bg-slate-50/50 p-12">
-          <div className="max-w-[1200px] mx-auto space-y-10 pb-20">
-             
-             {/* General Specification */}
-             <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden group hover:shadow-md transition-all">
-                <div className="px-10 py-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/30">
-                   <ShieldCheck size={18} className="text-emerald-500" strokeWidth={3} />
-                   <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">General</h3>
-                </div>
-                <div className="p-10 grid grid-cols-1 md:grid-cols-3 gap-10">
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Supplier Name *</label>
-                      <input className="w-full h-14 px-6 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 focus:bg-white transition-all text-xs font-bold text-slate-700 font-sans" value={form.supplier_name} onChange={e => setForm({ ...form, supplier_name: e.target.value })} placeholder="Supplier Name" />
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Business Group *</label>
-                      <select className="w-full h-14 px-6 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 focus:bg-white transition-all text-xs font-bold text-slate-700 appearance-none font-sans" value={form.supplier_group} onChange={e => setForm({ ...form, supplier_group: e.target.value })}>
-                         <option value="">Select Group</option>
-                         {meta.supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Supplier Type</label>
-                      <select className="w-full h-14 px-6 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 focus:bg-white transition-all text-xs font-bold text-slate-700 appearance-none font-sans" value={form.supplier_type} onChange={e => setForm({ ...form, supplier_type: e.target.value })}>
-                         <option value="Company">Company</option>
-                         <option value="Individual">Individual</option>
-                         <option value="Partnership">Partnership</option>
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Country</label>
-                      <select className="w-full h-14 px-6 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 focus:bg-white transition-all text-xs font-bold text-slate-700 appearance-none font-sans" value={form.country} onChange={e => setForm({ ...form, country: e.target.value })}>
-                         <option value="">Select Country</option>
-                         {meta.countries.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Supplier Name (Arabic)</label>
-                      <input className="w-full h-14 px-6 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 focus:bg-white transition-all text-xs font-bold text-slate-700 font-sans" value={form.supplier_name_in_arabic} onChange={e => setForm({ ...form, supplier_name_in_arabic: e.target.value })} placeholder="الاسم باللغة العربية" />
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Website</label>
-                      <input className="w-full h-14 px-6 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 focus:bg-white transition-all text-xs font-bold text-slate-700 font-sans" value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} placeholder="https://www.example.com" />
-                   </div>
-                </div>
-             </div>
+   const handleSave = async () => {
+      if (!form.supplier_name.trim() || !form.supplier_group) {
+         Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Supplier Name and Group are mandatory.' });
+         return;
+      }
 
-              {/* Communication & Physics */}
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden group hover:shadow-md transition-all">
-                   <div className="px-10 py-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/30">
-                      <Globe size={18} className="text-emerald-500" strokeWidth={3} />
-                      <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Contact Info</h3>
-                   </div>
-                   <div className="p-10 space-y-8">
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email Id</label>
-                         <input className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold" type="email" value={form.email_id} onChange={e => setForm({ ...form, email_id: e.target.value })} placeholder="email@example.com" />
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Mobile No</label>
-                         <input className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold" value={form.mobile_no} onChange={e => setForm({ ...form, mobile_no: e.target.value })} placeholder="+00 000 0000" />
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Supplier Primary Contact</label>
-                         <input className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold" value={form.supplier_primary_contact} onChange={e => setForm({ ...form, supplier_primary_contact: e.target.value })} placeholder="Contact ID" />
-                      </div>
-                   </div>
-                </div>
+      setSaving(true);
+      try {
+         const payload = {
+            ...form,
+            disabled: form.disabled ? 1 : 0,
+            is_frozen: form.is_frozen ? 1 : 0,
+            on_hold: form.on_hold ? 1 : 0,
+            is_internal_supplier: form.is_internal_supplier ? 1 : 0,
+            is_transporter: form.is_transporter ? 1 : 0,
+            allow_purchase_invoice_creation_without_purchase_order: form.allow_purchase_invoice_creation_without_purchase_order ? 1 : 0,
+            allow_purchase_invoice_creation_without_purchase_receipt: form.allow_purchase_invoice_creation_without_purchase_receipt ? 1 : 0,
+            warn_rfqs: form.warn_rfqs ? 1 : 0,
+            warn_pos: form.warn_pos ? 1 : 0,
+            prevent_rfqs: form.prevent_rfqs ? 1 : 0,
+            prevent_pos: form.prevent_pos ? 1 : 0,
+            currency: form.default_currency // Map for backend create_supplier function
+         };
+         let response;
+         if (editingSupplier) {
+            response = await axios.put(`/api/resource/Supplier/${editingSupplier.name}`, payload, { withCredentials: true });
+         } else {
+            // Use specialized creation API that handles Price List, Address, and Contact creation
+            response = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_supplier',
+               payload, { withCredentials: true }
+            );
+         }
 
-                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden group hover:shadow-md transition-all">
-                   <div className="px-10 py-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/30">
-                      <MapPin size={18} className="text-emerald-500" strokeWidth={3} />
-                      <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Address</h3>
-                   </div>
-                   <div className="p-10 space-y-6">
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Supplier Primary Address</label>
-                         <input className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold" value={form.supplier_primary_address} onChange={e => setForm({ ...form, supplier_primary_address: e.target.value })} placeholder="Address ID" />
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Address</label>
-                         <textarea className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold min-h-[148px]" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Address Details" />
-                      </div>
-                   </div>
-                </div>
-             </div>
+         const successData = response.data.message?.data || response.data.data;
+         Swal.fire({ icon: 'success', title: 'Partner Registry Updated', timer: 2000, showConfirmButton: false });
+         if (onSave) onSave(successData || payload);
+         onClose();
+      } catch (err) {
+         Swal.fire({ icon: 'error', title: 'Registry Error', text: err.response?.data?.message || 'Process failed.' });
+      } finally {
+         setSaving(false);
+      }
+   };
 
-             {/* Fiscal Framework */}
-             <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden group hover:shadow-md transition-all">
-                <div className="px-10 py-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/30">
-                   <CreditCard size={18} className="text-emerald-500" strokeWidth={3} />
-                   <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Currency and Price List</h3>
-                </div>
-                <div className="p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tax Id</label>
-                      <input className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold" value={form.tax_id} onChange={e => setForm({ ...form, tax_id: e.target.value })} placeholder="Tax Id" />
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tax Category</label>
-                      <select className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold appearance-none" value={form.tax_category} onChange={e => setForm({ ...form, tax_category: e.target.value })}>
-                         <option value="">Select Category</option>
-                         {meta.taxCategories.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Withholding Category</label>
-                      <select className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold appearance-none" value={form.tax_withholding_category} onChange={e => setForm({ ...form, tax_withholding_category: e.target.value })}>
-                         <option value="">Select Category</option>
-                         {meta.taxWithholdingCategories.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Default Currency</label>
-                      <select className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold appearance-none" value={form.default_currency} onChange={e => setForm({ ...form, default_currency: e.target.value })}>
-                         <option value="">Select Currency</option>
-                         {meta.currencies.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Default Price List</label>
-                      <select className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold appearance-none" value={form.default_price_list} onChange={e => setForm({ ...form, default_price_list: e.target.value })}>
-                         <option value="">Select Price List</option>
-                         {meta.priceLists.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Payment Terms</label>
-                      <select className="w-full h-14 px-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold appearance-none" value={form.payment_terms} onChange={e => setForm({ ...form, payment_terms: e.target.value })}>
-                         <option value="">Select Template</option>
-                         {meta.paymentTerms.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                   </div>
-                </div>
-             </div>
+   if (!isOpen) return null;
 
-             {/* Settings & Controls */}
-             <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden group hover:shadow-md transition-all">
-                <div className="px-10 py-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/30">
-                   <Tag size={18} className="text-emerald-500" strokeWidth={3} />
-                   <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Settings</h3>
-                </div>
-                <div className="p-10">
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {[
-                         { id: 'disabled', label: 'Disabled' },
-                         { id: 'is_frozen', label: 'Is Frozen' },
-                         { id: 'on_hold', label: 'On Hold' },
-                         { id: 'is_internal_supplier', label: 'Internal Supplier' },
-                         { id: 'is_transporter', label: 'Is Transporter' },
-                         { id: 'warn_rfqs', label: 'Warn RFQs' },
-                         { id: 'warn_pos', label: 'Warn POs' },
-                         { id: 'prevent_rfqs', label: 'Prevent RFQs' },
-                         { id: 'prevent_pos', label: 'Prevent POs' },
-                         { id: 'allow_purchase_invoice_creation_without_purchase_order', label: 'Bill without PO' },
-                         { id: 'allow_purchase_invoice_creation_without_purchase_receipt', label: 'Bill without Receipt' }
-                      ].map(check => (
-                         <label key={check.id} className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl cursor-pointer hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-100 group">
-                            <input
-                               type="checkbox"
-                               className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 transition-all cursor-pointer"
-                               checked={form[check.id]}
-                               onChange={e => setForm({ ...form, [check.id]: e.target.checked })}
-                            />
-                            <span className="text-xs font-black text-slate-600 uppercase tracking-widest group-hover:text-emerald-700">{check.label}</span>
-                         </label>
-                      ))}
-                   </div>
-                   
-                   <div className="mt-10 space-y-4">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Supplier Details</label>
-                      <textarea 
-                        className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold min-h-[100px]" 
-                        value={form.supplier_details} 
-                        onChange={e => setForm({ ...form, supplier_details: e.target.value })} 
-                        placeholder="Supplier Details" 
-                      />
-                   </div>
-                </div>
-             </div>
+   return (
+      <div className="fixed inset-0 z-[11000] bg-[#f5f6fa] flex flex-col font-sans overflow-hidden animate-fadeIn">
+         {/* UI Header */}
+         <div className="sticky top-0 bg-white border-b border-slate-200/80 px-8 py-4 flex items-center justify-between z-10 shadow-xs">
+            <div className="flex items-center gap-3">
+               <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+               >
+                  <ChevronLeft size={20} />
+               </button>
+               <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl" style={{ backgroundColor: `${themeColor}12`, color: themeColor }}>
+                     <Building2 size={18} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                     <h2 className="text-sm font-black text-slate-800 tracking-tight uppercase leading-none">
+                        {editingSupplier ? 'Edit Supplier Registry' : 'New Supplier Registry'}
+                     </h2>
+                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Supplier Directory Profile</p>
+                  </div>
+               </div>
+            </div>
 
-          </div>
-       </div>
-    </div>
-  );
+            <div className="flex items-center gap-3">
+               <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-rose-500 transition-all rounded-lg"
+               >
+                  Discard
+               </button>
+               <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-5 py-2 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] active:scale-95"
+                  style={{ backgroundColor: themeColor }}
+               >
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  {saving ? 'Saving...' : (editingSupplier ? 'Save Supplier' : 'Create Supplier')}
+               </button>
+            </div>
+         </div>
+
+         {/* Form Body - Direct 2-Column Grid to align Heights perfectly across Row 1 and Row 2 */}
+         <div className="flex-1 overflow-y-auto bg-[#f5f6fa] p-6">
+            <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12 items-stretch">
+
+               {/* Row 1 - Col 1: Section 1 (General Specification) */}
+               <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
+                     <div className="flex items-center gap-3">
+                        <div
+                           className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                           style={{ backgroundColor: themeColor }}
+                        >
+                           1
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Opportunity Details</h3>
+                     </div>
+                  </div>
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                     <div className="space-y-1.5 col-span-1 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Supplier Name <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('supplier_name')}
+                           onFocus={() => setFocusedField('supplier_name')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.supplier_name}
+                           onChange={e => setForm({ ...form, supplier_name: e.target.value })}
+                           placeholder="e.g. Acme Corp - Primary Vendor"
+                        />
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Business Group <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('supplier_group'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('supplier_group')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.supplier_group}
+                           onChange={e => setForm({ ...form, supplier_group: e.target.value })}
+                        >
+                           <option value="">Select Group</option>
+                           {meta.supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Supplier Type
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('supplier_type'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('supplier_type')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.supplier_type}
+                           onChange={e => setForm({ ...form, supplier_type: e.target.value })}
+                        >
+                           <option value="Company">Company</option>
+                           <option value="Individual">Individual</option>
+                           <option value="Partnership">Partnership</option>
+                        </select>
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Country
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('country'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('country')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.country}
+                           onChange={e => setForm({ ...form, country: e.target.value })}
+                        >
+                           <option value="">Select Country</option>
+                           {meta.countries.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Supplier Name (Arabic)
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('supplier_name_in_arabic')}
+                           onFocus={() => setFocusedField('supplier_name_in_arabic')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.supplier_name_in_arabic}
+                           onChange={e => setForm({ ...form, supplier_name_in_arabic: e.target.value })}
+                           placeholder="الاسم باللغة العربية"
+                        />
+                     </div>
+
+                     <div className="space-y-1.5 col-span-1 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Website
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('website')}
+                           onFocus={() => setFocusedField('website')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.website}
+                           onChange={e => setForm({ ...form, website: e.target.value })}
+                           placeholder="https://www.example.com"
+                        />
+                     </div>
+                  </div>
+               </div>
+               {/* Row 2 - Col 1: Section 2 (Contact Info & Address) */}
+               <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
+                     <div className="flex items-center gap-3">
+                        <div
+                           className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                           style={{ backgroundColor: themeColor }}
+                        >
+                           2
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Deal Information</h3>
+                     </div>
+                  </div>
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Email Id
+                        </label>
+                        <input
+                           type="email"
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('email_id')}
+                           onFocus={() => setFocusedField('email_id')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.email_id}
+                           onChange={e => setForm({ ...form, email_id: e.target.value })}
+                           placeholder="email@example.com"
+                        />
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Mobile No
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('mobile_no')}
+                           onFocus={() => setFocusedField('mobile_no')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.mobile_no}
+                           onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                           placeholder="+00 000 0000"
+                        />
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Supplier Primary Contact
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('supplier_primary_contact')}
+                           onFocus={() => setFocusedField('supplier_primary_contact')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.supplier_primary_contact}
+                           onChange={e => setForm({ ...form, supplier_primary_contact: e.target.value })}
+                           placeholder="Contact ID"
+                        />
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Supplier Primary Address
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('supplier_primary_address')}
+                           onFocus={() => setFocusedField('supplier_primary_address')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.supplier_primary_address}
+                           onChange={e => setForm({ ...form, supplier_primary_address: e.target.value })}
+                           placeholder="Address ID"
+                        />
+                     </div>
+
+                     <div className="space-y-1.5 col-span-1 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Address
+                        </label>
+                        <textarea
+                           className="w-full px-4 py-3 border rounded-lg text-xs font-medium text-slate-700 bg-white min-h-[96px] resize-none"
+                           style={getInputStyle('address')}
+                           onFocus={() => setFocusedField('address')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.address}
+                           onChange={e => setForm({ ...form, address: e.target.value })}
+                           placeholder="Enter Address details..."
+                        />
+                     </div>
+                  </div>
+               </div>
+
+               {/* Row 1 - Col 2: Section 3 (Currency and Price List) */}
+               <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                     <div className="flex items-center gap-3">
+                        <div
+                           className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                           style={{ backgroundColor: themeColor }}
+                        >
+                           3
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Source & Assignment</h3>
+                     </div>
+                  </div>
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Tax Id
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('tax_id')}
+                           onFocus={() => setFocusedField('tax_id')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.tax_id}
+                           onChange={e => setForm({ ...form, tax_id: e.target.value })}
+                           placeholder="Tax Id"
+                        />
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Tax Category
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('tax_category'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('tax_category')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.tax_category}
+                           onChange={e => setForm({ ...form, tax_category: e.target.value })}
+                        >
+                           <option value="">Select Category</option>
+                           {meta.taxCategories.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Withholding Category
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('tax_withholding_category'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('tax_withholding_category')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.tax_withholding_category}
+                           onChange={e => setForm({ ...form, tax_withholding_category: e.target.value })}
+                        >
+                           <option value="">Select Category</option>
+                           {meta.taxWithholdingCategories.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Default Currency
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('default_currency'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('default_currency')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.default_currency}
+                           onChange={e => setForm({ ...form, default_currency: e.target.value })}
+                        >
+                           <option value="">Select Currency</option>
+                           {meta.currencies.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Default Price List
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('default_price_list'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('default_price_list')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.default_price_list}
+                           onChange={e => setForm({ ...form, default_price_list: e.target.value })}
+                        >
+                           <option value="">Select Price List</option>
+                           {meta.priceLists.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Payment Terms
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('payment_terms'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('payment_terms')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.payment_terms}
+                           onChange={e => setForm({ ...form, payment_terms: e.target.value })}
+                        >
+                           <option value="">Select Template</option>
+                           {meta.paymentTerms.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                     </div>
+                  </div>
+               </div>
+
+
+               {/* Row 2 - Col 2: Section 4 (Settings & Controls) */}
+               <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                     <div className="flex items-center gap-3">
+                        <div
+                           className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                           style={{ backgroundColor: themeColor }}
+                        >
+                           4
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Additional Information</h3>
+                     </div>
+                  </div>
+                  <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {[
+                           { id: 'disabled', label: 'Disabled' },
+                           { id: 'is_frozen', label: 'Is Frozen' },
+                           { id: 'on_hold', label: 'On Hold' },
+                           { id: 'is_internal_supplier', label: 'Internal Supplier' },
+                           { id: 'is_transporter', label: 'Is Transporter' },
+                           { id: 'warn_rfqs', label: 'Warn RFQs' },
+                           { id: 'warn_pos', label: 'Warn POs' },
+                           { id: 'prevent_rfqs', label: 'Prevent RFQs' },
+                           { id: 'prevent_pos', label: 'Prevent POs' },
+                           { id: 'allow_purchase_invoice_creation_without_purchase_order', label: 'Bill without PO' },
+                           { id: 'allow_purchase_invoice_creation_without_purchase_receipt', label: 'Bill without Receipt' }
+                        ].map(check => (
+                           <label key={check.id} className="flex items-center px-3 py-2.5 bg-slate-50/50 hover:bg-slate-100/50 border border-slate-100 rounded-lg cursor-pointer transition-all select-none group">
+                              <input
+                                 type="checkbox"
+                                 className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0"
+                                 style={{
+                                    accentColor: themeColor,
+                                    width: '16px',
+                                    height: '16px',
+                                    minWidth: '16px',
+                                    minHeight: '16px',
+                                    position: 'static',
+                                    display: 'inline-block',
+                                    margin: '0 10px 0 0',
+                                    flexShrink: 0,
+                                    cursor: 'pointer'
+                                 }}
+                                 checked={form[check.id]}
+                                 onChange={e => setForm({ ...form, [check.id]: e.target.checked })}
+                              />
+                              <span className="text-[9px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
+                           </label>
+                        ))}
+                     </div>
+
+                     <div className="space-y-1.5 flex flex-col flex-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Supplier Details
+                        </label>
+                        <textarea
+                           className="w-full px-4 py-3 border rounded-lg text-xs font-medium text-slate-700 bg-white min-h-[85px] resize-none flex-1"
+                           style={getInputStyle('supplier_details')}
+                           onFocus={() => setFocusedField('supplier_details')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.supplier_details}
+                           onChange={e => setForm({ ...form, supplier_details: e.target.value })}
+                           placeholder="Enter supplier details or description notes..."
+                        />
+                     </div>
+                  </div>
+               </div>
+
+            </div>
+         </div>
+
+         {/* Sticky Footer exact structure matching mockup */}
+         <div className="sticky bottom-0 bg-white border-t border-slate-200 px-8 py-4 flex items-center justify-between z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+            <div className="text-xs font-semibold text-slate-400">
+               Fields marked <span className="text-rose-500">*</span> are required
+            </div>
+            <div className="flex items-center gap-3">
+               <button
+                  onClick={onClose}
+                  className="px-6 py-2.5 text-slate-500 hover:text-slate-800 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+               >
+                  Cancel
+               </button>
+               <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-6 py-2.5 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all hover:scale-[1.02] active:scale-95"
+                  style={{ backgroundColor: themeColor }}
+               >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Saving...' : (editingSupplier ? 'Save Supplier' : 'Create Supplier')}
+               </button>
+            </div>
+         </div>
+      </div>
+   );
 };
 
 export default SupplierFormModal;

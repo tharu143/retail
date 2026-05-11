@@ -89,7 +89,7 @@ const SupplierDetails = () => {
   const [saving, setSaving] = useState(false);
   const [supplier, setSupplier] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
-  const [activeTab, setActiveTab] = useState('Overview');
+  const [activeTab, setActiveTab] = useState('Dashboard');
   const [showEditModal, setShowEditModal] = useState(false);
 
   const [form, setForm] = useState({
@@ -202,6 +202,17 @@ const SupplierDetails = () => {
         });
       }
       const dash = dashRes.data.message || dashRes.data;
+      if (data.default_price_list) {
+        if (!dash.connections) dash.connections = {};
+        if (!dash.connections['Procurement']) dash.connections['Procurement'] = [];
+        // Only add if not already present
+        if (!dash.connections['Procurement'].find(c => c.doctype === 'Price List')) {
+          dash.connections['Procurement'].push({
+            doctype: 'Price List',
+            count: 1
+          });
+        }
+      }
       setDashboardData(dash);
       if (dash?.connections && Object.keys(dash.connections).length > 0) {
         setActiveModule(Object.keys(dash.connections)[0]);
@@ -356,17 +367,117 @@ const SupplierDetails = () => {
       <div className="so-page" style={{ height: 'auto', minHeight: '100vh', overflow: 'visible', position: 'relative', zIndex: 1 }}>
 
         {/* Page Header */}
-        <div className="so-page-header" style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <button onClick={() => navigate(-1)} className="so-btn-ghost" style={{ padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <ChevronLeft size={18} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>BACK</span>
+        <div className="so-page-header" style={{ position: 'relative', zIndex: 1, borderBottom: `1px solid ${themeColor}12`, padding: '1.25rem 2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => navigate(-1)}
+              className="so-btn-ghost"
+              style={{
+                padding: '0.5rem 0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                color: themeColor,
+                backgroundColor: `${themeColor}08`,
+                border: `1px solid ${themeColor}15`,
+                borderRadius: '0.5rem',
+                transition: 'all 0.2s',
+                height: '36px'
+              }}
+            >
+              <ChevronLeft size={16} />
+              <span style={{ fontSize: '0.7rem', fontWeight: 800 }}>BACK</span>
             </button>
-            <div>
-              <h1 className="so-page-title">
-                <Building2 size={20} /> {supplier.supplier_name}
-              </h1>
-              <p className="so-page-subtitle">Supplier Detail</p>
+
+            <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>
+                  <Building2 size={20} style={{ color: themeColor }} />
+                  <span>{supplier.supplier_name}</span>
+                </h1>
+              </div>
+
+              {/* Dynamic Metadata Row in Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.675rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Supplier Info:
+                </span>
+
+                {/* Status Pill */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    backgroundColor: isActive ? '#f0fdf4' : '#fdf2f2',
+                    border: `1.5px solid ${isActive ? '#bbf7d0' : '#fecaca'}`,
+                    padding: '0.15rem 0.6rem',
+                    borderRadius: '9999px',
+                    height: '22px'
+                  }}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                  <span style={{ fontSize: '0.675rem', fontWeight: 800, color: isActive ? '#15803d' : '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                    {isActive ? 'Operational' : 'Restricted'}
+                  </span>
+                </div>
+
+                {/* Supplier Group Pill */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    backgroundColor: '#f8fafc',
+                    border: '1.5px solid #e2e8f0',
+                    padding: '0.15rem 0.6rem',
+                    borderRadius: '9999px',
+                    height: '22px'
+                  }}
+                >
+                  <Tag size={10} style={{ color: themeColor }} />
+                  <span style={{ fontSize: '0.675rem', color: '#475569', fontWeight: 700 }}>Group:</span>
+                  <span style={{ fontSize: '0.675rem', fontWeight: 800, color: '#0f172a' }}>{supplier.supplier_group}</span>
+                </div>
+
+                {/* Country Pill */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    backgroundColor: '#f8fafc',
+                    border: '1.5px solid #e2e8f0',
+                    padding: '0.15rem 0.6rem',
+                    borderRadius: '9999px',
+                    height: '22px'
+                  }}
+                >
+                  <Globe size={10} style={{ color: themeColor }} />
+                  <span style={{ fontSize: '0.675rem', color: '#475569', fontWeight: 700 }}>Country:</span>
+                  <span style={{ fontSize: '0.675rem', fontWeight: 800, color: '#0f172a' }}>{supplier.country || 'Global Site'}</span>
+                </div>
+
+                {/* Price List Pill */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    backgroundColor: '#f8fafc',
+                    border: '1.5px solid #e2e8f0',
+                    padding: '0.15rem 0.6rem',
+                    borderRadius: '9999px',
+                    height: '22px'
+                  }}
+                >
+                  <CreditCard size={10} style={{ color: themeColor }} />
+                  <span style={{ fontSize: '0.675rem', color: '#475569', fontWeight: 700 }}>Price List:</span>
+                  <span style={{ fontSize: '0.675rem', fontWeight: 800, color: '#0f172a' }}>{supplier.default_price_list || 'Standard Buying'}</span>
+                </div>
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -375,47 +486,33 @@ const SupplierDetails = () => {
               className="so-btn-secondary"
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.4rem',
-                border: `1.5px solid ${isGreen ? '#0ea5e9' : '#10b981'}`,
-                color: isGreen ? '#0ea5e9' : '#10b981',
-                padding: '0.4rem 0.8rem',
+                border: `1.5px solid ${themeColor}`,
+                color: themeColor,
+                backgroundColor: `${themeColor}05`,
+                padding: '0.5rem 0.9rem',
                 fontSize: '0.7rem',
-                fontWeight: 800
+                fontWeight: 800,
+                borderRadius: '0.5rem'
               }}
               title={`Switch to ${isGreen ? 'Blue' : 'Green'} Theme`}
             >
               <Palette size={13} />
               {isGreen ? 'BLUE' : 'GREEN'}
             </button>
-            <button className="so-btn-primary" onClick={() => setShowEditModal(true)} style={{ backgroundColor: themeColor }}>
-              <Edit2 size={16} /> Edit
+            <button
+              className="so-btn-primary"
+              onClick={() => setShowEditModal(true)}
+              style={{
+                backgroundColor: themeColor,
+                borderColor: themeColor,
+                padding: '0.5rem 1rem',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                borderRadius: '0.5rem'
+              }}
+            >
+              <Edit2 size={15} /> Edit
             </button>
-          </div>
-        </div>
-
-        {/* Executive Dashboard */}
-        <div style={{ padding: '1.25rem 2rem 0', position: 'relative', zIndex: 1 }}>
-          <div className="so-summary-bar">
-            <div className="so-summary-item">
-              <span className="so-summary-label">Supplier ID</span>
-              <span className="so-summary-value grand">{supplier.name}</span>
-            </div>
-            <div className="so-summary-divider" />
-            <div className="so-summary-item">
-              <span className="so-summary-label">Operational Status</span>
-              <span className="so-summary-value" style={{ color: isActive ? themeColor : '#ef4444' }}>
-                {isActive ? 'Operational' : 'Restricted'}
-              </span>
-            </div>
-            <div className="so-summary-divider" />
-            <div className="so-summary-item">
-              <span className="so-summary-label">Supplier Group</span>
-              <span className="so-summary-value">{supplier.supplier_group}</span>
-            </div>
-            <div className="so-summary-divider" />
-            <div className="so-summary-item">
-              <span className="so-summary-label">Country</span>
-              <span className="so-summary-value">{supplier.country || 'Global Site'}</span>
-            </div>
           </div>
         </div>
 
@@ -451,7 +548,7 @@ const SupplierDetails = () => {
               {/* Highlights Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <StatCard
-                  label="Annualized Expenditure"
+                  label="Annual Billing"
                   value={parseFloat(dashboardData.stats?.annual_billing || 0).toLocaleString()}
                   currency={dashboardData.stats?.currency || 'AED'}
                   icon={TrendingUp}
@@ -561,9 +658,9 @@ const SupplierDetails = () => {
 
               {/* Bio / Details Section */}
               <InfoSection title="Supplier Intelligence Bio" icon={FileText} themeColor={themeColor}>
-                    <p className="text-sm font-medium text-gray-700 leading-relaxed italic whitespace-pre-wrap">
-                      {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
-                    </p>
+                <p className="text-sm font-medium text-gray-700 leading-relaxed italic whitespace-pre-wrap">
+                  {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
+                </p>
               </InfoSection>
 
               {/* Status & Governance Section */}
@@ -890,8 +987,8 @@ const SupplierDetails = () => {
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         onSave={() => {
-           fetchData();
-           setShowEditModal(false);
+          fetchData();
+          setShowEditModal(false);
         }}
         editingSupplier={supplier}
       />

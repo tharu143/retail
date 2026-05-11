@@ -7,7 +7,7 @@ import {
   RefreshCw, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
   Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
   DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan,
-  ShoppingCart, Minus, Plus
+  ShoppingCart, Minus, Plus, Upload
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { logout, toggleTheme } from '../../Redux/Slices/userSlice';
@@ -30,7 +30,7 @@ const round2 = (num) => flt(num, 2);
 
 const getImageUrl = (path) => {
   if (!path || typeof path !== 'string') return null;
-  
+
   const trimmedPath = path.trim();
 
   // 1. IMPROVED: Check for 'data:' anywhere in the first 10 characters
@@ -73,19 +73,14 @@ const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount,
 
   return (
     <div className="flex items-center gap-1.5">
-      <select
-        value={formatType}
-        onChange={(e) => onToggleFormat(e.target.value)}
-        className="offline-id-select h-6 px-1 w-[100px] text-[9.5px] font-black uppercase text-slate-500 bg-white border border-slate-200 outline-none rounded cursor-pointer transition-colors hover:border-slate-300 shadow-sm"
-      >
-        <option value="timestamp">Timestamp</option>
-        <option value="continuous">Sequence</option>
-      </select>
+      <div className="h-8 px-3 flex items-center bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest shadow-sm">
+        SEQUENCE
+      </div>
       <input
         value={displayString}
         readOnly
-        title="Offline ID generated according to the chosen type"
-        className="offline-id-input w-[200px] h-6 px-1 text-center text-[10.5px] cursor-text font-black italic text-sky-600 bg-sky-50 outline-none border border-sky-200 rounded shadow-sm"
+        title="Offline ID generated according to the continuous sequence"
+        className="offline-id-input w-48 h-8 px-3 text-center text-[12px] cursor-text font-black italic text-sky-600 bg-sky-50 outline-none border border-sky-200 rounded-lg shadow-sm"
       />
     </div>
   );
@@ -107,12 +102,18 @@ function Home() {
   const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
   const [showOpeningModal, setShowOpeningModal] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [sessionOrderCount, setSessionOrderCount] = useState(1);
 
   // NEW: Legacy Classic Themes (for styles)
   const { legacySubTheme, setLegacySubTheme, isGreen, toggleTheme: toggleLegacyColor } = useLegacyTheme();
-  
+
   // New ref for category horizontal scroll
   const categoryScrollRef = useRef(null);
 
@@ -139,23 +140,38 @@ function Home() {
         border-bottom: 2px solid ${borderColor}; font-size: 12px; flex-shrink: 0;
       }
       .classic-nav {
-        background: ${darkColor}; border-bottom: 2px solid ${borderColor};
-        height: 42px; display: flex; align-items: center;
-        justify-content: space-between; padding: 0 14px;
-        flex-shrink: 0; position: relative; z-index: 100;
+        background: #ffffff !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        height: 85px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 0 1.25rem !important;
+        flex-shrink: 0 !important;
+        position: relative !important;
+        z-index: 100 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
       }
       .classic-header-form {
-        background: ${darkColor}; padding: 8px 16px;
-        border-bottom: 2px solid ${borderColor};
-        display: flex; flex-wrap: nowrap; gap: 20px; align-items: center;
-        flex-shrink: 0; position: relative; z-index: 110;
+        background: #ffffff !important;
+        padding: 0.6rem 1.25rem !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 1.5rem !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
+        position: relative !important;
+        z-index: 110 !important;
+        height: 70px !important;
       }
       .classic-field label { color: ${statusBarColor}; font-size: 10px; white-space: nowrap; font-weight: 900; letter-spacing: 0.5px; }
       .classic-field input, .classic-field select {
-        background: #ffffff; border: 2px solid #000;
-        padding: 4px 8px; font-size: 12px;
+        background: #ffffff; border: 1.5px solid ${borderColor};
+        padding: 6px 12px; font-size: 12px;
         font-family: inherit; color: #000; outline: none;
-        box-shadow: inset 1px 1px 2px rgba(0,0,0,0.2);
+        border-radius: 12px;
+        box-shadow: inset 1px 1px 2px rgba(0,0,0,0.1);
       }
       .classic-entry-area { flex: 1; display: flex; flex-direction: column; background: ${lightColor}; position: relative; }
       .classic-entry-header {
@@ -289,7 +305,7 @@ function Home() {
   const itemDropdownRef = useRef(null);
 
   // Offline Generation Toggle
-  const [offlineIdType, setOfflineIdType] = useState(() => localStorage.getItem('offlineIdType') || 'timestamp');
+  const [offlineIdType, setOfflineIdType] = useState(() => localStorage.getItem('offlineIdType') || 'continuous');
   const [continuousOrderCount, setContinuousOrderCount] = useState(() => parseInt(localStorage.getItem('offlineIdContinuousCount')) || 1);
 
   const setOfflineIdMethodHandle = (method) => {
@@ -552,7 +568,7 @@ function Home() {
   // Payment
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
-  const [tenderedAmount, setTenderedAmount] = useState(0);
+  const [tenderedAmount, setTenderedAmount] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [payments, setPayments] = useState([]); // Array of { mode_of_payment, amount }
 
@@ -628,14 +644,15 @@ function Home() {
   const balanceRemaining = useMemo(() => round2(grandTotal - totalPaid), [grandTotal, totalPaid]);
 
   const addPayment = () => {
-    if (!selectedPaymentMode || tenderedAmount <= 0) return;
+    const amt = parseFloat(tenderedAmount) || 0;
+    if (!selectedPaymentMode || amt <= 0) return;
     const newPayment = {
       mode_of_payment: selectedPaymentMode,
-      amount: round2(tenderedAmount)
+      amount: round2(amt)
     };
     setPayments([...payments, newPayment]);
     setSelectedPaymentMode('');
-    setTenderedAmount(0);
+    setTenderedAmount('');
   };
 
   const removePayment = (index) => {
@@ -659,7 +676,7 @@ function Home() {
     if (selectedPaymentMode) {
       const paidSoFar = payments.reduce((sum, p) => sum + p.amount, 0);
       const remaining = grandTotal - paidSoFar;
-      setTenderedAmount(round2(remaining > 0 ? remaining : 0));
+      setTenderedAmount(String(round2(remaining > 0 ? remaining : 0)));
     }
   }, [grandTotal, selectedPaymentMode, payments]);
 
@@ -1411,21 +1428,21 @@ function Home() {
         const query = barcodeInput.trim();
         const localMatch = Items.find(it => it.id.toLowerCase() === query.toLowerCase() || (it.barcodes || []).some(b => b.barcode.toLowerCase() === query.toLowerCase()));
         if (localMatch) {
-            handleAddToBill(localMatch);
-            setBarcodeInput(''); setShowItemDropdown(false);
+          handleAddToBill(localMatch);
+          setBarcodeInput(''); setShowItemDropdown(false);
         } else {
-            // NOT IN BRANCH PROMPT
-            Swal.fire({
-              title: 'Item Not in Branch!',
-              text: `"${query}" was not found in ${warehouse}. Would you like to check the Global Industry Registry?`,
-              icon: 'question',
-              showCancelButton: true,
-              confirmButtonText: '🔄 Search Industry-wide',
-              cancelButtonText: 'Close',
-              confirmButtonColor: '#0284c7'
-            }).then((result) => {
-              if (result.isConfirmed) handleGlobalSearch(query);
-            });
+          // NOT IN BRANCH PROMPT
+          Swal.fire({
+            title: 'Item Not in Branch!',
+            text: `"${query}" was not found in ${warehouse}. Would you like to check the Global Industry Registry?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '🔄 Search Industry-wide',
+            cancelButtonText: 'Close',
+            confirmButtonColor: '#0284c7'
+          }).then((result) => {
+            if (result.isConfirmed) handleGlobalSearch(query);
+          });
         }
       }
     } else if (e.key === 'Escape') {
@@ -1744,7 +1761,7 @@ function Home() {
   };
   const selectPaymentMode = (mode) => {
     setSelectedPaymentMode(mode);
-    setTenderedAmount(grandTotal);
+    setTenderedAmount(String(grandTotal));
   };
 
   // Removed updateLocalStock as backend now handles Smart Virtual Stock deduction
@@ -1757,10 +1774,11 @@ function Home() {
     let finalPayments = [...payments];
 
     // AUTO-CAPTURE: If there's an amount entered but not added to list, include it
-    if (selectedPaymentMode && tenderedAmount > 0) {
+    const amt = parseFloat(tenderedAmount) || 0;
+    if (selectedPaymentMode && amt > 0) {
       finalPayments.push({
         mode_of_payment: selectedPaymentMode,
-        amount: round2(tenderedAmount)
+        amount: round2(amt)
       });
     }
 
@@ -1994,7 +2012,7 @@ function Home() {
     setBillItems([]);
     setDiscount({ type: 'amount', value: 0 });
     setCustomerName('Cash'); setSelectedCustomer(null); setPhoneNumber('');
-    setSelectedPaymentMode(''); setTenderedAmount(0);
+    setSelectedPaymentMode(''); setTenderedAmount('');
     setPayments([]);
     setShowPaymentModal(false);
     barcodeInputRef.current?.focus();
@@ -2116,47 +2134,51 @@ function Home() {
   );
 
   const renderPaymentModal = () => (
-    <div className="home-modal-overlay" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}>
-      <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div className="home-modal-header">
-          <h3>Payment Details</h3>
-          <button className="home-modal-close" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}><X size={20} /></button>
+    <div className="home-modal-overlay" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }} style={{ zIndex: 9999 }}>
+      <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+        <div className="home-modal-header bg-slate-50 border-b border-slate-100 p-6 flex justify-between items-center">
+          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Add Payment</h3>
+          <button className="text-slate-400 hover:text-slate-600 transition-colors" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}><X size={24} /></button>
         </div>
 
-        <div className="home-modal-body">
-          <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#64748b' }}>
-              <span>Grand Total:</span>
-              <span style={{ fontWeight: 700, color: '#1e293b' }}>AED {grandTotal.toFixed(2)}</span>
+        <div className="home-modal-body p-8 flex flex-col gap-6">
+          {/* Summary Card */}
+          <div className="bg-sky-50 border-2 border-sky-100 p-6 rounded-2xl shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-xs font-black uppercase tracking-widest text-sky-600/70">Total Amount</span>
+              <span className="text-xs font-black uppercase tracking-widest text-sky-600/70">Paid So Far</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#10b981' }}>
-              <span>Paid So Far:</span>
-              <span style={{ fontWeight: 700 }}>AED {totalPaid.toFixed(2)}</span>
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-2xl font-black text-slate-800">AED {grandTotal.toFixed(2)}</span>
+              <span className="text-2xl font-black text-emerald-600">AED {totalPaid.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem', borderTop: '2px dashed #cbd5e1' }}>
-              <span style={{ fontWeight: 800, color: balanceRemaining > 0 ? '#ef4444' : '#10b981' }}>
-                {balanceRemaining > 0 ? 'Remaining Balance:' : 'Fully Paid / Change:'}
+            <div className="pt-4 border-t border-sky-200/50 flex justify-between items-center">
+              <span className="text-sm font-black uppercase tracking-wide text-slate-500">
+                {balanceRemaining > 0 ? 'Balance to Pay' : 'Change Due'}
               </span>
-              <span style={{ fontWeight: 900, fontSize: '1.2rem', color: balanceRemaining > 0 ? '#ef4444' : '#10b981' }}>
+              <span className={`text-3xl font-black ${balanceRemaining > 0 ? 'text-rose-600' : 'text-amber-600'}`}>
                 AED {Math.abs(balanceRemaining).toFixed(2)}
               </span>
             </div>
           </div>
 
+          {/* Added Payments List */}
           {payments.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.5px' }}>Added Payments</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="flex flex-col gap-3">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Current Ledger</h4>
+              <div className="flex flex-col gap-2">
                 {payments.map((p, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '0.75rem 1rem', borderRadius: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      {p.mode_of_payment === 'Cash' ? <DollarSign size={16} color="#10b981" /> : <CreditCard size={16} color="#3b82f6" />}
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{p.mode_of_payment}</span>
+                  <div key={idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${p.mode_of_payment === 'Cash' ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
+                        {p.mode_of_payment === 'Cash' ? <DollarSign size={20} /> : <CreditCard size={20} />}
+                      </div>
+                      <span className="font-bold text-slate-700">{p.mode_of_payment}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <span style={{ fontWeight: 700 }}>AED {p.amount.toFixed(2)}</span>
-                      <button onClick={() => removePayment(idx)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }}>
-                        <X size={16} />
+                    <div className="flex items-center gap-4">
+                      <span className="font-black text-slate-900">AED {p.amount.toFixed(2)}</span>
+                      <button onClick={() => removePayment(idx)} className="text-rose-400 hover:text-rose-600 p-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </div>
@@ -2165,38 +2187,55 @@ function Home() {
             </div>
           )}
 
+          {/* Payment Selection Area */}
           {balanceRemaining > 0 && (
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
-              <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.75rem' }}>Add Payment</h4>
-
+            <div className="flex flex-col gap-4">
               {!selectedPaymentMode ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <button className="payment-mode-btn cash" onClick={() => setSelectedPaymentMode('Cash')} style={{ padding: '0.75rem', height: 'auto', flexDirection: 'row', gap: '0.5rem', fontSize: '0.9rem' }}>
-                    <DollarSign size={20} /> Cash
-                  </button>
-                  <button className="payment-mode-btn card" onClick={() => setSelectedPaymentMode('Credit Card')} style={{ padding: '0.75rem', height: 'auto', flexDirection: 'row', gap: '0.5rem', fontSize: '0.9rem' }}>
-                    <CreditCard size={20} /> Card
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, color: '#1e293b' }}>{selectedPaymentMode} Amount:</span>
-                    <button onClick={() => setSelectedPaymentMode('')} style={{ fontSize: '0.75rem', color: '#3b82f6', border: 'none', background: 'none', cursor: 'pointer' }}>Change Mode</button>
+                <>
+                  <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Select Method</h5>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      className="group p-6 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95"
+                      onClick={() => setSelectedPaymentMode('Cash')}
+                    >
+                      <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center group-hover:bg-white/20 group-hover:text-white transition-all">
+                        <DollarSign size={28} />
+                      </div>
+                      <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white">Cash Payment</span>
+                    </button>
+                    <button
+                      className="group p-6 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-3 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95"
+                      onClick={() => setSelectedPaymentMode('Credit Card')}
+                    >
+                      <div className="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center group-hover:bg-white/20 group-hover:text-white transition-all">
+                        <CreditCard size={28} />
+                      </div>
+                      <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white">Card Payment</span>
+                    </button>
                   </div>
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: '#94a3b8' }}>AED</span>
+                </>
+              ) : (
+                <div className="bg-slate-50 p-6 rounded-2xl border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm font-black text-slate-500 uppercase tracking-widest">{selectedPaymentMode} Amount</span>
+                    <button onClick={() => setSelectedPaymentMode('')} className="text-xs font-bold text-sky-600 hover:underline">Change Mode</button>
+                  </div>
+                  <div className="mb-4 flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-sky-100 transition-all">
+                    <span className="pl-6 pr-3 text-xl font-black text-slate-400">AED</span>
                     <input
                       type="number"
                       value={tenderedAmount}
-                      onChange={e => setTenderedAmount(parseFloat(e.target.value) || 0)}
-                      style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 3rem', borderRadius: '8px', border: '2px solid #3b82f6', fontSize: '1.1rem', fontWeight: 700 }}
+                      onChange={e => setTenderedAmount(e.target.value)}
+                      className="w-full pr-6 py-4 bg-transparent text-3xl font-black text-slate-900 outline-none"
                       autoFocus
                       onKeyDown={(e) => e.key === 'Enter' && addPayment()}
                     />
                   </div>
-                  <button onClick={addPayment} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
-                    Add {selectedPaymentMode} Payment
+                  <button
+                    onClick={addPayment}
+                    className="w-full py-4 bg-sky-600 text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all"
+                  >
+                    Confirm AED {(parseFloat(tenderedAmount) || 0).toFixed(2)}
                   </button>
                 </div>
               )}
@@ -2204,15 +2243,22 @@ function Home() {
           )}
         </div>
 
-        <div className="home-modal-footer" style={{ borderTop: '1px solid #e2e8f0', marginTop: '1rem' }}>
-          <button className="home-modal-cancel" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}>Cancel</button>
+        <div className="home-modal-footer p-6 bg-slate-50 flex justify-between items-center border-t border-slate-100">
           <button
-            className="home-modal-apply"
+            className="px-8 py-3 text-slate-500 font-black uppercase tracking-widest hover:text-slate-700 transition-all"
+            onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}
+          >
+            Cancel
+          </button>
+          <button
             onClick={completePayment}
             disabled={paymentLoading || balanceRemaining > 0}
-            style={{ background: balanceRemaining <= 0 ? '#10b981' : '#94a3b8', minWidth: '180px' }}
+            className={`px-10 py-3 rounded-xl font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-3 ${balanceRemaining <= 0
+                ? 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+              }`}
           >
-            {paymentLoading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
+            {paymentLoading ? <Loader2 size={20} className="animate-spin" /> : <Package size={20} />}
             {paymentLoading ? 'Processing...' : 'Complete Payment'}
           </button>
         </div>
@@ -2547,36 +2593,36 @@ function Home() {
             <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
             <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear Bill</span>
           </div>
-          
+
           <div className="h-6 w-px bg-slate-200 mx-2"></div>
 
           <button
-              onClick={toggleLegacyColor}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0 0.75rem', height: '2rem', background: 'transparent',
-                border: `1.5px solid var(--so-primary)`, borderRadius: '0.375rem',
-                fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-primary)',
-                cursor: 'pointer', transition: 'all 0.2s',
-                textTransform: 'uppercase'
-              }}
-            >
-              <Palette size={12} /> {!isGreen ? 'GREEN' : 'BLUE'}
-            </button>
+            onClick={toggleLegacyColor}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0 0.75rem', height: '2rem', background: 'transparent',
+              border: `1.5px solid var(--so-primary)`, borderRadius: '0.375rem',
+              fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-primary)',
+              cursor: 'pointer', transition: 'all 0.2s',
+              textTransform: 'uppercase'
+            }}
+          >
+            <Palette size={12} /> {!isGreen ? 'GREEN' : 'BLUE'}
+          </button>
 
-            <button
-              onClick={() => dispatch(toggleTheme())}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0 0.75rem', height: '2rem', background: 'transparent',
-                border: '1.5px solid var(--so-border)', borderRadius: '0.375rem',
-                fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-text-muted)',
-                cursor: 'pointer', transition: 'all 0.2s',
-                textTransform: 'uppercase'
-              }}
-            >
-              <MonitorSmartphone size={12} /> Layout
-            </button>
+          <button
+            onClick={() => dispatch(toggleTheme())}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0 0.75rem', height: '2rem', background: 'transparent',
+              border: '1.5px solid var(--so-border)', borderRadius: '0.375rem',
+              fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-text-muted)',
+              cursor: 'pointer', transition: 'all 0.2s',
+              textTransform: 'uppercase'
+            }}
+          >
+            <MonitorSmartphone size={12} /> Layout
+          </button>
 
           <div className="flex-1"></div>
           <button
@@ -2675,7 +2721,7 @@ function Home() {
                     )}
                   </div>
                 )
-              ))}
+                ))}
             </div>
           </div>
 
@@ -2854,63 +2900,63 @@ function Home() {
         {/* CLASSIC NAVBAR */}
         <nav className="classic-nav">
           <div className="flex items-center gap-4 pl-4 py-2">
-            <span className="text-[28px] font-black text-slate-800 tracking-tighter uppercase leading-none select-none">
+            <span className="text-[32px] font-black text-slate-800 tracking-tighter uppercase leading-none select-none">
               POS<span className={isGreen ? 'text-emerald-500' : 'text-sky-500'}>8</span>
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-2 px-4 py-1.5 rounded bg-slate-50 border border-slate-200 transition-all font-black text-[12px] shadow-sm uppercase tracking-wide ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-700' : 'text-sky-700')}`}>
-              {isOffline ? <WifiOff size={11} /> : <Wifi size={11} />}
+          <div className="ml-auto flex items-center gap-8 pr-4">
+            <div className={`flex items-center gap-2 font-black text-[13px] uppercase tracking-wide ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-700' : 'text-sky-700')}`}>
+              {isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}
               {isOffline ? 'OFFLINE' : 'ONLINE'}
             </div>
-            {pendingSyncCount > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded bg-sky-50 border border-sky-200 text-sky-600 text-[10px] font-black tracking-widest cursor-pointer" onClick={() => navigate('/syncmanager')}>
-                <RefreshCw size={11} className="animate-spin" /> {pendingSyncCount} PENDING
-              </div>
-            )}
-            <div className="h-5 w-[1px] bg-slate-200" />
+
             <button
               onClick={() => setLegacySubTheme(isGreen ? 'blue' : 'green')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded bg-slate-50 border border-slate-200 transition-all font-black text-[12px] shadow-sm uppercase tracking-wide ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
+              className={`font-black text-[13px] uppercase tracking-wide transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700 hover:text-emerald-900' : 'text-sky-700 hover:text-sky-900'}`}
               title="Toggle Legacy Color"
             >
-              <Palette size={11} /> {legacySubTheme.toUpperCase()}
+              {legacySubTheme.toUpperCase()}
             </button>
-            <div className="h-5 w-[1px] bg-slate-200" />
+
             <button
               onClick={() => dispatch(toggleTheme())}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded bg-slate-50 border border-slate-200 transition-all font-black text-[12px] shadow-sm uppercase tracking-wide ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
+              className={`font-black text-[13px] uppercase tracking-wide transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700 hover:text-emerald-900' : 'text-sky-700 hover:text-sky-900'}`}
               title="Switch to Modern UI"
             >
-              <MonitorSmartphone size={11} /> SWITCH THEME
+              SWITCH THEME
             </button>
-          </div>
 
-          <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/dashboard')}
-              className={`px-6 h-8 flex items-center justify-center bg-slate-50 border border-slate-200 transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
+              className={`font-black text-[13px] uppercase tracking-wide transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700 hover:text-emerald-900' : 'text-sky-700 hover:text-sky-900'}`}
             >
               ADMIN
             </button>
-            <div className="flex items-center gap-3 px-3 py-1 bg-slate-50 border border-slate-200 rounded">
-              <UserIcon size={12} className="text-slate-500" />
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-800 uppercase leading-none">{user?.full_name || user || 'CASHIER'}</span>
-                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">{format(new Date(), 'dd MMM · HH:mm:ss')}</span>
+
+            <div className="flex items-center gap-3 pr-2">
+              <div className="flex flex-col items-end text-right">
+                <span className="text-[11px] font-black text-slate-800 uppercase leading-tight">{user?.full_name || user || 'CASHIER'}</span>
+                <span className={`text-[10px] font-black uppercase tracking-tight ${isGreen ? 'text-emerald-600' : 'text-sky-600'}`}>{warehouse}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5 tracking-tighter">
+                  {format(currentTime, 'MMM dd, yyyy | HH:mm:ss')}
+                </span>
+              </div>
+              <div className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400">
+                <UserIcon size={18} />
               </div>
             </div>
-            <button onClick={handleLogout} className="w-8 h-8 flex items-center justify-center bg-rose-50 border border-rose-200 text-rose-500 hover:bg-rose-500 hover:text-white transition-all rounded">
-              <Power size={14} />
+
+            <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1">
+              <Power size={20} />
             </button>
           </div>
         </nav>
 
         {/* CLASSIC HEADER FORM */}
         <div className="classic-header-form">
-          <div className="classic-field flex items-center gap-2 relative">
-            <label className="uppercase font-bold">CUSTOMER</label>
+          <div className="classic-field flex items-center gap-3 relative">
+            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
             <div className="relative group" ref={dropdownRef}>
               <input
                 value={customerMobile || customerName}
@@ -2923,7 +2969,7 @@ function Home() {
                 onClick={() => { setSearchContext('customer'); setShowDropdown(true); }}
                 onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
                 onKeyDown={handleMobileEnter}
-                className="w-48 h-6 px-2"
+                className="w-48 h-8 px-3 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-900 outline-none focus:border-sky-500 transition-all bg-slate-50/50"
                 placeholder="Mobile or Name..."
               />
               {showDropdown && searchResults.length > 0 && (
@@ -2938,9 +2984,9 @@ function Home() {
             </div>
           </div>
 
-          <div className="classic-field flex items-center gap-2" style={{ position: 'relative' }}>
-            <label className="uppercase font-bold">BARCODE</label>
-            <div style={{ position: 'relative' }} ref={itemDropdownRef}>
+          <div className="classic-field flex items-center gap-3 relative">
+            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">BARCODE</label>
+            <div className="flex items-center gap-1.5" ref={itemDropdownRef}>
               <input
                 ref={barcodeInputRef}
                 value={barcodeInput}
@@ -2950,25 +2996,29 @@ function Home() {
                 onClick={() => { setBarcodeInput(''); setSearchContext('header'); setShowItemDropdown(false); }}
                 onBlur={() => setTimeout(() => setShowItemDropdown(false), 300)}
                 id="legacy-header-search"
-                className="w-48 h-6 px-2 bg-amber-50"
+                className="w-48 h-8 px-3 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-900 outline-none focus:border-sky-500 transition-all bg-amber-50/30"
                 autoFocus
               />
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowCamera(true)}
+                  className="w-8 h-8 bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center hover:bg-slate-200 transition-all rounded-lg shadow-sm"
+                  title="Camera Scanner"
+                >
+                  <Camera size={16} />
+                </button>
+                <label className="w-8 h-8 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg cursor-pointer shadow-sm relative flex items-center justify-center" title="Upload Image File" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div className="flex items-center justify-center mt-1">
+                    <Upload size={16} />
+                  </div>
+                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={handleImageScan} />
+                </label>
+              </div>
             </div>
-            <button
-              onClick={() => setShowCamera(true)}
-              className="w-8 h-6 bg-slate-100 text-slate-600 border border-slate-300 flex items-center justify-center hover:bg-slate-200 transition-all rounded"
-              title="Camera Scanner"
-            >
-              <Camera size={14} />
-            </button>
-            <label className="w-8 h-6 bg-slate-100 text-slate-600 border border-slate-300 flex items-center justify-center hover:bg-slate-200 transition-all rounded cursor-pointer" title="Scan Image File">
-              <Scan size={14} />
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageScan} />
-            </label>
           </div>
 
-          <div className="classic-field flex items-center gap-2">
-            <label className="uppercase font-bold text-[10px] tracking-widest text-slate-400">INV NO:</label>
+          <div className="classic-field flex items-center gap-3 ml-auto">
+            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">INV NO:</label>
             <InvoiceNumberDisplay
               branchPrefix={branchPrefix}
               userName={user?.split('@')[0]}
@@ -2978,13 +3028,6 @@ function Home() {
               onToggleFormat={setOfflineIdMethodHandle}
               continuousCount={continuousOrderCount}
             />
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-500">
-              <span className="text-[10px] font-black uppercase tracking-widest ">BRANCH:</span>
-              <span className={`text-[11px] font-black ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}>{warehouse}</span>
-            </div>
           </div>
         </div>
 
@@ -3549,9 +3592,9 @@ function Home() {
                       ))}
                       {itemSearchResults.length === 0 && barcodeInput.length >= 2 && !searchLoading && (
                         <div style={{ padding: '2rem', textAlign: 'center', background: '#f8fafc', color: '#64748b' }}>
-                           <SearchSlash size={24} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
-                           <p style={{ fontSize: 11, fontWeight: 800 }}>NOT IN THIS BRANCH</p>
-                           <p style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>Try scanning Industry Registry or Check Global</p>
+                          <SearchSlash size={24} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
+                          <p style={{ fontSize: 11, fontWeight: 800 }}>NOT IN THIS BRANCH</p>
+                          <p style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>Try scanning Industry Registry or Check Global</p>
                         </div>
                       )}
                     </div>
@@ -3732,3 +3775,4 @@ function Home() {
 }
 
 export default Home;
+

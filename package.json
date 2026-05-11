@@ -9,6 +9,7 @@
   "scripts": {
     "clean": "rimraf release",
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron electron/main.cjs\"",
+    "dev:ui": "vite --host 0.0.0.0",
     "build:ui": "vite build",
     "preview": "vite preview",
     "dist": "vite build && electron-builder --win --x64 -c.extraMetadata.main=electron/main.cjs -c.directories.output=release",

@@ -25,21 +25,24 @@ const POSService = {
     getRetailItems: async (args = {}) => {
         return await frappeCall({
             method: 'kyle_retail.retail_api.api.get_retail_item_details',
-            args: args
+            args: args,
+            type: 'GET'
         });
     },
 
     getSalesTaxes: async (args = {}) => {
         return await frappeCall({
             method: 'kyle_retail.retail_api.api.get_sales_taxes_details',
-            args: args
+            args: args,
+            type: 'GET'
         });
     },
 
     getItemCategories: async (args = {}) => {
         return await frappeCall({
             method: 'kyle_retail.retail_api.api.get_item_categories',
-            args: args
+            args: args,
+            type: 'GET'
         });
     },
 
