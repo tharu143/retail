@@ -14,7 +14,7 @@ import { logout } from './Redux/Slices/userSlice';
 const BACKEND_URL = 'http://75.119.130.59';
 const IS_ELECTRON = window.location.protocol === 'file:';
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const IS_PROD = IS_ELECTRON; 
+const IS_PROD = IS_ELECTRON;
 
 // Only use credentials (cookies) in Electron. For Web, we use X-Frappe-SID headers to bypass CSRF.
 axios.defaults.withCredentials = IS_PROD;
