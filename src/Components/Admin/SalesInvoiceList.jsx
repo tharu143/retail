@@ -212,6 +212,8 @@ const SalesInvoiceList = () => {
     const params = new URLSearchParams(location.search);
     const returnData = params.get('returnData');
     const autoOpen = params.get('autoOpen') === 'true';
+    const dnName = params.get('dn');
+
     if (returnData) {
       try {
         const data = JSON.parse(returnData);
@@ -238,6 +240,42 @@ const SalesInvoiceList = () => {
       } catch (e) {
         console.error('Failed to parse return data', e);
       }
+    } else if (dnName) {
+      const fetchMappedDN = async () => {
+        try {
+          setLoading(true);
+          const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_mapped_doc_retail', {
+            params: { from_doctype: 'Delivery Note', to_doctype: 'Sales Invoice', source_name: dnName },
+            withCredentials: true
+          });
+          if (res.data.message?.status === 'success') {
+            const mappedData = res.data.message.data;
+            setForm(prev => ({
+                ...prev,
+                ...mappedData,
+                name: '', // New draft
+                status: 'Draft',
+                docstatus: 0,
+                posting_date: new Date().toISOString().split('T')[0],
+                update_billed_amount_in_delivery_note: true,
+                items: (mappedData.items || []).map(i => ({
+                    ...i,
+                    amount: (parseFloat(i.qty) * parseFloat(i.rate)).toFixed(2)
+                }))
+            }));
+            setSearchCustomer(mappedData.customer_name || '');
+            setShowModal(true);
+            setIsViewOnly(false);
+          }
+        } catch (err) {
+          console.error('Failed to map DN', err);
+        } finally {
+          setLoading(false);
+          // Clear param
+          navigate('/salesinvoice', { replace: true });
+        }
+      };
+      fetchMappedDN();
     }
   }, [location.search, navigate]);
 

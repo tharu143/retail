@@ -1424,7 +1424,7 @@ function PurchaseOrder() {
 
   const fetchSuppliers = async (query) => {
     try {
-      const res = await fetch(`${API_PATH}.get_suppliers_po?query=${encodeURIComponent(query)}`, {
+      const res = await fetch(`${API_PATH}.get_suppliers_po?search=${encodeURIComponent(query || '')}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });

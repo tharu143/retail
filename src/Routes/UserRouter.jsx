@@ -27,6 +27,7 @@ import SalesOrderList from '../Components/Admin/SalesOrderList'
 import SalesOrderDetailsPage from '../Pages/SalesOrderDetailsPage'
 import SalesInvoiceList from '../Components/Admin/SalesInvoiceList'
 import DeliveryNoteList from '../Components/Admin/DeliveryNoteList'
+import DeliveryNoteDetailsPage from '../Pages/DeliveryNoteDetailsPage'
 import PurchaseOrderLists from '../Components/Admin/PurchaseOrderLists'
 import SyncManagerPage from '../Pages/SyncManagerPage'
 import SettingsPage from '../Pages/SettingsPage'
@@ -83,6 +84,8 @@ function UserRouter() {
           <Route path='salesorder/create' element={<SalesOrderDetailsPage />} />
           <Route path='salesinvoice' element={<SalesInvoiceList />} />
           <Route path='deliverynote' element={<DeliveryNoteList />} />
+          <Route path='deliverynote-details/:name' element={<DeliveryNoteDetailsPage />} />
+          <Route path='deliverynote/create' element={<DeliveryNoteDetailsPage />} />
           <Route path='syncmanager' element={<SyncManagerPage />} />
           <Route path='settings' element={<SettingsPage />} />
           <Route path='purchasetools' element={<PurchaseToolsPage />} />

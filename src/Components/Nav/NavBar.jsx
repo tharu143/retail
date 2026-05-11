@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { logout, toggleTheme } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 import { db } from "../../db";
-import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon, Palette } from "lucide-react";
+import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon, Palette, Search } from "lucide-react";
 import Swal from 'sweetalert2';
 import { authFetchBase } from "../../utils/authFetch";
 
@@ -16,7 +16,110 @@ function NavBar() {
   const user = useSelector((state) => state.user.user);
   const theme = useSelector((state) => state.user.theme);
   const [currentTime, setCurrentTime] = useState(new Date());
-// ... (rest of the component state/logic stays same until return)
+
+  // Navigation Search Bar States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
+  const searchContainerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  const SEARCHABLE_PAGES = [
+    { name: "Customer List", path: "/customerlist", keywords: ["customer", "client", "buyer", "customerlist"] },
+    { name: "New Customer", path: "/customer-details/new", keywords: ["add customer", "create customer", "new client"] },
+    { name: "Item Group List", path: "/itemgrouplist", keywords: ["item group", "category", "product group", "itemgrouplist"] },
+    { name: "Item List", path: "/itemlist", keywords: ["items", "products", "inventory", "stock", "itemlist"] },
+    { name: "Item Price List", path: "/itempricelist", keywords: ["price", "item price", "selling price", "itempricelist"] },
+    { name: "POS Closing Entry", path: "/posclosingentrylist", keywords: ["closing", "shift close", "cashier close", "posclosingentrylist"] },
+    { name: "POS Opening Entry", path: "/posopeningentrylist", keywords: ["opening", "shift open", "cashier open", "posopeningentrylist"] },
+    { name: "POS Profile List", path: "/posprofilelist", keywords: ["profile", "pos profile", "terminal settings", "posprofilelist"] },
+    { name: "Purchase Invoice", path: "/purchaseinvoicelist", keywords: ["purchase invoice", "pi", "bill", "vendor bill", "purchaseinvoicelist"] },
+    { name: "Purchase Receipt", path: "/purchasereceiptlist", keywords: ["purchase receipt", "pr", "goods receipt", "grn", "purchasereceiptlist"] },
+    { name: "Supplier List", path: "/supplierlist", keywords: ["supplier", "vendor", "manufacturer", "supplierlist"] },
+    { name: "Sales Order", path: "/salesorderlist", keywords: ["sales order", "so", "customer order", "salesorderlist"] },
+    { name: "Create Sales Order", path: "/salesorder/create", keywords: ["new sales order", "create so", "add sales order"] },
+    { name: "Sales Invoice", path: "/salesinvoice", keywords: ["sales invoice", "si", "customer bill", "salesinvoice"] },
+    { name: "Delivery Note", path: "/deliverynote", keywords: ["delivery note", "dn", "dispatch", "shipment", "deliverynote"] },
+    { name: "Sync Manager", path: "/syncmanager", keywords: ["sync", "offline database", "sync manager", "upload"] },
+    { name: "Settings", path: "/settings", keywords: ["settings", "configuration", "preferences", "options"] },
+    { name: "Quick Stock In", path: "/quickstockin", keywords: ["quick stock", "stock in", "add stock", "quickstockin"] },
+    { name: "Sales Return", path: "/salesreturn", keywords: ["sales return", "return sale", "refund", "salesreturn"] },
+    { name: "Purchase Return", path: "/purchasereturn", keywords: ["purchase return", "return purchase", "vendor refund", "purchasereturn"] },
+    { name: "Address List", path: "/addresslist", keywords: ["address", "location", "billing address", "addresslist"] },
+    { name: "Contact List", path: "/contactlist", keywords: ["contact", "phone number", "email", "contactlist"] },
+    { name: "POS Health", path: "/poshealth", keywords: ["health", "status", "system status", "poshealth"] },
+    { name: "Dashboard", path: "/dashboard", keywords: ["dashboard", "stats", "analytics", "admin panel"] }
+  ];
+
+  // Filter pages on search query change
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const query = searchQuery.toLowerCase();
+    const filtered = SEARCHABLE_PAGES.filter(
+      (page) =>
+        page.name.toLowerCase().includes(query) ||
+        page.keywords.some((keyword) => keyword.toLowerCase().includes(query))
+    );
+    setSearchResults(filtered);
+    setActiveSearchIndex(0);
+  }, [searchQuery]);
+
+  // Global hotkey to focus search bar (Ctrl + K or /)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey && e.key === "k") || e.key === "/") {
+        // Only trigger if we aren't typing in some input already
+        if (
+          document.activeElement?.tagName !== "INPUT" &&
+          document.activeElement?.tagName !== "TEXTAREA" &&
+          document.activeElement?.contentEditable !== "true"
+        ) {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Close search on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Keyboard navigation for results dropdown
+  const handleSearchKeyDown = (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSearchIndex((prev) => (searchResults.length > 0 ? (prev + 1) % searchResults.length : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSearchIndex((prev) => (searchResults.length > 0 ? (prev - 1 + searchResults.length) % searchResults.length : 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (searchResults[activeSearchIndex]) {
+        navigate(searchResults[activeSearchIndex].path);
+        setSearchQuery("");
+        setShowSearchResults(false);
+        searchInputRef.current?.blur();
+      }
+    } else if (e.key === "Escape") {
+      setShowSearchResults(false);
+      searchInputRef.current?.blur();
+    }
+  };
+
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncInProgress, setIsSyncInProgress] = useState(false);
@@ -240,6 +343,54 @@ function NavBar() {
           </div>
         </div>
 
+        {/* Global Navigation Search Bar */}
+        <div className="nav-search-container" ref={searchContainerRef}>
+          <div className="nav-search-wrapper">
+            <Search className="nav-search-icon" size={16} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search administration... (Ctrl + K)"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchResults(true);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+              onKeyDown={handleSearchKeyDown}
+              className="nav-search-input"
+            />
+            <div className="nav-search-shortcut">/</div>
+          </div>
+
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="nav-search-results-dropdown">
+              <div className="nav-search-results-header">ADMINISTRATION / PAGES</div>
+              {searchResults.map((result, idx) => (
+                <div
+                  key={result.path}
+                  onClick={() => {
+                    navigate(result.path);
+                    setSearchQuery("");
+                    setShowSearchResults(false);
+                    searchInputRef.current?.blur();
+                  }}
+                  onMouseEnter={() => setActiveSearchIndex(idx)}
+                  className={`nav-search-result-item ${idx === activeSearchIndex ? "active" : ""}`}
+                >
+                  <div className="nav-search-result-icon-wrapper">
+                    <LayoutDashboard size={14} />
+                  </div>
+                  <div className="nav-search-result-details">
+                    <span className="nav-search-result-name">{result.name}</span>
+                    <span className="nav-search-result-path">Go to {result.path}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="d-flex align-items-center gap-4 pe-3">
           <div className="d-flex align-items-center gap-2">
             <div className={`status-dot ${isOnline ? 'online' : 'offline'}`} />
@@ -265,16 +416,16 @@ function NavBar() {
             <span style={{ fontSize: '10px', fontWeight: 800 }}>THEME: {(theme || 'modern').toUpperCase()}</span>
           </div>
 
-          <div 
-            onClick={() => navigate('/dashboard')} 
+          <div
+            onClick={() => navigate('/dashboard')}
             className="cursor-pointer d-flex align-items-center justify-content-center"
-            style={{ 
-              background: '#f1f5f9', 
-              color: '#475569', 
-              padding: '6px 14px', 
-              borderRadius: '8px', 
-              fontSize: '11px', 
-              fontWeight: 800, 
+            style={{
+              background: '#f1f5f9',
+              color: '#475569',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: 800,
               letterSpacing: '0.05em',
               border: '1.5px solid #e2e8f0',
               transition: 'all 0.2s ease',

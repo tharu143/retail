@@ -404,6 +404,7 @@ export default function ItemList() {
   const [itemGroups, setItemGroups] = useState([]);
   const [brands, setBrands] = useState([]);
   const [uoms, setUoms] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [groupSearch] = useState('');
@@ -449,7 +450,7 @@ export default function ItemList() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showForm, isScanning]);
 
-  useEffect(() => { fetchItems(); fetchBrands(); fetchUoms(); fetchSuppliers(); fetchWarehouses(); }, []);
+  useEffect(() => { fetchItems(); fetchBrands(); fetchUoms(); fetchCountries(); fetchSuppliers(); fetchWarehouses(); }, []);
 
   useEffect(() => {
     if (showForm || isEditMode) { const t = setTimeout(() => fetchItemGroups(groupSearch), 300); return () => clearTimeout(t); }
@@ -526,6 +527,19 @@ export default function ItemList() {
         if (typeof b === 'string') return { label: b, value: b };
         const label = b.brand_name || b.label || b.name || b.value;
         const value = b.name || b.value || b.brand_name || b.label;
+        return { label, value };
+      }));
+    } catch { }
+  };
+
+  const fetchCountries = async () => {
+    try {
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_countries', { withCredentials: true });
+      const raw = res.data.data || res.data.message?.data || res.data.message || [];
+      setCountries((Array.isArray(raw) ? raw : []).map(c => {
+        if (typeof c === 'string') return { label: c, value: c };
+        const label = c.country_name || c.label || c.name || c.value;
+        const value = c.name || c.value || c.country_name || c.label;
         return { label, value };
       }));
     } catch { }
@@ -861,7 +875,7 @@ export default function ItemList() {
                 resetForm(); 
                 const myWh = localStorage.getItem('warehouse');
                 if (myWh) setForm(p => ({ ...p, branch_availability: [{ warehouse: myWh }] }));
-                setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); 
+                setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); fetchCountries();
               }}><Plus size={14} />Add Item</button>
             </div>
           </div>
@@ -1601,8 +1615,13 @@ export default function ItemList() {
                          <input className="il-input" value={form.hsn_code} onChange={e => setForm({ ...form, hsn_code: e.target.value })} placeholder="For GST mapping" />
                        </div>
                        <div className="il-form-field">
-                         <label className="il-form-label">Country of Origin</label>
-                         <input className="il-input" value={form.country_of_origin} onChange={e => setForm({ ...form, country_of_origin: e.target.value })} placeholder="e.g. India, UAE" />
+                         <SearchableSelect
+                           label="Country of Origin"
+                           value={form.country_of_origin}
+                           options={countries}
+                           placeholder="Select Country"
+                           onChange={val => setForm({ ...form, country_of_origin: val })}
+                         />
                        </div>
                         <div className="il-form-field">
                           <label className="il-form-label">Pieces Per Box</label>
