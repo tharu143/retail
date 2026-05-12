@@ -229,39 +229,6 @@ function PurchaseReceiptList() {
       rounded_total: final_rounded_total.toFixed(2)
     };
   }, []);
-  useEffect(() => {
-    fetchReceipts();
-    fetchWarehouses();
-    fetchTaxesTemplates();
-    fetchTaxTypes();
-  }, []);
-
-  useEffect(() => {
-    const nameParam = searchParams.get('name');
-    if (nameParam === 'new') {
-      openCreateModal();
-    } else if (nameParam) {
-      if (nameParam !== docName) {
-        fetchReceiptForEdit(nameParam);
-      }
-    } else {
-      setIsModalOpen(false);
-      setDocName('');
-    }
-  }, [searchParams, openCreateModal]);
-
-  useEffect(() => {
-    const supplierParam = searchParams.get('supplier');
-    if (supplierParam) {
-      setFilterSupplier(supplierParam);
-      setShowFilters(true);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (docName) fetchWorkflowActions();
-  }, [docName, formData.docstatus]);
-
   const fetchWorkflowActions = async () => {
     if (!docName) return;
     try {
@@ -1485,6 +1452,39 @@ function PurchaseReceiptList() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    fetchReceipts();
+    fetchWarehouses();
+    fetchTaxesTemplates();
+    fetchTaxTypes();
+  }, []);
+
+  useEffect(() => {
+    const nameParam = searchParams.get('name');
+    if (nameParam === 'new') {
+      openCreateModal();
+    } else if (nameParam) {
+      if (nameParam !== docName) {
+        fetchReceiptForEdit(nameParam);
+      }
+    } else {
+      setIsModalOpen(false);
+      setDocName('');
+    }
+  }, [searchParams, openCreateModal]);
+
+  useEffect(() => {
+    const supplierParam = searchParams.get('supplier');
+    if (supplierParam) {
+      setFilterSupplier(supplierParam);
+      setShowFilters(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (docName) fetchWorkflowActions();
+  }, [docName, formData.docstatus]);
 
   return (
     <>

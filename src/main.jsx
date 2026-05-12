@@ -143,7 +143,8 @@ window.fetch = async function (...args) {
       }
     };
 
-    if (!resource.includes('user_login')) {
+    const urlStr = typeof resource === 'string' ? resource : (resource?.url || '');
+    if (!urlStr.includes('user_login')) {
       setHeader('X-Frappe-SID', session);
     }
 

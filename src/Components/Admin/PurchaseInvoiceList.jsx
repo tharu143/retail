@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
   Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Edit2, Settings
@@ -202,40 +202,8 @@ function PurchaseInvoiceList() {
   }, [taxPreview, netTotal]);
   const grandTotal = (netTotal + taxTotal).toFixed(2);
 
-  useEffect(() => {
-    fetchInvoices();
-    fetchTaxTemplates();
-    fetchWarehouses(); 
-  }, []);
-
-  useEffect(() => {
-    const nameParam = searchParams.get('name');
-    const prParam   = searchParams.get('pr');
-
-    if (nameParam === 'new') {
-      openCreateModal();
-    } else if (nameParam) {
-      if (nameParam !== docName) {
-        fetchPurchaseInvoice(nameParam);
-      }
-    } else if (prParam) {
-      createPIFromPR(prParam);
-    } else {
-      setIsModalOpen(false);
-      setDocName('');
-    }
-  }, [searchParams, openCreateModal]);
-
-  useEffect(() => {
-    const supplierParam = searchParams.get('supplier');
-    if (supplierParam) {
-      setFilterSupplier(supplierParam);
-      setShowFilters(true);
-    }
-  }, [searchParams]);
-
   // Opens a blank PI modal pre-filled with data from Purchase Receipt `prName`
-  const createPIFromPR = async (prName) => {
+  const createPIFromPR = useCallback(async (prName) => {
     try {
       const res = await axios.get(`/api/resource/Purchase Receipt/${encodeURIComponent(prName)}`, {
         withCredentials: true
@@ -309,7 +277,7 @@ function PurchaseInvoiceList() {
       console.error('createPIFromPR error:', err);
       alert('Failed to load Purchase Receipt data: ' + (err.response?.data?.message || err.message));
     }
-  };
+  }, []);
 
   // NEW: Auto-set default accepted warehouse if needed
   useEffect(() => {
@@ -324,11 +292,12 @@ function PurchaseInvoiceList() {
 
 
 
-  const fetchWorkflowActions = async () => {
-    if (!docName) return;
+  const fetchWorkflowActions = useCallback(async (forcedName) => {
+    const targetName = forcedName || docName;
+    if (!targetName) return;
     try {
       const res = await axios.get(`${API_PATH}.get_document_status_details`, {
-        params: { doctype: 'Purchase Invoice', docname: docName },
+        params: { doctype: 'Purchase Invoice', docname: targetName },
         withCredentials: true
       });
       const details = res.data.message?.data || res.data.message || {};
@@ -344,7 +313,7 @@ function PurchaseInvoiceList() {
         }));
       }
     } catch (err) { console.error("Workflow fetch failed", err); }
-  };
+  }, [docName]);
 
   const handleDocAction = async (action) => {
     if (action === 'save' || action === 'submit') {
@@ -412,12 +381,18 @@ function PurchaseInvoiceList() {
             return;
         }
 
-        const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || docName;
-        if (nextDoc !== docName) {
-            fetchPurchaseInvoice(nextDoc);
-            if (action === 'amend') setIsViewMode(false);
-        } else {
-            fetchPurchaseInvoice(docName);
+        const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || rawMsg.name || docName;
+        
+        if (nextDoc) {
+            setDocName(nextDoc);
+            // If the URL is still 'new', update it to the actual name
+            if (searchParams.get('name') === 'new' || searchParams.get('pr')) {
+                setSearchParams({ name: nextDoc });
+            } else if (nextDoc !== docName) {
+                fetchPurchaseInvoice(nextDoc);
+            } else {
+                fetchPurchaseInvoice(docName);
+            }
         }
         fetchInvoices();
       } else {
@@ -599,7 +574,7 @@ function PurchaseInvoiceList() {
     loadTaxTemplate();
   }, [formData.taxes_and_charges]);
 
-  const openCreateModal = () => {
+  const openCreateModal = useCallback(() => {
     setFormData({
       name: '', supplier: '', supplier_name: '',
       posting_date: new Date().toISOString().split('T')[0],
@@ -624,10 +599,9 @@ function PurchaseInvoiceList() {
     setIsEditMode(false);
     setIsViewMode(false);
     setIsModalOpen(true);
-    setLastSavedData(JSON.stringify(formData));
-  };
+  }, []);
 
-  const fetchPurchaseInvoice = async (name) => {
+  const fetchPurchaseInvoice = useCallback(async (name) => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_purchase_invoice`, { params: { name }, withCredentials: true });
       if (res.data.message?.success) {
@@ -755,7 +729,11 @@ function PurchaseInvoiceList() {
         setDocStatus(parseInt(d.docstatus) || 0); // Store docstatus
         
         // Fetch linked documents if it's already created
-        if (d.name) fetchLinkedDocuments(d.name);
+        if (d.name) {
+            fetchLinkedDocuments(d.name);
+            fetchWorkflowActions(d.name); // Explicitly fetch workflow actions with the name
+        }
+        
         setLastSavedData(JSON.stringify(mapped)); // Set base point for dirty check
         setIsViewMode(true);
         setIsEditMode(false);
@@ -764,7 +742,7 @@ function PurchaseInvoiceList() {
     } catch (err) {
       alert('Failed to load invoice');
     }
-  };
+  }, [fetchWorkflowActions]);
 
   const fetchLinkedDocuments = async (name) => {
     if (!name) return;
@@ -1198,6 +1176,7 @@ function PurchaseInvoiceList() {
     }));
 
     return {
+      name: docName || undefined,
       supplier: formData.supplier,
       posting_date: formData.posting_date,
       due_date: formData.due_date || null,
@@ -1339,7 +1318,8 @@ function PurchaseInvoiceList() {
     setIsEditMode(false);
     setIsViewMode(false);
     setFormErrors({});
-    setBarcodeInput(''); // NEW: Reset barcode on close
+    setBarcodeInput('');
+    setSearchParams({}); // Added to clear URL and prevent re-opening
   };
 
   const filteredInvoices = useMemo(() => invoices.filter(inv => {
@@ -1376,6 +1356,50 @@ function PurchaseInvoiceList() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    fetchInvoices();
+    fetchTaxTemplates();
+    fetchWarehouses(); 
+  }, []);
+
+  useEffect(() => {
+    const nameParam = searchParams.get('name');
+    const prParam   = searchParams.get('pr');
+
+    if (nameParam === 'new') {
+      if (!isModalOpen) {
+        openCreateModal();
+      }
+    } else if (nameParam) {
+      if (nameParam !== docName || !isModalOpen) {
+        fetchPurchaseInvoice(nameParam);
+      }
+    } else if (prParam) {
+      if (!isModalOpen || formData.purchase_receipt !== prParam) {
+        createPIFromPR(prParam);
+      }
+    } else {
+      // If no params, ensure modal is closed
+      if (isModalOpen) {
+        setIsModalOpen(false);
+        setDocName('');
+        setDocStatus(null);
+        setIsEditMode(false);
+        setIsViewMode(false);
+        setFormErrors({});
+        setAllowedActions([]);
+      }
+    }
+  }, [searchParams, openCreateModal, createPIFromPR, fetchPurchaseInvoice]);
+
+  useEffect(() => {
+    const supplierParam = searchParams.get('supplier');
+    if (supplierParam) {
+      setFilterSupplier(supplierParam);
+      setShowFilters(true);
+    }
+  }, [searchParams]);
 
   return (
     <>
@@ -1676,8 +1700,8 @@ function PurchaseInvoiceList() {
                           </button>
                         )}
 
-                        {/* SUBMIT — when server allows and no unsaved changes */}
-                        {allowedActions.includes('submit') && !isDirty && (
+                        {/* SUBMIT — when server allows and no unsaved changes (or in view mode) */}
+                        {allowedActions.includes('submit') && (!isDirty || isViewMode) && (
                           <button 
                             onClick={() => handleDocAction('submit')} 
                             disabled={saving} 
