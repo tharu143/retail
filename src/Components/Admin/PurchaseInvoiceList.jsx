@@ -1211,7 +1211,6 @@ function PurchaseInvoiceList() {
             purchase_receipt: i.purchase_receipt || undefined,
           };
         }),
-      name: docName || undefined
     };
   };
 
