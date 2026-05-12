@@ -1344,12 +1344,15 @@ function CustomerList() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
                       Account Supervisor
                     </label>
-                    <input
+                    <select
                       className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
                       style={{ borderColor: '#cbd5e1', outline: 'none' }}
                       value={form.account_manager}
                       onChange={e => setForm({ ...form, account_manager: e.target.value })}
-                    />
+                    >
+                      <option value="">Select Supervisor</option>
+                      {meta.account_managers?.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
                   </div>
 
                   <div className="space-y-1.5">
@@ -1368,12 +1371,15 @@ function CustomerList() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
                       Prospect Alias
                     </label>
-                    <input
+                    <select
                       className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
                       style={{ borderColor: '#cbd5e1', outline: 'none' }}
                       value={form.prospect_name}
                       onChange={e => setForm({ ...form, prospect_name: e.target.value })}
-                    />
+                    >
+                      <option value="">Select Prospect</option>
+                      {meta.prospects?.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
                   </div>
                 </div>
               </div>
