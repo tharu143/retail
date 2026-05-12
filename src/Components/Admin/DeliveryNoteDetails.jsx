@@ -315,10 +315,19 @@ const DeliveryNoteDetails = () => {
 
     useEffect(() => {
         loadMetadata().then(() => {
-            if (name) loadDeliveryNote(name);
-            else if (location.pathname.includes('/create')) openCreateModal();
+            if (name && name !== 'create') {
+                loadDeliveryNote(name);
+            } else if (location.pathname.includes('/create')) {
+                if (location.state?.returnData) {
+                    setForm(location.state.returnData);
+                    setIsViewOnly(false);
+                    setIsDirty(true);
+                } else {
+                    openCreateModal();
+                }
+            }
         });
-    }, [name, location.pathname]);
+    }, [name, location.pathname, location.state]);
 
     useEffect(() => {
         const items = form.items || [];
@@ -368,22 +377,42 @@ const DeliveryNoteDetails = () => {
                 },
                 withCredentials: true
             });
-            if (res.data.status === 'success') {
-                const mappedData = res.data.data;
-                setForm({
-                    ...form,
-                    ...mappedData,
-                    is_return: 1,
-                    return_against: form.name
+            const msg = res.data.message || res.data;
+            if (msg.status === 'success' || res.data.status === 'success') {
+                const rawData = msg.data || res.data.data;
+
+                // Sanitize data: convert null to empty string to avoid React controlled input warnings
+                const sanitizeData = (obj) => {
+                  if (Array.isArray(obj)) return obj.map(sanitizeData);
+                  if (obj !== null && typeof obj === 'object') {
+                    return Object.fromEntries(
+                      Object.entries(obj).map(([k, v]) => [k, v === null ? '' : sanitizeData(v)])
+                    );
+                  }
+                  return obj;
+                };
+
+                const mappedData = sanitizeData(rawData);
+
+                // Navigate to create route with mapped return data
+                navigate('/deliverynote/create', { 
+                    state: { 
+                        returnData: {
+                            ...mappedData,
+                            is_return: 1,
+                            return_against: form.name,
+                            name: '' // Ensure it's a new document
+                        } 
+                    },
+                    replace: true
                 });
-                setIsViewOnly(false);
-                setIsDirty(true);
                 setShowCreateMenu(false);
             } else {
-                throw new Error(res.data.message || "Mapping failed");
+                throw new Error(typeof msg.message === 'string' ? msg.message : "Mapping failed");
             }
         } catch (err) {
-            Swal.fire('Error', err.message, 'error');
+            console.error('Mapping error:', err);
+            Swal.fire('Error', err.response?.data?.message || err.message, 'error');
         } finally {
             setSaving(false);
         }

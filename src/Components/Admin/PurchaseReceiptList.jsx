@@ -100,7 +100,7 @@ function PurchaseReceiptList() {
     document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
     document.documentElement.style.setProperty('--so-primary-light', themeLight);
   }, [prTheme, themeColor, themeColorHover, themeLight]);
-  const [formData, setFormData] = useState({
+  const initialState = {
     series: 'MAT-PRE-.YYYY.-',
     posting_date: new Date().toISOString().split('T')[0],
     posting_time: new Date().toTimeString().slice(0, 5),
@@ -138,7 +138,9 @@ function PurchaseReceiptList() {
     discounted_amount: '0.00',
     grand_total: '0.00',
     docstatus: 0
-  });
+  };
+
+  const [formData, setFormData] = useState(initialState);
 
   const isDirty = useMemo(() => {
     if (!docName) return true; // New docs are always dirty
@@ -557,24 +559,41 @@ function PurchaseReceiptList() {
         },
         withCredentials: true
       });
-      if (res.data.status === 'success') {
-        const mappedData = res.data.data;
+      const msg = res.data.message || res.data;
+      if (msg.status === 'success' || res.data.status === 'success') {
+        const rawData = msg.data || res.data.data;
+        
+        // Sanitize data: convert null to empty string to avoid React controlled input warnings
+        const sanitizeData = (obj) => {
+          if (Array.isArray(obj)) return obj.map(sanitizeData);
+          if (obj !== null && typeof obj === 'object') {
+            return Object.fromEntries(
+              Object.entries(obj).map(([k, v]) => [k, v === null ? '' : sanitizeData(v)])
+            );
+          }
+          return obj;
+        };
+        
+        const mappedData = sanitizeData(rawData);
+
         // Open the modal with mapped data
         setFormData({
-          ...formData,
+          ...initialState, // Start with clean state
           ...mappedData,
-          is_return: true,
-          return_against: docName
+          is_return: 1,
+          return_against: docName,
+          status: 'Draft'
         });
         setDocName(''); // Reset for new return doc
         setIsViewMode(false);
         setIsEditMode(false);
         setIsModalOpen(true);
       } else {
-        throw new Error(res.data.message || "Mapping failed");
+        throw new Error(typeof msg.message === 'string' ? msg.message : "Mapping failed");
       }
     } catch (err) {
-      Swal.fire('Error', err.message, 'error');
+      console.error('Mapping error:', err);
+      Swal.fire('Error', err.response?.data?.message || err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -1500,7 +1519,9 @@ function PurchaseReceiptList() {
       openCreateModal();
     } else if (nameParam) {
       if (nameParam !== docName) {
-        fetchReceiptForEdit(nameParam);
+        if (nameParam !== formData.return_against) {
+          fetchReceiptForEdit(nameParam);
+        }
       }
     } else {
       setIsModalOpen(false);
@@ -1680,6 +1701,19 @@ function PurchaseReceiptList() {
                                     <ExternalLink size={12} style={{ opacity: 0.6 }} />
                                   </a>
                                   <span style={{ fontWeight: 700, color: themeColor }}>{rec.name}</span>
+                                  {rec.is_return === 1 && (
+                                    <span style={{ 
+                                      fontSize: '0.65rem', 
+                                      backgroundColor: '#fee2e2', 
+                                      color: '#ef4444', 
+                                      padding: '0.1rem 0.4rem', 
+                                      borderRadius: '0.25rem',
+                                      fontWeight: 700,
+                                      marginLeft: '0.4rem'
+                                    }}>
+                                      PURCHASE RETURN
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                               <td>
@@ -1699,7 +1733,7 @@ function PurchaseReceiptList() {
                                 </span>
                               </td>
                               <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                AED {parseFloat(rec.rounded_total || rec.grand_total || rec.total || rec.base_net_total || rec.net_total || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                AED {rec.is_return === 1 ? '-' : ''}{parseFloat(rec.rounded_total || rec.grand_total || rec.total || rec.base_net_total || rec.net_total || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
                               </td>
                               <td onClick={e => e.stopPropagation()}>
                                 <button style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
@@ -1763,7 +1797,7 @@ function PurchaseReceiptList() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} Purchase Receipt
+                      {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} {formData.is_return === 1 ? 'Purchase Return' : 'Purchase Receipt'}
                     </h2>
                     {docName && <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{docName} • Procurement</p>}
                   </div>

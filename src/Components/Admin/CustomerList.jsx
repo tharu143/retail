@@ -538,7 +538,7 @@ function CustomerList() {
   };
 
   const handleSave = async () => {
-    if (!form.customer_name) return Swal.fire('Error', 'Legal Identity Name is required', 'warning');
+    if (!form.customer_name) return Swal.fire('Error', 'Customer Name is required', 'warning');
     setSaving(true);
     try {
       const payload = {
@@ -888,34 +888,34 @@ function CustomerList() {
             {activeDetailTab === 'Information' && (
               <div className="animate-in fade-in duration-700">
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4rem' }}>
-                  <DetailCard title="Registry Shard Specs">
-                    <DataInfo label="Entity Shard Type" value={selectedCustomer.customer_type} icon={Building2} />
-                    <DataInfo label="Identity Salutation" value={selectedCustomer.salutation} icon={User} />
-                    <DataInfo label="Market Segment" value={selectedCustomer.customer_group} icon={Layers} />
+                  <DetailCard title="Registry Specifications">
+                    <DataInfo label="Customer Type" value={selectedCustomer.customer_type} icon={Building2} />
+                    <DataInfo label="Salutation" value={selectedCustomer.salutation} icon={User} />
+                    <DataInfo label="Customer Group" value={selectedCustomer.customer_group} icon={Layers} />
                     <DataInfo label="Territorial Hub" value={selectedCustomer.territory} icon={Globe} />
                     <DataInfo label="Account Supervisor" value={selectedCustomer.account_manager} icon={Briefcase} />
-                    <DataInfo label="Prospect Identity" value={selectedCustomer.prospect_name} icon={Award} />
+                    <DataInfo label="Prospect Name" value={selectedCustomer.prospect_name} icon={Award} />
                   </DetailCard>
                   <DetailCard title="Fiscal & Logic Parameters">
                     <DataInfo label="Fiscal Hub (Tax ID)" value={selectedCustomer.tax_id} icon={Hash} />
                     <DataInfo label="Tax Classification" value={selectedCustomer.tax_category} icon={Percent} />
                     <DataInfo label="Pricing Matrix" value={selectedCustomer.default_price_list} icon={DollarSign} />
                     <DataInfo label="Payment Protocol" value={selectedCustomer.payment_terms} icon={Clock} />
-                    <DataInfo label="Internal Shard" value={selectedCustomer.is_internal_customer ? 'YES' : 'NO'} icon={ShieldCheck} />
+                    <DataInfo label="Internal Customer" value={selectedCustomer.is_internal_customer ? 'YES' : 'NO'} icon={ShieldCheck} />
                     <DataInfo label="Loyalty Tier" value={selectedCustomer.loyalty_program_tier} icon={Award} color="#f59e0b" />
                   </DetailCard>
                   <DetailCard title="Signal Connectivity">
                     <DataInfo label="Mobile Signal" value={selectedCustomer.mobile_no} icon={Smartphone} />
                     <DataInfo label="Digital Hub (Email)" value={selectedCustomer.email_id} icon={Mail} />
                     <DataInfo label="Gender Profile" value={selectedCustomer.gender} icon={User} />
-                    <DataInfo label="Identity Profile Pic" value={selectedCustomer.image ? 'LINKED' : 'NOT DETECTED'} icon={ImageIcon} />
+                    <DataInfo label="Profile Image" value={selectedCustomer.image ? 'LINKED' : 'NOT DETECTED'} icon={ImageIcon} />
                     <DataInfo label="Account Status" value={selectedCustomer.disabled ? 'RESTRICTED' : 'OPERATIONAL'} icon={Activity} color={selectedCustomer.disabled ? '#ef4444' : '#10b981'} />
                     <DataInfo label="Global Sync" value={selectedCustomer.is_frozen ? 'FROZEN' : 'ACTIVE'} icon={Shield} color={selectedCustomer.is_frozen ? '#ef4444' : '#10b981'} />
                   </DetailCard>
                 </div>
                 <div style={{ marginTop: '5rem', background: '#f8fafc', padding: '3.5rem', borderRadius: '3rem', border: '3px solid #f1f5f9' }}>
-                  <h4 style={{ fontSize: '11px', fontWeight: 950, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2rem', letterSpacing: '0.2em' }}>Shard Narrative & Identity Logs</h4>
-                  <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#334155', lineHeight: 1.75 }}>{selectedCustomer.customer_details || 'Critical narrative data log is currently null for this identity shard. Registry remains synchronized.'}</p>
+                  <h4 style={{ fontSize: '11px', fontWeight: 950, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2rem', letterSpacing: '0.2em' }}>Customer Details & Logs</h4>
+                  <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#334155', lineHeight: 1.75 }}>{selectedCustomer.customer_details || 'Critical narrative data log is currently null for this customer. Registry remains synchronized.'}</p>
                 </div>
               </div>
             )}
@@ -931,7 +931,7 @@ function CustomerList() {
                   <GridPanel title="Sales Orders" count={dashboardData.counts.sales_orders} icon={ShoppingCart} color={themeColor} />
                   <GridPanel title="Sales Invoices" count={dashboardData.counts.sales_invoices} icon={Receipt} color={themeColor} />
                   <GridPanel title="Delivery Notes" count={dashboardData.counts.delivery_notes} icon={Package} color={themeColor} />
-                  <GridPanel title="Identity Ledger" count="QUERY" icon={HardDrive} color="#6366f1" />
+                  <GridPanel title="Customer Ledger" count="QUERY" icon={HardDrive} color="#6366f1" />
                 </div>
               </div>
             )}
@@ -968,14 +968,14 @@ function CustomerList() {
                     {c.is_primary_contact === 1 && <div style={{ marginTop: '2.5rem', background: '#ecfdf5', color: '#10b981', padding: '10px 0', borderRadius: '14px', fontSize: '10px', fontWeight: 950 }}>PRIMARY ACCESS HUB</div>}
                   </div>
                 ))}
-                {selectedCustomer.contacts?.length === 0 && <p style={{ gridColumn: 'span 3', textAlign: 'center', padding: '10rem', color: '#cbd5e1', fontWeight: 950, fontSize: '24px' }}>NO PERSONNEL SHARDS LINKED</p>}
+                {selectedCustomer.contacts?.length === 0 && <p style={{ gridColumn: 'span 3', textAlign: 'center', padding: '10rem', color: '#cbd5e1', fontWeight: 950, fontSize: '24px' }}>NO CONTACTS LINKED</p>}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ────────────────────── THE ALL-INCLUSIVE IDENTITY FORGE ────────────────────── */}
+      {/* ────────────────────── CUSTOMER MANAGEMENT PORTAL ────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 z-[11000] bg-[#f5f6fa] flex flex-col font-sans overflow-hidden animate-fadeIn">
           {/* UI Header */}
@@ -1297,6 +1297,28 @@ function CustomerList() {
                       <option value="">Default</option>
                       {meta.tax_categories?.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
+                  </div>
+
+                  <div className="space-y-1.5 col-span-1 md:col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                      Profile Image URL
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center bg-slate-50 shrink-0">
+                        {form.image ? (
+                          <img src={form.image} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <User size={24} className="text-slate-300" />
+                        )}
+                      </div>
+                      <input
+                        className="flex-1 h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                        value={form.image}
+                        onChange={e => setForm({ ...form, image: e.target.value })}
+                        placeholder="e.g. https://example.com/avatar.jpg"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">

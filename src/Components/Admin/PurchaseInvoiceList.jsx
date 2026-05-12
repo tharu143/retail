@@ -139,7 +139,7 @@ function PurchaseInvoiceList() {
   // NEW: Warehouses State (filtered for non-group)
   const [warehouses, setWarehouses] = useState([]);
 
-  const [formData, setFormData] = useState({
+  const initialState = {
     name: '', supplier: '', supplier_name: '',
     posting_date: new Date().toISOString().split('T')[0],
     due_date: '', bill_no: '',
@@ -153,7 +153,9 @@ function PurchaseInvoiceList() {
     taxes_and_charges: '',
     items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_selling_price: 0 }],
     docstatus: 0
-  });
+  };
+
+  const [formData, setFormData] = useState(initialState);
 
   const isDirty = useMemo(() => {
     if (!docName) return true;
@@ -788,23 +790,40 @@ function PurchaseInvoiceList() {
         },
         withCredentials: true
       });
-      if (res.data.status === 'success') {
-        const mappedData = res.data.data;
+      const msg = res.data.message || res.data;
+      if (msg.status === 'success' || res.data.status === 'success') {
+        const rawData = msg.data || res.data.data;
+
+        // Sanitize data: convert null to empty string to avoid React controlled input warnings
+        const sanitizeData = (obj) => {
+          if (Array.isArray(obj)) return obj.map(sanitizeData);
+          if (obj !== null && typeof obj === 'object') {
+            return Object.fromEntries(
+              Object.entries(obj).map(([k, v]) => [k, v === null ? '' : sanitizeData(v)])
+            );
+          }
+          return obj;
+        };
+
+        const mappedData = sanitizeData(rawData);
+
         setFormData({
-          ...formData,
+          ...initialState, // Start with a clean state
           ...mappedData,
-          is_return: true,
-          return_against: docName
+          is_return: 1,
+          return_against: docName,
+          status: 'Draft'
         });
         setDocName('');
         setIsViewMode(false);
         setIsEditMode(false);
         setIsModalOpen(true);
       } else {
-        throw new Error(res.data.message || "Mapping failed");
+        throw new Error(typeof msg.message === 'string' ? msg.message : "Mapping failed");
       }
     } catch (err) {
-      Swal.fire('Error', err.message, 'error');
+      console.error('Mapping error:', err);
+      Swal.fire('Error', err.response?.data?.message || err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -1413,8 +1432,11 @@ function PurchaseInvoiceList() {
         openCreateModal();
       }
     } else if (nameParam) {
+      // Don't reload if we are currently showing a return draft against this document
       if (nameParam !== docName || !isModalOpen) {
-        fetchPurchaseInvoice(nameParam);
+        if (nameParam !== formData.return_against || !isModalOpen) {
+          fetchPurchaseInvoice(nameParam);
+        }
       }
     } else if (prParam) {
       if (!isModalOpen || formData.purchase_receipt !== prParam) {
@@ -1604,6 +1626,19 @@ function PurchaseInvoiceList() {
                                     <ExternalLink size={12} style={{ opacity: 0.6 }} />
                                   </a>
                                   <span style={{ fontWeight: 700, color: themeColor }}>{inv.name}</span>
+                                  {inv.is_return === 1 && (
+                                    <span style={{ 
+                                      fontSize: '0.65rem', 
+                                      backgroundColor: '#fee2e2', 
+                                      color: '#ef4444', 
+                                      padding: '0.1rem 0.4rem', 
+                                      borderRadius: '0.25rem',
+                                      fontWeight: 700,
+                                      marginLeft: '0.4rem'
+                                    }}>
+                                      DEBIT NOTE
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                               <td>
@@ -1623,7 +1658,7 @@ function PurchaseInvoiceList() {
                                 </span>
                               </td>
                               <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                AED {inv.grand_total?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                AED {inv.is_return === 1 ? '-' : ''}{Math.abs(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </td>
                               <td onClick={e => e.stopPropagation()}>
                                 <div ref={el => actionsRefs.current[inv.name] = el} style={{ position: 'relative' }}>
@@ -1706,7 +1741,7 @@ function PurchaseInvoiceList() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} Purchase Invoice
+                      {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} {formData.is_return === 1 ? 'Debit Note' : 'Purchase Invoice'}
                     </h2>
                     {formData.name && <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formData.name} • Accounts</p>}
                   </div>

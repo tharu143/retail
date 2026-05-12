@@ -248,24 +248,41 @@ const SalesInvoiceList = () => {
             params: { from_doctype: 'Delivery Note', to_doctype: 'Sales Invoice', source_name: dnName },
             withCredentials: true
           });
-          if (res.data.message?.status === 'success') {
-            const mappedData = res.data.message.data;
-            setForm(prev => ({
-                ...prev,
-                ...mappedData,
-                name: '', // New draft
-                status: 'Draft',
-                docstatus: 0,
-                posting_date: new Date().toISOString().split('T')[0],
-                update_billed_amount_in_delivery_note: true,
-                items: (mappedData.items || []).map(i => ({
-                    ...i,
-                    amount: (parseFloat(i.qty) * parseFloat(i.rate)).toFixed(2)
-                }))
-            }));
+          const msg = res.data.message || res.data;
+            if (msg.status === 'success') {
+              const rawData = msg.data;
+
+              // Sanitize data: convert null to empty string to avoid React controlled input warnings
+              const sanitizeData = (obj) => {
+                if (Array.isArray(obj)) return obj.map(sanitizeData);
+                if (obj !== null && typeof obj === 'object') {
+                  return Object.fromEntries(
+                    Object.entries(obj).map(([k, v]) => [k, v === null ? '' : sanitizeData(v)])
+                  );
+                }
+                return obj;
+              };
+
+              const mappedData = sanitizeData(rawData);
+
+              setForm(prev => ({
+                  ...prev,
+                  ...mappedData,
+                  name: '', // New draft
+                  status: 'Draft',
+                  docstatus: 0,
+                  posting_date: new Date().toISOString().split('T')[0],
+                  update_billed_amount_in_delivery_note: true,
+                  items: (mappedData.items || []).map(i => ({
+                      ...i,
+                      amount: (parseFloat(i.qty) * parseFloat(i.rate)).toFixed(2)
+                  }))
+              }));
             setSearchCustomer(mappedData.customer_name || '');
             setShowModal(true);
             setIsViewOnly(false);
+          } else {
+            throw new Error(typeof msg.message === 'string' ? msg.message : "Mapping failed");
           }
         } catch (err) {
           console.error('Failed to map DN', err);
@@ -667,8 +684,23 @@ const SalesInvoiceList = () => {
         withCredentials: true
       });
 
-      if (res.data.status === 'success' || res.data.message?.status === 'success') {
-        const mappedData = res.data.data || res.data.message.data;
+      const msg = res.data.message || res.data;
+      if (msg.status === 'success') {
+        const rawData = msg.data;
+
+        // Sanitize data: convert null to empty string to avoid React controlled input warnings
+        const sanitizeData = (obj) => {
+          if (Array.isArray(obj)) return obj.map(sanitizeData);
+          if (obj !== null && typeof obj === 'object') {
+            return Object.fromEntries(
+              Object.entries(obj).map(([k, v]) => [k, v === null ? '' : sanitizeData(v)])
+            );
+          }
+          return obj;
+        };
+
+        const mappedData = sanitizeData(rawData);
+
         setIsReturnMode(true);
         setReturnAgainst(invoiceName);
         setForm(prev => ({
@@ -690,7 +722,7 @@ const SalesInvoiceList = () => {
         setShowModal(true);
         calculateTotals();
       } else {
-        throw new Error(res.data.message?.message || res.data.message || "Mapping failed");
+        throw new Error(typeof msg.message === 'string' ? msg.message : "Mapping failed");
       }
     } catch (err) {
       alert("Error: " + err.message);
