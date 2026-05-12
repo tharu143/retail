@@ -455,6 +455,34 @@ const CustomerDetails = () => {
     finally { setSaving(false); }
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('is_private', 0);
+    formData.append('doctype', 'Customer');
+    if (!isNew && id) formData.append('docname', id);
+
+    try {
+      setSaving(true);
+      // Using standard Frappe upload API
+      const res = await axios.post('/api/method/upload_file', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.message?.file_url) {
+        setForm(prev => ({ ...prev, image: res.data.message.file_url }));
+        Swal.fire({ icon: 'success', title: 'Image Uploaded', text: 'Reference link updated.', timer: 1500, showConfirmButton: false });
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Upload Error', 'Failed to upload image. Ensure you are logged in.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-gray-50 gap-4">
       <Loader2 className="animate-spin text-blue-600" size={36} />
@@ -475,8 +503,12 @@ const CustomerDetails = () => {
               <ChevronLeft size={16} />
               <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
             </button>
-            <div className="h-10 w-10 bg-slate-900 rounded-lg flex items-center justify-center shadow-md">
-              <User size={20} className="text-white" />
+            <div className="h-10 w-10 bg-slate-900 rounded-lg flex items-center justify-center shadow-md overflow-hidden">
+              {customer?.image ? (
+                <img src={customer.image} alt={customer.customer_name} className="w-full h-full object-cover" />
+              ) : (
+                <User size={20} className="text-white" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-3">
@@ -680,13 +712,28 @@ const CustomerDetails = () => {
 
                 <div className="space-y-1.5 col-span-1 md:col-span-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Profile Image Reference</label>
-                  <input
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                    value={form.image}
-                    onChange={e => setForm({ ...form, image: e.target.value })}
-                    placeholder="Image URL link"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      className="flex-1 h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      value={form.image}
+                      onChange={e => setForm({ ...form, image: e.target.value })}
+                      placeholder="Image URL link"
+                    />
+                    <button
+                      onClick={() => document.getElementById('customer-image-upload')?.click()}
+                      className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200 transition-all"
+                    >
+                      Upload
+                    </button>
+                    <input
+                      id="customer-image-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 col-span-1 md:col-span-2">
