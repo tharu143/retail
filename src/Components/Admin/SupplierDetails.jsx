@@ -766,25 +766,6 @@ const SupplierDetails = () => {
                         {module}
                       </button>
                     ))}
-                    <div className="w-[1px] h-6 bg-gray-200 mx-2" />
-                    <button
-                      onClick={() => setActiveModule('Addresses')}
-                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeModule === 'Addresses'
-                        ? 'bg-white shadow-sm ring-1 ring-gray-100 text-slate-800'
-                        : 'text-gray-600 hover:text-gray-900'}`}
-                      style={{ color: activeModule === 'Addresses' ? themeColor : undefined }}
-                    >
-                      Addresses ({linkedAddresses.length})
-                    </button>
-                    <button
-                      onClick={() => setActiveModule('Contacts')}
-                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeModule === 'Contacts'
-                        ? 'bg-white shadow-sm ring-1 ring-gray-100 text-slate-800'
-                        : 'text-gray-600 hover:text-gray-900'}`}
-                      style={{ color: activeModule === 'Contacts' ? themeColor : undefined }}
-                    >
-                      Contacts ({linkedContacts.length})
-                    </button>
                   </div>
                 </div>
 

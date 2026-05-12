@@ -356,6 +356,39 @@ const DeliveryNoteDetails = () => {
         finally { setSaving(false); }
     };
 
+    const handleCreateReturn = async () => {
+        if (!form.name) return;
+        setSaving(true);
+        try {
+            const res = await axios.get(`/api/method/kyle_retail.retail_api.api.get_mapped_doc_retail`, {
+                params: {
+                    from_doctype: 'Delivery Note',
+                    to_doctype: 'Sales Return',
+                    source_name: form.name
+                },
+                withCredentials: true
+            });
+            if (res.data.status === 'success') {
+                const mappedData = res.data.data;
+                setForm({
+                    ...form,
+                    ...mappedData,
+                    is_return: 1,
+                    return_against: form.name
+                });
+                setIsViewOnly(false);
+                setIsDirty(true);
+                setShowCreateMenu(false);
+            } else {
+                throw new Error(res.data.message || "Mapping failed");
+            }
+        } catch (err) {
+            Swal.fire('Error', err.message, 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const updateItem = (i, field, value) => {
         const items = [...form.items];
         items[i][field] = value;
@@ -471,6 +504,13 @@ const DeliveryNoteDetails = () => {
                                                     className="hover:bg-slate-50"
                                                 >
                                                     <FileText size={16} /> Sales Invoice
+                                                </button>
+                                                <button 
+                                                    onClick={handleCreateReturn} 
+                                                    style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', border: 'none', background: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ef4444' }} 
+                                                    className="hover:bg-red-50"
+                                                >
+                                                    <FileMinus size={16} /> Sales Return
                                                 </button>
                                             </div>
                                         )}

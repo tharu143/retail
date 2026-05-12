@@ -657,39 +657,45 @@ const SalesInvoiceList = () => {
 
   const loadForReturn = async (invoiceName) => {
     try {
-      const res = await axios.get(`/api/resource/Sales Invoice/${invoiceName}`);
-      const inv = res.data.data;
-      setIsReturnMode(true);
-      setReturnAgainst(inv.name);
-      setForm({
-        name: '',
-        status: 'Draft',
-        posting_date: new Date().toISOString().split('T')[0],
-        customer: inv.customer,
-        customer_name: inv.customer_name,
-        due_date: inv.due_date || '',
-        is_return: 1,
-        return_against: inv.name,
-        currency: inv.currency || 'AED',
-        selling_price_list: inv.selling_price_list || 'Standard Selling',
-        update_outstanding_amount_in_self: true,
-        update_billed_amount_in_delivery_note: true, // Always true for direct SI return
-        items: inv.items.map(i => ({
-          item_code: i.item_code,
-          item_name: i.item_name,
-          qty: Math.abs(i.qty),
-          rate: i.rate,
-          amount: Math.abs(i.amount),
-          uom: i.uom || 'Nos'
-        })),
-        taxes_and_charges: inv.taxes_and_charges || '',
-        taxes: inv.taxes || []
+      setLoading(true);
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_mapped_doc_retail', {
+        params: {
+          from_doctype: 'Sales Invoice',
+          to_doctype: 'Credit Note',
+          source_name: invoiceName
+        },
+        withCredentials: true
       });
-      setSearchCustomer(inv.customer_name || '');
-      setShowModal(true);
-      calculateTotals();
+
+      if (res.data.status === 'success' || res.data.message?.status === 'success') {
+        const mappedData = res.data.data || res.data.message.data;
+        setIsReturnMode(true);
+        setReturnAgainst(invoiceName);
+        setForm(prev => ({
+          ...prev,
+          ...mappedData,
+          name: '',
+          status: 'Draft',
+          docstatus: 0,
+          is_return: 1,
+          posting_date: new Date().toISOString().split('T')[0],
+          update_billed_amount_in_delivery_note: true,
+          items: (mappedData.items || []).map(i => ({
+            ...i,
+            qty: Math.abs(i.qty),
+            amount: Math.abs(parseFloat(i.qty) * parseFloat(i.rate))
+          }))
+        }));
+        setSearchCustomer(mappedData.customer_name || '');
+        setShowModal(true);
+        calculateTotals();
+      } else {
+        throw new Error(res.data.message?.message || res.data.message || "Mapping failed");
+      }
     } catch (err) {
-      alert("Error loading for return");
+      alert("Error: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 

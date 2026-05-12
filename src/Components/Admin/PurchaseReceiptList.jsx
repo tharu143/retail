@@ -545,12 +545,38 @@ function PurchaseReceiptList() {
     }
   };
 
-  const handleCreateInvoice = async () => {
+  const handleCreateReturn = async () => {
     if (!docName) return;
+    setSaving(true);
     try {
-      handleCreateFlow('invoice');
+      const res = await axios.get(`${API_PATH}.get_mapped_doc_retail`, {
+        params: {
+          from_doctype: 'Purchase Receipt',
+          to_doctype: 'Purchase Return',
+          source_name: docName
+        },
+        withCredentials: true
+      });
+      if (res.data.status === 'success') {
+        const mappedData = res.data.data;
+        // Open the modal with mapped data
+        setFormData({
+          ...formData,
+          ...mappedData,
+          is_return: true,
+          return_against: docName
+        });
+        setDocName(''); // Reset for new return doc
+        setIsViewMode(false);
+        setIsEditMode(false);
+        setIsModalOpen(true);
+      } else {
+        throw new Error(res.data.message || "Mapping failed");
+      }
     } catch (err) {
-      console.error('Error creating PI:', err);
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setSaving(false);
     }
   };
   useEffect(() => {
@@ -1158,6 +1184,14 @@ function PurchaseReceiptList() {
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem' }}
                   >
                     <Plus size={14} /> Create Purchase Invoice
+                  </button>
+                  <button 
+                    onClick={handleCreateReturn}
+                    disabled={saving}
+                    className="so-btn-secondary" 
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem', color: '#ef4444', borderColor: '#ef4444' }}
+                  >
+                    <Link size={14} /> Create Purchase Return
                   </button>
                 </div>
               </div>

@@ -729,13 +729,13 @@ function CustomerList() {
                       <th onClick={() => toggleSort('customer_name')} style={{ cursor: 'pointer' }}>
                         Customer Profile {sortField === 'customer_name' && (sortOrder === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th onClick={() => toggleSort('modified')} style={{ cursor: 'pointer' }}>
+                        Last Updated {sortField === 'modified' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th>Contact Vectors</th>
                       <th>Classification</th>
                       <th onClick={() => toggleSort('creation')} style={{ cursor: 'pointer' }}>
                         Created By {sortField === 'creation' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th onClick={() => toggleSort('modified')} style={{ cursor: 'pointer' }}>
-                        Last Updated {sortField === 'modified' && (sortOrder === 'asc' ? '↑' : '↓')}
                       </th>
                       <th>Status</th>
                       <th style={{ width: '120px', textAlign: 'center' }}>Controls</th>
@@ -760,13 +760,23 @@ function CustomerList() {
                         <tr key={c.name || c.value} onClick={() => handleCustomerClick(c)} style={{ transition: 'background-color 0.15s ease' }}>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: themeLight, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: themeLight, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                              {c.image ? (
+                                <img src={c.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
                                 <UserCircle2 size={18} />
-                              </div>
+                              )}
+                            </div>
                               <div>
                                 <span style={{ fontWeight: 700, color: '#1f2937' }}>{c.customer_name || c.label}</span>
                                 <span style={{ display: 'block', fontSize: '10px', color: '#6b7280', fontWeight: 500, marginTop: '2px' }}>{c.name || c.value}</span>
                               </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{c.modified_by?.split('@')[0]}</span>
+                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(c.modified).toLocaleDateString()}</span>
                             </div>
                           </td>
                           <td>
@@ -785,12 +795,6 @@ function CustomerList() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{c.owner?.split('@')[0]}</span>
                               <span style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(c.creation).toLocaleDateString()}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{c.modified_by?.split('@')[0]}</span>
-                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(c.modified).toLocaleDateString()}</span>
                             </div>
                           </td>
                           <td>

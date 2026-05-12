@@ -776,6 +776,40 @@ function PurchaseInvoiceList() {
     }
   };
 
+  const handleCreateReturn = async () => {
+    if (!docName) return;
+    setSaving(true);
+    try {
+      const res = await axios.get(`${API_PATH}.get_mapped_doc_retail`, {
+        params: {
+          from_doctype: 'Purchase Invoice',
+          to_doctype: 'Debit Note',
+          source_name: docName
+        },
+        withCredentials: true
+      });
+      if (res.data.status === 'success') {
+        const mappedData = res.data.data;
+        setFormData({
+          ...formData,
+          ...mappedData,
+          is_return: true,
+          return_against: docName
+        });
+        setDocName('');
+        setIsViewMode(false);
+        setIsEditMode(false);
+        setIsModalOpen(true);
+      } else {
+        throw new Error(res.data.message || "Mapping failed");
+      }
+    } catch (err) {
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCreatePayment = async () => {
     if (!docName) return;
 
@@ -947,6 +981,14 @@ function PurchaseInvoiceList() {
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem', background: '#eab308', borderColor: '#eab308' }}
                   >
                     <Plus size={14} /> Create Payment Entry
+                  </button>
+                  <button 
+                    onClick={handleCreateReturn}
+                    disabled={saving}
+                    className="so-btn-secondary" 
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem', color: '#ef4444', borderColor: '#ef4444' }}
+                  >
+                    <Link size={14} /> Create Debit Note
                   </button>
                 </div>
               </div>
