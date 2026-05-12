@@ -1132,7 +1132,7 @@ export default function ItemList() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 'auto', flexWrap: 'wrap' }}>
                {isViewMode && (
                 <div className="il-tabs" style={{ background: T.bg, padding: '3px', borderRadius: 12 }}>
-                   {['General', 'Dashboard', 'Prices', 'Stock'].map(t => (
+                   {['General', 'UOM', 'Dashboard', 'Prices', 'Stock'].map(t => (
                     <button
                       key={t}
                       className={`il-tab ${activeTab === t ? 'active' : ''}`}
@@ -1183,7 +1183,7 @@ export default function ItemList() {
                     </div>
 
                     {/* Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 260px', gap: 14 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) 280px', gap: 16 }}>
                       {/* Prices */}
                       <CardSection title="Price Lists" icon={<Tag size={14} />} action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => setActiveTab('Prices')}><Edit2 size={12} />Manage</button>}>
                         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1231,18 +1231,26 @@ export default function ItemList() {
                         </div>
                       </CardSection>
 
-                      {/* UOM */}
-                      <CardSection title="UOM Conversions" icon={<Scale size={14} />}>
-                        {form.uoms?.length > 0 ? (
-                          <table className="il-table">
-                            <thead><tr><th>UOM</th><th style={{ textAlign: 'right' }}>Factor</th></tr></thead>
-                            <tbody>{form.uoms.map((u, i) => <tr key={i}><td style={{ fontWeight: 600 }}>{u.uom}</td><td style={{ textAlign: 'right', fontWeight: 700, color: T.blue }}>{u.conversion_factor}</td></tr>)}</tbody>
-                          </table>
-                        ) : <div style={{ padding: '20px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>Single unit</div>}
+                      <CardSection title="Branch Availability" icon={<MapPin size={14} />}>
+                        <div style={{ padding: '12px 14px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {form.branch_availability?.length > 0
+                            ? form.branch_availability.map((b, i) => (
+                              <div key={i} style={{ padding: '6px 12px', background: T.blueLight, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Warehouse size={12} color={T.blue} />
+                                <span style={{ fontSize: 11, fontWeight: 700, color: T.blue }}>{b.warehouse}</span>
+                              </div>
+                            ))
+                            : (
+                              <div style={{ width: '100%', padding: '16px', textAlign: 'center', background: T.bg, borderRadius: 12 }}>
+                                <p style={{ fontSize: 12, fontWeight: 700, color: T.textMuted }}>GLOBAL VISIBILITY</p>
+                                <p style={{ fontSize: 10, color: T.textMuted }}>Available everywhere</p>
+                              </div>
+                            )}
+                        </div>
                       </CardSection>
 
                       {/* Image + Barcodes — tall */}
-                      <div className="il-card" style={{ gridRow: 'span 2', display: 'flex', flexDirection: 'column' }}>
+                      <div className="il-card" style={{ gridRow: 'span 3', display: 'flex', flexDirection: 'column', background: '#fff', border: `1px solid ${T.border}`, boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                         <div className="il-card-header"><span className="il-card-title">Identification</span></div>
                         <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
                           <div style={{ aspectRatio: '1', background: T.bg, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -1295,51 +1303,36 @@ export default function ItemList() {
                         </div>
                       </div>
 
-                      <CardSection title="Branch Availability" icon={<MapPin size={14} />}>
-                        <div style={{ padding: '12px 14px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {form.branch_availability?.length > 0
-                            ? form.branch_availability.map((b, i) => (
-                              <div key={i} style={{ padding: '6px 12px', background: T.blueLight, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <Warehouse size={12} color={T.blue} />
-                                <span style={{ fontSize: 11, fontWeight: 700, color: T.blue }}>{b.warehouse}</span>
-                              </div>
-                            ))
-                            : (
-                              <div style={{ width: '100%', padding: '16px', textAlign: 'center', background: T.bg, borderRadius: 12 }}>
-                                <p style={{ fontSize: 12, fontWeight: 700, color: T.textMuted }}>GLOBAL VISIBILITY</p>
-                                <p style={{ fontSize: 10, color: T.textMuted }}>Available in all regional clusters</p>
-                              </div>
-                            )}
-                          {form.branch_availability?.length > 0 && !form.branch_availability.some(b => b.warehouse === localStorage.getItem('warehouse')) && (
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_item_for_branch_retail', { item_code: editingItemCode, warehouse: localStorage.getItem('warehouse') }, { withCredentials: true });
-                                  if (res.data.message?.success) {
-                                    Swal.fire('Success', 'Item enabled for your branch', 'success');
-                                    fetchItemDashboardDetails(editingItemCode);
-                                  }
-                                } catch (e) { Swal.fire('Error', e.message, 'error'); }
-                              }}
-                              style={{ width: '100%', marginTop: 10, padding: 10, background: T.blue, color: '#fff', border: 'none', borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
-                            >
-                              SYNC TO MY BRANCH
-                            </button>
-                          )}
-                        </div>
-                      </CardSection>
+                      <div style={{ gridColumn: 'span 3' }}>
+                        <CardSection title="Suppliers" icon={<Users size={14} />}>
+                          <div style={{ padding: '12px 14px', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                            {form.supplier_items?.length > 0
+                              ? form.supplier_items.map((s, i) => (
+                                <div key={i} style={{ padding: '10px 14px', background: T.bg, borderRadius: 12, border: `1px solid ${T.borderLight}`, flex: '1 1 200px' }}>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{s.supplier}</div>
+                                  <div style={{ fontSize: 11, color: T.blue, fontWeight: 700, marginTop: 2 }}>Part: {s.supplier_part_no || '—'}</div>
+                                </div>
+                              ))
+                              : <div style={{ width: '100%', padding: '16px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No suppliers linked</div>}
+                          </div>
+                        </CardSection>
+                      </div>
 
-                      <CardSection title="Suppliers" icon={<Users size={14} />}>
-                        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {form.supplier_items?.length > 0
-                            ? form.supplier_items.map((s, i) => (
-                              <div key={i} style={{ padding: '8px 10px', background: T.bg, borderRadius: 8, border: `1px solid ${T.borderLight}` }}>
-                                <div style={{ fontSize: 13, fontWeight: 600 }}>{s.supplier}</div>
-                                <div style={{ fontSize: 11, color: T.blue, fontWeight: 600, marginTop: 1 }}>Part: {s.supplier_part_no || '—'}</div>
-                              </div>
-                            ))
-                            : <div style={{ padding: '16px 0', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No suppliers linked</div>}
-                        </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* UOM */}
+                {activeTab === 'UOM' && (
+                  <div className="anim-in">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
+                      <CardSection title="UOM Conversions" icon={<Scale size={14} />}>
+                        {form.uoms?.length > 0 ? (
+                          <table className="il-table">
+                            <thead><tr><th>UOM</th><th style={{ textAlign: 'right' }}>Factor</th></tr></thead>
+                            <tbody>{form.uoms.map((u, i) => <tr key={i}><td style={{ fontWeight: 600 }}>{u.uom}</td><td style={{ textAlign: 'right', fontWeight: 700, color: T.blue }}>{u.conversion_factor}</td></tr>)}</tbody>
+                          </table>
+                        ) : <div style={{ padding: '20px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>Single unit</div>}
                       </CardSection>
                     </div>
                   </div>
@@ -1718,7 +1711,6 @@ export default function ItemList() {
 
                 {/* UOM + Suppliers */}
                 <div className="il-form-grid-2">
-                  {!isEditMode && (
                     <CardSection title="UOM Conversions" icon={<Scale size={14} />}
                       action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addUomRow}><Plus size={12} />Add</button>}
                     >
@@ -1744,7 +1736,6 @@ export default function ItemList() {
                         </table>
                       ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No additional UOMs</div>}
                     </CardSection>
-                  )}
 
                   <CardSection title="Branch Visibility" icon={<MapPin size={14} />}
                     action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addBranchRow}><Plus size={12} />Add Branch</button>}

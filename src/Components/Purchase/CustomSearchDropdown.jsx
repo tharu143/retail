@@ -181,7 +181,7 @@ const CustomSearchDropdown = ({
             onFocus={() => !disabled && setShow(true)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:border-[var(--po-primary)] outline-none transition-all text-xs font-bold text-slate-700"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-[var(--po-primary)] outline-none transition-all text-xs font-bold text-slate-700"
             disabled={disabled}
           />
           {loading && (

@@ -9,7 +9,7 @@ import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 
 // Custom APIs (moved to standardized path)
@@ -39,6 +39,7 @@ function PurchaseInvoiceList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
   const [lastSavedData, setLastSavedData] = useState(null); // Dirty Check Base
@@ -205,31 +206,33 @@ function PurchaseInvoiceList() {
     fetchInvoices();
     fetchTaxTemplates();
     fetchWarehouses(); 
+  }, []);
 
-    // URL filtering logic
-    const params = new URLSearchParams(window.location.hash.split('?')[1]);
-    const nameParam = params.get('name');
-    const prParam   = params.get('pr');
-    const supplierParam = params.get('supplier');
+  useEffect(() => {
+    const nameParam = searchParams.get('name');
+    const prParam   = searchParams.get('pr');
 
+    if (nameParam === 'new') {
+      openCreateModal();
+    } else if (nameParam) {
+      if (nameParam !== docName) {
+        fetchPurchaseInvoice(nameParam);
+      }
+    } else if (prParam) {
+      createPIFromPR(prParam);
+    } else {
+      setIsModalOpen(false);
+      setDocName('');
+    }
+  }, [searchParams, openCreateModal]);
+
+  useEffect(() => {
+    const supplierParam = searchParams.get('supplier');
     if (supplierParam) {
       setFilterSupplier(supplierParam);
       setShowFilters(true);
     }
-
-    if (nameParam) {
-      // Clear URL params after reading
-      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
-      fetchPurchaseInvoice(nameParam);
-      setIsViewMode(false);
-      setIsEditMode(true);
-      setIsModalOpen(true);
-    } else if (prParam) {
-      // Create a new PI pre-filled from a Purchase Receipt
-      window.history.replaceState(null, '', window.location.hash.split('?')[0]);
-      createPIFromPR(prParam);
-    }
-  }, []);
+  }, [searchParams]);
 
   // Opens a blank PI modal pre-filled with data from Purchase Receipt `prName`
   const createPIFromPR = async (prName) => {
@@ -241,7 +244,7 @@ function PurchaseInvoiceList() {
       if (!pr) { alert('Purchase Receipt not found: ' + prName); return; }
 
       const mappedItems = (pr.items || []).map(i => {
-        const isBoxUom = (i.uom || '').toLowerCase() === 'box' || parseFloat(i.custom_box_qty || 0) > 0;
+        const isBoxUom = (i.uom || '').toLowerCase() === 'box';
         const boxQty   = parseFloat(i.custom_box_qty || 0);
         const pcsPerBox = parseFloat(i.custom_pieces_per_box || 1);
         const invoiceQty = parseFloat(i.qty) || 0;
@@ -328,8 +331,18 @@ function PurchaseInvoiceList() {
         params: { doctype: 'Purchase Invoice', docname: docName },
         withCredentials: true
       });
-      const data = res.data.message?.data || res.data.message || {};
-      setAllowedActions(data.allowed_actions || []);
+      const details = res.data.message?.data || res.data.message || {};
+      setAllowedActions(details.allowed_actions || []);
+      
+      // Update metrics in formData for UI logic
+      if (details.per_received !== undefined || details.per_billed !== undefined) {
+        setFormData(prev => ({
+          ...prev,
+          per_received: details.per_received ?? prev.per_received,
+          per_billed: details.per_billed ?? prev.per_billed,
+          grand_total: details.grand_total ?? prev.grand_total
+        }));
+      }
     } catch (err) { console.error("Workflow fetch failed", err); }
   };
 
@@ -644,14 +657,14 @@ function PurchaseInvoiceList() {
             amount: i.amount || 0,
             custom_box_qty: parseFloat(i.custom_box_qty || 0),
             custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+            default_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
             custom_selling_price: parseFloat(i.custom_selling_price || 0),
             custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             purchase_order: i.purchase_order || '',
             purchase_order_item: i.purchase_order_item || '',
             purchase_receipt: i.purchase_receipt || '',
-            use_box_entry: i.uom === 'Box' || 
-              (parseFloat(i.custom_box_qty) > 0 && Math.abs(parseFloat(i.qty) - (parseFloat(i.custom_box_qty) * parseFloat(i.custom_pieces_per_box || 1))) < 0.1)
+            use_box_entry: (i.uom || '').toLowerCase() === 'box'
           })),
           total_qty: d.total_qty || 0,
           net_total: d.net_total || 0,
@@ -661,7 +674,6 @@ function PurchaseInvoiceList() {
           outstanding_amount: d.outstanding_amount !== undefined ? d.outstanding_amount : (d.grand_total || 0),
           docstatus: parseInt(d.docstatus) || 0
         };
-        setFormData(mapped);
         
         // Populate tax preview for UI/Calculations
         if (d.taxes && d.taxes.length > 0) {
@@ -695,10 +707,13 @@ function PurchaseInvoiceList() {
                     if (prItem) {
                       return {
                         ...item,
+                        uom: prItem.uom || item.uom,
+                        use_box_entry: (prItem.uom || item.uom || '').toLowerCase() === 'box',
                         custom_selling_price: item.custom_selling_price || parseFloat(prItem.custom_selling_price || 0),
-                        custom_box_qty: item.custom_box_qty || parseFloat(prItem.custom_box_qty || 0),
-                        custom_pieces_per_box: item.custom_pieces_per_box || parseFloat(prItem.custom_pieces_per_box || 1),
-                        custom_box_price: item.custom_box_price || parseFloat(prItem.custom_box_price || 0)
+                        custom_box_qty: parseFloat(prItem.custom_box_qty || 0),
+                        custom_pieces_per_box: parseFloat(prItem.custom_pieces_per_box || 1),
+                        custom_box_price: parseFloat(prItem.custom_box_price || 0),
+                        qty: parseFloat(prItem.qty || 0)
                       };
                     }
                     return item;
@@ -717,10 +732,13 @@ function PurchaseInvoiceList() {
                   if (poItem) {
                     return {
                       ...item,
+                      uom: poItem.uom || item.uom,
+                      use_box_entry: (poItem.uom || item.uom || '').toLowerCase() === 'box',
                       custom_selling_price: item.custom_selling_price || parseFloat(poItem.custom_selling_price || 0),
-                      custom_box_qty: item.custom_box_qty || parseFloat(poItem.custom_box_qty || 0),
-                      custom_pieces_per_box: item.custom_pieces_per_box || parseFloat(poItem.custom_pieces_per_box || 1),
-                      custom_box_price: item.custom_box_price || parseFloat(poItem.custom_box_price || 0)
+                      custom_box_qty: parseFloat(poItem.custom_box_qty || 0),
+                      custom_pieces_per_box: parseFloat(poItem.custom_pieces_per_box || 1),
+                      custom_box_price: parseFloat(poItem.custom_box_price || 0),
+                      qty: parseFloat(poItem.qty || 0)
                     };
                   }
                   return item;
@@ -739,6 +757,9 @@ function PurchaseInvoiceList() {
         // Fetch linked documents if it's already created
         if (d.name) fetchLinkedDocuments(d.name);
         setLastSavedData(JSON.stringify(mapped)); // Set base point for dirty check
+        setIsViewMode(true);
+        setIsEditMode(false);
+        setIsModalOpen(true);
       }
     } catch (err) {
       alert('Failed to load invoice');
@@ -756,7 +777,19 @@ function PurchaseInvoiceList() {
       });
       if (res.data.message?.success || res.data.message?.status === 'success') {
         const payload = res.data.message.data || res.data.message;
-        setLinkedDocs(payload.categories || payload || {});
+        const categories = payload.categories || {};
+        
+        // Flatten the categorized structure for easier UI rendering
+        const flatDocs = {};
+        Object.values(categories).forEach(cat => {
+          Object.entries(cat).forEach(([dt, rows]) => {
+            if (rows && rows.length > 0) {
+              flatDocs[dt] = rows;
+            }
+          });
+        });
+        
+        setLinkedDocs(flatDocs);
       }
     } catch (err) {
       console.error('Error fetching linked docs:', err);
@@ -883,6 +916,23 @@ function PurchaseInvoiceList() {
     }
   };
 
+  const navigateToDoc = (doctype, docname) => {
+    const routes = {
+      'Purchase Order': '/purchaseorder',
+      'Purchase Receipt': '/purchasereceiptlist',
+      'Purchase Invoice': '/purchaseinvoicelist',
+    };
+    const route = routes[doctype];
+    if (route) {
+      if (docname === docName) return; // Already on this doc
+      setIsModalOpen(false); // Close current modal
+      // Small timeout to allow modal to close before navigation
+      setTimeout(() => {
+        navigate(`${route}?name=${encodeURIComponent(docname)}`);
+      }, 100);
+    }
+  };
+
   const renderConnectionsDashboard = () => {
     if (!docName || docStatus === null) return null;
 
@@ -896,12 +946,12 @@ function PurchaseInvoiceList() {
         <div className="so-card-header" style={{ borderBottom: `1px solid ${themeColor}10`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Zap size={14} style={{ color: themeColor }} />
-            <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Linked Documents & Dashboard</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Connections & Dashboard</span>
           </div>
           {docStatus === 1 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <CheckCircle2 size={12} style={{ color: '#10b981' }} />
-              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>Submitted & Unpaid</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>Submitted</span>
             </div>
           )}
         </div>
@@ -925,26 +975,49 @@ function PurchaseInvoiceList() {
             )}
             
             {/* Links Section */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-              {Object.entries(categories).map(([catName, doctypes]) => {
-                const hasLinks = doctypes.some(dt => linkedDocs[dt] && linkedDocs[dt].length > 0);
-                if (!hasLinks && catName !== "Related") return null;
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
+              {[...new Set(Object.values(categories).flat())].map(dt => {
+                const links = linkedDocs[dt] || [];
+                if (links.length === 0) return null;
 
                 return (
-                  <div key={catName} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>{catName}</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {doctypes.map(dt => {
-                        const links = linkedDocs[dt] || [];
-                        if (links.length === 0) return null;
-                        return (
-                          <div key={dt} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.6rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.7rem', fontWeight: 700 }}>
-                            <Link size={12} style={{ opacity: 0.5 }} />
-                            {dt}
-                            <span style={{ padding: '0.1rem 0.4rem', background: `${themeColor}15`, color: themeColor, borderRadius: '1rem', fontSize: '0.6rem' }}>{links.length}</span>
-                          </div>
-                        );
-                      })}
+                  <div key={dt} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', minWidth: '160px', padding: '0.85rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', marginBottom: '0.2rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: `${themeColor}10`, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                           <Link size={10} strokeWidth={2.5} />
+                        </div>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 900, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{dt}</span>
+                      </div>
+                      <span style={{ padding: '0.1rem 0.4rem', background: `${themeColor}15`, color: themeColor, borderRadius: '0.5rem', fontSize: '0.6rem', fontWeight: 900 }}>{links.length}</span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {links.map(link => (
+                        <button
+                          key={link.name}
+                          onClick={() => navigateToDoc(dt, link.name)}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '0.375rem',
+                            fontSize: '0.65rem',
+                            fontWeight: 800,
+                            color: '#1e293b',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            transition: 'all 0.2s'
+                          }}
+                          className="hover:border-indigo-300 hover:bg-white"
+                          title={`View ${dt}: ${link.name}`}
+                        >
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: link.docstatus === 1 ? '#10b981' : (link.docstatus === 2 ? '#ef4444' : '#f59e0b') }} />
+                          <span style={{ color: themeColor }}>{link.name}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 );
@@ -1030,6 +1103,31 @@ function PurchaseInvoiceList() {
     setShowSupplierDropdown(false);
   };
 
+  const handleUOMChange = (uomValue, rowIndex) => {
+    setFormData(prev => {
+      const items = [...prev.items];
+      const item = { ...items[rowIndex] };
+      const isBox = uomValue.toLowerCase() === 'box';
+      item.uom = uomValue;
+      item.use_box_entry = isBox;
+
+      if (isBox) {
+        // Box mode
+        const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
+        item.custom_pieces_per_box = pPerBox;
+        item.qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
+      } else {
+        // Nos mode
+        item.custom_pieces_per_box = 1;
+        item.qty = parseFloat(item.custom_box_qty) || 0;
+      }
+      item.amount = (parseFloat(item.qty) * (parseFloat(item.rate) || 0)).toFixed(2);
+      
+      items[rowIndex] = item;
+      return { ...prev, items };
+    });
+  };
+
   const selectItem = async (rowIndex, item) => {
     setFormData(prev => {
       const items = [...prev.items];
@@ -1038,15 +1136,16 @@ function PurchaseInvoiceList() {
         item_code: item.item_code,
         item_name: item.item_name,
         uom: item.stock_uom || 'Nos',
-        qty: 1,
+        qty: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
         rate: 0,
         amount: 0,
-        custom_box_qty: parseFloat(item.custom_box_qty || 0),
-        custom_pieces_per_box: parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1),
+        custom_box_qty: 1,
+        custom_pieces_per_box: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
+        default_pieces_per_box: parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1),
         custom_selling_price: parseFloat(item.custom_selling_price || 0),
         custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
         custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
-        use_box_entry: isBoxUom || (parseFloat(item.custom_pieces_per_box || 0) > 1)
+        use_box_entry: isBoxUom
       };
       return { ...prev, items };
     });
@@ -1114,25 +1213,25 @@ function PurchaseInvoiceList() {
       taxes: taxes.length > 0 ? taxes : null,
       items: formData.items
         .filter(i => i.item_code && i.qty > 0)
-        .map(i => ({
-          name: i.name || undefined,
-          doctype: "Purchase Invoice Item",
-          item_code: i.item_code,
-          qty: parseFloat(i.qty) || 1,
-          rate: parseFloat(i.rate || 0),
-          custom_box_qty: parseFloat(i.custom_box_qty || 0),
-          custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
-          custom_box_price: parseFloat(i.custom_box_price || 0),
-          custom_selling_price: parseFloat(i.custom_selling_price || 0),
-          custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
-          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
-          purchase_order: i.purchase_order || undefined,
-          purchase_order_item: i.purchase_order_item || undefined,
-          purchase_receipt: i.purchase_receipt || undefined,
-          purchase_receipt_item: i.purchase_receipt_item || undefined,
-          warehouse: (formData.update_stock && formData.accepted_warehouse && formData.accepted_warehouse !== 'undefined' && formData.accepted_warehouse !== 'null') ? formData.accepted_warehouse : '',
-          target_warehouse: (formData.update_stock && formData.accepted_warehouse && formData.accepted_warehouse !== 'undefined' && formData.accepted_warehouse !== 'null') ? formData.accepted_warehouse : ''
-        })),
+        .map(i => {
+          const isBox = (i.uom || '').toLowerCase() === 'box' || !!i.use_box_entry;
+          return {
+            name: i.name || undefined,
+            doctype: "Purchase Invoice Item",
+            item_code: i.item_code,
+            qty: parseFloat(i.qty) || 1,
+            rate: parseFloat(i.rate || 0),
+            custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
+            custom_pieces_per_box: isBox ? parseFloat(i.custom_pieces_per_box || 1) : 1,
+            custom_box_price: isBox ? parseFloat(i.custom_box_price || 0) : parseFloat(i.rate || 0),
+            custom_selling_price: parseFloat(i.custom_selling_price || 0),
+            custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+            custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+            purchase_order: i.purchase_order || undefined,
+            purchase_order_item: i.purchase_order_item || undefined,
+            purchase_receipt: i.purchase_receipt || undefined,
+          };
+        }),
       name: docName || undefined
     };
   };
@@ -1285,17 +1384,6 @@ function PurchaseInvoiceList() {
         <div className="so-page-header">
           <div className="so-page-left">
             <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <button 
-                onClick={() => navigate(-1)} 
-                style={{ 
-                  background: 'none', border: 'none', padding: '0.25rem', cursor: 'pointer', 
-                  color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: '0.375rem', transition: 'all 0.2s'
-                }}
-                className="hover:bg-slate-100"
-              >
-                <ChevronLeft size={24} />
-              </button>
               <Package size={20} style={{ color: themeColor }} /> 
               Purchase Invoices
             </h1>
@@ -1319,7 +1407,7 @@ function PurchaseInvoiceList() {
               {piTheme.toUpperCase()}
             </button>
 
-            <button onClick={openCreateModal} className="so-btn-primary">
+            <button onClick={() => setSearchParams({ name: 'new' })} className="so-btn-primary">
               <Plus size={16} /> Create Invoice
             </button>
           </div>
@@ -1437,7 +1525,7 @@ function PurchaseInvoiceList() {
                           </tr>
                         ) : (
                           paginated.map(inv => (
-                            <tr key={inv.name} onClick={() => handleRowClick(inv)} style={{ cursor: 'pointer' }}>
+                            <tr key={inv.name} onClick={() => setSearchParams({ name: inv.name })} style={{ cursor: 'pointer' }}>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                   <a 
@@ -1547,27 +1635,27 @@ function PurchaseInvoiceList() {
         </div>
 
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0, zIndex: 20000, top: '0', height: '100vh', background: 'white' }}>
+          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0, zIndex: 10500, top: '74px', height: 'calc(100vh - 74px)', background: 'white' }}>
             <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-              <div className="so-modal-header" style={{ padding: '0.75rem 2rem', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="so-modal-header" style={{ padding: '0.85rem 2rem', background: '#fff', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <h2 className="so-modal-title" style={{ fontSize: '1.1rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                    <Package size={20} style={{ color: themeColor }} />
-                    {isEditMode ? 'Modify' : isViewMode ? 'View' : 'New'} Purchase Invoice
-                    {formData.name && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginLeft: '0.5rem' }}>{formData.name}</span>}
-                  </h2>
+                  <div>
+                    <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} Purchase Invoice
+                    </h2>
+                    {formData.name && <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formData.name} • Accounts</p>}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                  {/* ACTIONS CONTAINER */}
-                  <div className="flex items-center gap-2" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                     {/* NEW DOC — not yet saved (docName is empty) */}
                     {!docName && (
                       <button 
                         onClick={() => handleDocAction('save')} 
                         disabled={saving} 
                         className="so-btn-primary" 
-                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)', transition: 'all 0.2s' }}
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                       >
                         {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                       </button>
@@ -1582,9 +1670,9 @@ function PurchaseInvoiceList() {
                             onClick={() => handleDocAction('save')} 
                             disabled={saving} 
                             className="so-btn-primary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)', transition: 'all 0.2s' }}
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                           >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                           </button>
                         )}
 
@@ -1607,7 +1695,7 @@ function PurchaseInvoiceList() {
                             className="so-btn-secondary" 
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
                           >
-                            <Edit2 size={14} /> EDIT DRAFT
+                             <Edit2 size={14} /> EDIT DRAFT
                           </button>
                         )}
 
@@ -1855,27 +1943,35 @@ function PurchaseInvoiceList() {
                         <thead>
                           <tr>
                             <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
-                            {columnConfig.filter(c => c.visible).map(col => {
+                            {(() => {
                               const hasAnyBox = formData.items.some(i => i.use_box_entry);
-                              let finalLabel = col.label;
-                              if (!hasAnyBox) {
-                                if (col.id === 'custom_box_qty') finalLabel = 'Qty';
-                                if (col.id === 'custom_pieces_per_box') finalLabel = 'Pcs/Box'; 
-                              }
-                              return (
-                                <th
-                                  key={col.id}
-                                  style={{ 
-                                    width: col.width, 
-                                    minWidth: col.id === 'item_code' ? 200 : undefined, 
-                                    textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
-                                               ['custom_box_qty', 'custom_pieces_per_box', 'qty', 'accepted_qty', 'rejected_qty', 'uom', 'custom_ref_sl_no', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left' 
-                                  }}
-                                >
-                                  {finalLabel}
-                                </th>
-                              );
-                            })}
+                              const activeCols = columnConfig.filter(c => {
+                                if (!c.visible) return false;
+                                if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                return true;
+                              });
+                              
+                              return activeCols.map(col => {
+                                let finalLabel = col.label;
+                                if (!hasAnyBox) {
+                                  if (col.id === 'custom_box_qty') finalLabel = 'Qty';
+                                }
+
+                                return (
+                                  <th
+                                    key={col.id}
+                                    style={{ 
+                                      width: col.width, 
+                                      minWidth: col.id === 'item_code' ? 200 : undefined,
+                                      textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
+                                                 ['custom_box_qty', 'custom_pieces_per_box', 'qty', 'uom', 'custom_ref_sl_no', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left'
+                                    }}
+                                  >
+                                    {finalLabel}
+                                  </th>
+                                );
+                              });
+                            })()}
                             <th style={{ width: '40px', textAlign: 'center' }}>
                               {!isViewMode && (
                                 <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Configure Columns">
@@ -1890,44 +1986,59 @@ function PurchaseInvoiceList() {
                             <tr key={i}>
                               <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>{i + 1}</td>
                               
-                              {columnConfig.filter(c => c.visible).map(col => {
-                                switch (col.id) {
+                              {(() => {
+                                const hasAnyBox = formData.items.some(i => i.use_box_entry);
+                                const activeCols = columnConfig.filter(c => {
+                                  if (!c.visible) return false;
+                                  if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                  return true;
+                                });
+                                
+                                return activeCols.map(col => {
+                                  switch (col.id) {
                                   case 'custom_box_qty':
                                     return (
                                       <td key={col.id}>
-                                        {isViewMode || !item.use_box_entry ? (
-                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: item.use_box_entry ? themeColor : '#94a3b8' }}>{item.use_box_entry ? (item.custom_box_qty || 0) : '—'}</div>
-                                            {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: themeColor }}>BOXES</div>}
-                                          </div>
-                                        ) : (
-                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                          {isViewMode ? (
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', color: item.use_box_entry ? themeColor : '#1e293b' }}>
+                                              {item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
+                                            </div>
+                                          ) : (
                                             <input
                                               type="number"
-                                              value={item.custom_box_qty || 0}
-                                              onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
+                                              value={item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
+                                              onChange={e => updateItem(i, item.use_box_entry ? 'custom_box_qty' : 'qty', e.target.value)}
                                               className="so-input"
-                                              style={{ textAlign: 'center', height: '36px', border: `1px solid ${themeColor}40` }}
+                                              style={{ textAlign: 'center', height: '36px', border: item.use_box_entry ? `1px solid ${themeColor}40` : '1px solid #e2e8f0' }}
                                             />
-                                            {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: themeColor }}>BOXES</div>}
-                                          </div>
-                                        )}
+                                          )}
+                                          {item.item_code && (
+                                            <div style={{ fontSize: '0.55rem', fontWeight: 800, color: item.use_box_entry ? themeColor : '#94a3b8' }}>
+                                              {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                            </div>
+                                          )}
+                                        </div>
                                       </td>
                                     );
                                   case 'custom_pieces_per_box':
                                     return (
                                       <td key={col.id}>
-                                        {isViewMode || !item.use_box_entry ? (
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}>{item.use_box_entry ? (item.custom_pieces_per_box || 1) : '—'}</div>
-                                          ) : (
-                                            <input
-                                              type="number"
-                                              value={item.custom_pieces_per_box || 1}
-                                              onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
-                                              className="so-input"
-                                              style={{ textAlign: 'center', height: '36px' }}
-                                            />
-                                          )}
+                                        {item.use_box_entry ? (
+                                          isViewMode ? (
+                                              <div style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center' }}>{(item.custom_pieces_per_box || 1)}</div>
+                                            ) : (
+                                              <input
+                                                type="number"
+                                                value={item.custom_pieces_per_box || 1}
+                                                onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                                className="so-input"
+                                                style={{ textAlign: 'center', height: '36px' }}
+                                              />
+                                            )
+                                        ) : (
+                                          <div style={{ textAlign: 'center', color: '#cbd5e1', fontWeight: 'bold' }}>—</div>
+                                        )}
                                       </td>
                                     );
                                   case 'item_code':
@@ -1989,27 +2100,50 @@ function PurchaseInvoiceList() {
                                   case 'uom':
                                     return (
                                       <td key={col.id} style={{ textAlign: 'center' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                          <span className="text-[10px] font-bold text-slate-700 uppercase">
-                                            {item.use_box_entry ? 'BOX' : (item.uom || 'NOS')}
-                                          </span>
-                                        </div>
+                                        {isViewMode ? (
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <span className="text-[10px] font-bold text-slate-700 uppercase">
+                                              {item.use_box_entry ? 'BOX' : (item.uom || 'NOS')}
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <select
+                                            value={item.uom || ''}
+                                            onChange={(e) => handleUOMChange(e.target.value, i)}
+                                            style={{ 
+                                              width: '100%', textAlign: 'center', fontSize: '0.75rem', 
+                                              fontWeight: 'bold', color: '#475569', background: '#fff', 
+                                              border: '1px solid #e2e8f0', borderRadius: '0.25rem', 
+                                              cursor: 'pointer', outline: 'none', padding: '2px' 
+                                            }}
+                                          >
+                                            {(item.uom_list && item.uom_list.length > 0 ? item.uom_list : [{ uom: item.uom || 'Nos' }]).map(u => (
+                                              <option key={u.uom} value={u.uom}>{u.uom}</option>
+                                            ))}
+                                            {!item.uom_list?.some(u => u.uom === 'Box') && <option value="Box">Box</option>}
+                                            {!item.uom_list?.some(u => u.uom === (item.uom || 'Nos')) && <option value={item.uom || 'Nos'}>{item.uom || 'Nos'}</option>}
+                                          </select>
+                                        )}
                                       </td>
                                     );
                                   case 'custom_box_price':
                                     return (
                                       <td key={col.id} style={{ textAlign: 'right' }}>
-                                        {isViewMode ? (
-                                          <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{formatPrice(item.custom_box_price)}</span>
+                                        {item.use_box_entry ? (
+                                          isViewMode ? (
+                                            <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{formatPrice(item.custom_box_price)}</span>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.custom_box_price || 0}
+                                              onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
+                                              className="so-input"
+                                              style={{ textAlign: 'right', height: '36px' }}
+                                              step="0.01"
+                                            />
+                                          )
                                         ) : (
-                                          <input
-                                            type="number"
-                                            value={item.custom_box_price || 0}
-                                            onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
-                                            className="so-input"
-                                            style={{ textAlign: 'right', height: '36px' }}
-                                            step="0.01"
-                                          />
+                                          <span style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 'bold', paddingRight: '0.5rem' }}>—</span>
                                         )}
                                       </td>
                                     );
@@ -2050,9 +2184,9 @@ function PurchaseInvoiceList() {
                                         <span style={{ fontWeight: 900, color: '#1e293b', fontSize: '0.85rem' }}>{formatPrice(item.amount)}</span>
                                       </td>
                                     );
-                                  default: return null;
-                                }
-                              })}
+                                  }
+                                });
+                              })()}
                               
                               <td style={{ textAlign: 'center' }}>
                                 {!isViewMode && (

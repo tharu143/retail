@@ -94,6 +94,14 @@ const POSService = {
         });
     },
 
+    getLastOfflineId: async (prefix) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_last_offline_id_retail',
+            args: { prefix },
+            type: 'GET'
+        });
+    },
+
     // 4. OFFLINE SYNC (Bulk)
     bulkSyncInvoices: async (invoices) => {
         // Ensure customer exists, default to Cash for walk-ins

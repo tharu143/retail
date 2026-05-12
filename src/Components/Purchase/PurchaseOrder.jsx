@@ -6,25 +6,26 @@ import Swal from 'sweetalert2';
 import {
   AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, Users,
   DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
-  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Settings
+  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Settings, Link
 } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
+import { useNavigate } from 'react-router-dom';
 import CustomSearchDropdown from './CustomSearchDropdown';
 import ColumnConfigModal from './ColumnConfigModal';
 import './Purchase.css';
 import '../Headers/LegacyPOS.css';
 
 const DEFAULT_PO_COLUMNS = [
-  { id: 'item_code',          label: 'Item Code',         visible: true,  width: 240 },
-  { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 160 },
-  { id: 'custom_box_qty',     label: 'Box Qty',           visible: true,  width: 90  },
-  { id: 'uom',                label: 'UOM',               visible: true,  width: 80  },
-  { id: 'custom_pieces_per_box', label: 'Pcs/Box',        visible: true,  width: 90  },
-  { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 120 },
-  { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 120 },
-  { id: 'custom_selling_price', label: 'Selling Price',   visible: true,  width: 120 },
-  { id: 'qty',                label: 'Total Qty',         visible: true,  width: 100 },
-  { id: 'amount',             label: 'Subtotal',          visible: true,  width: 140 }
+  { id: 'item_code', label: 'Item Code', visible: true, width: 240 },
+  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 160 },
+  { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+  { id: 'uom', label: 'UOM', visible: true, width: 80 },
+  { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
+  { id: 'custom_box_price', label: 'Box Price', visible: true, width: 120 },
+  { id: 'rate', label: 'Rate (Nos)', visible: true, width: 120 },
+  { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 120 },
+  { id: 'qty', label: 'Total Qty', visible: true, width: 100 },
+  { id: 'amount', label: 'Subtotal', visible: true, width: 140 }
 ];
 
 const POItemModel = {
@@ -48,7 +49,21 @@ const POItemModel = {
 };
 
 function PurchaseOrder() {
+  const navigate = useNavigate();
   const theme = useSelector((state) => state.user.theme);
+
+  const navigateToDoc = (doctype, docname) => {
+    const routes = {
+      'Purchase Order': '/purchaseorder',
+      'Purchase Receipt': '/purchasereceiptlist',
+      'Purchase Invoice': '/purchaseinvoicelist',
+    };
+    const route = routes[doctype];
+    if (route) {
+      if (docname === formData.name) return; // Already on this doc
+      navigate(`${route}?name=${encodeURIComponent(docname)}`);
+    }
+  };
   const [formData, setFormData] = useState({
     name: '', // For draft name
     supplier: null,
@@ -121,11 +136,11 @@ function PurchaseOrder() {
         const parsed = JSON.parse(saved);
         const defaultIds = DEFAULT_PO_COLUMNS.map(c => c.id);
         const savedIds = parsed.map(c => c.id);
-        
+
         // Match only valid PO columns and append any missing defaults
         const existing = parsed.filter(c => defaultIds.includes(c.id));
         const missing = DEFAULT_PO_COLUMNS.filter(c => !savedIds.includes(c.id));
-        
+
         return [...existing, ...missing];
       }
     } catch (e) { console.error("PO Style Config Error:", e); }
@@ -168,6 +183,15 @@ function PurchaseOrder() {
       // Handle both nested data and direct message response structures
       const details = res.data.message?.data || res.data.message || {};
       setAllowedActions(details.allowed_actions || []);
+
+      // Update completion percentages in formData for UI logic
+      if (details.per_received !== undefined || details.per_billed !== undefined) {
+        setFormData(prev => ({
+          ...prev,
+          per_received: details.per_received ?? prev.per_received,
+          per_billed: details.per_billed ?? prev.per_billed
+        }));
+      }
     } catch (err) { console.error("Workflow fetch failed", err); }
   };
 
@@ -185,15 +209,15 @@ function PurchaseOrder() {
     };
 
     if (confirmMap[action]) {
-        const result = await Swal.fire({
-            title: action.toUpperCase(),
-            text: confirmMap[action],
-            icon: action === 'delete' ? 'error' : 'warning',
-            showCancelButton: true,
-            confirmButtonColor: action === 'cancel' || action === 'delete' ? '#ef4444' : '#0ea5e9',
-            confirmButtonText: `Yes, ${action} it!`
-        });
-        if (!result.isConfirmed) return;
+      const result = await Swal.fire({
+        title: action.toUpperCase(),
+        text: confirmMap[action],
+        icon: action === 'delete' ? 'error' : 'warning',
+        showCancelButton: true,
+        confirmButtonColor: action === 'cancel' || action === 'delete' ? '#ef4444' : '#0ea5e9',
+        confirmButtonText: `Yes, ${action} it!`
+      });
+      if (!result.isConfirmed) return;
     }
 
     setSaving(true);
@@ -201,64 +225,67 @@ function PurchaseOrder() {
       // 1. Prepare data for Save/Submit if needed
       let payload = null;
       if (action === 'save' || action === 'submit') {
-          payload = {
-            supplier: formData.supplier?.name || formData.supplier,
-            company: formData.company,
-            transaction_date: formData.transaction_date,
-            set_warehouse: formData.set_warehouse,
-            currency: formData.currency || 'AED',
-            conversion_rate: 1.0,
-            taxes_and_charges: formData.taxes_and_charges,
-            items: formData.items.filter(i => i.item_code).map(item => ({
+        payload = {
+          supplier: formData.supplier?.name || formData.supplier,
+          company: formData.company,
+          transaction_date: formData.transaction_date,
+          set_warehouse: formData.set_warehouse,
+          currency: formData.currency || 'AED',
+          conversion_rate: 1.0,
+          taxes_and_charges: formData.taxes_and_charges,
+          items: formData.items.filter(i => i.item_code).map(item => {
+            const isBox = (item.uom || '').toLowerCase() === 'box' || !!item.use_box_entry;
+            return {
               item_code: item.item_code,
               item_name: item.item_name,
               qty: parseFloat(item.qty),
               uom: item.uom,
               rate: parseFloat(item.rate),
               schedule_date: item.schedule_date || formData.transaction_date,
-              custom_pieces_per_box: parseFloat(item.custom_pieces_per_box || 1),
-              custom_box_qty: parseFloat(item.custom_box_qty || 0),
-              custom_box_price: parseFloat(item.custom_box_price || 0),
+              custom_pieces_per_box: isBox ? parseFloat(item.custom_pieces_per_box || 1) : 1,
+              custom_box_qty: isBox ? parseFloat(item.custom_box_qty || 0) : parseFloat(item.qty),
+              custom_box_price: isBox ? parseFloat(item.custom_box_price || 0) : parseFloat(item.rate),
               custom_selling_price: parseFloat(item.custom_selling_price || 0),
               custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
               custom_supplier_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
               custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
               supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || ""
-            })),
-            taxes: (formData.taxes || []).map(t => ({
-              charge_type: t.charge_type,
-              account_head: t.account_head,
-              rate: parseFloat(t.rate),
-              tax_amount: parseFloat(t.tax_amount),
-              description: t.description || t.account_head
-            })),
-            total: parseFloat(formData.total),
-            tax_total: parseFloat(formData.tax_total),
-            total_qty: parseFloat(formData.total_qty),
-            grand_total: parseFloat(formData.grand_total),
-            naming_series: formData.naming_series || 'PO-',
-            name: formData.name || undefined
-          };
+            };
+          }),
+          taxes: (formData.taxes || []).map(t => ({
+            charge_type: t.charge_type,
+            account_head: t.account_head,
+            rate: parseFloat(t.rate),
+            tax_amount: parseFloat(t.tax_amount),
+            description: t.description || t.account_head
+          })),
+          total: parseFloat(formData.total),
+          tax_total: parseFloat(formData.tax_total),
+          total_qty: parseFloat(formData.total_qty),
+          grand_total: parseFloat(formData.grand_total),
+          naming_series: formData.naming_series || 'PO-',
+          name: formData.name || undefined
+        };
       }
 
       let res;
       if (action === 'save' || action === 'submit') {
-          res = await axios.post(`${API_PATH}.save_transaction_document`, {
-            doctype: 'Purchase Order',
-            doc_data: payload,
-            action: action
-          }, { withCredentials: true });
+        res = await axios.post(`${API_PATH}.save_transaction_document`, {
+          doctype: 'Purchase Order',
+          doc_data: payload,
+          action: action
+        }, { withCredentials: true });
       } else if (action === 'amend') {
-          // Use Dedicated Amend logic
-          return handleAmendEntry();
+        // Use Dedicated Amend logic
+        return handleAmendEntry();
       } else {
-          // Use Workflow Engine for Lifecycle actions
-          res = await axios.post(`${API_PATH}.handle_document_action`, {
-            doctype: 'Purchase Order',
-            docname: formData.name || undefined,
-            action: action,
-            doc_data: undefined
-          }, { withCredentials: true });
+        // Use Workflow Engine for Lifecycle actions
+        res = await axios.post(`${API_PATH}.handle_document_action`, {
+          doctype: 'Purchase Order',
+          docname: formData.name || undefined,
+          action: action,
+          doc_data: undefined
+        }, { withCredentials: true });
       }
 
       const rawMsg = res.data.message || {};
@@ -267,24 +294,24 @@ function PurchaseOrder() {
       if (success) {
         setLastSavedData(JSON.stringify(payload)); // Update base for dirty check after save
         Swal.fire('Success', `${action.toUpperCase()} operation completed successfully.`, 'success');
-        
+
         if (action === 'delete') {
-            navigate('/purchaseorderlist');
-            return;
+          navigate('/purchaseorderlist');
+          return;
         }
 
         // Get the doc name from either response structure
         const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || formData.name;
-        
+
         if (nextDoc !== formData.name) {
-            // Amendment or new doc creation
-            loadDraft(nextDoc);
-            if (action === 'amend') setIsViewOnly(false);
+          // Amendment or new doc creation
+          loadDraft(nextDoc);
+          if (action === 'amend') setIsViewOnly(false);
         } else {
-            loadDraft(formData.name);
+          loadDraft(formData.name);
         }
       } else {
-          throw new Error(rawMsg.message || "Operation failed");
+        throw new Error(rawMsg.message || "Operation failed");
       }
     } catch (err) {
       Swal.fire('Matrix Error', err.response?.data?.message || err.message, 'error');
@@ -562,6 +589,7 @@ function PurchaseOrder() {
           supplier_part_no: it.supplier_part_no || it.custom_supplier_sl_num || '',
           custom_box_qty: parseFloat(parseFloat(it.custom_box_qty || 0).toFixed(2)),
           custom_pieces_per_box: parseFloat(parseFloat(it.custom_pieces_per_box || 1).toFixed(2)),
+          default_pieces_per_box: parseFloat(parseFloat(it.custom_pieces_per_box || 1).toFixed(2)),
           custom_box_price: parseFloat(parseFloat(it.custom_box_price || 0).toFixed(2)),
           custom_selling_price: parseFloat(parseFloat(it.custom_selling_price || 0).toFixed(2)),
           qty: parseFloat(parseFloat(it.qty || 0).toFixed(2)),
@@ -569,8 +597,7 @@ function PurchaseOrder() {
           amount: parseFloat(parseFloat(it.amount || 0).toFixed(2)),
           purchase_order: it.purchase_order || '',
           purchase_order_item: it.purchase_order_item || '',
-          use_box_entry: it.uom === 'Box' || 
-            (parseFloat(it.custom_box_qty) > 0 && Math.abs((parseFloat(it.qty) || parseFloat(it.accepted_qty)) - (parseFloat(it.custom_box_qty) * parseFloat(it.custom_pieces_per_box || 1))) < 0.1),
+          use_box_entry: (it.uom || '').toLowerCase() === 'box',
         })),
         total_qty: parseFloat(parseFloat(draft.total_qty || 0).toFixed(2)),
         total: parseFloat(parseFloat(draft.total || 0).toFixed(2)),
@@ -641,7 +668,7 @@ function PurchaseOrder() {
       const data = await res.json();
       const templates = data.message || [];
       setTaxTemplates(templates);
-      
+
       // Auto-set default 5% tax for NEW documents if nothing selected
       if (!formData.name && !formData.taxes_and_charges && templates.length > 0) {
         const defaultTax = templates.find(t => t.name === 'UAE VAT 5%') || templates.find(t => t.name.includes('5%'));
@@ -718,7 +745,7 @@ function PurchaseOrder() {
         withCredentials: true
       });
       Swal.fire('Cancelled', 'Document status updated to Cancelled', 'success');
-      loadDraft(formData.name); 
+      loadDraft(formData.name);
     } catch (err) {
       Swal.fire('Failed', err.response?.data?.message || 'Cancel failed', 'error');
     } finally {
@@ -746,12 +773,12 @@ function PurchaseOrder() {
       });
       // Extract name robustly
       const newDraftName = res.data?.message?.data?.name || res.data?.data?.name || res.data?.message?.name || res.data?.new_name;
-      
+
       if (!newDraftName) throw new Error("Could not extract new document name. Server response: " + JSON.stringify(res.data));
 
       Swal.fire('Amended!', `New draft created: ${newDraftName}`, 'success');
       loadDraft(newDraftName);
-      setIsViewOnly(false); 
+      setIsViewOnly(false);
       setIsUpdateMode(false);
     } catch (err) {
       Swal.fire('Failed', err.response?.data?.message || 'Amend failed', 'error');
@@ -775,7 +802,7 @@ function PurchaseOrder() {
     setSaving(true);
     try {
       const itemData = formData.items.map(it => ({
-        name: it.name, 
+        name: it.name,
         qty: parseFloat(it.qty) || 0,
         rate: parseFloat(it.rate) || 0
       }));
@@ -806,7 +833,7 @@ function PurchaseOrder() {
       const doc = data.data || {};
       const uomRows = doc.uoms || [];
       const list = uomRows.map(u => ({ uom: u.uom, conversion_factor: parseFloat(u.conversion_factor) || 1 }));
-      
+
       const stockUom = doc.stock_uom || 'Nos';
       if (!list.find(u => u.uom === stockUom)) {
         list.unshift({ uom: stockUom, conversion_factor: 1 });
@@ -817,7 +844,7 @@ function PurchaseOrder() {
         list.push({ uom: "Nos", conversion_factor: 1 });
       }
       if (!list.find(u => (u.uom || '').toLowerCase() === "box")) {
-        list.push({ uom: "Box", conversion_factor: 0 }); 
+        list.push({ uom: "Box", conversion_factor: 0 });
       }
       return list;
     } catch (err) {
@@ -836,7 +863,8 @@ function PurchaseOrder() {
 
       if (isBox) {
         // Box mode: qty = box_qty × pcs_per_box
-        const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+        const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
+        item.custom_pieces_per_box = pPerBox;
         item.qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
         item.custom_box_price = parseFloat(((item.rate || 0) * pPerBox).toFixed(2));
       } else {
@@ -854,16 +882,16 @@ function PurchaseOrder() {
 
   const handleInputChange = (e, rowIndex = null) => {
     const { name, value } = e.target;
-    
+
     // We strictly use the raw string 'value' for the field being typed to avoid stripping dots
     setFormData(prev => {
       const newState = { ...prev };
       const items = [...prev.items];
-      
+
       if (rowIndex !== null) {
         const item = { ...items[rowIndex] };
         item[name] = value; // PRESERVE TYPING
-        
+
         // Calculate numeric equivalent for dependencies
         const val = (value === '' || value === '.') ? 0 : parseFloat(value);
         const isBoxMode = item.use_box_entry;
@@ -996,7 +1024,7 @@ function PurchaseOrder() {
       if (res.ok) {
         const data = await res.json();
         const msg = data.message || {};
-        
+
         // Use the new connections structure
         if (msg.status === 'success' || msg.connections) {
           const connections = msg.connections || [];
@@ -1005,7 +1033,7 @@ function PurchaseOrder() {
           // Flatten for easy access elsewhere
           let flattened = {};
           let allDocs = [];
-          
+
           connections.forEach(group => {
             group.items.forEach(item => {
               const key = item.label.replace(/ /g, '_');
@@ -1026,9 +1054,9 @@ function PurchaseOrder() {
               });
               if (r.ok) {
                 const docData = await r.json();
-                statuses[docName] = { 
-                  docstatus: docData.data?.docstatus ?? 0, 
-                  status: docData.data?.status || (docData.data?.docstatus === 1 ? 'Submitted' : 'Draft') 
+                statuses[docName] = {
+                  docstatus: docData.data?.docstatus ?? 0,
+                  status: docData.data?.status || (docData.data?.docstatus === 1 ? 'Submitted' : 'Draft')
                 };
               }
             } catch (err) { console.error('fetchDocStatus err:', err); }
@@ -1055,9 +1083,9 @@ function PurchaseOrder() {
         fetchLinkedDocs(formData.name);
       }
     } catch (err) {
-        Swal.fire('Error', err.response?.data?.message || err.message, 'error');
+      Swal.fire('Error', err.response?.data?.message || err.message, 'error');
     } finally {
-        setSaving(false);
+      setSaving(false);
     }
   };
 
@@ -1161,7 +1189,7 @@ function PurchaseOrder() {
           supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || "",
           warehouse: (formData.set_warehouse && formData.set_warehouse !== "undefined" && formData.set_warehouse !== "null") ? formData.set_warehouse : ""
         })),
-          taxes: (formData.taxes || []).map(t => ({
+        taxes: (formData.taxes || []).map(t => ({
           charge_type: t.charge_type,
           account_head: t.account_head,
           rate: parseFloat(t.rate),
@@ -1348,7 +1376,7 @@ function PurchaseOrder() {
         const res = await axios.post(`${OLD_API}.${endpoint}`, {
           po_name: formData.name
         }, { withCredentials: true });
-        
+
         const msg = res.data.message || res.data;
         if (msg.status === 'success' || (msg.success && msg.name)) return msg.name;
         throw new Error(msg.message || msg.exc_type || 'Failed to create document');
@@ -1467,10 +1495,11 @@ function PurchaseOrder() {
           use_box_entry: false, // default Nos mode
           rate: rate,
           last_buying_rate: rate,
-          custom_pieces_per_box: pPerBox,
-          qty: pPerBox,
-          amount: rate * pPerBox,
-          custom_box_price: rate * pPerBox,
+          custom_pieces_per_box: 1,
+          default_pieces_per_box: pPerBox,
+          qty: 1,
+          amount: rate,
+          custom_box_price: rate,
           custom_box_qty: 1,
           temp_barcode: '',
           schedule_date: items[rowIndex].schedule_date || prev.transaction_date,
@@ -1515,10 +1544,10 @@ function PurchaseOrder() {
         ...it,
         rate: parseFloat(it.last_buying_rate || it.rate || 0)
       }));
-      
+
       // Client-side filtering as a fallback if backend returns everything
-      const filtered = results.filter(it => 
-        (it.item_name || '').toLowerCase().includes(query.toLowerCase()) || 
+      const filtered = results.filter(it =>
+        (it.item_name || '').toLowerCase().includes(query.toLowerCase()) ||
         (it.item_code || '').toLowerCase().includes(query.toLowerCase()) ||
         (it.supplier_part_no || '').toLowerCase().includes(query.toLowerCase()) ||
         (it.custom_supplier_sl_num || '').toLowerCase().includes(query.toLowerCase()) ||
@@ -1558,13 +1587,13 @@ function PurchaseOrder() {
           <div className="flex items-center gap-3">
             {/* New Document Save */}
             {!formData.name && (
-              <button 
-                onClick={() => handleDocAction('save')} 
-                disabled={saving} 
-                className="flex items-center gap-2 px-8 py-2 bg-[var(--po-primary)] text-white rounded-xl text-xs font-black hover:bg-[var(--po-primary-hover)] transition-all shadow-lg shadow-emerald-200 active:scale-95"
+              <button
+                onClick={() => handleDocAction('save')}
+                disabled={saving}
+                className="so-btn-primary"
+                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} />}
-                SAVE DRAFT
+                {saving ? <Loader2 size={14} className="animate-spin" /> : 'SAVE DRAFT'}
               </button>
             )}
 
@@ -1574,19 +1603,31 @@ function PurchaseOrder() {
                 {/* Draft Phase */}
                 {formData.docstatus === 0 && (
                   <>
-                     {(allowedActions.includes('save') && isDirty) && !isViewOnly && (
-                      <button onClick={() => handleDocAction('save')} className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-[11px] font-black text-blue-700 hover:bg-blue-100 transition-all shadow-sm">
-                        <Save size={14} /> UPDATE DRAFT
+                    {(allowedActions.includes('save') && isDirty) && !isViewOnly && (
+                      <button
+                        onClick={() => handleDocAction('save')}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : 'SAVE DRAFT'}
                       </button>
                     )}
                     {allowedActions.includes('submit') && !isDirty && (
-                      <button onClick={() => handleDocAction('submit')} className="flex items-center gap-2 px-6 py-1.5 bg-emerald-600 text-white rounded-lg text-[11px] font-black hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 ring-2 ring-emerald-500/20">
-                        <Send size={14} /> SUBMIT
+                      <button
+                        onClick={() => handleDocAction('submit')}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        SUBMIT
                       </button>
                     )}
                     {isViewOnly && (
-                      <button onClick={() => setIsViewOnly(false)} className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-                        <Edit2 size={14} className="text-blue-500" /> EDIT DRAFT
+                      <button
+                        onClick={() => setIsViewOnly(false)}
+                        className="so-btn-secondary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
+                      >
+                        <Edit3 size={14} /> EDIT DRAFT
                       </button>
                     )}
                   </>
@@ -1596,13 +1637,16 @@ function PurchaseOrder() {
                 {formData.docstatus === 1 && (
                   <div className="flex items-center gap-2">
                     {allowedActions.includes('cancel') && (
-                      <button onClick={() => handleDocAction('cancel')} className="flex items-center gap-2 px-4 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-black text-rose-700 hover:bg-rose-100 transition-all shadow-sm">
-                        <X size={14} /> CANCEL
+                      <button
+                        onClick={() => handleDocAction('cancel')}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
+                      >
+                        CANCEL
                       </button>
                     )}
-                    <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg text-[11px] font-black text-emerald-700 shadow-sm">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Submitted
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 1rem', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                      <CheckCircle2 size={14} /> SUBMITTED
                     </div>
                   </div>
                 )}
@@ -1611,17 +1655,27 @@ function PurchaseOrder() {
                 {formData.docstatus === 2 && (
                   <div className="flex items-center gap-2">
                     {allowedActions.includes('amend') && (
-                      <button onClick={() => handleDocAction('amend')} className="flex items-center gap-2 px-4 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-[11px] font-black text-sky-700 hover:bg-sky-100 transition-all shadow-sm">
-                        <History size={14} /> AMEND
+                      <button
+                        onClick={() => handleDocAction('amend')}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)' }}
+                      >
+                        AMEND
                       </button>
                     )}
-                    <div className="px-3 py-1 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase">Cancelled</div>
+                    <div style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.5rem', textTransform: 'uppercase' }}>
+                      CANCELLED
+                    </div>
                   </div>
                 )}
 
                 {/* Always show delete for drafts */}
                 {formData.docstatus === 0 && allowedActions.includes('delete') && (
-                   <button onClick={() => handleDocAction('delete')} className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-black text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm">
+                  <button
+                    onClick={() => handleDocAction('delete')}
+                    className="so-btn-ghost"
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase' }}
+                  >
                     <Trash2 size={14} /> DELETE
                   </button>
                 )}
@@ -1639,7 +1693,7 @@ function PurchaseOrder() {
                   <div className="flex flex-col items-center justify-center py-4 border-b border-slate-100 mb-6">
                     <Zap className="w-4 h-4 text-indigo-500 mb-1.5 opacity-80 shrink-0" />
                     <h3 className="font-black text-slate-400 uppercase leading-none whitespace-nowrap" style={{ fontSize: '8px', letterSpacing: '0.2em' }}>
-                       Connections
+                      Connections
                     </h3>
                   </div>
 
@@ -1668,40 +1722,35 @@ function PurchaseOrder() {
                       )}
                     </div>
                   )}
-
                   <div className="flex flex-col gap-5 overflow-y-auto max-h-[70vh] pr-1 po-sidebar-scroll">
                     {linkedConnections.length > 0 ? (
                       linkedConnections.filter(g => g.items.some(i => i.count > 0)).map((group) => (
                         <div key={group.group} className="flex flex-col gap-2.5">
                           <span className="text-[9px] font-black text-slate-300 uppercase tracking-tight">{group.group}</span>
-                          <div className="flex flex-col gap-1.5">
+                          <div className="flex flex-row flex-wrap gap-3">
                             {group.items.filter(item => item.count > 0).map((item) => (
                               <div key={item.label} className="bg-slate-50/50 rounded-xl p-3 border border-slate-100/50">
                                 <div className="flex items-center justify-between mb-2">
-                                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{item.label}</span>
+                                  <div className="flex items-center gap-2">
+                                    <Link size={10} className="text-slate-400" />
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{item.label}</span>
+                                  </div>
                                   <span className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded-md font-bold">{item.count}</span>
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="flex flex-wrap gap-1.5">
                                   {(item.names || []).map(id => {
                                     const s = linkedDocStatuses[id];
                                     const isSub = s?.docstatus === 1;
                                     return (
-                                      <div key={id} className="group/id flex items-center justify-between gap-2 p-1 hover:bg-white rounded-md transition-all">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
-                                          <span className="text-[10px] font-bold text-slate-700 tabular-nums truncate" title={id}>{id}</span>
-                                        </div>
-                                        {isSub ? (
-                                            <div className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[7px] font-black uppercase">Active</div>
-                                        ) : (
-                                          <button 
-                                            onClick={() => handleDocActionExternally(id, item.label, 'submit')} 
-                                            className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[7px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                                          >
-                                            Submit
-                                          </button>
-                                        )}
-                                      </div>
+                                      <button
+                                        key={id}
+                                        onClick={() => navigateToDoc(item.label, id)}
+                                        className="group/id flex items-center gap-1.5 p-1 px-2 bg-white border border-slate-100 rounded-md transition-all hover:border-indigo-200 hover:shadow-sm"
+                                        title={`View ${item.label}: ${id}`}
+                                      >
+                                        <div className={`w-1 h-1 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
+                                        <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{id}</span>
+                                      </button>
                                     );
                                   })}
                                 </div>
@@ -1713,7 +1762,7 @@ function PurchaseOrder() {
                     ) : (
                       <div className="py-4 text-center">
                         <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 opacity-50">
-                           <Box size={16} className="text-slate-300" />
+                          <Box size={16} className="text-slate-300" />
                         </div>
                         <p className="text-[9px] font-bold text-slate-400 italic">No connections yet</p>
                       </div>
@@ -1750,518 +1799,531 @@ function PurchaseOrder() {
 
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-4'} animate-fadeIn`}>
-                  <div className="po-card-header !bg-slate-50/50">
-                    <h3 className="po-card-title flex items-center gap-2">
-                      <Users className="w-4 h-4 text-[var(--po-primary)]" />
-                      Supplier Information
-                    </h3>
-                  </div>
-                  <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-6`}>
-                    <div>
-                      <label className="po-label">Series</label>
-                      <select
-                        name="naming_series"
-                        value={formData.naming_series}
-                        onChange={handleInputChange}
-                        onKeyDown={handleNextFocus}
-                        disabled={isViewOnly || formData.docstatus !== 0}
-                        className="po-input font-bold text-[var(--po-primary)] disabled:bg-slate-50 disabled:cursor-not-allowed border-none shadow-none text-base"
-                      >
-                        <option value="PUR-ORD-.YYYY.-">PUR-ORD-.YYYY.-</option>
-                      </select>
+                  <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-4'} animate-fadeIn`}>
+                    <div className="po-card-header !bg-slate-50/50">
+                      <h3 className="po-card-title flex items-center gap-2">
+                        <Users className="w-4 h-4 text-[var(--po-primary)]" />
+                        Supplier Information
+                      </h3>
                     </div>
-                    <div className={isViewOnly ? 'col-span-2 bg-slate-50/50 p-2 rounded-lg border border-dashed border-slate-100' : ''}>
-                      <label className="po-label">Supplier / Vendor</label>
-                      <div onKeyDown={handleNextFocus}>
-                        {isViewOnly || formData.docstatus !== 0 ? (
-                          <div className="po-input bg-transparent border-none shadow-none text-slate-800 font-black flex items-center h-[42px] text-base px-0">
-                            {formData.supplier?.supplier_name || formData.supplier || 'No Supplier'}
+                    <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-6`}>
+                      <div>
+                        <label className="po-label">Series</label>
+                        <select
+                          name="naming_series"
+                          value={formData.naming_series}
+                          onChange={handleInputChange}
+                          onKeyDown={handleNextFocus}
+                          disabled={isViewOnly || formData.docstatus !== 0}
+                          className="po-input font-bold text-[var(--po-primary)] disabled:bg-slate-50 disabled:cursor-not-allowed border border-slate-200 shadow-none text-base"
+                        >
+                          <option value="PUR-ORD-.YYYY.-">PUR-ORD-.YYYY.-</option>
+                        </select>
+                      </div>
+                      <div className={isViewOnly ? 'col-span-2 bg-slate-50/50 p-2 rounded-lg border border-dashed border-slate-100' : ''}>
+                        <label className="po-label">Supplier / Vendor</label>
+                        <div onKeyDown={handleNextFocus}>
+                          {isViewOnly || formData.docstatus !== 0 ? (
+                            <div className="po-input bg-transparent border-none shadow-none text-slate-800 font-black flex items-center h-[42px] text-base px-0">
+                              {formData.supplier?.supplier_name || formData.supplier || 'No Supplier'}
+                            </div>
+                          ) : (
+                            <CustomSearchDropdown
+                              placeholder="Search supplier..."
+                              value={formData.supplier}
+                              onSelect={handleSupplierSelect}
+                              fetchData={fetchSuppliers}
+                              createOption={handleSupplierCreate}
+                              optionsLabel="supplier_name"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      {isViewOnly && (
+                        <div>
+                          <label className="po-label text-[var(--po-primary)]">Current Status</label>
+                          <div className="flex items-center h-[42px]">
+                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${formData.docstatus === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                              {formData.docstatus === 1 ? 'Submitted' : 'Draft Document'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-8'} animate-fadeIn`}>
+                    <div className="po-card-header !bg-slate-50/50">
+                      <h3 className="po-card-title flex items-center gap-2">
+                        <Package className="w-4 h-4 text-[var(--po-primary)]" />
+                        Purchase Details & Warehouse
+                      </h3>
+                    </div>
+                    <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-6`}>
+                      <div>
+                        <label className="po-label">Warehouse (Target)</label>
+                        {isViewOnly ? (
+                          <div className="po-input border-none shadow-none bg-transparent font-black text-slate-800 h-[42px] flex items-center text-base">
+                            {warehouses.find(w => w.name === formData.set_warehouse)?.warehouse_name || formData.set_warehouse || 'Not Selected'}
                           </div>
                         ) : (
-                          <CustomSearchDropdown
-                            placeholder="Search supplier..."
-                            value={formData.supplier}
-                            onSelect={handleSupplierSelect}
-                            fetchData={fetchSuppliers}
-                            createOption={handleSupplierCreate}
-                            optionsLabel="supplier_name"
-                          />
+                          <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="po-input font-bold disabled:bg-slate-50 disabled:border-slate-100 disabled:text-slate-500">
+                            <option value="">Choose warehouse...</option>
+                            {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
+                          </select>
                         )}
                       </div>
-                    </div>
-                    {isViewOnly && (
                       <div>
-                        <label className="po-label text-[var(--po-primary)]">Current Status</label>
-                        <div className="flex items-center h-[42px]">
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${formData.docstatus === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {formData.docstatus === 1 ? 'Submitted' : 'Draft Document'}
+                        <label className="po-label">Transaction Date</label>
+                        <div className={`border-none shadow-none bg-transparent flex items-center text-slate-800 h-[42px] ${isViewOnly ? 'font-black text-base' : 'text-slate-500'}`}>
+                          <span>
+                            {new Date(formData.transaction_date).toLocaleString('en-GB', {
+                              day: '2-digit', month: '2-digit', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit', hour12: true
+                            }).toUpperCase()}
                           </span>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-8'} animate-fadeIn`}>
-                  <div className="po-card-header !bg-slate-50/50">
-                    <h3 className="po-card-title flex items-center gap-2">
-                      <Package className="w-4 h-4 text-[var(--po-primary)]" />
-                      Purchase Details & Warehouse
-                    </h3>
-                  </div>
-                  <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-6`}>
-                    <div>
-                      <label className="po-label">Warehouse (Target)</label>
-                      {isViewOnly ? (
-                        <div className="po-input border-none shadow-none bg-transparent font-black text-slate-800 h-[42px] flex items-center text-base">
-                          {warehouses.find(w => w.name === formData.set_warehouse)?.warehouse_name || formData.set_warehouse || 'Not Selected'}
+                      <div>
+                        <label className="po-label">Entity / Company</label>
+                        <div className="border-none shadow-none bg-transparent text-base font-black text-slate-800 uppercase h-[42px] flex items-center">
+                          {formData.company}
                         </div>
-                      ) : (
-                        <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="po-input font-bold disabled:bg-slate-50 disabled:border-slate-100 disabled:text-slate-500">
-                          <option value="">Choose warehouse...</option>
-                          {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
-                        </select>
+                      </div>
+                      {isViewOnly && (
+                        <div>
+                          <label className="po-label">Currency</label>
+                          <div className="text-base font-black text-[var(--po-primary)] h-[42px] flex items-center">
+                            {formData.currency || 'AED'}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <div>
-                      <label className="po-label">Transaction Date</label>
-                      <div className={`border-none shadow-none bg-transparent flex items-center text-slate-800 h-[42px] ${isViewOnly ? 'font-black text-base' : 'text-slate-500'}`}>
-                        <span>
-                          {new Date(formData.transaction_date).toLocaleString('en-GB', {
-                            day: '2-digit', month: '2-digit', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: true
-                          }).toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="po-label">Entity / Company</label>
-                      <div className="border-none shadow-none bg-transparent text-base font-black text-slate-800 uppercase h-[42px] flex items-center">
-                        {formData.company}
-                      </div>
-                    </div>
-                    {isViewOnly && (
-                      <div>
-                        <label className="po-label">Currency</label>
-                        <div className="text-base font-black text-[var(--po-primary)] h-[42px] flex items-center">
-                          {formData.currency || 'AED'}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
 
-              <div className="po-card">
-                <div className="po-card-header flex items-center justify-between">
-                  <h3 className="po-card-title">Product Inventory Basket</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowColConfig(true)}
-                    title="Configure Columns"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all text-[11px] font-bold"
-                  >
-                    <Settings size={15} />
-                    <span>Columns</span>
-                  </button>
-                </div>
-
-                {!isViewOnly && formData.docstatus === 0 && (
-                  <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-4 bg-white animate-fadeIn">
-                    <div className="relative flex-1 group">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#10b981] transition-colors">
-                        <Scan className="w-4 h-4" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Enter Barcode / Scan here..."
-                        className="w-full pl-10 pr-12 h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#10b981] focus:bg-white transition-all shadow-sm"
-                        onKeyDown={async (e) => {
-                          if (e.key === 'Enter') {
-                            const barcode = e.target.value.trim();
-                            if (barcode) {
-                              await handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
-                              e.target.value = '';
-                            }
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={startCameraScanner}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-[#10b981] hover:bg-emerald-50 rounded-lg transition-all"
-                        title="Start Camera Scanner"
-                      >
-                        <Camera className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <button type="button" onClick={addItemRow} className="po-btn-secondary h-[42px] px-8 rounded-xl flex items-center gap-2">
-                      <Plus className="w-4 h-4" /> Add Row
+                <div className="po-card">
+                  <div className="po-card-header flex items-center justify-between">
+                    <h3 className="po-card-title">Product Inventory Basket</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowColConfig(true)}
+                      title="Configure Columns"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all text-[11px] font-bold"
+                    >
+                      <Settings size={15} />
+                      <span>Columns</span>
                     </button>
                   </div>
-                )}
 
-                {isScannerOpen && createPortal(
-                  <div
-                    className="fixed inset-0 z-[10000] bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-fadeIn"
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    <div className={`relative w-full max-w-lg aspect-square bg-black rounded-3xl overflow-hidden shadow-2xl border-4 transition-all duration-300 ${isDragging ? 'border-emerald-500 scale-105 ring-4 ring-emerald-500/20' : 'border-emerald-500/30'}`}>
-                      {isDragging ? (
-                        <div className="absolute inset-0 bg-emerald-600/40 backdrop-blur-sm flex flex-col items-center justify-center z-50 animate-pulse">
-                          <Upload className="w-16 h-16 text-white mb-4" />
-                          <p className="text-white font-bold text-lg uppercase tracking-widest">Drop Image to Scan</p>
+                  {!isViewOnly && formData.docstatus === 0 && (
+                    <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-4 bg-white animate-fadeIn">
+                      <div className="relative flex-1 group">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#10b981] transition-colors">
+                          <Scan className="w-4 h-4" />
                         </div>
-                      ) : (
-                        <>
-                          <video ref={videoRef} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 border-[60px] border-black/40 pointer-events-none flex items-center justify-center">
-                            <div className="w-full h-full border-2 border-emerald-400/50 relative">
-                              <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-sm" />
-                              <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-sm" />
-                              <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-sm" />
-                              <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-sm" />
-                              <div className="w-full h-0.5 bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.8)] absolute animate-scanLine" />
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      <div className="absolute top-4 right-4 flex gap-2">
-                        <label className="w-10 h-10 bg-white/10 hover:bg-emerald-500/30 backdrop-blur-md text-white rounded-full flex items-center justify-center transition-all border border-white/20 cursor-pointer group" title="Upload Image">
-                          <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                          <ImageIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter Barcode / Scan here..."
+                          className="w-full pl-10 pr-12 h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#10b981] focus:bg-white transition-all shadow-sm"
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter') {
+                              const barcode = e.target.value.trim();
+                              if (barcode) {
+                                await handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
+                                e.target.value = '';
+                              }
+                            }
+                          }}
+                        />
                         <button
-                          onClick={stopCameraScanner}
-                          className="w-10 h-10 bg-white/10 hover:bg-red-500/30 backdrop-blur-md text-white rounded-full flex items-center justify-center transition-all border border-white/20"
+                          type="button"
+                          onClick={startCameraScanner}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-[#10b981] hover:bg-emerald-50 rounded-lg transition-all"
+                          title="Start Camera Scanner"
                         >
-                          <X className="w-5 h-5" />
+                          <Camera className="w-4 h-4" />
                         </button>
                       </div>
+                      <button type="button" onClick={addItemRow} className="po-btn-secondary h-[42px] px-8 rounded-xl flex items-center gap-2">
+                        <Plus className="w-4 h-4" /> Add Row
+                      </button>
+                    </div>
+                  )}
 
-                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
-                        <div className="text-white bg-emerald-600/80 backdrop-blur-md px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg whitespace-nowrap">
-                          {isDragging ? 'Release to Scan' : 'Align Barcode or Drop Image'}
+                  {isScannerOpen && createPortal(
+                    <div
+                      className="fixed inset-0 z-[10000] bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-fadeIn"
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      <div className={`relative w-full max-w-lg aspect-square bg-black rounded-3xl overflow-hidden shadow-2xl border-4 transition-all duration-300 ${isDragging ? 'border-emerald-500 scale-105 ring-4 ring-emerald-500/20' : 'border-emerald-500/30'}`}>
+                        {isDragging ? (
+                          <div className="absolute inset-0 bg-emerald-600/40 backdrop-blur-sm flex flex-col items-center justify-center z-50 animate-pulse">
+                            <Upload className="w-16 h-16 text-white mb-4" />
+                            <p className="text-white font-bold text-lg uppercase tracking-widest">Drop Image to Scan</p>
+                          </div>
+                        ) : (
+                          <>
+                            <video ref={videoRef} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 border-[60px] border-black/40 pointer-events-none flex items-center justify-center">
+                              <div className="w-full h-full border-2 border-emerald-400/50 relative">
+                                <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-sm" />
+                                <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-sm" />
+                                <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-sm" />
+                                <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-sm" />
+                                <div className="w-full h-0.5 bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.8)] absolute animate-scanLine" />
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        <div className="absolute top-4 right-4 flex gap-2">
+                          <label className="w-10 h-10 bg-white/10 hover:bg-emerald-500/30 backdrop-blur-md text-white rounded-full flex items-center justify-center transition-all border border-white/20 cursor-pointer group" title="Upload Image">
+                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                            <ImageIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                          </label>
+                          <button
+                            onClick={stopCameraScanner}
+                            className="w-10 h-10 bg-white/10 hover:bg-red-500/30 backdrop-blur-md text-white rounded-full flex items-center justify-center transition-all border border-white/20"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
+                          <div className="text-white bg-emerald-600/80 backdrop-blur-md px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg whitespace-nowrap">
+                            {isDragging ? 'Release to Scan' : 'Align Barcode or Drop Image'}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>,
-                  document.body
-                )}
+                    </div>,
+                    document.body
+                  )}
 
-                <div className="purchase-table-container">
-                  <table className="purchase-table">
-                    <thead>
-                      <tr>
-                        {poColumns.filter(c => c.visible).map(col => {
-                          const hasAnyBox = formData.items.some(i => i.use_box_entry);
-                          let finalLabel = col.label;
+                  <div className="purchase-table-container">
+                    <table className="purchase-table">
+                      <thead>
+                        <tr>
+                          {(() => {
+                            const hasAnyBox = formData.items.some(i => i.use_box_entry);
+                            const activeCols = poColumns.filter(c => {
+                              if (!c.visible) return false;
+                              if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                              return true;
+                            });
 
-                          if (!hasAnyBox) {
-                            if (col.id === 'custom_box_qty') finalLabel = 'Qty';
-                            if (col.id === 'custom_box_price') finalLabel = 'Price';
-                            if (col.id === 'custom_pieces_per_box') finalLabel = ''; // hide the Pcs/Box header label 
-                          }
+                            return activeCols.map(col => {
+                              let finalLabel = col.label;
 
-                          return (
-                            <th
-                              key={col.id}
-                              className="purchase-th text-center"
-                              style={{ width: col.width, minWidth: col.id === 'item_code' ? 200 : undefined }}
-                            >
-                              {finalLabel}
-                            </th>
-                          );
-                        })}
-                        <th className="purchase-th w-[50px]"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.items.map((item, idx) => (
-                        <tr key={idx} className="group hover:bg-slate-50 transition-colors">
-                          {poColumns.filter(c => c.visible).map(col => {
-                            switch (col.id) {
-                              case 'scanner':
-                                return (
-                                  <td key={col.id} className="purchase-td !pl-5">
-                                    <input
-                                      type="text"
-                                      value={item.temp_barcode ?? ''}
-                                      placeholder={isViewOnly ? '' : 'Barcode'}
-                                      readOnly={isViewOnly || formData.docstatus !== 0}
-                                      onChange={(e) => handleBarcodeScan(e, idx)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && e.target.value) handleBarcodeEnter(e, idx);
-                                        else handleNextFocus(e);
-                                      }}
-                                      className="w-full text-[11px] font-bold outline-none disabled:text-slate-400"
-                                    />
-                                  </td>
-                                );
-                              case 'item_code':
-                                return (
-                                  <td key={col.id} className="purchase-td">
-                                    <div className="relative product-search-container">
-                                      <input
-                                        type="text"
-                                        value={item.item_name ?? ''}
-                                        placeholder="Search product..."
-                                        readOnly={isViewOnly || formData.docstatus !== 0}
-                                        onFocus={async (e) => {
-                                          if (isViewOnly || formData.docstatus !== 0) return;
-                                          const q = e.target.value;
-                                          const results = await fetchItems(q);
-                                          setAllItems(results || []);
-                                          setActiveDropdownRow(idx);
-                                          setSelectedProductIndex(0);
-                                          const rect = e.target.getBoundingClientRect();
-                                          setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-                                        }}
-                                        onBlur={() => setTimeout(() => setActiveDropdownRow(null), 200)}
-                                        onKeyDown={(e) => {
-                                          if (isViewOnly || formData.docstatus !== 0) return;
-                                          if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev)); }
-                                          else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedProductIndex(prev => (prev > 0 ? prev - 1 : 0)); }
-                                          else if (e.key === 'Enter') {
-                                            if (activeDropdownRow !== null && allItems[selectedProductIndex]) {
-                                              e.preventDefault();
-                                              handleItemSelect(allItems[selectedProductIndex], idx);
-                                              setActiveDropdownRow(null);
-                                            } else handleNextFocus(e);
-                                          }
-                                        }}
-                                        onChange={async (e) => {
-                                          if (isViewOnly || formData.docstatus !== 0) return;
-                                          const q = e.target.value;
-                                          setFormData(prev => { const its = [...prev.items]; its[idx] = { ...its[idx], item_name: q }; return { ...prev, items: its }; });
-                                          if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-                                          searchTimeoutRef.current = setTimeout(async () => {
-                                            const results = await fetchItems(q);
-                                            setAllItems(results || []);
-                                            setActiveDropdownRow(idx);
-                                            setSelectedProductIndex(0);
-                                            const rect = e.target.getBoundingClientRect();
-                                            setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-                                          }, 300);
-                                        }}
-                                        className="w-full outline-none disabled:bg-transparent"
-                                      />
-                                      {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
-                                        <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
-                                          {allItems.map((it, i) => (
-                                            <div key={it.item_code} onMouseDown={(e) => { e.preventDefault(); handleItemSelect(it, idx); setActiveDropdownRow(null); }} className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}>
-                                              <div className="flex justify-between items-center gap-3">
-                                                <div className={`text-[11px] font-bold ${selectedProductIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-800'}`}>{it.item_name}</div>
-                                                <div className="text-[9px] font-bold text-[#003d7c] bg-slate-100 px-1.5 py-0.5 rounded italic opacity-70">{it.item_code}</div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>, document.body
-                                      )}
-                                    </div>
-                                  </td>
-                                );
-                              case 'custom_box_qty':
-                                return (
-                                  <td key={col.id} className="purchase-td">
-                                    <div className="flex flex-col items-center gap-0.5">
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        name="custom_box_qty"
-                                        value={item.custom_box_qty || ''}
-                                        readOnly={isViewOnly || formData.docstatus !== 0}
-                                        onChange={(e) => handleInputChange(e, idx)}
-                                        onFocus={(e) => e.target.select()}
-                                        onKeyDown={handleNextFocus}
-                                        className="w-full text-center font-bold outline-none"
-                                        title={item.use_box_entry ? 'Number of Boxes' : 'Quantity'}
-                                      />
-                                      {item.item_code && (
-                                        <span className={`text-[8px] font-black uppercase tracking-wider px-1 py-0.5 rounded ${item.use_box_entry ? 'text-sky-500 bg-sky-50' : 'text-slate-400 bg-slate-100'}`}>
-                                          {item.use_box_entry ? 'BOXES' : 'NOS'}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
-                                );
-                              case 'custom_pieces_per_box':
-                                return (
-                                  <td key={col.id} className="purchase-td">
-                                    {item.use_box_entry ? (
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        name="custom_pieces_per_box"
-                                        value={item.custom_pieces_per_box || ''}
-                                        readOnly={isViewOnly || formData.docstatus !== 0}
-                                        onChange={(e) => handleInputChange(e, idx)}
-                                        onFocus={(e) => e.target.select()}
-                                        onKeyDown={handleNextFocus}
-                                        className="w-full text-center outline-none"
-                                        title="Pieces per Box"
-                                      />
-                                    ) : (
-                                      <span className="w-full flex items-center justify-center text-[10px] text-slate-300 font-bold">—</span>
-                                    )}
-                                  </td>
-                                );
-                              case 'custom_box_price':
-                                return (
-                                  <td key={col.id} className="purchase-td text-right">
-                                    {isViewOnly ? (
-                                      <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.custom_box_price)}</span>
-                                    ) : (
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        name="custom_box_price"
-                                        value={item.custom_box_price || ''}
-                                        readOnly={formData.docstatus !== 0}
-                                        onChange={(e) => handleInputChange(e, idx)}
-                                        onFocus={(e) => e.target.select()}
-                                        onKeyDown={handleNextFocus}
-                                        className="w-full text-right outline-none"
-                                      />
-                                    )}
-                                  </td>
-                                );
-                              case 'custom_selling_price':
-                                return (
-                                  <td key={col.id} className="purchase-td text-right">
-                                    {isViewOnly ? <span className="text-[11px] font-bold text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</span> : <input type="text" inputMode="decimal" name="custom_selling_price" value={item.custom_selling_price || ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />}
-                                  </td>
-                                );
-                              case 'custom_ref_sl_no':
-                                return <td key={col.id} className="purchase-td"><input type="text" name="custom_ref_sl_no" value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onKeyDown={handleNextFocus} placeholder={isViewOnly ? '' : 'Serial...'} className="w-full text-center text-[10px] outline-none" /></td>;
-                              case 'qty':
-                                return (
-                                  <td key={col.id} className="purchase-td text-center">
-                                    <div className="flex flex-col items-center">
-                                      <input 
-                                        type="text" 
-                                        inputMode="decimal"
-                                        name="qty" 
-                                        value={item.qty || ''} 
-                                        readOnly={!isUpdateMode && (isViewOnly || formData.docstatus !== 0)} 
-                                        onChange={(e) => handleInputChange(e, idx)} 
-                                        onFocus={(e) => e.target.select()} 
-                                        onKeyDown={handleNextFocus} 
-                                        className={`w-full text-center outline-none font-bold ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`} 
-                                      />
-                                      {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8' }}>NOS</div>}
-                                    </div>
-                                  </td>
-                                );
-                              case 'uom':
-                                return (
-                                  <td key={col.id} className="purchase-td text-center">
-                                    {!item.item_code || isViewOnly || formData.docstatus !== 0 ? (
-                                      <span className="text-[10px] font-bold text-slate-700 uppercase">
-                                        {item.use_box_entry ? 'BOX' : (item.uom || item.stock_uom || 'NOS')}
-                                      </span>
-                                    ) : (
-                                      <select
-                                        value={item.uom || item.stock_uom || ''}
-                                        onChange={(e) => handleUOMChange(e.target.value, idx)}
-                                        className="w-full text-center text-[10px] font-bold text-slate-600 bg-transparent border-none outline-none cursor-pointer hover:text-indigo-600 transition-colors"
-                                        title="Select Unit of Measure"
-                                      >
-                                        {(item.uom_list && item.uom_list.length > 0
-                                          ? item.uom_list
-                                          : [{ uom: item.stock_uom || item.uom || 'Nos' }]
-                                        ).map(u => (
-                                          <option key={u.uom} value={u.uom}>{u.uom}</option>
-                                        ))}
-                                      </select>
-                                    )}
-                                  </td>
-                                );
-                              case 'rate':
-                                return (
-                                  <td key={col.id} className="purchase-td text-right !text-center">
-                                    {isViewOnly && !isUpdateMode ? (
-                                      <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span>
-                                    ) : (
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        name="rate"
-                                        value={item.rate || ''}
-                                        readOnly={!isUpdateMode && formData.docstatus !== 0}
-                                        onChange={(e) => handleInputChange(e, idx)}
-                                        onFocus={(e) => e.target.select()}
-                                        onKeyDown={handleNextFocus}
-                                        className={`w-full text-center outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`}
-                                      />
-                                    )}
-                                  </td>
-                                );
-                              case 'amount':
-                                return <td key={col.id} className="purchase-td text-right !pr-5 !text-center"><span className="text-xs font-bold text-slate-900 tabular-nums">{formatPrice(item.amount)}</span></td>;
-                              default:
-                                return null;
-                            }
-                          })}
-                          <td className="purchase-td text-center">
-                            {!isViewOnly && formData.docstatus === 0 && (
-                              <button type="button" onClick={() => removeItemRow(idx)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 className="w-4 h-4" /></button>
-                            )}
-                          </td>
+                              if (!hasAnyBox) {
+                                if (col.id === 'custom_box_qty') finalLabel = 'Qty';
+                                if (col.id === 'custom_box_price') finalLabel = 'Price';
+                                if (col.id === 'custom_pieces_per_box') finalLabel = '';
+                              }
+
+                              return (
+                                <th
+                                  key={col.id}
+                                  className="purchase-th text-center"
+                                  style={{ width: col.width, minWidth: col.id === 'item_code' ? 200 : undefined }}
+                                >
+                                  {finalLabel}
+                                </th>
+                              );
+                            });
+                          })()}
+                          <th className="purchase-th w-[50px]"></th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {formData.items.map((item, idx) => (
+                          <tr key={idx} className="group hover:bg-slate-50 transition-colors">
+                            {(() => {
+                              const hasAnyBox = formData.items.some(i => i.use_box_entry);
+                              const activeCols = poColumns.filter(c => {
+                                if (!c.visible) return false;
+                                if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                return true;
+                              });
+
+                              return activeCols.map(col => {
+                                switch (col.id) {
+                                  case 'scanner':
+                                    return (
+                                      <td key={col.id} className="purchase-td !pl-5">
+                                        <input
+                                          type="text"
+                                          value={item.temp_barcode ?? ''}
+                                          placeholder={isViewOnly ? '' : 'Barcode'}
+                                          readOnly={isViewOnly || formData.docstatus !== 0}
+                                          onChange={(e) => handleBarcodeScan(e, idx)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && e.target.value) handleBarcodeEnter(e, idx);
+                                            else handleNextFocus(e);
+                                          }}
+                                          className="w-full text-[11px] font-bold outline-none disabled:text-slate-400"
+                                        />
+                                      </td>
+                                    );
+                                  case 'item_code':
+                                    return (
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="relative product-search-container">
+                                          <input
+                                            type="text"
+                                            value={item.item_name ?? ''}
+                                            placeholder="Search product..."
+                                            readOnly={isViewOnly || formData.docstatus !== 0}
+                                            onFocus={async (e) => {
+                                              if (isViewOnly || formData.docstatus !== 0) return;
+                                              const q = e.target.value;
+                                              const results = await fetchItems(q);
+                                              setAllItems(results || []);
+                                              setActiveDropdownRow(idx);
+                                              setSelectedProductIndex(0);
+                                              const rect = e.target.getBoundingClientRect();
+                                              setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+                                            }}
+                                            onBlur={() => setTimeout(() => setActiveDropdownRow(null), 200)}
+                                            onKeyDown={(e) => {
+                                              if (isViewOnly || formData.docstatus !== 0) return;
+                                              if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev)); }
+                                              else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedProductIndex(prev => (prev > 0 ? prev - 1 : 0)); }
+                                              else if (e.key === 'Enter') {
+                                                if (activeDropdownRow !== null && allItems[selectedProductIndex]) {
+                                                  e.preventDefault();
+                                                  handleItemSelect(allItems[selectedProductIndex], idx);
+                                                  setActiveDropdownRow(null);
+                                                } else handleNextFocus(e);
+                                              }
+                                            }}
+                                            onChange={async (e) => {
+                                              if (isViewOnly || formData.docstatus !== 0) return;
+                                              const q = e.target.value;
+                                              setFormData(prev => { const its = [...prev.items]; its[idx] = { ...its[idx], item_name: q }; return { ...prev, items: its }; });
+                                              if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                                              searchTimeoutRef.current = setTimeout(async () => {
+                                                const results = await fetchItems(q);
+                                                setAllItems(results || []);
+                                                setActiveDropdownRow(idx);
+                                                setSelectedProductIndex(0);
+                                                const rect = e.target.getBoundingClientRect();
+                                                setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+                                              }, 300);
+                                            }}
+                                            className="w-full outline-none disabled:bg-transparent"
+                                          />
+                                          {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
+                                            <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
+                                              {allItems.map((it, i) => (
+                                                <div key={it.item_code} onMouseDown={(e) => { e.preventDefault(); handleItemSelect(it, idx); setActiveDropdownRow(null); }} className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}>
+                                                  <div className="flex justify-between items-center gap-3">
+                                                    <div className={`text-[11px] font-bold ${selectedProductIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-800'}`}>{it.item_name}</div>
+                                                    <div className="text-[9px] font-bold text-[#003d7c] bg-slate-100 px-1.5 py-0.5 rounded italic opacity-70">{it.item_code}</div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>, document.body
+                                          )}
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'custom_box_qty':
+                                    return (
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="flex flex-col items-center gap-0.5">
+                                          <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            name={item.use_box_entry ? "custom_box_qty" : "qty"}
+                                            value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                            readOnly={isViewOnly || formData.docstatus !== 0}
+                                            onChange={(e) => handleInputChange(e, idx)}
+                                            onFocus={(e) => e.target.select()}
+                                            onKeyDown={handleNextFocus}
+                                            className={`w-full text-center font-bold outline-none ${!item.use_box_entry ? 'text-slate-800' : 'text-sky-600'}`}
+                                            title={item.use_box_entry ? "Number of Boxes" : "Quantity"}
+                                          />
+                                          {item.item_code && (
+                                            <span className={`text-[8px] font-black uppercase tracking-wider px-1 py-0.5 rounded ${item.use_box_entry ? 'text-sky-500 bg-sky-50' : 'text-slate-400 bg-slate-100'}`}>
+                                              {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'custom_pieces_per_box':
+                                    return (
+                                      <td key={col.id} className="purchase-td">
+                                        {item.use_box_entry ? (
+                                          <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            name="custom_pieces_per_box"
+                                            value={item.custom_pieces_per_box || ''}
+                                            readOnly={isViewOnly || formData.docstatus !== 0}
+                                            onChange={(e) => handleInputChange(e, idx)}
+                                            onFocus={(e) => e.target.select()}
+                                            onKeyDown={handleNextFocus}
+                                            className="w-full text-center outline-none"
+                                            title="Pieces per Box"
+                                          />
+                                        ) : (
+                                          <span className="w-full flex items-center justify-center text-[10px] text-slate-300 font-bold">—</span>
+                                        )}
+                                      </td>
+                                    );
+                                  case 'custom_box_price':
+                                    return (
+                                      <td key={col.id} className="purchase-td text-right">
+                                        {item.use_box_entry ? (
+                                          isViewOnly ? (
+                                            <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.custom_box_price)}</span>
+                                          ) : (
+                                            <input
+                                              type="text"
+                                              inputMode="decimal"
+                                              name="custom_box_price"
+                                              value={item.custom_box_price || ''}
+                                              readOnly={formData.docstatus !== 0}
+                                              onChange={(e) => handleInputChange(e, idx)}
+                                              onFocus={(e) => e.target.select()}
+                                              onKeyDown={handleNextFocus}
+                                              className="w-full text-right outline-none"
+                                            />
+                                          )
+                                        ) : (
+                                          <span className="w-full flex items-center justify-end text-[10px] text-slate-300 font-bold pr-4">—</span>
+                                        )}
+                                      </td>
+                                    );
+                                  case 'custom_selling_price':
+                                    return (
+                                      <td key={col.id} className="purchase-td text-right">
+                                        {isViewOnly ? <span className="text-[11px] font-bold text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</span> : <input type="text" inputMode="decimal" name="custom_selling_price" value={item.custom_selling_price || ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />}
+                                      </td>
+                                    );
+                                  case 'custom_ref_sl_no':
+                                    return <td key={col.id} className="purchase-td"><input type="text" name="custom_ref_sl_no" value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onKeyDown={handleNextFocus} placeholder={isViewOnly ? '' : 'Serial...'} className="w-full text-center text-[10px] outline-none" /></td>;
+                                  case 'qty':
+                                    return (
+                                      <td key={col.id} className="purchase-td text-center">
+                                        <div className="flex flex-col items-center">
+                                          <span className="text-[11px] font-bold text-slate-700">{item.qty || 0}</span>
+                                          {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8' }}>NOS</div>}
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'uom':
+                                    return (
+                                      <td key={col.id} className="purchase-td text-center">
+                                        {!item.item_code || isViewOnly || formData.docstatus !== 0 ? (
+                                          <span className="text-[10px] font-bold text-slate-700 uppercase">
+                                            {item.use_box_entry ? 'BOX' : (item.uom || item.stock_uom || 'NOS')}
+                                          </span>
+                                        ) : (
+                                          <select
+                                            value={item.uom || item.stock_uom || ''}
+                                            onChange={(e) => handleUOMChange(e.target.value, idx)}
+                                            className="w-full text-center text-[10px] font-bold text-slate-600 bg-white border border-slate-200 rounded outline-none cursor-pointer hover:text-indigo-600 transition-colors"
+                                            title="Select Unit of Measure"
+                                          >
+                                            {(item.uom_list && item.uom_list.length > 0
+                                              ? item.uom_list
+                                              : [{ uom: item.stock_uom || item.uom || 'Nos' }]
+                                            ).map(u => (
+                                              <option key={u.uom} value={u.uom}>{u.uom}</option>
+                                            ))}
+                                            {!item.uom_list?.some(u => u.uom === 'Box') && <option value="Box">Box</option>}
+                                            {!item.uom_list?.some(u => u.uom === (item.uom || item.stock_uom || 'Nos')) && <option value={item.uom || item.stock_uom || 'Nos'}>{item.uom || item.stock_uom || 'Nos'}</option>}
+                                          </select>
+                                        )}
+                                      </td>
+                                    );
+                                  case 'rate':
+                                    return (
+                                      <td key={col.id} className="purchase-td text-right !text-center">
+                                        {isViewOnly && !isUpdateMode ? (
+                                          <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span>
+                                        ) : (
+                                          <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            name="rate"
+                                            value={item.rate || ''}
+                                            readOnly={!isUpdateMode && formData.docstatus !== 0}
+                                            onChange={(e) => handleInputChange(e, idx)}
+                                            onFocus={(e) => e.target.select()}
+                                            onKeyDown={handleNextFocus}
+                                            className={`w-full text-center outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`}
+                                          />
+                                        )}
+                                      </td>
+                                    );
+                                  case 'amount':
+                                    return <td key={col.id} className="purchase-td text-right !pr-5 !text-center"><span className="text-xs font-bold text-slate-900 tabular-nums">{formatPrice(item.amount)}</span></td>;
+                                  default:
+                                    return null;
+                                }
+                              });
+                            })()}
+                            <td className="purchase-td text-center">
+                              {!isViewOnly && formData.docstatus === 0 && (
+                                <button type="button" onClick={() => removeItemRow(idx)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 className="w-4 h-4" /></button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="po-summary-row-container">
-              <div className="po-summary-card-horizontal">
-                <div className="summary-section tax-section">
-                  <span className="summary-label">Tax Schedule</span>
-                  <div className="relative mt-2">
-                    <select value={formData.taxes_and_charges || ''} onChange={(e) => onTaxChange(e.target.value)} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="summary-select focus:border-[#10b981] disabled:bg-slate-50 disabled:text-slate-500">
-                      <option value="">No Tax Schedule...</option>
-                      {taxTemplates.map((t) => <option key={t.name} value={t.name}>{t.title || t.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-12">
-                  <div className="flex gap-10">
-                    <div className="text-center">
-                      <span className="summary-label">Total Qty</span>
-                      <p className="detail-value text-[var(--po-primary)] font-black">{(formData.total_qty || 0).toFixed(2)}</p>
-                    </div>
-                    <div className="text-center">
-                      <span className="summary-label">Tax</span>
-                      <p className="detail-value text-[var(--po-primary)] font-black">{formatPrice(formData.tax_total)}</p>
-                    </div>
-                    <div className="text-center">
-                      <span className="summary-label">Gross Total</span>
-                      <p className="detail-value text-[var(--po-primary)] font-black">{formatPrice(formData.total)}</p>
+              <div className="po-summary-row-container">
+                <div className="po-summary-card-horizontal">
+                  <div className="summary-section tax-section">
+                    <span className="summary-label">Tax Schedule</span>
+                    <div className="relative mt-2">
+                      <select value={formData.taxes_and_charges || ''} onChange={(e) => onTaxChange(e.target.value)} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="summary-select focus:border-[#10b981] disabled:bg-slate-50 disabled:text-slate-500">
+                        <option value="">No Tax Schedule...</option>
+                        {taxTemplates.map((t) => <option key={t.name} value={t.name}>{t.title || t.name}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
 
-                  <div className="summary-section grand-total-section border-l border-slate-200 pl-12">
-                    <div className="text-right">
-                      <span className="summary-label block">Grand Total</span>
-                      <p className="grand-total-value"><span className="currency-label-large">AED</span> {formatPrice(formData.grand_total)}</p>
+                  <div className="flex items-center gap-12">
+                    <div className="flex gap-10">
+                      <div className="text-center">
+                        <span className="summary-label">Total Qty</span>
+                        <p className="detail-value text-[var(--po-primary)] font-black">{(formData.total_qty || 0).toFixed(2)}</p>
+                      </div>
+                      <div className="text-center">
+                        <span className="summary-label">Tax</span>
+                        <p className="detail-value text-[var(--po-primary)] font-black">{formatPrice(formData.tax_total)}</p>
+                      </div>
+                      <div className="text-center">
+                        <span className="summary-label">Gross Total</span>
+                        <p className="detail-value text-[var(--po-primary)] font-black">{formatPrice(formData.total)}</p>
+                      </div>
+                    </div>
+
+                    <div className="summary-section grand-total-section border-l border-slate-200 pl-12">
+                      <div className="text-right">
+                        <span className="summary-label block">Grand Total</span>
+                        <p className="grand-total-value"><span className="currency-label-large">AED</span> {formatPrice(formData.grand_total)}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
       {/* Column Config Modal */}
       <ColumnConfigModal

@@ -307,7 +307,40 @@ function Home() {
   // Offline Generation Toggle
   const [offlineIdType, setOfflineIdType] = useState(() => localStorage.getItem('offlineIdType') || 'continuous');
   const [continuousOrderCount, setContinuousOrderCount] = useState(() => parseInt(localStorage.getItem('offlineIdContinuousCount')) || 1);
+  const [isSyncingCount, setIsSyncingCount] = useState(false);
 
+  // Sync Continuous Count from Server on Mount
+  useEffect(() => {
+    const syncCount = async () => {
+      if (offlineIdType !== 'continuous' || !user) return;
+      
+      try {
+        setIsSyncingCount(true);
+        const now = new Date();
+        const bPrefix = branchPrefix || (typeof user === 'string' ? user.split('@')[0].slice(0, 3).toUpperCase() : 'POS');
+        const usernamePart = typeof user === 'string' ? user.split('@')[0] : '';
+        const userNumMatch = usernamePart.match(/\d+$/);
+        const userCode = userNumMatch ? `CS${userNumMatch[0]}` : 'CS1';
+        const year = format(now, 'yyyy');
+        
+        const fullPrefix = `${bPrefix}-${userCode}-${year}-`;
+        const lastSeq = await POSService.getLastOfflineId(fullPrefix);
+        
+        if (lastSeq >= 0) {
+          const localCount = parseInt(localStorage.getItem('offlineIdContinuousCount')) || 1;
+          // Use whichever is higher
+          const nextCount = Math.max(lastSeq + 1, localCount);
+          setContinuousOrderCount(nextCount);
+          localStorage.setItem('offlineIdContinuousCount', nextCount.toString());
+        }
+      } catch (err) {
+        console.warn("Count sync failed:", err);
+      } finally {
+        setIsSyncingCount(false);
+      }
+    };
+    syncCount();
+  }, [offlineIdType, user, branchPrefix]);
   const setOfflineIdMethodHandle = (method) => {
     setOfflineIdType(method);
     localStorage.setItem('offlineIdType', method);
@@ -2335,7 +2368,7 @@ function Home() {
       return `
                             <tr>
                                 <td style="padding-right: 5px; word-break: break-word;">${it.item_name || it.item_code || it.name || 'ITEM'}</td>
-                                <td class="text-right" style="padding-right: 5px;">${it.qty || 1}</td>
+                                <td class="text-right" style="padding-right: 5px;">${it.qty || 1} <span style="font-size: 0.85em; opacity: 0.8;">${it.uom || ''}</span></td>
                                 <td class="text-right">${parseFloat(lineTotal).toFixed(2)}</td>
                             </tr>
                           `;
@@ -2866,11 +2899,20 @@ function Home() {
               </div>
 
               <button
-                className="so-btn-pay"
-                disabled={grandTotal <= 0}
+                className={`so-btn-pay ${paymentLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                disabled={grandTotal <= 0 || paymentLoading}
                 onClick={handleCheckout}
               >
-                <CreditCard size={18} /> Confirm & Pay (Space)
+                {paymentLoading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <>
+                    <CreditCard size={18} /> Confirm & Pay (Space)
+                  </>
+                )}
               </button>
             </div>
           </aside>
@@ -3019,15 +3061,22 @@ function Home() {
 
           <div className="classic-field flex items-center gap-3 ml-auto">
             <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">INV NO:</label>
-            <InvoiceNumberDisplay
-              branchPrefix={branchPrefix}
-              userName={user?.split('@')[0]}
-              ddmm={format(new Date(), 'ddMM')}
-              sessionOrderCount={sessionOrderCount}
-              formatType={offlineIdType}
-              onToggleFormat={setOfflineIdMethodHandle}
-              continuousCount={continuousOrderCount}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <InvoiceNumberDisplay
+                branchPrefix={branchPrefix}
+                userName={user?.split('@')[0]}
+                ddmm={format(new Date(), 'ddMM')}
+                sessionOrderCount={sessionOrderCount}
+                formatType={offlineIdType}
+                onToggleFormat={setOfflineIdMethodHandle}
+                continuousCount={continuousOrderCount}
+              />
+              {isSyncingCount && (
+                <div style={{ position: 'absolute', right: '-20px', display: 'flex', alignItems: 'center' }}>
+                  <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
