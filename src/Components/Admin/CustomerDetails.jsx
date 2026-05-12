@@ -310,7 +310,7 @@ const CustomerDetails = () => {
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [viewMode, setViewMode] = useState(isNew ? 'edit' : 'view'); // 'view' or 'edit'
 
   // Data States
   const [customer, setCustomer] = useState(null);
@@ -333,8 +333,10 @@ const CustomerDetails = () => {
     loyalty_program: '', loyalty_program_tier: '',
     disabled: 0, is_frozen: 0,
     address_type: 'Billing', address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
+    address_name: '', // Added to track existing address
     first_name: '', middle_name: '', last_name: '', designation: '',
     contact_email: '', contact_mobile: '', status: 'Passive',
+    contact_name: '', // Added to track existing contact
     custom_phone_code: '+971'
   });
 
@@ -397,6 +399,7 @@ const CustomerDetails = () => {
         city: addr.city || '',
         emirate: addr.state || addr.emirate || '',
         country: addr.country || 'United Arab Emirates',
+        address_name: addr.name || '',
         first_name: cont.first_name || '',
         middle_name: cont.middle_name || '',
         last_name: cont.last_name || '',
@@ -404,6 +407,7 @@ const CustomerDetails = () => {
         contact_email: cont.email_id || '',
         contact_mobile: cont.mobile_no || '',
         status: cont.status || 'Passive',
+        contact_name: cont.name || '',
         custom_phone_code: cust.custom_phone_code || derivedCode
       });
     } catch (err) { Swal.fire('Error', 'Failed to retrieve profile data', 'error'); }
@@ -420,6 +424,7 @@ const CustomerDetails = () => {
           name: isNew ? undefined : id
         },
         address_data: form.address_line1 ? {
+          name: form.address_name || undefined,
           address_type: form.address_type,
           address_line1: form.address_line1,
           address_line2: form.address_line2,
@@ -428,6 +433,7 @@ const CustomerDetails = () => {
           country: form.country
         } : null,
         contact_data: form.first_name ? {
+          name: form.contact_name || undefined,
           first_name: form.first_name,
           middle_name: form.middle_name,
           last_name: form.last_name,
@@ -442,8 +448,8 @@ const CustomerDetails = () => {
       const res = await axios.post(`${API_BASE}.save_customer_details_retail`, payload);
       if (res.data.message?.success) {
         Swal.fire({ icon: 'success', title: 'Saved Successfully', text: isNew ? 'Customer created.' : 'Customer profile updated.', confirmButtonColor: themeColor });
-        if (isNew) navigate(`/customer-details/${res.data.message.customer_name}`);
-        else { setShowEditModal(false); fetchCustomerData(); }
+        if (isNew) navigate(`/customer-details/${res.data.message.customer_id || res.data.message.customer_name}`);
+        else { setViewMode('view'); fetchCustomerData(); }
       } else throw new Error(res.data.message?.message);
     } catch (err) { Swal.fire('Save Failure', err.message, 'error'); }
     finally { setSaving(false); }
@@ -465,7 +471,7 @@ const CustomerDetails = () => {
       <div className="bg-white border-b border-gray-100 px-8 py-6 sticky top-0 z-40">
         <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-5">
-            <button onClick={() => navigate('/customerlist')} className="px-3.5 py-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 transition-all border border-gray-100 flex items-center gap-1.5 shadow-xs">
+            <button onClick={() => viewMode === 'edit' && !isNew ? setViewMode('view') : navigate('/customerlist')} className="px-3.5 py-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 transition-all border border-gray-100 flex items-center gap-1.5 shadow-xs">
               <ChevronLeft size={16} />
               <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
             </button>
@@ -474,7 +480,9 @@ const CustomerDetails = () => {
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-black text-slate-800 tracking-tight">{isNew ? 'New Customer Registration' : customer?.customer_name}</h1>
+                <h1 className="text-xl font-black text-slate-800 tracking-tight">
+                  {isNew ? 'New Customer Registration' : (viewMode === 'edit' ? `Editing: ${customer?.customer_name}` : customer?.customer_name)}
+                </h1>
                 {!isNew && (
                   <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${customer?.disabled === 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                     {customer?.disabled === 0 ? 'Active' : 'Disabled'}
@@ -485,568 +493,538 @@ const CustomerDetails = () => {
             </div>
           </div>
           <div>
-            {!isNew ? (
-              <button onClick={() => setShowEditModal(true)} className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
+            {viewMode === 'view' ? (
+              <button onClick={() => setViewMode('edit')} className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
                 <Edit2 size={13} /> Edit Customer Details
               </button>
             ) : (
-              <button onClick={handleSave} disabled={saving} className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
-                {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                {saving ? 'Saving...' : 'Save Profile'}
-              </button>
+              <div className="flex items-center gap-3">
+                {!isNew && (
+                  <button onClick={() => setViewMode('view')} className="px-5 py-2.5 text-slate-400 hover:text-slate-800 text-[10px] font-black uppercase tracking-widest transition-all">
+                    Discard
+                  </button>
+                )}
+                <button onClick={handleSave} disabled={saving} className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
+                  {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                  {saving ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Main Content Layout containing ONLY form specs */}
+      </div>      {/* Main Content Layout containing ONLY form specs */}
       <div className="w-full mt-8 px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
+        {viewMode === 'view' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300 pb-12">
 
-          {/* Card 1: Legal Identity Details */}
-          <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-            <SectionHeader num="1" text="Legal Identity Profile" />
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
-              <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
-              <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
-              <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
-              <DetailRow label="Identity Group" value={customer?.customer_group} icon={Layers} themeColor={themeColor} />
-              <DetailRow label="Territory Domain" value={customer?.territory} icon={Globe} themeColor={themeColor} />
-              <DetailRow label="Gender" value={customer?.gender} icon={Users} themeColor={themeColor} />
-              <div className="md:col-span-2">
-                <DetailRow label="Profile Image Reference" value={customer?.image} icon={Tag} themeColor={themeColor} />
-              </div>
-              <div className="md:col-span-2">
-                <DetailRow label="Identity Registry Specs Details" value={customer?.customer_details} icon={FileText} themeColor={themeColor} />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Deal Information & Primary Address */}
-          <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-            <SectionHeader num="2" text="Deal & Spatial Information" />
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
-              <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
-              <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
-              <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
-              <DetailRow label="City Station" value={activeAddr.city} icon={MapPin} themeColor={themeColor} />
-              <DetailRow label="Emirate Hub / State" value={activeAddr.state || activeAddr.emirate} icon={MapPin} themeColor={themeColor} />
-              <DetailRow label="Country" value={activeAddr.country} icon={Globe} themeColor={themeColor} />
-              <div className="md:col-span-2">
-                <DetailRow label="Building / Street Line 1" value={activeAddr.address_line1} icon={MapPin} themeColor={themeColor} />
-              </div>
-              <div className="md:col-span-2">
-                <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Source & Assignment */}
-          <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-            <SectionHeader num="3" text="Source & Assignment Protocols" />
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
-              <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
-              <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
-              <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
-              <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
-              <DetailRow label="Loyalty Hub Link" value={customer?.loyalty_program} icon={Award} themeColor={themeColor} />
-              <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
-              <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
-              <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
-            </div>
-          </div>
-
-          {/* Card 4: Additional Information & Contact Person */}
-          <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-            <SectionHeader num="4" text="Additional Information & Primary Contact" />
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
-              <DetailRow label="Disabled Status" value={customer?.disabled === 1 ? 'Disabled' : 'Active'} icon={Shield} themeColor={themeColor} />
-              <DetailRow label="Is Frozen Status" value={customer?.is_frozen === 1 ? 'Frozen State' : 'Normal State'} icon={Shield} themeColor={themeColor} />
-              <DetailRow label="Internal Customer Status" value={customer?.is_internal_customer === 1 ? 'Yes, Internal' : 'No, External'} icon={Shield} themeColor={themeColor} />
-              <div className="md:col-span-2 my-2 border-t border-dashed border-slate-100" />
-
-              <div className="md:col-span-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3">Primary Contact Profile</p>
-              </div>
-              <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
-              <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
-              <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
-              <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
-              <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Edit Modal (Matches CustomerList modal fields and aesthetics completely) */}
-      {(showEditModal || isNew) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200">
-            {/* Modal Header */}
-            <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-slate-900 text-white rounded-lg shadow-md"><Edit2 size={20} /></div>
-                <div>
-                  <h2 className="text-base font-black text-slate-900 tracking-tight">{isNew ? 'Create Legal Identity' : 'Update Legal Identity Registry'}</h2>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Specifications Matrix Profile</p>
+            {/* Card 1: Legal Identity Details */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
+              <SectionHeader num="1" text="Legal Identity Profile" />
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+                <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
+                <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
+                <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
+                <DetailRow label="Identity Group" value={customer?.customer_group} icon={Layers} themeColor={themeColor} />
+                <DetailRow label="Territory Domain" value={customer?.territory} icon={Globe} themeColor={themeColor} />
+                <DetailRow label="Gender" value={customer?.gender} icon={Users} themeColor={themeColor} />
+                <div className="md:col-span-2">
+                  <DetailRow label="Profile Image Reference" value={customer?.image} icon={Tag} themeColor={themeColor} />
+                </div>
+                <div className="md:col-span-2">
+                  <DetailRow label="Identity Registry Specs Details" value={customer?.customer_details} icon={FileText} themeColor={themeColor} />
                 </div>
               </div>
-              {!isNew && <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all"><X size={20} /></button>}
             </div>
 
-            {/* Scrollable Form Body */}
-            <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 custom-scrollbar">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Card 2: Deal Information & Primary Address */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
+              <SectionHeader num="2" text="Deal & Spatial Information" />
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+                <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
+                <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
+                <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
+                <DetailRow label="City Station" value={activeAddr.city} icon={MapPin} themeColor={themeColor} />
+                <DetailRow label="Emirate Hub / State" value={activeAddr.state || activeAddr.emirate} icon={MapPin} themeColor={themeColor} />
+                <DetailRow label="Country" value={activeAddr.country} icon={Globe} themeColor={themeColor} />
+                <div className="md:col-span-2">
+                  <DetailRow label="Building / Street Line 1" value={activeAddr.address_line1} icon={MapPin} themeColor={themeColor} />
+                </div>
+                <div className="md:col-span-2">
+                  <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
+                </div>
+              </div>
+            </div>
 
-                {/* Quadrant 1: Registration Details */}
-                <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>1</div>
-                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Identity Details</h3>
-                    </div>
-                  </div>
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Legal Identity Name</label>
-                      <input
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.customer_name}
-                        onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                        placeholder="Company or Individual Name"
-                      />
-                    </div>
+            {/* Card 3: Source & Assignment */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
+              <SectionHeader num="3" text="Source & Assignment Protocols" />
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+                <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
+                <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
+                <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
+                <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
+                <DetailRow label="Loyalty Hub Link" value={customer?.loyalty_program} icon={Award} themeColor={themeColor} />
+                <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
+                <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
+                <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
+              </div>
+            </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Salutation</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.salutation}
-                        onChange={e => setForm({ ...form, salutation: e.target.value })}
-                      >
-                        <option value="">Select Salutation</option>
-                        {meta.salutations?.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
+            {/* Card 4: Additional Information & Contact Person */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
+              <SectionHeader num="4" text="Additional Information & Primary Contact" />
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+                <DetailRow label="Disabled Status" value={customer?.disabled === 1 ? 'Disabled' : 'Active'} icon={Shield} themeColor={themeColor} />
+                <DetailRow label="Is Frozen Status" value={customer?.is_frozen === 1 ? 'Frozen State' : 'Normal State'} icon={Shield} themeColor={themeColor} />
+                <DetailRow label="Internal Customer Status" value={customer?.is_internal_customer === 1 ? 'Yes, Internal' : 'No, External'} icon={Shield} themeColor={themeColor} />
+                <div className="md:col-span-2 my-2 border-t border-dashed border-slate-100" />
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Corporate Type</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.customer_type}
-                        onChange={e => setForm({ ...form, customer_type: e.target.value })}
-                      >
-                        {meta.customer_type?.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
+                <div className="md:col-span-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3">Primary Contact Profile</p>
+                </div>
+                <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
+                <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
+                <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
+                <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
+                <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
+              </div>
+            </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Group</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.customer_group}
-                        onChange={e => setForm({ ...form, customer_group: e.target.value })}
-                      >
-                        {meta.customer_group?.map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Territory Domain</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.territory}
-                        onChange={e => setForm({ ...form, territory: e.target.value })}
-                      >
-                        {meta.territory?.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Gender</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.gender}
-                        onChange={e => setForm({ ...form, gender: e.target.value })}
-                      >
-                        <option value="">Select Gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5 col-span-1 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Profile Image Reference</label>
-                      <input
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.image}
-                        onChange={e => setForm({ ...form, image: e.target.value })}
-                        placeholder="Image URL link"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5 col-span-1 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Registry Specs Details</label>
-                      <textarea
-                        rows={2}
-                        className="w-full px-4 py-2 border rounded-lg text-xs font-medium text-slate-700 bg-white focus:ring-0 resize-none"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.customer_details}
-                        onChange={e => setForm({ ...form, customer_details: e.target.value })}
-                        placeholder="Internal description notes"
-                      />
-                    </div>
-                  </div>
+          </div>
+        ) : (
+          /* Full Screen Edit Form */
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-300 pb-12">
+            {/* Quadrant 1: Registration Details */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>1</div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Identity Details</h3>
+                </div>
+              </div>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Legal Identity Name</label>
+                  <input
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.customer_name}
+                    onChange={e => setForm({ ...form, customer_name: e.target.value })}
+                    placeholder="Company or Individual Name"
+                  />
                 </div>
 
-                {/* Quadrant 2: Contact Info & Address */}
-                <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>2</div>
-                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Deal Information</h3>
-                    </div>
-                  </div>
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Email Id</label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Salutation</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.salutation}
+                    onChange={e => setForm({ ...form, salutation: e.target.value })}
+                  >
+                    <option value="">Select Salutation</option>
+                    {meta.salutations?.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Corporate Type</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.customer_type}
+                    onChange={e => setForm({ ...form, customer_type: e.target.value })}
+                  >
+                    {meta.customer_type?.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Group</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.customer_group}
+                    onChange={e => setForm({ ...form, customer_group: e.target.value })}
+                  >
+                    {meta.customer_group?.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Territory Domain</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.territory}
+                    onChange={e => setForm({ ...form, territory: e.target.value })}
+                  >
+                    {meta.territory?.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Gender</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.gender}
+                    onChange={e => setForm({ ...form, gender: e.target.value })}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Profile Image Reference</label>
+                  <input
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.image}
+                    onChange={e => setForm({ ...form, image: e.target.value })}
+                    placeholder="Image URL link"
+                  />
+                </div>
+
+                <div className="space-y-1.5 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Registry Specs Details</label>
+                  <textarea
+                    rows={2}
+                    className="w-full px-4 py-2 border rounded-lg text-xs font-medium text-slate-700 bg-white focus:ring-0 resize-none"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.customer_details}
+                    onChange={e => setForm({ ...form, customer_details: e.target.value })}
+                    placeholder="Internal description notes"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Quadrant 2: Contact Info & Address */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>2</div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Deal Information</h3>
+                </div>
+              </div>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Email Id</label>
+                  <input
+                    type="email"
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.email_id}
+                    onChange={e => setForm({ ...form, email_id: e.target.value })}
+                    placeholder="email@example.com"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Mobile No</label>
+                  <input
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.mobile_no}
+                    onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                    placeholder="+971 -- --- ----"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Type</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.address_type}
+                    onChange={e => setForm({ ...form, address_type: e.target.value })}
+                  >
+                    {meta.address_type?.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">City Station</label>
+                  <input
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.city}
+                    onChange={e => setForm({ ...form, city: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Emirate Hub</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.emirate}
+                    onChange={e => setForm({ ...form, emirate: e.target.value })}
+                  >
+                    <option value="">Select Emirate</option>
+                    {meta.emirates?.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Country</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.country}
+                    onChange={e => {
+                      const selectedCountry = e.target.value;
+                      const norm = (selectedCountry || '').toLowerCase().trim();
+                      const code = countryPhoneCodes[norm] || '';
+                      setForm(prev => ({
+                        ...prev,
+                        country: selectedCountry,
+                        custom_phone_code: code,
+                        mobile_no: getUpdatedPhone(prev.mobile_no, code)
+                      }));
+                    }}
+                  >
+                    {meta.countries?.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Building / Street Line 1</label>
+                  <input
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.address_line1}
+                    onChange={e => setForm({ ...form, address_line1: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1.5 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Line 2</label>
+                  <input
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.address_line2}
+                    onChange={e => setForm({ ...form, address_line2: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Quadrant 3: Currency & Price List */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>3</div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Source & Assignment</h3>
+                </div>
+              </div>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Id</label>
+                  <input
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.tax_id}
+                    onChange={e => setForm({ ...form, tax_id: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Category</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.tax_category}
+                    onChange={e => setForm({ ...form, tax_category: e.target.value })}
+                  >
+                    <option value="">Default</option>
+                    {meta.tax_categories?.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Pricing Matrix</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.default_price_list}
+                    onChange={e => setForm({ ...form, default_price_list: e.target.value })}
+                  >
+                    <option value="">System Standard</option>
+                    {meta.price_lists?.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Payment Terms Protocol</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.payment_terms}
+                    onChange={e => setForm({ ...form, payment_terms: e.target.value })}
+                  >
+                    <option value="">Direct</option>
+                    {meta.payment_terms?.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Loyalty Hub Link</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.loyalty_program}
+                    onChange={e => setForm({ ...form, loyalty_program: e.target.value })}
+                  >
+                    <option value="">None</option>
+                    {meta.loyalty_programs?.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Account Supervisor</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.account_manager}
+                    onChange={e => setForm({ ...form, account_manager: e.target.value })}
+                  >
+                    <option value="">Select Supervisor</option>
+                    {meta.account_managers?.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Customer POS Ident</label>
+                  <input
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.customer_pos_id}
+                    onChange={e => setForm({ ...form, customer_pos_id: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Prospect Alias</label>
+                  <select
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.prospect_name}
+                    onChange={e => setForm({ ...form, prospect_name: e.target.value })}
+                  >
+                    <option value="">Select Prospect</option>
+                    {meta.prospects?.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Quadrant 4: Settings & Controls */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>4</div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Additional Information</h3>
+                </div>
+              </div>
+              <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {[
+                    { id: 'disabled', label: 'Disabled' },
+                    { id: 'is_frozen', label: 'Is Frozen' },
+                    { id: 'is_internal_customer', label: 'Internal Customer' }
+                  ].map(check => (
+                    <label key={check.id} className="flex items-center px-3 py-2.5 bg-slate-50/50 hover:bg-slate-100/50 border border-slate-100 rounded-lg cursor-pointer transition-all select-none group">
                       <input
-                        type="email"
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.email_id}
-                        onChange={e => setForm({ ...form, email_id: e.target.value })}
-                        placeholder="email@example.com"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Mobile No</label>
-                      <input
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.mobile_no}
-                        onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                        placeholder="+971 -- --- ----"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Type</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.address_type}
-                        onChange={e => setForm({ ...form, address_type: e.target.value })}
-                      >
-                        {meta.address_type?.map(a => <option key={a} value={a}>{a}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">City Station</label>
-                      <input
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.city}
-                        onChange={e => setForm({ ...form, city: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Emirate Hub</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.emirate}
-                        onChange={e => setForm({ ...form, emirate: e.target.value })}
-                      >
-                        <option value="">Select Emirate</option>
-                        {meta.emirates?.map(e => <option key={e} value={e}>{e}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Country</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.country}
-                        onChange={e => {
-                          const selectedCountry = e.target.value;
-                          const norm = (selectedCountry || '').toLowerCase().trim();
-                          const code = countryPhoneCodes[norm] || '';
-                          setForm(prev => ({
-                            ...prev,
-                            country: selectedCountry,
-                            custom_phone_code: code,
-                            mobile_no: getUpdatedPhone(prev.mobile_no, code)
-                          }));
+                        type="checkbox"
+                        className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0"
+                        style={{
+                          accentColor: themeColor,
+                          width: '16px',
+                          height: '16px',
+                          minWidth: '16px',
+                          minHeight: '16px',
+                          position: 'static',
+                          display: 'inline-block',
+                          margin: '0 10px 0 0',
+                          flexShrink: 0,
+                          cursor: 'pointer'
                         }}
-                      >
-                        {meta.countries?.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5 col-span-1 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Building / Street Line 1</label>
-                      <input
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.address_line1}
-                        onChange={e => setForm({ ...form, address_line1: e.target.value })}
+                        checked={form[check.id] === 1 || form[check.id] === true}
+                        onChange={e => setForm({ ...form, [check.id]: e.target.checked ? 1 : 0 })}
                       />
-                    </div>
-
-                    <div className="space-y-1.5 col-span-1 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Line 2</label>
-                      <input
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.address_line2}
-                        onChange={e => setForm({ ...form, address_line2: e.target.value })}
-                      />
-                    </div>
-                  </div>
+                      <span className="text-[9px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
+                    </label>
+                  ))}
                 </div>
 
-                {/* Quadrant 3: Currency & Price List */}
-                <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>3</div>
-                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Source & Assignment</h3>
-                    </div>
-                  </div>
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Id</label>
-                      <input
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.tax_id}
-                        onChange={e => setForm({ ...form, tax_id: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Category</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.tax_category}
-                        onChange={e => setForm({ ...form, tax_category: e.target.value })}
-                      >
-                        <option value="">Default</option>
-                        {meta.tax_categories?.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Pricing Matrix</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.default_price_list}
-                        onChange={e => setForm({ ...form, default_price_list: e.target.value })}
-                      >
-                        <option value="">System Standard</option>
-                        {meta.price_lists?.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Payment Terms Protocol</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.payment_terms}
-                        onChange={e => setForm({ ...form, payment_terms: e.target.value })}
-                      >
-                        <option value="">Direct</option>
-                        {meta.payment_terms?.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Loyalty Hub Link</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.loyalty_program}
-                        onChange={e => setForm({ ...form, loyalty_program: e.target.value })}
-                      >
-                        <option value="">None</option>
-                        {meta.loyalty_programs?.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Account Supervisor</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.account_manager}
-                        onChange={e => setForm({ ...form, account_manager: e.target.value })}
-                      >
-                        <option value="">Select Supervisor</option>
-                        {meta.account_managers?.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Customer POS Ident</label>
-                      <input
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.customer_pos_id}
-                        onChange={e => setForm({ ...form, customer_pos_id: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Prospect Alias</label>
-                      <select
-                        className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.prospect_name}
-                        onChange={e => setForm({ ...form, prospect_name: e.target.value })}
-                      >
-                        <option value="">Select Prospect</option>
-                        {meta.prospects?.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
+                {/* Personnel Profile (Primary Contact) */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Primary Contact Person Profile</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      placeholder="First Name"
+                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      value={form.first_name}
+                      onChange={e => setForm({ ...form, first_name: e.target.value })}
+                    />
+                    <input
+                      placeholder="Middle Name"
+                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      value={form.middle_name}
+                      onChange={e => setForm({ ...form, middle_name: e.target.value })}
+                    />
+                    <input
+                      placeholder="Last Name"
+                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      value={form.last_name}
+                      onChange={e => setForm({ ...form, last_name: e.target.value })}
+                    />
+                    <input
+                      placeholder="Designation"
+                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      value={form.designation}
+                      onChange={e => setForm({ ...form, designation: e.target.value })}
+                    />
+                    <input
+                      placeholder="Contact Email"
+                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white col-span-2"
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      value={form.contact_email}
+                      onChange={e => setForm({ ...form, contact_email: e.target.value })}
+                    />
+                    <input
+                      placeholder="Contact Mobile"
+                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      value={form.contact_mobile}
+                      onChange={e => setForm({ ...form, contact_mobile: e.target.value })}
+                    />
+                    <select
+                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      value={form.status}
+                      onChange={e => setForm({ ...form, status: e.target.value })}
+                    >
+                      <option value="Passive">Passive</option>
+                      <option value="Active">Active</option>
+                      <option value="Suspended">Suspended</option>
+                    </select>
                   </div>
                 </div>
-
-                {/* Quadrant 4: Settings & Controls */}
-                <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>4</div>
-                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Additional Information</h3>
-                    </div>
-                  </div>
-                  <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {[
-                        { id: 'disabled', label: 'Disabled' },
-                        { id: 'is_frozen', label: 'Is Frozen' },
-                        { id: 'is_internal_customer', label: 'Internal Customer' }
-                      ].map(check => (
-                        <label key={check.id} className="flex items-center px-3 py-2.5 bg-slate-50/50 hover:bg-slate-100/50 border border-slate-100 rounded-lg cursor-pointer transition-all select-none group">
-                          <input
-                            type="checkbox"
-                            className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0"
-                            style={{
-                              accentColor: themeColor,
-                              width: '16px',
-                              height: '16px',
-                              minWidth: '16px',
-                              minHeight: '16px',
-                              position: 'static',
-                              display: 'inline-block',
-                              margin: '0 10px 0 0',
-                              flexShrink: 0,
-                              cursor: 'pointer'
-                            }}
-                            checked={form[check.id] === 1 || form[check.id] === true}
-                            onChange={e => setForm({ ...form, [check.id]: e.target.checked ? 1 : 0 })}
-                          />
-                          <span className="text-[9px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
-                        </label>
-                      ))}
-                    </div>
-
-                    {/* Personnel Profile (Primary Contact) */}
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Primary Contact Person Profile</label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          placeholder="First Name"
-                          className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                          style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                          value={form.first_name}
-                          onChange={e => setForm({ ...form, first_name: e.target.value })}
-                        />
-                        <input
-                          placeholder="Middle Name"
-                          className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                          style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                          value={form.middle_name}
-                          onChange={e => setForm({ ...form, middle_name: e.target.value })}
-                        />
-                        <input
-                          placeholder="Last Name"
-                          className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                          style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                          value={form.last_name}
-                          onChange={e => setForm({ ...form, last_name: e.target.value })}
-                        />
-                        <input
-                          placeholder="Designation"
-                          className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                          style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                          value={form.designation}
-                          onChange={e => setForm({ ...form, designation: e.target.value })}
-                        />
-                        <input
-                          placeholder="Contact Email"
-                          className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white col-span-2"
-                          style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                          value={form.contact_email}
-                          onChange={e => setForm({ ...form, contact_email: e.target.value })}
-                        />
-                        <input
-                          placeholder="Contact Mobile"
-                          className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                          style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                          value={form.contact_mobile}
-                          onChange={e => setForm({ ...form, contact_mobile: e.target.value })}
-                        />
-                        <select
-                          className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                          style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                          value={form.status}
-                          onChange={e => setForm({ ...form, status: e.target.value })}
-                        >
-                          <option value="Passive">Passive</option>
-                          <option value="Active">Active</option>
-                          <option value="Suspended">Suspended</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="px-8 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between sticky bottom-0 shrink-0">
-              <button onClick={() => isNew ? navigate('/customerlist') : setShowEditModal(false)} className="text-[10px] font-black text-slate-400 hover:text-slate-800 transition-colors uppercase tracking-widest">{isNew ? 'Cancel' : 'Discard'}</button>
-              <button onClick={handleSave} disabled={saving} style={{ backgroundColor: themeColor }} className="px-12 py-3 text-white rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 shadow-md hover:scale-102 hover:shadow-lg active:scale-98 transition-all disabled:opacity-50">
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {saving ? 'Saving...' : 'Save Profile'}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-      `}</style>
+        )}
+      </div>
     </div>
   );
 };
