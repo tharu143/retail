@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Save, X, Phone, Mail, Users, ChevronLeft, Palette, Loader2, ShoppingCart, Receipt, Calendar, AlertCircle, Activity, Settings,
   Edit, ArrowLeft, Eye, Trash2, Edit2, Package, ChevronDown, ChevronRight as ChevronRightIcon, MapPin, User, Layers, Shield, CheckCircle2, Hash, TrendingUp, CreditCard, Clock, Globe, ShieldCheck, UserPlus, FileText, CheckCircle, AlertTriangle, Building2, UserCircle2, Briefcase, Award, Percent, DollarSign, Image as ImageIcon, HeartPulse, HardDrive, Smartphone, Zap, Contact
@@ -280,6 +281,7 @@ const getUpdatedPhone = (currentPhone, newCode) => {
 };
 
 function CustomerList() {
+  const navigate = useNavigate();
   const { themeColor, themeLight, isGreen, toggleTheme, legacySubTheme } = useLegacyTheme();
 
   // View States
@@ -296,6 +298,8 @@ function CustomerList() {
   const [filterGroup, setFilterGroup] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [sortField, setSortField] = useState('modified');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [activeDetailTab, setActiveDetailTab] = useState('Information');
@@ -333,16 +337,33 @@ function CustomerList() {
   /* ────────────────────── INITIALIZATION ────────────────────── */
   useEffect(() => {
     fetchCustomers();
+  }, [sortField, sortOrder]);
+
+  useEffect(() => {
     fetchMeta();
   }, []);
 
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}.get_customers_list`, { params: { order_by: 'modified desc' } });
+      const res = await axios.get(`${API_BASE}.get_customers_list`, { 
+        params: { 
+          order_by: `${sortField} ${sortOrder}`,
+          search: filterSearch 
+        } 
+      });
       setCustomers(res.data.message?.data || []);
     } catch (err) { console.error('List failed', err); }
     finally { setLoading(false); }
+  };
+
+  const toggleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
   };
 
   const fetchMeta = async () => {
@@ -375,10 +396,7 @@ function CustomerList() {
   /* ────────────────────── ACTIONS ────────────────────── */
   const handleCustomerClick = (c) => {
     const id = c.name || c.value;
-    setSelectedCustomer({ customer_name: c.customer_name || c.label, name: id });
-    setView('detail');
-    setActiveDetailTab('Information');
-    fetchFullDetails(id);
+    navigate(`/customer-details/${id}`);
   };
 
   const openAddModal = () => {
@@ -550,7 +568,12 @@ function CustomerList() {
 
       const res = await axios.post(`${API_BASE}.save_customer_details_retail`, payload);
       if (res.data.message?.success) {
-        Swal.fire({ icon: 'success', title: 'Neural Matrix Sync Complete', confirmButtonColor: themeColor, text: 'Identity registry updated.' });
+        Swal.fire({ 
+          icon: 'success', 
+          title: 'Saved Successfully', 
+          confirmButtonColor: themeColor, 
+          text: modalMode === 'create' ? 'Customer created successfully.' : 'Customer profile updated successfully.' 
+        });
         setShowModal(false);
         if (view === 'detail') fetchFullDetails(selectedCustomer.name);
         fetchCustomers();
@@ -703,9 +726,17 @@ function CustomerList() {
                 <table className="so-table">
                   <thead>
                     <tr>
-                      <th>Customer Profile</th>
+                      <th onClick={() => toggleSort('customer_name')} style={{ cursor: 'pointer' }}>
+                        Customer Profile {sortField === 'customer_name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th>Contact Vectors</th>
                       <th>Classification</th>
+                      <th onClick={() => toggleSort('creation')} style={{ cursor: 'pointer' }}>
+                        Created By {sortField === 'creation' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th onClick={() => toggleSort('modified')} style={{ cursor: 'pointer' }}>
+                        Last Updated {sortField === 'modified' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th>Status</th>
                       <th style={{ width: '120px', textAlign: 'center' }}>Controls</th>
                     </tr>
@@ -713,13 +744,13 @@ function CustomerList() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan="5" className="so-empty" style={{ textAlign: 'center', padding: '100px' }}>
+                        <td colSpan="7" className="so-empty" style={{ textAlign: 'center', padding: '100px' }}>
                           <Loader2 size={28} className="animate-spin" style={{ color: themeColor, margin: '0 auto' }} />
                         </td>
                       </tr>
                     ) : paginated.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="so-empty" style={{ textAlign: 'center', padding: '150px' }}>
+                        <td colSpan="7" className="so-empty" style={{ textAlign: 'center', padding: '150px' }}>
                           <Users size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
                           No customers match the current filter criteria.
                         </td>
@@ -748,6 +779,18 @@ function CustomerList() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{c.customer_type || 'Individual'}</span>
                               <span style={{ fontSize: '11px', color: '#6b7280' }}>{c.customer_group}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{c.owner?.split('@')[0]}</span>
+                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(c.creation).toLocaleDateString()}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{c.modified_by?.split('@')[0]}</span>
+                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(c.modified).toLocaleDateString()}</span>
                             </div>
                           </td>
                           <td>
