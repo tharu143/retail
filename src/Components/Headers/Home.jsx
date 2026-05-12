@@ -65,10 +65,11 @@ const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount,
 
   let displayString = "";
   if (formatType === 'continuous') {
-    const year = format(tick, 'yyyy');
-    displayString = `${branchPrefix || 'POS'}-${userCode}-${year}-${String(continuousCount || 1).padStart(6, '0')}`;
+    const ddmmyy = format(tick, 'ddMMyy');
+    displayString = `${branchPrefix || 'POS'}-${userCode}-${ddmmyy}-${String(continuousCount || 1).padStart(6, '0')}`;
   } else {
-    displayString = `${branchPrefix || 'POS'}-${userCode}-${ddmm}-${format(tick, 'HHmmss')}-${String(sessionOrderCount).padStart(3, '0')}`;
+    // Legacy mode (No timestamp as requested)
+    displayString = `${branchPrefix || 'POS'}-${userCode}-${ddmm}-${String(sessionOrderCount).padStart(3, '0')}`;
   }
 
   return (
@@ -323,8 +324,8 @@ function Home() {
         const userCode = userNumMatch ? `CS${userNumMatch[0]}` : 'CS1';
         const year = format(now, 'yyyy');
         
-        const fullPrefix = `${bPrefix}-${userCode}-${year}-`;
-        const lastSeq = await POSService.getLastOfflineId(fullPrefix);
+        const searchPrefix = `${bPrefix}-${userCode}-`;
+        const lastSeq = await POSService.getLastOfflineId(searchPrefix);
         
         if (lastSeq >= 0) {
           const localCount = parseInt(localStorage.getItem('offlineIdContinuousCount')) || 1;
@@ -1841,12 +1842,12 @@ function Home() {
       const userCode = userNumMatch ? `CS${userNumMatch[0]}` : 'CS1';
 
       if (offlineIdType === 'continuous') {
-        const year = format(now, 'yyyy');
-        return `${bPrefix}-${userCode}-${year}-${String(continuousOrderCount).padStart(6, '0')}`;
+        const ddmmyy = format(now, 'ddMMyy');
+        return `${bPrefix}-${userCode}-${ddmmyy}-${String(continuousOrderCount).padStart(6, '0')}`;
       } else {
         const ddmm = format(now, 'ddMM');
-        const timeStr = format(now, 'HHmmss');
-        return `${bPrefix}-${userCode}-${ddmm}-${timeStr}-${String(sessionOrderCount).padStart(3, '0')}`;
+        // Removed timeStr to satisfy "no timestamp" request
+        return `${bPrefix}-${userCode}-${ddmm}-${String(sessionOrderCount).padStart(3, '0')}`;
       }
     };
 
