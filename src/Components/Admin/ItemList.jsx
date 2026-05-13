@@ -136,7 +136,7 @@ const GlobalStyle = () => (
 /* ==================== UI COMPONENTS ==================== */
 const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   const filteredDocs = useMemo(() => {
     return (docs || []).filter(doc => {
       const s = (search || '').toLowerCase();
@@ -149,55 +149,55 @@ const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate }) => {
 
   return (
     <div style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden', transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-      <div 
+      <div
         onClick={() => setIsOpen(!isOpen)}
         style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: isOpen ? T.blueLight : '#fff' }}
       >
         <span style={{ fontSize: 13, fontWeight: 700, color: isOpen ? T.blue : T.text }}>{title}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-           <span style={{ fontSize: 11, fontWeight: 800, background: isOpen ? T.blue : T.bg, color: isOpen ? '#fff' : T.blue, padding: '2px 8px', borderRadius: 10, transition: '0.2s' }}>{filteredDocs.length}</span>
-           <ChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: '0.2s', color: T.textMuted }} />
+          <span style={{ fontSize: 11, fontWeight: 800, background: isOpen ? T.blue : T.bg, color: isOpen ? '#fff' : T.blue, padding: '2px 8px', borderRadius: 10, transition: '0.2s' }}>{filteredDocs.length}</span>
+          <ChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: '0.2s', color: T.textMuted }} />
         </div>
       </div>
       {isOpen && (
         <div style={{ padding: 0, borderTop: `1px solid ${T.borderLight}`, background: '#fff' }}>
-           {filteredDocs.length > 0 ? (
-             <div style={{ overflowX: 'auto' }}>
-               <table className="il-table" style={{ border: 'none' }}>
-                 <thead>
-                   <tr style={{ background: T.bg }}>
-                     <th style={{ paddingLeft: 20 }}>Ref ID</th>
-                     <th>Date</th>
-                     <th style={{ textAlign: 'right' }}>Qty</th>
-                     <th style={{ textAlign: 'right' }}>Rate</th>
-                     <th style={{ textAlign: 'right' }}>Total</th>
-                     <th style={{ paddingRight: 20 }}>Serial / Note</th>
-                   </tr>
-                 </thead>
-                 <tbody>
-                    {filteredDocs.map((doc, idx) => (
-                       <tr key={idx} style={{ cursor: 'default' }}>
-                          <td style={{ paddingLeft: 20 }}>
-                             <div style={{ fontWeight: 600, color: T.blue, fontSize: 13, fontFamily: "'DM Mono', monospace" }}>{doc.name || doc.parent}</div>
-                             <div style={{ fontSize: 10, color: T.green, fontWeight: 700, textTransform: 'uppercase' }}>{doc.status || 'Submitted'}</div>
-                          </td>
-                          <td style={{ fontSize: 12, color: T.textSub, fontFamily: "'DM Mono', monospace" }}>{doc.posting_date || doc.modified?.split(' ')?.[0] || '—'}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{doc.qty || 0} <span style={{ fontWeight: 400, color: T.textMuted, fontSize: 11 }}>{doc.uom || 'Nos'}</span></td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(doc.rate || 0).toFixed(2)}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: T.blue }}>{Number(doc.amount || (doc.qty * doc.rate) || 0).toFixed(2)}</td>
-                          <td style={{ paddingRight: 20 }}>
-                             <code style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 6px', borderRadius: 4 }}>{doc.custom_supplier_sl_num || doc.serial_no || '—'}</code>
-                          </td>
-                       </tr>
-                    ))}
-                 </tbody>
-               </table>
-             </div>
-           ) : (
-             <div style={{ padding: '30px', textAlign: 'center', color: T.textMuted, fontSize: 12, fontWeight: 600 }}>
-                No records found matching filters
-             </div>
-           )}
+          {filteredDocs.length > 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="il-table" style={{ border: 'none' }}>
+                <thead>
+                  <tr style={{ background: T.bg }}>
+                    <th style={{ paddingLeft: 20 }}>Ref ID</th>
+                    <th>Date</th>
+                    <th style={{ textAlign: 'right' }}>Qty</th>
+                    <th style={{ textAlign: 'right' }}>Rate</th>
+                    <th style={{ textAlign: 'right' }}>Total</th>
+                    <th style={{ paddingRight: 20 }}>Serial / Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDocs.map((doc, idx) => (
+                    <tr key={idx} style={{ cursor: 'default' }}>
+                      <td style={{ paddingLeft: 20 }}>
+                        <div style={{ fontWeight: 600, color: T.blue, fontSize: 13, fontFamily: "'DM Mono', monospace" }}>{doc.name || doc.parent}</div>
+                        <div style={{ fontSize: 10, color: T.green, fontWeight: 700, textTransform: 'uppercase' }}>{doc.status || 'Submitted'}</div>
+                      </td>
+                      <td style={{ fontSize: 12, color: T.textSub, fontFamily: "'DM Mono', monospace" }}>{doc.posting_date || doc.modified?.split(' ')?.[0] || '—'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{doc.qty || 0} <span style={{ fontWeight: 400, color: T.textMuted, fontSize: 11 }}>{doc.uom || 'Nos'}</span></td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(doc.rate || 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: T.blue }}>{Number(doc.amount || (doc.qty * doc.rate) || 0).toFixed(2)}</td>
+                      <td style={{ paddingRight: 20 }}>
+                        <code style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 6px', borderRadius: 4 }}>{doc.custom_supplier_sl_num || doc.serial_no || '—'}</code>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ padding: '30px', textAlign: 'center', color: T.textMuted, fontSize: 12, fontWeight: 600 }}>
+              No records found matching filters
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -460,11 +460,11 @@ export default function ItemList() {
     try {
       setLoading(true);
       // Use the custom retail API which returns barcodes and other retail-ready data
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', { 
-        params: { 
-          warehouse: localStorage.getItem('warehouse') 
-        }, 
-        withCredentials: true 
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
+        params: {
+          warehouse: localStorage.getItem('warehouse')
+        },
+        withCredentials: true
       });
       setItems(res.data?.message || []);
     } catch { setItems([]); } finally { setLoading(false); }
@@ -608,7 +608,7 @@ export default function ItemList() {
       });
       if (result.isConfirmed) setForm({ ...form, disabled: true });
     } else {
-       setForm({ ...form, disabled: false });
+      setForm({ ...form, disabled: false });
     }
   };
 
@@ -641,12 +641,12 @@ export default function ItemList() {
     return items.filter(item => {
       const s = (filterName || '').toLowerCase();
       const b = (barcodeFilter || '').toLowerCase();
-      
-      const matchesBarcode = !barcodeFilter || 
+
+      const matchesBarcode = !barcodeFilter ||
         (item.barcodes || []).some(bc => (bc.barcode || '').toLowerCase().includes(b)) ||
         (item.item_code || '').toLowerCase().includes(b);
 
-      return matchesBarcode 
+      return matchesBarcode
         && (!filterName || item.item_code.toLowerCase().includes(s) || item.item_name.toLowerCase().includes(s))
         && (!filterGroup || item.item_group.toLowerCase().includes(filterGroup.toLowerCase()))
         && (!filterStatus || (filterStatus === 'Enabled' ? !item.disabled : item.disabled))
@@ -738,29 +738,29 @@ export default function ItemList() {
     if (!form.item_code.trim() || !form.item_name.trim() || !form.item_group || !form.default_uom.trim()) { alert('Please fill all required fields'); return; }
     setSaving(true);
     try {
-      const data = { 
-        item_code: form.item_code, 
-        item_name: form.item_name, 
-        item_group: form.item_group, 
-        stock_uom: form.default_uom, 
-        standard_rate: parseFloat(form.standard_selling_rate) || 0, 
-        disabled: form.disabled ? 1 : 0, 
-        maintain_stock: form.maintain_stock ? 1 : 0, 
-        has_variants: form.has_variants ? 1 : 0, 
-        description: form.description || '', 
-        image: form.image || form.imagePreview || '', 
-        hsn_code: form.hsn_code, 
-        brand: form.brand, 
-        country_of_origin: form.country_of_origin, 
-        custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0, 
-        custom_allow_discount: form.custom_allow_discount ? 1 : 0, 
-        is_stock_item: form.is_stock_item ? 1 : 0, 
-        is_sales_item: form.is_sales_item ? 1 : 0, 
-        is_purchase_item: form.is_purchase_item ? 1 : 0, 
+      const data = {
+        item_code: form.item_code,
+        item_name: form.item_name,
+        item_group: form.item_group,
+        stock_uom: form.default_uom,
+        standard_rate: parseFloat(form.standard_selling_rate) || 0,
+        disabled: form.disabled ? 1 : 0,
+        maintain_stock: form.maintain_stock ? 1 : 0,
+        has_variants: form.has_variants ? 1 : 0,
+        description: form.description || '',
+        image: form.image || form.imagePreview || '',
+        hsn_code: form.hsn_code,
+        brand: form.brand,
+        country_of_origin: form.country_of_origin,
+        custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0,
+        custom_allow_discount: form.custom_allow_discount ? 1 : 0,
+        is_stock_item: form.is_stock_item ? 1 : 0,
+        is_sales_item: form.is_sales_item ? 1 : 0,
+        is_purchase_item: form.is_purchase_item ? 1 : 0,
         custom_pieces_per_box: parseFloat(form.custom_pieces_per_box) || 0,
-        barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })), 
-        uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })), 
-        supplier_items: form.supplier_items, 
+        barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })),
+        uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })),
+        supplier_items: form.supplier_items,
         branch_availability: form.branch_availability
           .filter(b => b.warehouse && b.warehouse !== 'undefined' && b.warehouse !== 'null')
           .map(b => ({ warehouse: b.warehouse }))
@@ -790,19 +790,20 @@ export default function ItemList() {
 
   const handleRowClick = async (item) => {
     setIsViewMode(true); setIsEditMode(false); setEditingItemCode(item.item_code);
-    setForm({ ...defaultForm(), 
-      item_code: item.item_code, 
-      item_name: item.item_name, 
-      item_group: item.item_group, 
-      disabled: item.disabled === 1, 
-      has_variants: item.has_variants === 1, 
-      default_uom: item.stock_uom || 'Nos', 
-      standard_selling_rate: item.standard_rate || 0, 
-      imagePreview: item.image, 
-      brand: item.brand || '', 
-      country_of_origin: item.country_of_origin || '', 
+    setForm({
+      ...defaultForm(),
+      item_code: item.item_code,
+      item_name: item.item_name,
+      item_group: item.item_group,
+      disabled: item.disabled === 1,
+      has_variants: item.has_variants === 1,
+      default_uom: item.stock_uom || 'Nos',
+      standard_selling_rate: item.standard_rate || 0,
+      imagePreview: item.image,
+      brand: item.brand || '',
+      country_of_origin: item.country_of_origin || '',
       custom_pieces_per_box: item.custom_pieces_per_box || 0,
-      branch_availability: [] 
+      branch_availability: []
     });
     setBarcodes([]); setShowForm(true); setActiveTab('General'); setDashboardData(null); setConnectionActiveTab(null);
     fetchPriceList(item.item_code);
@@ -871,8 +872,8 @@ export default function ItemList() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}><Scale size={14} />Price Master</button>
               <button className="il-btn il-btn-secondary" onClick={fetchItems} title="Refresh"><RefreshCw size={14} /></button>
-              <button className="il-btn il-btn-primary" onClick={() => { 
-                resetForm(); 
+              <button className="il-btn il-btn-primary" onClick={() => {
+                resetForm();
                 const myWh = localStorage.getItem('warehouse');
                 if (myWh) setForm(p => ({ ...p, branch_availability: [{ warehouse: myWh }] }));
                 setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); fetchCountries();
@@ -888,19 +889,19 @@ export default function ItemList() {
               <span className="il-section-label">Barcode / Scan</span>
               <div style={{ position: 'relative' }}>
                 <Barcode size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.blue, pointerEvents: 'none' }} />
-                <input 
-                  className="il-input" 
-                  style={{ paddingLeft: 34, paddingRight: 60, borderColor: barcodeFilter ? T.blue : T.border }} 
-                  placeholder="Scan or type barcode..." 
-                  value={barcodeFilter} 
-                  onChange={e => setBarcodeFilter(e.target.value)} 
+                <input
+                  className="il-input"
+                  style={{ paddingLeft: 34, paddingRight: 60, borderColor: barcodeFilter ? T.blue : T.border }}
+                  placeholder="Scan or type barcode..."
+                  value={barcodeFilter}
+                  onChange={e => setBarcodeFilter(e.target.value)}
                 />
                 <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-                   <button onClick={startBarcodeScanner} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Camera Scan"><Camera size={14} /></button>
-                   <label style={{ cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Image Scan">
-                     <Upload size={14} />
-                     <input type="file" hidden accept="image/*" onChange={handleBarcodeFileScan} />
-                   </label>
+                  <button onClick={startBarcodeScanner} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Camera Scan"><Camera size={14} /></button>
+                  <label style={{ cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Image Scan">
+                    <Upload size={14} />
+                    <input type="file" hidden accept="image/*" onChange={handleBarcodeFileScan} />
+                  </label>
                 </div>
               </div>
             </div>
@@ -914,10 +915,10 @@ export default function ItemList() {
             </div>
             <div style={{ width: 190 }}>
               <span className="il-section-label">Group</span>
-              <SearchableSelectInline 
-                value={filterGroup} 
-                options={[{ label: 'All Groups', value: '' }, ...itemGroups]} 
-                placeholder="Filter by group..." 
+              <SearchableSelectInline
+                value={filterGroup}
+                options={[{ label: 'All Groups', value: '' }, ...itemGroups]}
+                placeholder="Filter by group..."
                 onChange={val => { setFilterGroup(val); setCurrentPage(1); }}
                 style={{ background: T.surface, border: `1.5px solid ${T.border}`, borderRadius: T.radius, padding: '0 12px', minHeight: 38, display: 'flex', alignItems: 'center' }}
               />
@@ -953,16 +954,16 @@ export default function ItemList() {
         {/* GROUP TABS SCROLL */}
         <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, padding: '4px 28px' }}>
           <div className="il-group-tabs-scroll" style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '8px 0', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <button 
+            <button
               onClick={() => { setFilterGroup(''); setCurrentPage(1); }}
-              style={{ 
-                padding: '7px 16px', 
-                borderRadius: 10, 
-                fontSize: 11, 
-                fontWeight: 800, 
-                textTransform: 'uppercase', 
-                whiteSpace: 'nowrap', 
-                border: 'none', 
+              style={{
+                padding: '7px 16px',
+                borderRadius: 10,
+                fontSize: 11,
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                whiteSpace: 'nowrap',
+                border: 'none',
                 transition: 'all 0.2s',
                 background: filterGroup === '' ? T.text : T.bg,
                 color: filterGroup === '' ? '#fff' : T.textSub,
@@ -972,17 +973,17 @@ export default function ItemList() {
               All Assets
             </button>
             {itemGroups.map(g => (
-              <button 
+              <button
                 key={g.value}
                 onClick={() => { setFilterGroup(g.value); setCurrentPage(1); }}
-                style={{ 
-                  padding: '7px 16px', 
-                  borderRadius: 10, 
-                  fontSize: 11, 
-                  fontWeight: 800, 
-                  textTransform: 'uppercase', 
-                  whiteSpace: 'nowrap', 
-                  border: 'none', 
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: 10,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  border: 'none',
                   transition: 'all 0.2s',
                   background: filterGroup === g.value ? T.blue : T.bg,
                   color: filterGroup === g.value ? '#fff' : T.textSub,
@@ -1052,19 +1053,19 @@ export default function ItemList() {
                 {barcodeFilter ? `Barcode Unrecognized` : `Inventory Exhausted`}
               </div>
               <p style={{ fontSize: 14, color: T.textMuted, marginTop: 8, textAlign: 'center', maxWidth: 400, lineHeight: 1.6 }}>
-                {barcodeFilter 
+                {barcodeFilter
                   ? <>The barcode <strong>{barcodeFilter}</strong> is not registered for <strong>{localStorage.getItem('warehouse') || 'Current Branch'}</strong>.</>
                   : <>No items match your current filters in this branch. Expand your search to the global registry.</>
                 }
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
                 {hasFilters && <button className="il-btn il-btn-secondary" onClick={clearFilters} style={{ height: 44, borderRadius: 12, padding: '0 24px' }}>Clear Local Filters</button>}
-                <button 
+                <button
                   onClick={() => handleGlobalSearchMaster(barcodeFilter || filterName)}
-                  className="il-btn il-btn-primary" 
+                  className="il-btn il-btn-primary"
                   style={{ padding: '0 32px', fontSize: 13, height: 44, borderRadius: 12, boxShadow: '0 10px 15px -3px rgba(37,99,235,0.2)' }}
                 >
-                  <Search size={15} style={{ marginRight: 8 }} /> 
+                  <Search size={15} style={{ marginRight: 8 }} />
                   {barcodeFilter ? 'Deep Scan Registry' : 'Search Industry Registry'}
                 </button>
               </div>
@@ -1112,17 +1113,17 @@ export default function ItemList() {
                     <div style={{ fontSize: 10, color: T.textMuted, fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{editingItemCode}</div>
                     <div style={{ width: 1, height: 10, background: T.border }}></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                       <span style={{ fontSize: 11, fontWeight: 800, color: form.disabled ? T.red : T.green }}>{form.disabled ? '● INACTIVE' : '● ACTIVE'}</span>
-                       <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 6 }}>
-                          <input 
-                            type="checkbox" 
-                            className="il-check" 
-                            checked={form.disabled} 
-                            onChange={e => handleDisableToggle(e.target.checked)} 
-                            style={{ margin: 0, width: 14, height: 14 }}
-                          />
-                          <span style={{ fontSize: 10, fontWeight: 800, color: T.textSub }}>DEACTIVATE</span>
-                       </label>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: form.disabled ? T.red : T.green }}>{form.disabled ? '● INACTIVE' : '● ACTIVE'}</span>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 6 }}>
+                        <input
+                          type="checkbox"
+                          className="il-check"
+                          checked={form.disabled}
+                          onChange={e => handleDisableToggle(e.target.checked)}
+                          style={{ margin: 0, width: 14, height: 14 }}
+                        />
+                        <span style={{ fontSize: 10, fontWeight: 800, color: T.textSub }}>DEACTIVATE</span>
+                      </label>
                     </div>
                   </div>
                 )}
@@ -1130,9 +1131,9 @@ export default function ItemList() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 'auto', flexWrap: 'wrap' }}>
-               {isViewMode && (
+              {isViewMode && (
                 <div className="il-tabs" style={{ background: T.bg, padding: '3px', borderRadius: 12 }}>
-                   {['General', 'UOM', 'Dashboard', 'Prices', 'Stock'].map(t => (
+                  {['General', 'Dashboard', 'Prices', 'Stock'].map(t => (
                     <button
                       key={t}
                       className={`il-tab ${activeTab === t ? 'active' : ''}`}
@@ -1143,12 +1144,12 @@ export default function ItemList() {
                     </button>
                   ))}
                 </div>
-               )}
+              )}
 
-               {isViewMode && (
+              {isViewMode && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button 
-                    className="il-btn il-btn-secondary" 
+                  <button
+                    className="il-btn il-btn-secondary"
                     style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff' }}
                     onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
                   >
@@ -1158,7 +1159,7 @@ export default function ItemList() {
                     <Trash2 size={14} />
                   </button>
                 </div>
-               )}
+              )}
 
 
             </div>
@@ -1258,10 +1259,10 @@ export default function ItemList() {
                           </div>
                           {barcodes?.length > 0 && (
                             <div style={{ padding: '10px 12px', background: T.surface, borderRadius: 10, border: `1.5px solid ${T.borderLight}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                              <img 
-                                src={`https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(barcodes[0].barcode)}&code=Code128`} 
-                                style={{ height: 38, maxWidth: '100%', filter: 'contrast(1.1)' }} 
-                                alt="Item Barcode" 
+                              <img
+                                src={`https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(barcodes[0].barcode)}&code=Code128`}
+                                style={{ height: 38, maxWidth: '100%', filter: 'contrast(1.1)' }}
+                                alt="Item Barcode"
                               />
                               <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px' }}>{barcodes[0].barcode}</span>
                             </div>
@@ -1322,21 +1323,6 @@ export default function ItemList() {
                   </div>
                 )}
 
-                {/* UOM */}
-                {activeTab === 'UOM' && (
-                  <div className="anim-in">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
-                      <CardSection title="UOM Conversions" icon={<Scale size={14} />}>
-                        {form.uoms?.length > 0 ? (
-                          <table className="il-table">
-                            <thead><tr><th>UOM</th><th style={{ textAlign: 'right' }}>Factor</th></tr></thead>
-                            <tbody>{form.uoms.map((u, i) => <tr key={i}><td style={{ fontWeight: 600 }}>{u.uom}</td><td style={{ textAlign: 'right', fontWeight: 700, color: T.blue }}>{u.conversion_factor}</td></tr>)}</tbody>
-                          </table>
-                        ) : <div style={{ padding: '20px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>Single unit</div>}
-                      </CardSection>
-                    </div>
-                  </div>
-                )}
                 {/* DASHBOARD */}
                 {activeTab === 'Dashboard' && (
                   <div className="anim-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1348,18 +1334,18 @@ export default function ItemList() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12 }}>
                           <div style={{ position: 'relative', flex: 1 }}>
                             <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
-                            <input 
-                              className="il-input" 
-                              style={{ paddingLeft: 40, background: 'transparent', border: 'none' }} 
-                              placeholder="Search records..." 
+                            <input
+                              className="il-input"
+                              style={{ paddingLeft: 40, background: 'transparent', border: 'none' }}
+                              placeholder="Search records..."
                               value={connectionSearch}
                               onChange={e => setConnectionSearch(e.target.value)}
                             />
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                             <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, background: T.bg }} />
-                             <span style={{ color: T.textMuted }}>—</span>
-                             <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, background: T.bg }} />
+                            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, background: T.bg }} />
+                            <span style={{ color: T.textMuted }}>—</span>
+                            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, background: T.bg }} />
                           </div>
                         </div>
 
@@ -1370,10 +1356,10 @@ export default function ItemList() {
                               <button
                                 key={tab}
                                 onClick={() => setDashSubTab(tab)}
-                                style={{ 
-                                  padding: '12px 0', 
-                                  fontSize: 13, 
-                                  fontWeight: 700, 
+                                style={{
+                                  padding: '12px 0',
+                                  fontSize: 13,
+                                  fontWeight: 700,
                                   color: dashSubTab === tab ? T.blue : T.textMuted,
                                   border: 'none',
                                   background: 'none',
@@ -1393,7 +1379,7 @@ export default function ItemList() {
                               const connections = dashboardData?.connections || dashboardData?.categories || {};
                               const currentGroupDocs = connections[dashSubTab] || {};
                               const docTypes = Object.entries(currentGroupDocs);
-                              
+
                               if (docTypes.length === 0) {
                                 return (
                                   <div style={{ padding: '40px', textAlign: 'center', background: T.bg, borderRadius: 12, border: `1px dotted ${T.border}` }}>
@@ -1403,13 +1389,13 @@ export default function ItemList() {
                               }
 
                               return docTypes.map(([title, docs]) => (
-                                <DashboardDocRow 
-                                  key={title} 
-                                  title={title} 
-                                  docs={docs} 
-                                  search={connectionSearch} 
-                                  fromDate={fromDate} 
-                                  toDate={toDate} 
+                                <DashboardDocRow
+                                  key={title}
+                                  title={title}
+                                  docs={docs}
+                                  search={connectionSearch}
+                                  fromDate={fromDate}
+                                  toDate={toDate}
                                 />
                               ));
                             })()}
@@ -1575,51 +1561,51 @@ export default function ItemList() {
                         <label className="il-form-label req">Item Name</label>
                         <input className="il-input" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} placeholder="Full item name" />
                       </div>
+                      <SearchableSelect
+                        label="Item Group"
+                        value={form.item_group}
+                        options={itemGroups}
+                        required
+                        placeholder="Select Group"
+                        onChange={val => setForm({ ...form, item_group: val })}
+                        onAction={() => { const n = prompt('New Item Group:'); if (n) fetchItemGroups(); }}
+                      />
+                      <SearchableSelect
+                        label="Brand"
+                        value={form.brand}
+                        options={brands}
+                        placeholder="Select Brand"
+                        onChange={val => setForm({ ...form, brand: val })}
+                        onAction={() => { const n = prompt('New brand name:'); if (n) handleCreateBrand(n); }}
+                      />
+                      {!isEditMode && (
                         <SearchableSelect
-                          label="Item Group"
-                          value={form.item_group}
-                          options={itemGroups}
+                          label="Base UOM"
+                          value={form.default_uom}
+                          options={uoms}
                           required
-                          placeholder="Select Group"
-                          onChange={val => setForm({ ...form, item_group: val })}
-                          onAction={() => { const n = prompt('New Item Group:'); if (n) fetchItemGroups(); }}
+                          placeholder="Select UOM"
+                          onChange={val => setForm({ ...form, default_uom: val })}
+                          onAction={() => { const n = prompt('New UOM name:'); if (n) handleCreateUom(n); }}
                         />
-                       <SearchableSelect
-                         label="Brand"
-                         value={form.brand}
-                         options={brands}
-                         placeholder="Select Brand"
-                         onChange={val => setForm({ ...form, brand: val })}
-                         onAction={() => { const n = prompt('New brand name:'); if (n) handleCreateBrand(n); }}
-                       />
-                       {!isEditMode && (
-                         <SearchableSelect
-                           label="Base UOM"
-                           value={form.default_uom}
-                           options={uoms}
-                           required
-                           placeholder="Select UOM"
-                           onChange={val => setForm({ ...form, default_uom: val })}
-                           onAction={() => { const n = prompt('New UOM name:'); if (n) handleCreateUom(n); }}
-                         />
-                       )}
+                      )}
                       <div className="il-form-field">
-                         <label className="il-form-label">HSN / SAC Code</label>
-                         <input className="il-input" value={form.hsn_code} onChange={e => setForm({ ...form, hsn_code: e.target.value })} placeholder="For GST mapping" />
-                       </div>
-                       <div className="il-form-field">
-                         <SearchableSelect
-                           label="Country of Origin"
-                           value={form.country_of_origin}
-                           options={countries}
-                           placeholder="Select Country"
-                           onChange={val => setForm({ ...form, country_of_origin: val })}
-                         />
-                       </div>
-                        <div className="il-form-field">
-                          <label className="il-form-label">Pieces Per Box</label>
-                          <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => setForm({ ...form, custom_pieces_per_box: e.target.value })} placeholder="Conversion factor" />
-                        </div>
+                        <label className="il-form-label">HSN / SAC Code</label>
+                        <input className="il-input" value={form.hsn_code} onChange={e => setForm({ ...form, hsn_code: e.target.value })} placeholder="For GST mapping" />
+                      </div>
+                      <div className="il-form-field">
+                        <SearchableSelect
+                          label="Country of Origin"
+                          value={form.country_of_origin}
+                          options={countries}
+                          placeholder="Select Country"
+                          onChange={val => setForm({ ...form, country_of_origin: val })}
+                        />
+                      </div>
+                      <div className="il-form-field">
+                        <label className="il-form-label">Pieces Per Box</label>
+                        <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => setForm({ ...form, custom_pieces_per_box: e.target.value })} placeholder="Conversion factor" />
+                      </div>
                     </div>
                   </div>
                 </CardSection>
@@ -1634,11 +1620,11 @@ export default function ItemList() {
                         { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
                       ].map(f => (
                         <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form[f.key] === 1 ? T.blueLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`, transition: 'all 0.15s' }}>
-                          <input 
-                            type="checkbox" 
-                            className="il-check" 
-                            checked={form[f.key] === 1} 
-                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })} 
+                          <input
+                            type="checkbox"
+                            className="il-check"
+                            checked={form[f.key] === 1}
+                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })}
                             tabIndex={showForm ? 0 : -1}
                           />
                           <div>
@@ -1656,11 +1642,11 @@ export default function ItemList() {
                         { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
                       ].map(f => (
                         <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form[f.key] === 1 ? T.blueLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`, transition: 'all 0.15s' }}>
-                          <input 
-                            type="checkbox" 
-                            className="il-check" 
-                            checked={form[f.key] === 1} 
-                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })} 
+                          <input
+                            type="checkbox"
+                            className="il-check"
+                            checked={form[f.key] === 1}
+                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })}
                             tabIndex={showForm ? 0 : -1}
                           />
                           <div>
@@ -1711,31 +1697,31 @@ export default function ItemList() {
 
                 {/* UOM + Suppliers */}
                 <div className="il-form-grid-2">
-                    <CardSection title="UOM Conversions" icon={<Scale size={14} />}
-                      action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addUomRow}><Plus size={12} />Add</button>}
-                    >
-                      {form.uoms.length > 0 ? (
-                        <table className="il-table">
-                          <thead><tr><th>UOM</th><th style={{ textAlign: 'right' }}>Factor</th><th style={{ width: 40 }}></th></tr></thead>
-                          <tbody>
-                            {form.uoms.map((u, i) => (
-                              <tr key={i}>
-                                <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                                  <SearchableSelectInline 
-                                    value={u.uom} 
-                                    options={uoms} 
-                                    placeholder="Select UOM" 
-                                    onChange={val => updateUomRow(i, 'uom', val)} 
-                                  />
-                                </td>
-                                <td style={{ paddingTop: 8, paddingBottom: 8 }}><input type="number" style={{ border: 'none', background: 'transparent', fontWeight: 600, width: '100%', textAlign: 'right', outline: 'none', fontFamily: 'DM Sans, sans-serif', fontSize: 13 }} value={u.conversion_factor} onChange={e => updateUomRow(i, 'conversion_factor', Number(e.target.value))} /></td>
-                                <td><button onClick={() => removeUomRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No additional UOMs</div>}
-                    </CardSection>
+                  <CardSection title="UOM Conversions" icon={<Scale size={14} />}
+                    action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addUomRow}><Plus size={12} />Add</button>}
+                  >
+                    {form.uoms.length > 0 ? (
+                      <table className="il-table">
+                        <thead><tr><th>UOM</th><th style={{ textAlign: 'right' }}>Factor</th><th style={{ width: 40 }}></th></tr></thead>
+                        <tbody>
+                          {form.uoms.map((u, i) => (
+                            <tr key={i}>
+                              <td style={{ paddingTop: 8, paddingBottom: 8 }}>
+                                <SearchableSelectInline
+                                  value={u.uom}
+                                  options={uoms}
+                                  placeholder="Select UOM"
+                                  onChange={val => updateUomRow(i, 'uom', val)}
+                                />
+                              </td>
+                              <td style={{ paddingTop: 8, paddingBottom: 8 }}><input type="number" style={{ border: 'none', background: 'transparent', fontWeight: 600, width: '100%', textAlign: 'right', outline: 'none', fontFamily: 'DM Sans, sans-serif', fontSize: 13 }} value={u.conversion_factor} onChange={e => updateUomRow(i, 'conversion_factor', Number(e.target.value))} /></td>
+                              <td><button onClick={() => removeUomRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No additional UOMs</div>}
+                  </CardSection>
 
                   <CardSection title="Branch Visibility" icon={<MapPin size={14} />}
                     action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addBranchRow}><Plus size={12} />Add Branch</button>}
@@ -1747,12 +1733,12 @@ export default function ItemList() {
                           {form.branch_availability.map((b, i) => (
                             <tr key={i}>
                               <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                                  <SearchableSelectInline
-                                    value={b.warehouse}
-                                    options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
-                                    placeholder="Select Branch"
-                                    onChange={val => updateBranchRow(i, val)}
-                                  />
+                                <SearchableSelectInline
+                                  value={b.warehouse}
+                                  options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
+                                  placeholder="Select Branch"
+                                  onChange={val => updateBranchRow(i, val)}
+                                />
                               </td>
                               <td><button onClick={() => removeBranchRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
                             </tr>
@@ -1772,12 +1758,12 @@ export default function ItemList() {
                           {form.supplier_items.map((s, i) => (
                             <tr key={i}>
                               <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                                  <SearchableSelectInline
-                                    value={s.supplier}
-                                    options={suppliers.map(sup => ({ label: sup.supplier_name, value: sup.name }))}
-                                    placeholder="Select"
-                                    onChange={val => updateSupplierRow(i, 'supplier', val)}
-                                  />
+                                <SearchableSelectInline
+                                  value={s.supplier}
+                                  options={suppliers.map(sup => ({ label: sup.supplier_name, value: sup.name }))}
+                                  placeholder="Select"
+                                  onChange={val => updateSupplierRow(i, 'supplier', val)}
+                                />
                               </td>
                               <td style={{ paddingTop: 8, paddingBottom: 8 }}><input style={{ border: 'none', background: 'transparent', fontWeight: 600, width: '100%', outline: 'none', fontFamily: 'DM Sans, sans-serif', fontSize: 13 }} value={s.supplier_part_no} onChange={e => updateSupplierRow(i, 'supplier_part_no', e.target.value)} placeholder="SKU / Part no" /></td>
                               <td><button onClick={() => removeSupplierRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
