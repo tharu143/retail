@@ -16,16 +16,16 @@ import './Purchase.css';
 import '../Headers/LegacyPOS.css';
 
 const DEFAULT_PO_COLUMNS = [
-  { id: 'item_code', label: 'Item Code', visible: true, width: 240 },
-  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 160 },
+  { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
+  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
-  { id: 'uom', label: 'UOM', visible: true, width: 80 },
+  { id: 'uom', label: 'UOM', visible: true, width: 90 },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
-  { id: 'custom_box_price', label: 'Box Price', visible: true, width: 120 },
-  { id: 'rate', label: 'Rate (Nos)', visible: true, width: 120 },
-  { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 120 },
-  { id: 'qty', label: 'Total Qty', visible: true, width: 100 },
-  { id: 'amount', label: 'Subtotal', visible: true, width: 140 }
+  { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
+  { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
+  { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 90 },
+  { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
+  { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
 ];
 
 const POItemModel = {
@@ -48,6 +48,11 @@ const POItemModel = {
   rejected_warehouse: ''
 };
 
+const getLocalISOString = () => {
+  const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+  return (new Date(Date.now() - tzoffset)).toISOString().slice(0, 16);
+};
+
 function PurchaseOrder() {
   const navigate = useNavigate();
   const theme = useSelector((state) => state.user.theme);
@@ -67,7 +72,7 @@ function PurchaseOrder() {
   const [formData, setFormData] = useState({
     name: '', // For draft name
     supplier: null,
-    transaction_date: new Date().toISOString().slice(0, 16),
+    transaction_date: getLocalISOString(),
     company: localStorage.getItem('company') || '',
     currency: 'AED',
     conversion_rate: 1.0,
@@ -648,9 +653,13 @@ function PurchaseOrder() {
       const whList = data.message || [];
       setWarehouses(whList);
 
-      // Auto-select first warehouse if none set
+      // Auto-set default warehouse based on logged-in user
       if (whList.length > 0 && !formData.set_warehouse) {
-        setFormData(prev => ({ ...prev, set_warehouse: whList[0].name }));
+        const userWarehouse = localStorage.getItem('warehouse');
+        const defaultWh = (userWarehouse && whList.some(w => w.name === userWarehouse))
+          ? userWarehouse
+          : whList[0].name;
+        setFormData(prev => ({ ...prev, set_warehouse: defaultWh }));
       }
     } catch (err) {
       setError('Failed to load warehouses');
@@ -1585,8 +1594,31 @@ function PurchaseOrder() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* New Document Save */}
-            {!formData.name && (
+            {/* Always show DELETE for drafts */}
+            {formData.name && formData.docstatus === 0 && allowedActions.includes('delete') && (
+              <button
+                onClick={() => handleDocAction('delete')}
+                className="so-btn-ghost hover:bg-red-50"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+              >
+                <Trash2 size={14} className="inline mr-1" /> DELETE
+              </button>
+            )}
+
+            {/* Always show EDIT DRAFT as secondary action on the left of primary when in view mode */}
+            {formData.name && formData.docstatus === 0 && isViewOnly && (
+              <button
+                onClick={() => setIsViewOnly(false)}
+                className="so-btn-secondary"
+                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+              >
+                <Edit3 size={14} /> EDIT DRAFT
+              </button>
+            )}
+
+            {/* THE SINGLE DYNAMIC PRIMARY ACTION BUTTON (always rightmost) */}
+            {!formData.name ? (
+              // 1. New Document state -> SAVE DRAFT
               <button
                 onClick={() => handleDocAction('save')}
                 disabled={saving}
@@ -1595,91 +1627,67 @@ function PurchaseOrder() {
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : 'SAVE DRAFT'}
               </button>
-            )}
-
-            {/* Existing Document Actions */}
-            {formData.name && (
-              <div className="flex items-center gap-2">
-                {/* Draft Phase */}
-                {formData.docstatus === 0 && (
-                  <>
-                    {(allowedActions.includes('save') && isDirty) && !isViewOnly && (
-                      <button
-                        onClick={() => handleDocAction('save')}
-                        className="so-btn-primary"
-                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                      >
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : 'SAVE DRAFT'}
-                      </button>
-                    )}
-                    {allowedActions.includes('submit') && !isDirty && (
-                      <button
-                        onClick={() => handleDocAction('submit')}
-                        className="so-btn-primary"
-                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                      >
-                        SUBMIT
-                      </button>
-                    )}
-                    {isViewOnly && (
-                      <button
-                        onClick={() => setIsViewOnly(false)}
-                        className="so-btn-secondary"
-                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
-                      >
-                        <Edit3 size={14} /> EDIT DRAFT
-                      </button>
-                    )}
-                  </>
-                )}
-
-                {/* Submitted Phase */}
-                {formData.docstatus === 1 && (
-                  <div className="flex items-center gap-2">
-                    {allowedActions.includes('cancel') && (
-                      <button
-                        onClick={() => handleDocAction('cancel')}
-                        className="so-btn-primary"
-                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
-                      >
-                        CANCEL
-                      </button>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 1rem', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
-                      <CheckCircle2 size={14} /> SUBMITTED
-                    </div>
-                  </div>
-                )}
-
-                {/* Cancelled Phase */}
-                {formData.docstatus === 2 && (
-                  <div className="flex items-center gap-2">
-                    {allowedActions.includes('amend') && (
-                      <button
-                        onClick={() => handleDocAction('amend')}
-                        className="so-btn-primary"
-                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)' }}
-                      >
-                        AMEND
-                      </button>
-                    )}
-                    <div style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.5rem', textTransform: 'uppercase' }}>
-                      CANCELLED
-                    </div>
-                  </div>
-                )}
-
-                {/* Always show delete for drafts */}
-                {formData.docstatus === 0 && allowedActions.includes('delete') && (
+            ) : (
+              formData.docstatus === 0 ? (
+                // 2. Draft phase
+                !isViewOnly ? (
+                  // Edit mode -> UPDATE DRAFT
                   <button
-                    onClick={() => handleDocAction('delete')}
-                    className="so-btn-ghost"
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase' }}
+                    onClick={() => handleDocAction('save')}
+                    disabled={saving}
+                    className="so-btn-primary"
+                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                   >
-                    <Trash2 size={14} /> DELETE
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : 'UPDATE DRAFT'}
                   </button>
-                )}
-              </div>
+                ) : (
+                  // View mode (not dirty) -> SUBMIT
+                  allowedActions.includes('submit') && (
+                    <button
+                      onClick={() => handleDocAction('submit')}
+                      disabled={saving}
+                      className="so-btn-primary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                    >
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'SUBMIT'}
+                    </button>
+                  )
+                )
+              ) : formData.docstatus === 1 ? (
+                // 3. Submitted phase -> CANCEL
+                <div className="flex items-center gap-3">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#ecfdf5', borderRadius: '0.75rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                    <CheckCircle2 size={14} /> SUBMITTED
+                  </div>
+                  {allowedActions.includes('cancel') && (
+                    <button
+                      onClick={() => handleDocAction('cancel')}
+                      disabled={saving}
+                      className="so-btn-primary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
+                    >
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'CANCEL'}
+                    </button>
+                  )}
+                </div>
+              ) : formData.docstatus === 2 ? (
+                // 4. Cancelled phase -> AMEND
+                <div className="flex items-center gap-3">
+                  <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
+                    CANCELLED
+                  </div>
+                  {allowedActions.includes('amend') && (
+                    <button
+                      onClick={() => handleDocAction('amend')}
+                      disabled={saving}
+                      className="so-btn-primary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
+                    >
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'AMEND'}
+                    </button>
+                  )}
+                </div>
+              ) : null
             )}
           </div>
         </div>
@@ -1884,12 +1892,6 @@ function PurchaseOrder() {
                           </span>
                         </div>
                       </div>
-                      <div>
-                        <label className="po-label">Entity / Company</label>
-                        <div className="border-none shadow-none bg-transparent text-base font-black text-slate-800 uppercase h-[42px] flex items-center">
-                          {formData.company}
-                        </div>
-                      </div>
                       {isViewOnly && (
                         <div>
                           <label className="po-label">Currency</label>
@@ -2027,7 +2029,7 @@ function PurchaseOrder() {
                                 <th
                                   key={col.id}
                                   className="purchase-th text-center"
-                                  style={{ width: col.width, minWidth: col.id === 'item_code' ? 200 : undefined }}
+                                  style={{ width: col.width, minWidth: col.id === 'item_code' ? 120 : undefined }}
                                 >
                                   {finalLabel}
                                 </th>
@@ -2073,64 +2075,36 @@ function PurchaseOrder() {
                                     );
                                   case 'item_code':
                                     return (
-                                      <td key={col.id} className="purchase-td">
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box relative product-search-container">
-                                            <input
-                                              type="text"
-                                              value={item.item_name ?? ''}
-                                              placeholder="Search product..."
-                                              readOnly={isViewOnly || formData.docstatus !== 0}
-                                              onFocus={async (e) => {
-                                                if (isViewOnly || formData.docstatus !== 0) return;
-                                                const q = e.target.value;
-                                                const results = await fetchItems(q);
-                                                setAllItems(results || []);
-                                                setActiveDropdownRow(idx);
-                                                setSelectedProductIndex(0);
-                                                const rect = e.target.getBoundingClientRect();
-                                                setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-                                              }}
-                                              onBlur={() => setTimeout(() => setActiveDropdownRow(null), 200)}
-                                              onKeyDown={(e) => {
-                                                if (isViewOnly || formData.docstatus !== 0) return;
-                                                if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev)); }
-                                                else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedProductIndex(prev => (prev > 0 ? prev - 1 : 0)); }
-                                                else if (e.key === 'Enter') {
-                                                  if (activeDropdownRow !== null && allItems[selectedProductIndex]) {
-                                                    e.preventDefault();
-                                                    handleItemSelect(allItems[selectedProductIndex], idx);
-                                                    setActiveDropdownRow(null);
-                                                  } else handleNextFocus(e);
-                                                }
-                                              }}
-                                              onChange={async (e) => {
-                                                if (isViewOnly || formData.docstatus !== 0) return;
-                                                const q = e.target.value;
-                                                setFormData(prev => { const its = [...prev.items]; its[idx] = { ...its[idx], item_name: q }; return { ...prev, items: its }; });
-                                                if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-                                                searchTimeoutRef.current = setTimeout(async () => {
-                                                  const results = await fetchItems(q);
-                                                  setAllItems(results || []);
-                                                  setActiveDropdownRow(idx);
-                                                  setSelectedProductIndex(0);
-                                                  const rect = e.target.getBoundingClientRect();
-                                                  setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-                                                }, 300);
-                                              }}
-                                              className="text-left font-bold"
-                                            />
-                                            {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
-                                              <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
-                                                {allItems.map((it, i) => (
-                                                  <div key={it.item_code} onMouseDown={(e) => { e.preventDefault(); handleItemSelect(it, idx); setActiveDropdownRow(null); }} className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}>
-                                                    <div className="flex justify-between items-center gap-3">
-                                                      <div className={`text-[11px] font-bold ${selectedProductIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-800'}`}>{it.item_name}</div>
-                                                      <div className="text-[9px] font-bold text-[#003d7c] bg-slate-100 px-1.5 py-0.5 rounded italic opacity-70">{it.item_code}</div>
-                                                    </div>
+                                      <td key={col.id} className="purchase-td" style={{ verticalAlign: 'middle' }}>
+                                        <div className="premium-cell-container" style={{ minHeight: '36px', justifyContent: 'center' }}>
+                                          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                                            {!(isViewOnly || formData.docstatus !== 0) ? (
+                                              <CustomSearchDropdown
+                                                value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                placeholder="Search item..."
+                                                onSelect={(val) => handleItemSelect(val, idx)}
+                                                themeColor="var(--po-primary)"
+                                                optionsLabel="name"
+                                                fetchData={fetchItems}
+                                              />
+                                            ) : (
+                                              item.item_code && (
+                                                <div style={{ 
+                                                  padding: '4px 10px', 
+                                                  background: 'white',
+                                                  border: '1px solid #e2e8f0',
+                                                  borderLeft: '4px solid var(--po-primary)',
+                                                  borderRadius: '0.375rem',
+                                                  boxSizing: 'border-box',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  height: '36px'
+                                                }}>
+                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                                                    {item.item_name || 'Unnamed Item'}
                                                   </div>
-                                                ))}
-                                              </div>, document.body
+                                                </div>
+                                              )
                                             )}
                                           </div>
                                         </div>
@@ -2140,7 +2114,7 @@ function PurchaseOrder() {
                                     return (
                                       <td key={col.id} className="purchase-td">
                                         <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
+                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             <input
                                               type="text"
                                               inputMode="decimal"
@@ -2151,14 +2125,23 @@ function PurchaseOrder() {
                                               onFocus={(e) => e.target.select()}
                                               onKeyDown={handleNextFocus}
                                               className={`text-center font-bold outline-none ${item.use_box_entry ? 'text-sky-600' : 'text-slate-800'}`}
+                                              style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}
                                               title={item.use_box_entry ? "Number of Boxes" : "Quantity"}
                                             />
+                                            {item.item_code && (
+                                              <span 
+                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                                style={{
+                                                  color: item.use_box_entry ? '#0284c7' : '#64748b',
+                                                  backgroundColor: item.use_box_entry ? 'rgba(2, 132, 199, 0.08)' : '#f8fafc',
+                                                  borderColor: item.use_box_entry ? 'rgba(2, 132, 199, 0.15)' : '#e2e8f0',
+                                                  lineHeight: 1
+                                                }}
+                                              >
+                                                {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                              </span>
+                                            )}
                                           </div>
-                                          {item.item_code && (
-                                            <span className={`premium-subtext ${item.use_box_entry ? 'text-sky-500' : 'text-slate-400'}`}>
-                                              {item.use_box_entry ? 'BOXES' : 'NOS'}
-                                            </span>
-                                          )}
                                         </div>
                                       </td>
                                     );
@@ -2262,12 +2245,22 @@ function PurchaseOrder() {
                                     return (
                                       <td key={col.id} className="purchase-td">
                                         <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            <div className="premium-cell-readonly premium-cell-readonly-center font-bold">{item.qty || 0}</div>
+                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
+                                            <div className="premium-cell-readonly premium-cell-readonly-center font-bold" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>{item.qty || 0}</div>
+                                            {item.use_box_entry && (
+                                              <span 
+                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                                style={{
+                                                  color: '#64748b',
+                                                  backgroundColor: '#f8fafc',
+                                                  borderColor: '#e2e8f0',
+                                                  lineHeight: 1
+                                                }}
+                                              >
+                                                NOS
+                                              </span>
+                                            )}
                                           </div>
-                                          {item.use_box_entry && (
-                                            <span className="premium-subtext text-slate-400">NOS</span>
-                                          )}
                                         </div>
                                       </td>
                                     );

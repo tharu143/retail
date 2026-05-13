@@ -7,7 +7,7 @@ import {
   RefreshCw, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
   Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
   DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan,
-  ShoppingCart, Minus, Plus, Upload
+  ShoppingCart, Minus, Plus, Upload, Percent
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { logout, toggleTheme } from '../../Redux/Slices/userSlice';
@@ -1767,6 +1767,29 @@ function Home() {
     }));
   };
 
+  const setExactPrice = (id, val) => {
+    setBillItems(prev => prev.map(i => {
+      if (i.id === id) {
+        if (val === '') {
+          return { ...i, _price_input_val: '' };
+        }
+        const newPrice = parseFloat(val);
+        if (isNaN(newPrice) || newPrice < 0) return i;
+
+        const updated = { ...i, _price_input_val: val };
+        if (i.uom === 'Box') {
+          const prices = { ...i.prices, Box: newPrice };
+          const factor = i.custom_pieces_per_box || 1;
+          return { ...updated, price: newPrice / factor, prices };
+        } else {
+          const prices = { ...i.prices, Nos: newPrice, Piece: newPrice };
+          return { ...updated, price: newPrice, prices };
+        }
+      }
+      return i;
+    }));
+  };
+
   // Category slider
   const groupCategories = (cats, size) => {
     const groups = [];
@@ -1877,17 +1900,23 @@ function Home() {
       offline_id: offlineId,
       customer: customerId,
       contact_mobile: phoneNumber,
-      items: billItems.map(item => ({
-        item_code: item.id,
-        item_name: item.name,
-        quantity: item.qty,
-        uom: item.uom,
-        uom_type: item.uom,
-        custom_pieces_per_box: item.custom_pieces_per_box,
-        basePrice: item.price,
-        income_account: 'Sales of I/C - KSPL',
-        warehouse: warehouse
-      })),
+      items: billItems.map(item => {
+        const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
+        const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
+        return {
+          item_code: item.id,
+          item_name: item.name,
+          quantity: item.qty,
+          uom: item.uom,
+          uom_type: item.uom,
+          custom_pieces_per_box: item.custom_pieces_per_box,
+          basePrice: item.price,
+          rate: effectivePrice,
+          price_list_rate: effectivePrice,
+          income_account: 'Sales of I/C - KSPL',
+          warehouse: warehouse
+        };
+      }),
       company,
       pos_profile: posProfile,
       warehouse: warehouse,
@@ -1899,6 +1928,7 @@ function Home() {
       discount_amount: discountAmount,
       apply_discount_on: "Net Total",
       tax_template: selectedTaxTemplate,
+      taxes_and_charges: selectedTaxTemplate,
       posting_date: new Date().toISOString().slice(0, 10),
       currency: 'AED',
       due_date: new Date().toISOString().slice(0, 10)
@@ -2916,6 +2946,33 @@ function Home() {
             </div>
 
             <div className="so-bill-footer">
+              {/* Sales Taxes and Charges Template Dropdown */}
+              <div className="mb-4">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Sales Taxes & Charges
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedTaxTemplate}
+                    onChange={(e) => setSelectedTaxTemplate(e.target.value)}
+                    className="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 pr-8 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold cursor-pointer transition-all duration-200 hover:bg-slate-50"
+                  >
+                    {taxTemplates.length === 0 ? (
+                      <option value="">No Tax Templates Available</option>
+                    ) : (
+                      taxTemplates.map(t => (
+                        <option key={t.name} value={t.name}>
+                          {t.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                    <Percent size={14} />
+                  </div>
+                </div>
+              </div>
+
               <div className="so-total-box">
                 <div className="so-total-row">
                   <span>Subtotal</span>
@@ -3227,8 +3284,15 @@ function Home() {
                         <td className="text-center px-2 font-black text-amber-600 bg-amber-50">
                           {item.qty * factor}
                         </td>
-                        <td className="text-center px-2 font-black text-slate-800 bg-slate-50/30">
-                          {parseFloat(effectivePrice).toFixed(2)}
+                        <td className="p-0">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item._price_input_val !== undefined ? item._price_input_val : (parseFloat(effectivePrice) || 0).toFixed(2)}
+                            onChange={e => setExactPrice(item.id, e.target.value)}
+                            className="w-full h-full text-center px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none"
+                            onFocus={e => e.target.select()}
+                          />
                         </td>
                         <td className="text-center px-2 font-bold text-slate-500 text-[10px] italic">
                           {(lineTotal * 0.05).toFixed(2)}
@@ -3401,6 +3465,25 @@ function Home() {
                 ↺ CLEAR BILL
               </button>
               <div className="flex-1" />
+              {/* Sales Taxes and Charges Template Dropdown (Legacy Theme) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">TAXES:</span>
+                <select
+                  value={selectedTaxTemplate}
+                  onChange={(e) => setSelectedTaxTemplate(e.target.value)}
+                  className={`bg-slate-50 border border-slate-200 text-xs font-black rounded px-3 py-2 cursor-pointer focus:outline-none transition-all ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
+                >
+                  {taxTemplates.length === 0 ? (
+                    <option value="">No Tax Templates</option>
+                  ) : (
+                    taxTemplates.map(t => (
+                      <option key={t.name} value={t.name}>
+                        {t.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
               <button
                 className={`px-10 py-2.5 bg-slate-50 border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'} transition-all font-black text-[13px] rounded shadow-md uppercase tracking-wider active:scale-95`}
                 onClick={handleCheckout}

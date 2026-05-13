@@ -18,18 +18,23 @@ const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.ret
 const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PR_COLUMNS = [
-  { id: 'item_code',          label: 'Item Code',         visible: true,  width: 240 },
-  { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 160 },
+  { id: 'item_code',          label: 'Item Code',         visible: true,  width: 120 },
+  { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_box_qty',     label: 'Box Qty',           visible: true,  width: 90  },
-  { id: 'uom',                label: 'UOM',               visible: true,  width: 80  },
+  { id: 'uom',                label: 'UOM',               visible: true,  width: 90  },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box',        visible: true,  width: 90  },
-  { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 120 },
-  { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 120 },
-  { id: 'custom_selling_price', label: 'Selling Price',   visible: true,  width: 120 },
-  { id: 'accepted_qty',       label: 'Total Qty',         visible: true,  width: 100 },
-  { id: 'rejected_qty',       label: 'Rejected Qty',      visible: true,  width: 100 },
-  { id: 'amount',             label: 'Subtotal',          visible: true,  width: 140 }
+  { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 90  },
+  { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 90  },
+  { id: 'custom_selling_price', label: 'Selling Price',   visible: true,  width: 90  },
+  { id: 'accepted_qty',       label: 'Total Qty',         visible: true,  width: 90  },
+  { id: 'rejected_qty',       label: 'Rejected Qty',      visible: true,  width: 90  },
+  { id: 'amount',             label: 'Subtotal',          visible: true,  width: 90  }
 ];
+
+const getLocalISODate = () => {
+  const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+  return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+};
 
 function PurchaseReceiptList() {
   const navigate = useNavigate();
@@ -102,7 +107,7 @@ function PurchaseReceiptList() {
   }, [prTheme, themeColor, themeColorHover, themeLight]);
   const initialState = {
     series: 'MAT-PRE-.YYYY.-',
-    posting_date: new Date().toISOString().split('T')[0],
+    posting_date: getLocalISODate(),
     posting_time: new Date().toTimeString().slice(0, 5),
     apply_putaway_rule: false,
     is_return: false,
@@ -111,7 +116,7 @@ function PurchaseReceiptList() {
     supplier_delivery_note: '',
     currency: 'AED',
     buying_price_list: 'Standard Buying',
-    set_warehouse: '',
+    set_warehouse: localStorage.getItem('warehouse') || '',
     taxes_and_charges: '',
     apply_discount_on: 'Net Total',
     additional_discount_percentage: 0,
@@ -441,6 +446,13 @@ function PurchaseReceiptList() {
       const res = await axios.get(`${LEGACY_API}.get_company_warehouses`, { withCredentials: true });
       const data = Array.isArray(res.data.message) ? res.data.message : [];
       setWarehouses(data);
+      if (data.length > 0 && !formData.set_warehouse) {
+        const userWarehouse = localStorage.getItem('warehouse');
+        const defaultWh = (userWarehouse && data.some(w => w.name === userWarehouse))
+          ? userWarehouse
+          : data[0].name;
+        setFormData(prev => ({ ...prev, set_warehouse: defaultWh }));
+      }
     } catch (err) {
       console.error('Warehouses fetch error:', err);
       setWarehouses([]);
@@ -634,10 +646,13 @@ function PurchaseReceiptList() {
 
   const openCreateModal = useCallback(async () => {
     const companyData = await getDefaultCompany();
-    const defaultWarehouse = warehouses.length > 0 ? warehouses[0].name : '';
+    const userWarehouse = localStorage.getItem('warehouse');
+    const defaultWarehouse = (userWarehouse && warehouses.some(w => w.name === userWarehouse))
+      ? userWarehouse
+      : (warehouses.length > 0 ? warehouses[0].name : '');
     setFormData({
       series: 'MAT-PRE-.YYYY.-',
-      posting_date: new Date().toISOString().split('T')[0],
+      posting_date: getLocalISODate(),
       posting_time: new Date().toTimeString().slice(0, 5),
       apply_putaway_rule: false,
       is_return: false,
@@ -1817,46 +1832,61 @@ function PurchaseReceiptList() {
                     {/* DRAFT PHASE */}
                     {formData.docstatus === 0 && (
                       <>
-                        {(!docName || (allowedActions.includes('save') && isDirty)) && !isViewMode && (
+                        {/* 1. DELETE button (if allowed) */}
+                        {docName && allowedActions.includes('delete') && (
+                          <button 
+                            onClick={() => handleDocAction('delete')} 
+                            className="so-btn-ghost" 
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                          >
+                            <Trash2 size={14} className="inline mr-1" /> DELETE
+                          </button>
+                        )}
+
+                        {/* 2. EDIT DRAFT button (only if in view mode) */}
+                        {docName && isViewMode && (
+                          <button 
+                            onClick={() => setIsViewMode(false)} 
+                            className="so-btn-secondary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                          >
+                            <Edit3 size={14} /> EDIT DRAFT
+                          </button>
+                        )}
+
+                        {/* 3. The SINGLE PRIMARY action button */}
+                        {!docName ? (
+                          // New Document -> SAVE DRAFT
                           <button 
                             onClick={() => handleDocAction('save')} 
                             disabled={saving} 
                             className="so-btn-primary" 
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                           >
-                              {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                           </button>
-                        )}
-
-                        {allowedActions.includes('submit') && !isDirty && (
+                        ) : !isViewMode ? (
+                          // Edit / Update -> UPDATE DRAFT
                           <button 
-                            onClick={() => handleDocAction('submit')} 
+                            onClick={() => handleDocAction('save')} 
                             disabled={saving} 
                             className="so-btn-primary" 
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                           >
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
+                          </button>
+                        ) : (
+                          // View / Draft Saved -> SUBMIT (only if in allowedActions)
+                          allowedActions.includes('submit') && (
+                            <button 
+                              onClick={() => handleDocAction('submit')} 
+                              disabled={saving} 
+                              className="so-btn-primary" 
+                              style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                            >
                               {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
-                          </button>
-                        )}
-
-                        {isViewMode && (
-                          <button 
-                            onClick={() => setIsViewMode(false)} 
-                            className="so-btn-secondary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
-                          >
-                             <Edit3 size={14} /> EDIT DRAFT
-                          </button>
-                        )}
-
-                        {docName && allowedActions.includes('delete') && (
-                           <button 
-                            onClick={() => handleDocAction('delete')} 
-                            className="so-btn-ghost" 
-                            style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase' }}
-                           >
-                              <Trash2 size={14} /> DELETE
-                           </button>
+                            </button>
+                          )
                         )}
                       </>
                     )}
@@ -1864,56 +1894,52 @@ function PurchaseReceiptList() {
                     {/* SUBMITTED PHASE */}
                     {formData.docstatus === 1 && (
                       <>
-                        {allowedActions.includes('cancel') && (
-                          <button 
-                            onClick={() => handleDocAction('cancel')} 
-                            className="so-btn-primary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
-                          >
-                             CANCEL
-                          </button>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#ecfdf5', borderRadius: '0.75rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                          <CheckCircle2 size={14} /> SUBMITTED
+                        </div>
                         
                         {formData.per_billed < 100 && (
                           <button 
                             onClick={() => handleCreateFlow('invoice')} 
                             className="so-btn-primary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0284c7', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)' }}
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0284c7', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)', transition: 'all 0.2s' }}
                           >
-                              <Plus size={14} /> CREATE INVOICE
+                            <Plus size={14} className="inline mr-1" /> CREATE INVOICE
                           </button>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 1rem', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
-                          <CheckCircle2 size={14} /> SUBMITTED
-                        </div>
+                        {allowedActions.includes('cancel') && (
+                          <button 
+                            onClick={() => handleDocAction('cancel')} 
+                            disabled={saving}
+                            className="so-btn-primary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
+                          >
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'CANCEL'}
+                          </button>
+                        )}
                       </>
                     )}
 
                     {/* CANCELLED PHASE */}
                     {formData.docstatus === 2 && (
                       <>
+                        <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
+                          CANCELLED
+                        </div>
+                        
                         {allowedActions.includes('amend') && (
                           <button 
                             onClick={() => handleDocAction('amend')} 
+                            disabled={saving}
                             className="so-btn-primary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)' }}
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
                           >
-                             AMEND
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'AMEND'}
                           </button>
                         )}
-                        <div style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.5rem', textTransform: 'uppercase' }}>
-                          CANCELLED
-                        </div>
                       </>
                     )}
-                    <button 
-                      onClick={() => setIsModalOpen(false)} 
-                      className="so-btn-secondary" 
-                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#fff', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
-                    >
-                      CLOSE
-                    </button>
                   </div>
                   <button onClick={() => setIsModalOpen(false)} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
                     <X size={20} />
@@ -2195,7 +2221,7 @@ function PurchaseReceiptList() {
                                       <td key={col.id} ref={el => itemRefs.current[i] = el} style={{ verticalAlign: 'middle' }}>
                                         <div className="premium-cell-container" style={{ minHeight: '54px', justifyContent: 'center' }}>
                                           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-                                            {!isViewMode && (
+                                            {!isViewMode ? (
                                               <CustomSearchDropdown
                                                 value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
                                                 placeholder="Search item..."
@@ -2204,52 +2230,52 @@ function PurchaseReceiptList() {
                                                 themeColor={themeColor}
                                                 optionsLabel="name"
                                               />
-                                            )}
-                                            {item.item_code && (
-                                              <div style={{ 
-                                                padding: '4px 8px', 
-                                                background: isViewMode ? 'white' : 'rgba(255, 255, 255, 0.5)',
-                                                border: `1px solid ${isViewMode ? '#e2e8f0' : 'rgba(16, 185, 129, 0.1)'}`,
-                                                borderLeft: `4px solid ${themeColor}`,
-                                                borderRadius: '0.375rem',
-                                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                gap: '8px',
-                                                height: '36px',
-                                                boxSizing: 'border-box'
-                                              }}>
-                                                <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                                                  {item.item_name || 'Unnamed Item'}
-                                                </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-                                                  <span style={{ 
-                                                    color: themeColor, 
-                                                    fontWeight: 700, 
-                                                    fontSize: '0.6rem', 
-                                                    fontFamily: 'monospace',
-                                                    background: `${themeColor}12`,
-                                                    padding: '2px 4px',
-                                                    borderRadius: '4px'
-                                                  }}>
-                                                    {item.item_code}
-                                                  </span>
-                                                  {(item.custom_pieces_per_box > 1 || item.use_box_entry) && (
+                                            ) : (
+                                              item.item_code && (
+                                                <div style={{ 
+                                                  padding: '4px 8px', 
+                                                  background: 'white',
+                                                  border: '1px solid #e2e8f0',
+                                                  borderLeft: `4px solid ${themeColor}`,
+                                                  borderRadius: '0.375rem',
+                                                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'space-between',
+                                                  gap: '8px',
+                                                  height: '36px',
+                                                  boxSizing: 'border-box'
+                                                }}>
+                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                                                    {item.item_name || 'Unnamed Item'}
+                                                  </div>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
                                                     <span style={{ 
-                                                      background: '#f8fafc', 
-                                                      color: '#64748b', 
-                                                      padding: '2px 4px', 
-                                                      borderRadius: '4px', 
-                                                      fontSize: '0.6rem',
-                                                      fontWeight: 800,
-                                                      border: '1px solid #e2e8f0'
+                                                      color: themeColor, 
+                                                      fontWeight: 700, 
+                                                      fontSize: '0.6rem', 
+                                                      fontFamily: 'monospace',
+                                                      background: `${themeColor}12`,
+                                                      padding: '2px 4px',
+                                                      borderRadius: '4px'
                                                     }}>
-                                                      {item.custom_pieces_per_box} P/B
+                                                      {item.item_code}
                                                     </span>
-                                                  )}
+                                                    {(item.custom_pieces_per_box > 1 || item.use_box_entry) && (
+                                                      <span style={{ 
+                                                        background: '#f8fafc', 
+                                                        color: '#64748b', 
+                                                        padding: '2px 4px', 
+                                                        borderRadius: '4px', 
+                                                        fontSize: '0.6rem',
+                                                        fontWeight: 700
+                                                      }}>
+                                                        {item.custom_pieces_per_box} Pcs/Box
+                                                      </span>
+                                                    )}
+                                                  </div>
                                                 </div>
-                                              </div>
+                                              )
                                             )}
                                           </div>
                                         </div>

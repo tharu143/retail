@@ -20,17 +20,22 @@ const RESOURCE_API = '/api/resource/Purchase Invoice';
 const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PI_COLUMNS = [
-  { id: 'item_code',          label: 'Item Code',         visible: true,  width: 240 },
-  { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 160 },
+  { id: 'item_code',          label: 'Item Code',         visible: true,  width: 120 },
+  { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_box_qty',     label: 'Box Qty',           visible: true,  width: 90  },
-  { id: 'uom',                label: 'UOM',               visible: true,  width: 80  },
+  { id: 'uom',                label: 'UOM',               visible: true,  width: 90  },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box',        visible: true,  width: 90  },
-  { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 120 },
-  { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 120 },
-  { id: 'custom_selling_price', label: 'Selling Price',   visible: true,  width: 120 },
-  { id: 'qty',                label: 'Total Qty',         visible: true,  width: 100 },
-  { id: 'amount',             label: 'Subtotal',          visible: true,  width: 140 }
+  { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 90  },
+  { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 90  },
+  { id: 'custom_selling_price', label: 'Selling Price',   visible: true,  width: 90  },
+  { id: 'qty',                label: 'Total Qty',         visible: true,  width: 90  },
+  { id: 'amount',             label: 'Subtotal',          visible: true,  width: 90  }
 ];
+
+const getLocalISODate = () => {
+  const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+  return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+};
 
 function PurchaseInvoiceList() {
   const [invoices, setInvoices] = useState([]);
@@ -141,10 +146,10 @@ function PurchaseInvoiceList() {
 
   const initialState = {
     name: '', supplier: '', supplier_name: '',
-    posting_date: new Date().toISOString().split('T')[0],
+    posting_date: getLocalISODate(),
     due_date: '', bill_no: '',
     update_stock: true,
-    accepted_warehouse: '',
+    accepted_warehouse: localStorage.getItem('warehouse') || '',
     rejected_warehouse: '',
     is_subcontracted: false,
     apply_discount_on: 'Grand Total',
@@ -235,8 +240,10 @@ function PurchaseInvoiceList() {
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           purchase_order: i.purchase_order || undefined,
           purchase_order_item: i.purchase_order_item || undefined,
+          po_detail: i.purchase_order_item || undefined,
           purchase_receipt: pr.name,
           purchase_receipt_item: i.name,
+          pr_detail: i.name || undefined,
           use_box_entry: isBoxUom,
         };
       });
@@ -245,7 +252,7 @@ function PurchaseInvoiceList() {
         name: '',
         supplier: pr.supplier || '',
         supplier_name: pr.supplier_name || pr.supplier || '',
-        posting_date: pr.posting_date || new Date().toISOString().split('T')[0],
+        posting_date: pr.posting_date || getLocalISODate(),
         due_date: '',
         bill_no: pr.supplier_delivery_note || '',
         update_stock: false,
@@ -281,12 +288,16 @@ function PurchaseInvoiceList() {
     }
   }, []);
 
-  // NEW: Auto-set default accepted warehouse if needed
+  // NEW: Auto-set default accepted warehouse if needed based on logged-in user
   useEffect(() => {
-    if (formData.update_stock && formData.accepted_warehouse === '' && warehouses.length > 0) {
-      setFormData(prev => ({ ...prev, accepted_warehouse: warehouses[0].name }));
+    if (formData.accepted_warehouse === '' && warehouses.length > 0) {
+      const userWarehouse = localStorage.getItem('warehouse');
+      const defaultWh = (userWarehouse && warehouses.some(w => w.name === userWarehouse))
+        ? userWarehouse
+        : warehouses[0].name;
+      setFormData(prev => ({ ...prev, accepted_warehouse: defaultWh }));
     }
-  }, [warehouses, formData.update_stock, formData.accepted_warehouse]);
+  }, [warehouses, formData.accepted_warehouse]);
 
   useEffect(() => {
     if (docName) fetchWorkflowActions();
@@ -417,7 +428,15 @@ function PurchaseInvoiceList() {
       const res = await axios.get(`${LEGACY_API}.get_company_warehouses`, {
         withCredentials: true
       });
-      setWarehouses(Array.isArray(res.data.message) ? res.data.message : []);
+      const whs = Array.isArray(res.data.message) ? res.data.message : [];
+      setWarehouses(whs);
+      if (whs.length > 0 && !formData.accepted_warehouse) {
+        const userWarehouse = localStorage.getItem('warehouse');
+        const defaultWh = (userWarehouse && whs.some(w => w.name === userWarehouse))
+          ? userWarehouse
+          : whs[0].name;
+        setFormData(prev => ({ ...prev, accepted_warehouse: defaultWh }));
+      }
     } catch (err) {
       console.error('Failed to fetch warehouses:', err);
     }
@@ -579,10 +598,10 @@ function PurchaseInvoiceList() {
   const openCreateModal = useCallback(() => {
     setFormData({
       name: '', supplier: '', supplier_name: '',
-      posting_date: new Date().toISOString().split('T')[0],
+      posting_date: getLocalISODate(),
       due_date: '', bill_no: '',
       update_stock: true,
-      accepted_warehouse: '',
+      accepted_warehouse: localStorage.getItem('warehouse') || '',
       rejected_warehouse: '',
       is_subcontracted: false,
       apply_discount_on: 'Grand Total',
@@ -639,7 +658,9 @@ function PurchaseInvoiceList() {
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             purchase_order: i.purchase_order || '',
             purchase_order_item: i.purchase_order_item || '',
+            po_detail: i.po_detail || i.purchase_order_item || '',
             purchase_receipt: i.purchase_receipt || '',
+            pr_detail: i.pr_detail || '',
             use_box_entry: (i.uom || '').toLowerCase() === 'box'
           })),
           total_qty: d.total_qty || 0,
@@ -689,6 +710,8 @@ function PurchaseInvoiceList() {
                         custom_box_qty: parseFloat(prItem.custom_box_qty || 0),
                         custom_pieces_per_box: parseFloat(prItem.custom_pieces_per_box || 1),
                         custom_box_price: parseFloat(prItem.custom_box_price || 0),
+                        custom_supplier_sl_num: prItem.custom_supplier_sl_num || prItem.custom_ref_sl_no || item.custom_supplier_sl_num || '',
+                        custom_ref_sl_no: prItem.custom_ref_sl_no || prItem.custom_supplier_sl_num || item.custom_ref_sl_no || '',
                         qty: parseFloat(prItem.qty || 0)
                       };
                     }
@@ -706,16 +729,18 @@ function PurchaseInvoiceList() {
                 enrichedItems = enrichedItems.map(item => {
                   const poItem = poDoc.items.find(pi => pi.item_code === item.item_code);
                   if (poItem) {
-                    return {
-                      ...item,
-                      uom: poItem.uom || item.uom,
-                      use_box_entry: (poItem.uom || item.uom || '').toLowerCase() === 'box',
-                      custom_selling_price: item.custom_selling_price || parseFloat(poItem.custom_selling_price || 0),
-                      custom_box_qty: parseFloat(poItem.custom_box_qty || 0),
-                      custom_pieces_per_box: parseFloat(poItem.custom_pieces_per_box || 1),
-                      custom_box_price: parseFloat(poItem.custom_box_price || 0),
-                      qty: parseFloat(poItem.qty || 0)
-                    };
+                     return {
+                       ...item,
+                       uom: poItem.uom || item.uom,
+                       use_box_entry: (poItem.uom || item.uom || '').toLowerCase() === 'box',
+                       custom_selling_price: item.custom_selling_price || parseFloat(poItem.custom_selling_price || 0),
+                       custom_box_qty: parseFloat(poItem.custom_box_qty || 0),
+                       custom_pieces_per_box: parseFloat(poItem.custom_pieces_per_box || 1),
+                       custom_box_price: parseFloat(poItem.custom_box_price || 0),
+                       custom_supplier_sl_num: poItem.custom_supplier_sl_num || poItem.custom_ref_sl_no || item.custom_supplier_sl_num || '',
+                       custom_ref_sl_no: poItem.custom_ref_sl_no || poItem.custom_supplier_sl_num || item.custom_ref_sl_no || '',
+                       qty: parseFloat(poItem.qty || 0)
+                     };
                   }
                   return item;
                 });
@@ -1260,6 +1285,7 @@ function PurchaseInvoiceList() {
             doctype: "Purchase Invoice Item",
             item_code: i.item_code,
             qty: parseFloat(i.qty) || 1,
+            uom: i.uom || undefined,
             rate: parseFloat(i.rate || 0),
             custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
             custom_pieces_per_box: isBox ? parseFloat(i.custom_pieces_per_box || 1) : 1,
@@ -1269,7 +1295,9 @@ function PurchaseInvoiceList() {
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             purchase_order: i.purchase_order || undefined,
             purchase_order_item: i.purchase_order_item || undefined,
+            po_detail: i.po_detail || i.purchase_order_item || undefined,
             purchase_receipt: i.purchase_receipt || undefined,
+            pr_detail: i.pr_detail || undefined,
           };
         }),
     };
@@ -1749,23 +1777,34 @@ function PurchaseInvoiceList() {
 
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    {/* NEW DOC — not yet saved (docName is empty) */}
-                    {!docName && (
-                      <button 
-                        onClick={() => handleDocAction('save')} 
-                        disabled={saving} 
-                        className="so-btn-primary" 
-                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                      >
-                        {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
-                      </button>
-                    )}
-
-                    {/* DRAFT PHASE — allowedActions from get_document_status_details */}
-                    {docName && formData.docstatus === 0 && (
+                    {/* DRAFT PHASE */}
+                    {formData.docstatus === 0 && (
                       <>
-                        {/* UPDATE DRAFT — when dirty and server allows save */}
-                        {(allowedActions.includes('save') && isDirty) && !isViewMode && (
+                        {/* 1. DELETE button (if allowed) */}
+                        {docName && allowedActions.includes('delete') && (
+                          <button 
+                            onClick={() => handleDocAction('delete')} 
+                            className="so-btn-ghost" 
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                          >
+                            <Trash2 size={14} className="inline mr-1" /> DELETE
+                          </button>
+                        )}
+
+                        {/* 2. EDIT DRAFT button (only if in view mode) */}
+                        {docName && isViewMode && (
+                          <button 
+                            onClick={() => setIsViewMode(false)} 
+                            className="so-btn-secondary" 
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                          >
+                            <Edit2 size={14} /> EDIT DRAFT
+                          </button>
+                        )}
+
+                        {/* 3. The SINGLE PRIMARY action button */}
+                        {!docName ? (
+                          // New Document -> SAVE DRAFT
                           <button 
                             onClick={() => handleDocAction('save')} 
                             disabled={saving} 
@@ -1774,86 +1813,71 @@ function PurchaseInvoiceList() {
                           >
                             {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                           </button>
-                        )}
-
-                        {/* SUBMIT — when server allows and no unsaved changes (or in view mode) */}
-                        {allowedActions.includes('submit') && (!isDirty || isViewMode) && (
+                        ) : !isViewMode ? (
+                          // Edit / Update -> UPDATE DRAFT
                           <button 
-                            onClick={() => handleDocAction('submit')} 
+                            onClick={() => handleDocAction('save')} 
                             disabled={saving} 
                             className="so-btn-primary" 
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                           >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
                           </button>
-                        )}
-
-                        {/* EDIT DRAFT — view mode only */}
-                        {isViewMode && (
-                          <button 
-                            onClick={() => setIsViewMode(false)} 
-                            className="so-btn-secondary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
-                          >
-                             <Edit2 size={14} /> EDIT DRAFT
-                          </button>
-                        )}
-
-                        {/* DELETE */}
-                        {allowedActions.includes('delete') && (
-                          <button 
-                            onClick={() => handleDocAction('delete')} 
-                            className="so-btn-ghost" 
-                            style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase' }}
-                          >
-                            <Trash2 size={14} /> DELETE
-                          </button>
+                        ) : (
+                          // View / Draft Saved -> SUBMIT (only if in allowedActions)
+                          allowedActions.includes('submit') && (
+                            <button 
+                              onClick={() => handleDocAction('submit')} 
+                              disabled={saving} 
+                              className="so-btn-primary" 
+                              style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                            >
+                              {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                            </button>
+                          )
                         )}
                       </>
                     )}
 
                     {/* SUBMITTED PHASE */}
-                    {docName && formData.docstatus === 1 && (
+                    {formData.docstatus === 1 && (
                       <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#ecfdf5', borderRadius: '0.75rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                          <CheckCircle2 size={14} /> SUBMITTED
+                        </div>
+
                         {allowedActions.includes('cancel') && (
                           <button 
                             onClick={() => handleDocAction('cancel')} 
+                            disabled={saving}
                             className="so-btn-primary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
                           >
-                            CANCEL
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'CANCEL'}
                           </button>
                         )}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 1rem', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
-                          <CheckCircle2 size={14} /> SUBMITTED
-                        </div>
                       </>
                     )}
 
                     {/* CANCELLED PHASE */}
-                    {docName && formData.docstatus === 2 && (
+                    {formData.docstatus === 2 && (
                       <>
+                        <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
+                          CANCELLED
+                        </div>
+                        
                         {allowedActions.includes('amend') && (
                           <button 
                             onClick={() => handleDocAction('amend')} 
+                            disabled={saving}
                             className="so-btn-primary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)' }}
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
                           >
-                            AMEND
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'AMEND'}
                           </button>
                         )}
-                        <div style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.5rem', textTransform: 'uppercase' }}>
-                          CANCELLED
-                        </div>
                       </>
                     )}
-                    <button 
-                      onClick={closeModal} 
-                      className="so-btn-secondary" 
-                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#fff', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}
-                    >
-                      CLOSE
-                    </button>
                   </div>
                   <button onClick={closeModal} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
                     <X size={20} />
@@ -2076,7 +2100,7 @@ function PurchaseInvoiceList() {
                                     key={col.id}
                                     style={{ 
                                       width: col.width, 
-                                      minWidth: col.id === 'item_code' ? 200 : undefined,
+                                      minWidth: col.id === 'item_code' ? 120 : undefined,
                                       textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
                                                  ['custom_box_qty', 'custom_pieces_per_box', 'qty', 'uom', 'custom_ref_sl_no', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left'
                                     }}
@@ -2114,9 +2138,9 @@ function PurchaseInvoiceList() {
                                     return (
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
+                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center" style={{ color: item.use_box_entry ? themeColor : undefined }}>
+                                              <div className="premium-cell-readonly premium-cell-readonly-center" style={{ color: item.use_box_entry ? themeColor : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}>
                                                 {item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
                                               </div>
                                             ) : (
@@ -2125,15 +2149,23 @@ function PurchaseInvoiceList() {
                                                 value={item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
                                                 onChange={e => updateItem(i, item.use_box_entry ? 'custom_box_qty' : 'qty', e.target.value)}
                                                 className="so-input text-center font-bold"
-                                                style={{ border: item.use_box_entry ? `1px solid ${themeColor}40` : undefined }}
+                                                style={{ border: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}
                                               />
                                             )}
+                                            {item.item_code && (
+                                              <span 
+                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                                style={{
+                                                  color: item.use_box_entry ? themeColor : '#64748b',
+                                                  backgroundColor: item.use_box_entry ? `${themeColor}12` : '#f8fafc',
+                                                  borderColor: item.use_box_entry ? `${themeColor}25` : '#e2e8f0',
+                                                  lineHeight: 1
+                                                }}
+                                              >
+                                                {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                              </span>
+                                            )}
                                           </div>
-                                          {item.item_code && (
-                                            <span className="premium-subtext" style={{ color: item.use_box_entry ? themeColor : undefined }}>
-                                              {item.use_box_entry ? 'BOXES' : 'NOS'}
-                                            </span>
-                                          )}
                                         </div>
                                       </td>
                                     );
@@ -2165,9 +2197,9 @@ function PurchaseInvoiceList() {
                                   case 'item_code':
                                     return (
                                       <td key={col.id} ref={el => itemRefs.current[i] = el} style={{ verticalAlign: 'middle' }}>
-                                        <div className="premium-cell-container" style={{ minHeight: '54px', justifyContent: 'center' }}>
+                                        <div className="premium-cell-container" style={{ minHeight: '36px', justifyContent: 'center' }}>
                                           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-                                            {!isViewMode && (
+                                            {!isViewMode ? (
                                               <CustomSearchDropdown
                                                 value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
                                                 placeholder="Search item..."
@@ -2176,52 +2208,24 @@ function PurchaseInvoiceList() {
                                                 themeColor={themeColor}
                                                 optionsLabel="name"
                                               />
-                                            )}
-                                            {item.item_code && (
-                                              <div style={{ 
-                                                padding: '4px 8px', 
-                                                background: isViewMode ? 'white' : 'rgba(255, 255, 255, 0.5)',
-                                                border: `1px solid ${isViewMode ? '#e2e8f0' : 'rgba(16, 185, 129, 0.1)'}`,
-                                                borderLeft: `4px solid ${themeColor}`,
-                                                borderRadius: '0.375rem',
-                                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                gap: '8px',
-                                                height: '36px',
-                                                boxSizing: 'border-box'
-                                              }}>
-                                                <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                                                  {item.item_name || 'Unnamed Item'}
+                                            ) : (
+                                              item.item_code && (
+                                                <div style={{ 
+                                                  padding: '4px 10px', 
+                                                  background: 'white',
+                                                  border: '1px solid #e2e8f0',
+                                                  borderLeft: `4px solid ${themeColor}`,
+                                                  borderRadius: '0.375rem',
+                                                  boxSizing: 'border-box',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  height: '36px'
+                                                }}>
+                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                                                    {item.item_name || 'Unnamed Item'}
+                                                  </div>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-                                                  <span style={{ 
-                                                    color: themeColor, 
-                                                    fontWeight: 700, 
-                                                    fontSize: '0.6rem', 
-                                                    fontFamily: 'monospace',
-                                                    background: `${themeColor}12`,
-                                                    padding: '2px 4px',
-                                                    borderRadius: '4px'
-                                                  }}>
-                                                    {item.item_code}
-                                                  </span>
-                                                  {(item.custom_pieces_per_box > 1 || item.use_box_entry) && (
-                                                    <span style={{ 
-                                                      background: '#f8fafc', 
-                                                      color: '#64748b', 
-                                                      padding: '2px 4px', 
-                                                      borderRadius: '4px', 
-                                                      fontSize: '0.6rem',
-                                                      fontWeight: 800,
-                                                      border: '1px solid #e2e8f0'
-                                                    }}>
-                                                      {item.custom_pieces_per_box} P/B
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              </div>
+                                              )
                                             )}
                                           </div>
                                         </div>
@@ -2253,9 +2257,9 @@ function PurchaseInvoiceList() {
                                     return (
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
+                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-[var(--so-primary)]">
+                                              <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-[var(--so-primary)]" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>
                                                 {item.qty}
                                               </div>
                                             ) : (
@@ -2264,12 +2268,23 @@ function PurchaseInvoiceList() {
                                                 value={item.qty}
                                                 onChange={e => updateItem(i, 'qty', e.target.value)}
                                                 className="so-input text-center font-bold"
+                                                style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
                                               />
                                             )}
+                                            {item.use_box_entry && (
+                                              <span 
+                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                                style={{
+                                                  color: '#64748b',
+                                                  backgroundColor: '#f8fafc',
+                                                  borderColor: '#e2e8f0',
+                                                  lineHeight: 1
+                                                }}
+                                              >
+                                                NOS
+                                              </span>
+                                            )}
                                           </div>
-                                          {item.use_box_entry && (
-                                            <span className="premium-subtext text-slate-400">NOS</span>
-                                          )}
                                         </div>
                                       </td>
                                     );

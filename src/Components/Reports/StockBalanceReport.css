@@ -1,0 +1,487 @@
+/* StockBalanceReport.css - Ultimate Premium Stock Balance Report Styles */
+
+.stock-balance-report-container {
+    padding: 1.5rem 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Summary Metric Cards with Glowing Soft Background Gradients */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-card::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 100%;
+    left: 0;
+    top: 0;
+}
+
+.metric-card.balance::after { background: var(--primary-color); }
+.metric-card.value::after { background: #10b981; }
+.metric-card.inbound::after { background: #3b82f6; }
+.metric-card.outbound::after { background: #f59e0b; }
+
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.metric-icon-box {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.metric-card:hover .metric-icon-box {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.metric-info h3 {
+    margin: 0;
+    font-size: 0.725rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.metric-value {
+    margin: 0.25rem 0 0 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+
+.metric-sub {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #94a3b8;
+    display: block;
+    margin-top: 0.125rem;
+}
+
+/* Header actions styling */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.theme-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1.25rem;
+    background: white;
+    border: 1.5px solid;
+    border-radius: 0.625rem;
+    font-size: 0.725rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.theme-toggle-btn:hover {
+    background: #f8fafc;
+}
+
+.action-divider {
+    width: 1px;
+    height: 24px;
+    background: #e2e8f0;
+    margin: 0 0.25rem;
+}
+
+/* Elegant glassmorphic Filter Bar styling */
+.filters-wrapper {
+    background: white;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+}
+
+.filter-input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.flex-2 {
+    flex: 2 1 180px;
+}
+
+.flex-3 {
+    flex: 3 1 240px;
+}
+
+.dropdown-search-container {
+    width: 100%;
+}
+
+.warehouse-filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.125rem;
+}
+
+.all-warehouses-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    font-size: 0.725rem;
+    font-weight: 700;
+    color: #64748b;
+    user-select: none;
+}
+
+.all-warehouses-checkbox input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+    border-radius: 4px;
+}
+
+.input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+/* Results Content Area with beautiful details */
+.stock-table-viewport {
+    background: white;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    padding: 1.75rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+}
+
+.report-error-banner {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #991b1b;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.table-outer-box {
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.scrollable-table-area {
+    overflow-x: auto;
+    max-height: 600px;
+}
+
+/* Premium Table design */
+.premium-stock-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.premium-stock-table th {
+    background-color: #f8fafc;
+    font-size: 0.725rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #475569;
+    padding: 1.125rem 0.85rem;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.premium-stock-table td {
+    padding: 0.95rem 0.85rem;
+    font-size: 0.825rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.table-row-hover {
+    transition: background-color 0.15s ease;
+}
+
+.table-row-hover:hover {
+    background-color: #f8fafc;
+}
+
+/* Custom design inside Cells */
+.item-code-cell {
+    font-weight: 700;
+}
+
+.code-capsule {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    display: inline-block;
+}
+
+.item-name-cell {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.badge-item-group {
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border: 1px solid #dbeafe;
+}
+
+.warehouse-cell {
+    display: flex;
+    flex-direction: column;
+}
+
+.warehouse-name {
+    font-weight: 700;
+    color: #334155;
+    font-size: 0.8rem;
+}
+
+.warehouse-sub {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-top: 0.125rem;
+}
+
+.badge-uom {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+.text-muted-zero {
+    color: #cbd5e1;
+    font-weight: 500;
+}
+
+/* Styled Currencies */
+.curr-sym {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 800;
+    margin-right: 0.25rem;
+    letter-spacing: 0.05em;
+}
+
+.curr-val {
+    font-family: 'Fira Code', monospace;
+    font-weight: 600;
+    color: #334155;
+}
+
+/* Sleek In/Out Movement Badged Pills */
+.qty-badge-pill {
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.725rem;
+    display: inline-block;
+}
+
+.qty-badge-pill.incoming {
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.qty-badge-pill.outgoing {
+    background-color: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #ffedd5;
+}
+
+.loading-text {
+    margin-top: 1rem;
+    font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.75rem;
+}
+
+.empty-state-icon {
+    opacity: 0.15;
+    margin-bottom: 1rem;
+    color: #64748b;
+}
+
+.empty-state-text {
+    font-weight: 600;
+    color: #64748b;
+}
+
+/* Custom dropdown integration with CustomSearchDropdown */
+.dropdown-search-container .so-filter-input {
+    padding-left: 2.25rem;
+}
+
+.stock-balance-report-container .so-clear-btn {
+    height: 38px;
+    width: auto;
+    padding: 0 1.5rem;
+    margin: 0;
+}
+
+/* Responsive layouts adjustments */
+@media (max-width: 1024px) {
+    .filters-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-input-field {
+        width: 100%;
+    }
+}
+
+/* Print Overrides */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .stock-balance-report-container, .stock-balance-report-container * {
+        visibility: visible;
+    }
+    .stock-balance-report-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white !important;
+        padding: 0 !important;
+    }
+    .so-page-header button, .action-divider, .filters-wrapper, .results-header, .theme-toggle-btn {
+        display: none !important;
+    }
+    .metrics-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+    .metric-card {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        background: transparent !important;
+    }
+    .scrollable-table-area {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    .premium-stock-table th {
+        background-color: #e2e8f0 !important;
+        border-bottom: 2px solid #000 !important;
+        position: static !important;
+    }
+}
+
+/* UI modernizations & alignment fixes */
+.stock-balance-report-container .so-page-header {
+    margin-bottom: 2.25rem !important;
+}
+
+.stock-balance-report-container .so-page-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+}
+
+.stock-balance-report-container .so-filter-select,
+.stock-balance-report-container .so-filter-input,
+.stock-balance-report-container .dropdown-search-container .so-filter-input {
+    padding-left: 2.75rem !important;
+    padding-right: 2.25rem !important;
+}
+
