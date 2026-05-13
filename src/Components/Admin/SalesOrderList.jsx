@@ -197,8 +197,8 @@ export default function SalesOrderList() {
       naming_series: 'SAL-ORD-.YYYY.-',
       order_type: 'Sales',
       set_source_warehouse: localStorage.getItem('warehouse') || '',
-      taxes_and_charges: 'UAE VAT 5%',
-      taxes: [{ charge_type: 'On Net Total', account_head: 'VAT 5% - KSPL', rate: 5, tax_amount: 0, total: 0 }],
+      taxes_and_charges: '',
+      taxes: [],
       advance_paid: ''
     };
     setFormData(initial);
@@ -566,6 +566,10 @@ export default function SalesOrderList() {
       const payload = {
         ...formData,
         items: validItems,
+        taxes: (formData.taxes || []).map(t => ({
+          ...t,
+          description: t.description || t.account_head || 'VAT'
+        })),
         advance_paid: parseFloat(formData.advance_paid) || 0,
         total_qty: parseFloat(formData.total_qty) || 0,
         base_total: parseFloat(formData.base_total) || 0,
@@ -949,9 +953,9 @@ export default function SalesOrderList() {
                           <div className="so-field">
                             <label className="so-label">Scan Barcode / SKU</label>
                             <div style={{ position: 'relative' }}>
-                              <input 
-                                className="so-input" 
-                                placeholder="Point scanner here..." 
+                              <input
+                                className="so-input"
+                                placeholder="Point scanner here..."
                                 ref={barcodeRef}
                                 value={barcodeInput}
                                 onChange={e => setBarcodeInput(e.target.value)}
@@ -1066,7 +1070,7 @@ export default function SalesOrderList() {
                                     <option value="Nos">Nos</option>
                                     <option value="Box">Box</option>
                                     {item.uom && item.uom !== 'Nos' && item.uom !== 'Box' && (
-                                       <option value={item.uom}>{item.uom}</option>
+                                      <option value={item.uom}>{item.uom}</option>
                                     )}
                                   </select>
                                 </td>
@@ -1196,9 +1200,6 @@ export default function SalesOrderList() {
                           }}
                         >
                           <option value="">Select Template...</option>
-                          {!taxesTemplates.find(t => t.name === 'UAE VAT 5%') && (
-                            <option value="UAE VAT 5%">UAE VAT 5%</option>
-                          )}
                           {taxesTemplates.map(t => (
                             <option key={t.name} value={t.name}>{t.name}</option>
                           ))}

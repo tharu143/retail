@@ -36,6 +36,8 @@ function NavBar() {
     { name: "POS Profile List", path: "/posprofilelist", keywords: ["profile", "pos profile", "terminal settings", "posprofilelist"] },
     { name: "Purchase Invoice", path: "/purchaseinvoicelist", keywords: ["purchase invoice", "pi", "bill", "vendor bill", "purchaseinvoicelist"] },
     { name: "Purchase Receipt", path: "/purchasereceiptlist", keywords: ["purchase receipt", "pr", "goods receipt", "grn", "purchasereceiptlist"] },
+    { name: "Purchase Order List", path: "/purchaseorderlist", keywords: ["purchase order", "po", "vendor order", "purchaseorderlist", "purchase order list"] },
+    { name: "Create Purchase Order", path: "/purchaseorder", keywords: ["create purchase order", "new purchase order", "new po", "purchaseorder", "create po"] },
     { name: "Supplier List", path: "/supplierlist", keywords: ["supplier", "vendor", "manufacturer", "supplierlist"] },
     { name: "Sales Order", path: "/salesorderlist", keywords: ["sales order", "so", "customer order", "salesorderlist"] },
     { name: "Create Sales Order", path: "/salesorder/create", keywords: ["new sales order", "create so", "add sales order"] },
