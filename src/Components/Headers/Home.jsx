@@ -201,8 +201,28 @@ function Home() {
         display: block; width: 100%;
       }
       .classic-bottom-bar {
-        background: ${darkColor}; border-top: 2px solid ${borderColor};
-        display: flex; align-items: center; justify-content: center; padding: 4px 10px; flex-shrink: 0;
+        background: #ffffff; border-top: 1px solid #e2e8f0;
+        display: flex; align-items: center; padding: 0.5rem 2.5rem; flex-shrink: 0;
+        height: 70px;
+      }
+      .shortcut-guide {
+        display: flex; gap: 2rem; align-items: center;
+      }
+      .shortcut-item {
+        display: flex; align-items: center; gap: 0.6rem;
+        position: relative;
+      }
+      .shortcut-item:not(:last-child)::after {
+        content: ''; position: absolute; right: -1rem; height: 12px; width: 1px; background: #e2e8f0;
+      }
+      .shortcut-key {
+        background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+        color: #ffffff; padding: 4px 8px; border-radius: 6px; 
+        font-size: 11px; font-weight: 800; font-family: 'Share Tech Mono', monospace;
+        box-shadow: 0 2px 0 #0f172a;
+      }
+      .shortcut-label {
+        font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;
       }
       .classic-action-bar {
         background: ${isGreen ? '#156047' : '#154070'}; padding: 5px 10px;
@@ -2159,9 +2179,44 @@ function Home() {
             />
           </div>
         </div>
-        <div className="home-modal-footer">
-          <button className="home-modal-cancel" onClick={clearDiscount}>Clear</button>
-          <button className="home-modal-apply" onClick={() => { setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }); setShowDiscountModal(false); }}>Apply</button>
+        <div className="home-modal-footer" style={{ gap: '12px', padding: '20px' }}>
+          <button 
+            className="home-modal-cancel" 
+            onClick={clearDiscount}
+            style={{ 
+              flex: 1, 
+              padding: '12px', 
+              borderRadius: '12px', 
+              background: '#f1f5f9', 
+              color: '#64748b', 
+              fontWeight: 800, 
+              fontSize: '13px', 
+              textTransform: 'uppercase', 
+              letterSpacing: '0.05em',
+              transition: 'all 0.2s'
+            }}
+          >
+            Clear
+          </button>
+          <button 
+            className="home-modal-apply" 
+            onClick={() => { setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }); setShowDiscountModal(false); }}
+            style={{ 
+              flex: 2, 
+              padding: '12px', 
+              borderRadius: '12px', 
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
+              color: '#ffffff', 
+              fontWeight: 800, 
+              fontSize: '13px', 
+              textTransform: 'uppercase', 
+              letterSpacing: '0.05em',
+              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+              transition: 'all 0.2s'
+            }}
+          >
+            Apply Discount
+          </button>
         </div>
       </div>
     </div>
@@ -2506,8 +2561,8 @@ function Home() {
         }
       }
 
-      // Space: Open Payment (Global focus handling)
-      if (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      // Space or F12: Open Payment (Global focus handling)
+      if ((e.key === ' ' || e.key === 'F12') && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
         if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
           e.preventDefault();
           handleCheckout();
@@ -3283,29 +3338,50 @@ function Home() {
               </table>
             </div>
 
-            {/* BOTTOM TOTALS */}
+            {/* BOTTOM BAR: SHORTCUTS & TOTALS */}
             <div className="classic-bottom-bar">
-              <div className="flex items-center gap-8 px-8 py-2 bg-white">
-                <div className="flex flex-col items-center">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">SUBTOTAL</label>
-                  <span className="text-slate-900 font-black text-xl">AED {displaySubtotal.toFixed(2)}</span>
+              {/* Shortcut Overview on the Left */}
+              <div className="shortcut-guide">
+                <div className="shortcut-item">
+                  <span className="shortcut-key">F2</span>
+                  <span className="shortcut-label">Customer</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-key">F4</span>
+                  <span className="shortcut-label">Item Search</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-key">F8</span>
+                  <span className="shortcut-label">Stock Check</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-key">F12</span>
+                  <span className="shortcut-label">Pay</span>
+                </div>
+              </div>
+
+              {/* Totals on the Right - ml-auto forces it to the end */}
+              <div className="flex items-center gap-12 ml-auto">
+                <div className="flex flex-col items-end">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">SUBTOTAL</label>
+                  <span className="text-slate-900 font-black text-xl leading-none">AED {displaySubtotal.toFixed(2)}</span>
                 </div>
                 {displayDiscount > 0 && (
-                  <div className="flex flex-col items-center">
-                    <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-0.5">
+                  <div className="flex flex-col items-end">
+                    <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">
                       DISCOUNT {(discount.type === 'percentage' || discount.type === 'percent') ? `(${discount.value}%)` : ''}
                     </label>
-                    <span className="text-rose-600 font-black text-xl">-AED {displayDiscount.toFixed(2)}</span>
+                    <span className="text-rose-500 font-black text-xl leading-none">-AED {displayDiscount.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex flex-col items-center">
-                  <label className={`text-[10px] font-black ${isGreen ? 'text-emerald-600' : 'text-sky-600'} uppercase tracking-widest mb-0.5`}>VAT ({taxRate}%)</label>
-                  <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-xl`}>AED {displayTax.toFixed(2)}</span>
+                <div className="flex flex-col items-end">
+                  <label className={`text-[10px] font-black ${isGreen ? 'text-emerald-500' : 'text-sky-500'} uppercase tracking-widest mb-0.5`}>VAT ({taxRate}%)</label>
+                  <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-xl leading-none`}>AED {displayTax.toFixed(2)}</span>
                 </div>
-                <div className="h-10 w-[2px] bg-slate-200" />
-                <div className="flex flex-col items-center min-w-[140px]">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">TOTAL AMOUNT</label>
-                  <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-[28px] tracking-tighter`}>AED {grandTotal.toFixed(2)}</span>
+                <div className="h-10 w-[1px] bg-slate-200 mx-1" />
+                <div className="flex flex-col items-end min-w-[140px]">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">TOTAL AMOUNT</label>
+                  <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-[36px] tracking-tighter leading-none`}>AED {grandTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -3330,13 +3406,7 @@ function Home() {
                 onClick={handleCheckout}
                 disabled={grandTotal <= 0}
               >
-                💳 PROCESS PAYMENT [F12]
-              </button>
-              <button
-                className={`px-6 py-2 bg-slate-50 border border-slate-200 ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide`}
-                onClick={closingEntry}
-              >
-                [F10] CLOSING
+                💳 PROCESS PAYMENT
               </button>
             </div>
 

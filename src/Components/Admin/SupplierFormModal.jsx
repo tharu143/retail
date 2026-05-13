@@ -30,14 +30,32 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
       tax_category: '',
       tax_withholding_category: '',
       website: '',
-      address: '',
-      contact_person: '',
+      // Address Details
+      address_title: '',
+      address_type: 'Office',
+      address_line1: '',
+      address_line2: '',
+      city: '',
+      emirate: 'Dubai',
+      state: '',
+      postal_code: '',
+      address_email: '',
+      address_phone: '',
+      // Contact Details
+      salutation: '',
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      email_id: '',
+      mobile_no: '',
+      designation: '',
+      gender: '',
+      is_primary_contact: true,
+      // Internal
       supplier_details: '',
       default_currency: 'AED',
       default_price_list: '',
       payment_terms: '',
-      supplier_primary_address: '',
-      supplier_primary_contact: '',
       // Settings Checkboxes
       allow_purchase_invoice_creation_without_purchase_order: false,
       allow_purchase_invoice_creation_without_purchase_receipt: false,
@@ -59,13 +77,27 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
       currencies: [],
       taxCategories: [],
       taxWithholdingCategories: [],
-      paymentTerms: []
+      paymentTerms: [],
+      salutations: ['Mr', 'Ms', 'Mrs', 'Dr', 'Prof'],
+      genders: ['Male', 'Female', 'Other']
    });
 
    useEffect(() => {
       if (editingSupplier) {
          setForm({
             ...editingSupplier,
+            supplier_name: editingSupplier.supplier_name || '',
+            supplier_name_in_arabic: editingSupplier.supplier_name_in_arabic || '',
+            supplier_group: editingSupplier.supplier_group || '',
+            supplier_type: editingSupplier.supplier_type || 'Company',
+            country: editingSupplier.country || 'United Arab Emirates',
+            tax_id: editingSupplier.tax_id || '',
+            tax_category: editingSupplier.tax_category || '',
+            tax_withholding_category: editingSupplier.tax_withholding_category || '',
+            website: editingSupplier.website || '',
+            default_currency: editingSupplier.default_currency || 'AED',
+            default_price_list: editingSupplier.default_price_list || '',
+            payment_terms: editingSupplier.payment_terms || '',
             disabled: !!editingSupplier.disabled,
             allow_purchase_invoice_creation_without_purchase_order: !!editingSupplier.allow_purchase_invoice_creation_without_purchase_order,
             allow_purchase_invoice_creation_without_purchase_receipt: !!editingSupplier.allow_purchase_invoice_creation_without_purchase_receipt,
@@ -76,17 +108,39 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
             warn_rfqs: !!editingSupplier.warn_rfqs,
             warn_pos: !!editingSupplier.warn_pos,
             prevent_rfqs: !!editingSupplier.prevent_rfqs,
-            prevent_pos: !!editingSupplier.prevent_pos
+            prevent_pos: !!editingSupplier.prevent_pos,
+            // Map Address Details
+            address_title: editingSupplier.address_details?.address_title || '',
+            address_type: editingSupplier.address_details?.address_type || 'Office',
+            address_line1: editingSupplier.address_details?.address_line1 || '',
+            address_line2: editingSupplier.address_details?.address_line2 || '',
+            city: editingSupplier.address_details?.city || '',
+            emirate: editingSupplier.address_details?.emirate || editingSupplier.address_details?.county || 'Dubai',
+            state: editingSupplier.address_details?.state || '',
+            postal_code: editingSupplier.address_details?.pincode || '',
+            address_email: editingSupplier.address_details?.email_id || '',
+            address_phone: editingSupplier.address_details?.phone || '',
+            // Map Contact Details
+            salutation: editingSupplier.contact_details?.salutation || '',
+            first_name: editingSupplier.contact_details?.first_name || '',
+            middle_name: editingSupplier.contact_details?.middle_name || '',
+            last_name: editingSupplier.contact_details?.last_name || '',
+            email_id: editingSupplier.contact_details?.email_id || editingSupplier.email_id || '',
+            mobile_no: editingSupplier.contact_details?.mobile_no || editingSupplier.mobile_no || '',
+            designation: editingSupplier.contact_details?.designation || '',
+            gender: editingSupplier.contact_details?.gender || '',
+            is_primary_contact: editingSupplier.contact_details?.is_primary_contact !== undefined ? !!editingSupplier.contact_details.is_primary_contact : true
          });
       } else {
          setForm({
             supplier_name: '', supplier_name_in_arabic: '', supplier_group: '', supplier_type: 'Company',
             country: 'United Arab Emirates',
             disabled: false, tax_id: '', tax_category: '', tax_withholding_category: '',
-            website: '', email_id: '', mobile_no: '', address: '',
-            contact_person: '', supplier_details: '', default_currency: 'AED',
+            website: '', 
+            address_title: '', address_type: 'Office', address_line1: '', address_line2: '', city: '', emirate: 'Dubai', state: '', postal_code: '', address_email: '', address_phone: '',
+            salutation: '', first_name: '', middle_name: '', last_name: '', email_id: '', mobile_no: '', designation: '', gender: '', is_primary_contact: true,
+            supplier_details: '', default_currency: 'AED',
             default_price_list: '', payment_terms: '',
-            supplier_primary_address: '', supplier_primary_contact: '',
             allow_purchase_invoice_creation_without_purchase_order: false,
             allow_purchase_invoice_creation_without_purchase_receipt: false,
             is_frozen: false, on_hold: false, is_internal_supplier: false,
@@ -109,7 +163,8 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
                axios.get('/api/resource/Payment Terms Template?fields=["name"]&limit=100', { withCredentials: true })
             ]);
 
-            setMeta({
+            setMeta(prev => ({
+               ...prev,
                supplierGroups: (groups.data?.data || []).map(g => g.name),
                priceLists: (prices.data?.data || []).map(g => g.name),
                countries: (countries.data?.data || []).map(g => g.name),
@@ -117,7 +172,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
                taxCategories: (taxCat.data?.data || []).map(g => g.name),
                taxWithholdingCategories: (taxWith.data?.data || []).map(g => g.name),
                paymentTerms: (payTerms.data?.data || []).map(g => g.name)
-            });
+            }));
          } catch (e) { console.error('Meta fetch error:', e); }
       };
       if (isOpen) fetchMeta();
@@ -138,6 +193,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
             on_hold: form.on_hold ? 1 : 0,
             is_internal_supplier: form.is_internal_supplier ? 1 : 0,
             is_transporter: form.is_transporter ? 1 : 0,
+            is_primary_contact: form.is_primary_contact ? 1 : 0,
             allow_purchase_invoice_creation_without_purchase_order: form.allow_purchase_invoice_creation_without_purchase_order ? 1 : 0,
             allow_purchase_invoice_creation_without_purchase_receipt: form.allow_purchase_invoice_creation_without_purchase_receipt ? 1 : 0,
             warn_rfqs: form.warn_rfqs ? 1 : 0,
@@ -148,7 +204,10 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
          };
          let response;
          if (editingSupplier) {
-            response = await axios.put(`/api/resource/Supplier/${editingSupplier.name}`, payload, { withCredentials: true });
+            response = await axios.post('/api/method/kyle_retail.retail_api.api.update_retail_supplier', {
+               supplier_name: editingSupplier.name,
+               data: payload
+            }, { withCredentials: true });
          } else {
             // Use specialized creation API that handles Price List, Address, and Contact creation
             response = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.create_supplier',
@@ -340,7 +399,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
                      </div>
                   </div>
                </div>
-               {/* Row 2 - Col 1: Section 2 (Contact Info & Address) */}
+               {/* Row 1 - Col 2: Section 2 (Address Information) */}
                <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
                   <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
                      <div className="flex items-center gap-3">
@@ -350,89 +409,343 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
                         >
                            2
                         </div>
-                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Deal Information</h3>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Address Information</h3>
                      </div>
                   </div>
                   <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                           Email Id
-                        </label>
-                        <input
-                           type="email"
-                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                           style={getInputStyle('email_id')}
-                           onFocus={() => setFocusedField('email_id')}
-                           onBlur={() => setFocusedField(null)}
-                           value={form.email_id}
-                           onChange={e => setForm({ ...form, email_id: e.target.value })}
-                           placeholder="email@example.com"
-                        />
-                     </div>
 
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                           Mobile No
-                        </label>
-                        <input
-                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                           style={getInputStyle('mobile_no')}
-                           onFocus={() => setFocusedField('mobile_no')}
-                           onBlur={() => setFocusedField(null)}
-                           value={form.mobile_no}
-                           onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                           placeholder="+00 000 0000"
-                        />
-                     </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Address Title
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('address_title')}
+                            onFocus={() => setFocusedField('address_title')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.address_title}
+                            onChange={e => setForm({ ...form, address_title: e.target.value })}
+                            placeholder="e.g. Head Office"
+                         />
+                      </div>
 
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                           Supplier Primary Contact
-                        </label>
-                        <input
-                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                           style={getInputStyle('supplier_primary_contact')}
-                           onFocus={() => setFocusedField('supplier_primary_contact')}
-                           onBlur={() => setFocusedField(null)}
-                           value={form.supplier_primary_contact}
-                           onChange={e => setForm({ ...form, supplier_primary_contact: e.target.value })}
-                           placeholder="Contact ID"
-                        />
-                     </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Address Type
+                         </label>
+                         <select
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                            style={{
+                               ...getInputStyle('address_type'),
+                               backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                               backgroundSize: '1.25rem'
+                            }}
+                            onFocus={() => setFocusedField('address_type')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.address_type}
+                            onChange={e => setForm({ ...form, address_type: e.target.value })}
+                         >
+                            <option value="Office">Office</option>
+                            <option value="Personal">Personal</option>
+                            <option value="Billing">Billing</option>
+                            <option value="Shipping">Shipping</option>
+                            <option value="Shop">Shop</option>
+                            <option value="Warehouse">Warehouse</option>
+                            <option value="Other">Other</option>
+                         </select>
+                      </div>
 
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                           Supplier Primary Address
-                        </label>
-                        <input
-                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                           style={getInputStyle('supplier_primary_address')}
-                           onFocus={() => setFocusedField('supplier_primary_address')}
-                           onBlur={() => setFocusedField(null)}
-                           value={form.supplier_primary_address}
-                           onChange={e => setForm({ ...form, supplier_primary_address: e.target.value })}
-                           placeholder="Address ID"
-                        />
-                     </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Address Line 1
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('address_line1')}
+                            onFocus={() => setFocusedField('address_line1')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.address_line1}
+                            onChange={e => setForm({ ...form, address_line1: e.target.value })}
+                            placeholder="Building No, Street Name"
+                         />
+                      </div>
 
-                     <div className="space-y-1.5 col-span-1 md:col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                           Address
-                        </label>
-                        <textarea
-                           className="w-full px-4 py-3 border rounded-lg text-xs font-medium text-slate-700 bg-white min-h-[96px] resize-none"
-                           style={getInputStyle('address')}
-                           onFocus={() => setFocusedField('address')}
-                           onBlur={() => setFocusedField(null)}
-                           value={form.address}
-                           onChange={e => setForm({ ...form, address: e.target.value })}
-                           placeholder="Enter Address details..."
-                        />
-                     </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Address Line 2
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('address_line2')}
+                            onFocus={() => setFocusedField('address_line2')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.address_line2}
+                            onChange={e => setForm({ ...form, address_line2: e.target.value })}
+                            placeholder="Area, Landmark"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            City
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('city')}
+                            onFocus={() => setFocusedField('city')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.city}
+                            onChange={e => setForm({ ...form, city: e.target.value })}
+                            placeholder="City"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Emirate
+                         </label>
+                         <select
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                            style={{
+                               ...getInputStyle('emirate'),
+                               backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                               backgroundSize: '1.25rem'
+                            }}
+                            onFocus={() => setFocusedField('emirate')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.emirate}
+                            onChange={e => setForm({ ...form, emirate: e.target.value })}
+                         >
+                            <option value="Dubai">Dubai</option>
+                            <option value="Abu Dhabi">Abu Dhabi</option>
+                            <option value="Sharjah">Sharjah</option>
+                            <option value="Ajman">Ajman</option>
+                            <option value="Umm Al Quwain">Umm Al Quwain</option>
+                            <option value="Ras Al Khaimah">Ras Al Khaimah</option>
+                            <option value="Fujairah">Fujairah</option>
+                         </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            State / Region
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('state')}
+                            onFocus={() => setFocusedField('state')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.state}
+                            onChange={e => setForm({ ...form, state: e.target.value })}
+                            placeholder="State"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Postal Code / Zip
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('postal_code')}
+                            onFocus={() => setFocusedField('postal_code')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.postal_code}
+                            onChange={e => setForm({ ...form, postal_code: e.target.value })}
+                            placeholder="00000"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Email Address (Address)
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('address_email')}
+                            onFocus={() => setFocusedField('address_email')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.address_email}
+                            onChange={e => setForm({ ...form, address_email: e.target.value })}
+                            placeholder="email@example.com"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Phone (Address)
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('address_phone')}
+                            onFocus={() => setFocusedField('address_phone')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.address_phone}
+                            onChange={e => setForm({ ...form, address_phone: e.target.value })}
+                            placeholder="+00 000 0000"
+                         />
+                      </div>
                   </div>
                </div>
 
-               {/* Row 1 - Col 2: Section 3 (Currency and Price List) */}
+               {/* Row 2 - Col 1: Section 3 (Contact Information) */}
+               <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
+                     <div className="flex items-center gap-3">
+                        <div
+                           className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                           style={{ backgroundColor: themeColor }}
+                        >
+                           3
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Contact Information</h3>
+                     </div>
+                  </div>
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Contact Section */}
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Salutation
+                         </label>
+                         <select
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                            style={{
+                               ...getInputStyle('salutation'),
+                               backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                               backgroundSize: '1.25rem'
+                            }}
+                            onFocus={() => setFocusedField('salutation')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.salutation}
+                            onChange={e => setForm({ ...form, salutation: e.target.value })}
+                         >
+                            <option value="">Select Salutation</option>
+                            {meta.salutations.map(s => <option key={s} value={s}>{s}</option>)}
+                         </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            First Name
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('first_name')}
+                            onFocus={() => setFocusedField('first_name')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.first_name}
+                            onChange={e => setForm({ ...form, first_name: e.target.value })}
+                            placeholder="First Name"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Middle Name
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('middle_name')}
+                            onFocus={() => setFocusedField('middle_name')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.middle_name}
+                            onChange={e => setForm({ ...form, middle_name: e.target.value })}
+                            placeholder="Middle Name"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Last Name
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('last_name')}
+                            onFocus={() => setFocusedField('last_name')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.last_name}
+                            onChange={e => setForm({ ...form, last_name: e.target.value })}
+                            placeholder="Last Name"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Email Id
+                         </label>
+                         <input
+                            type="email"
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('email_id')}
+                            onFocus={() => setFocusedField('email_id')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.email_id}
+                            onChange={e => setForm({ ...form, email_id: e.target.value })}
+                            placeholder="email@example.com"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Mobile No
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('mobile_no')}
+                            onFocus={() => setFocusedField('mobile_no')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.mobile_no}
+                            onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                            placeholder="+00 000 0000"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Designation
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('designation')}
+                            onFocus={() => setFocusedField('designation')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.designation}
+                            onChange={e => setForm({ ...form, designation: e.target.value })}
+                            placeholder="e.g. Manager"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Company Name
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={getInputStyle('company_name')}
+                            onFocus={() => setFocusedField('company_name')}
+                            onBlur={() => setFocusedField(null)}
+                            value={form.company_name}
+                            onChange={e => setForm({ ...form, company_name: e.target.value })}
+                            placeholder="Defaults to Supplier Name"
+                         />
+                      </div>
+
+                      <div className="space-y-1.5 flex items-center pt-6">
+                         <label className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg cursor-pointer transition-all hover:bg-slate-100/80">
+                            <input
+                               type="checkbox"
+                               className="rounded border-slate-300 text-slate-800 focus:ring-0 w-4 h-4"
+                               checked={form.is_primary_contact}
+                               onChange={e => setForm({ ...form, is_primary_contact: e.target.checked })}
+                            />
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Is Primary Contact</span>
+                         </label>
+                      </div>
+
+                  </div>
+               </div>
+
+               {/* Row 2 - Col 2: Section 4 (Settings & Controls) */}
                <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
                   <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
                      <div className="flex items-center gap-3">
@@ -440,7 +753,76 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
                            style={{ backgroundColor: themeColor }}
                         >
-                           3
+                           4
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Settings & Controls</h3>
+                     </div>
+                  </div>
+                  <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {[
+                           { id: 'disabled', label: 'Disabled' },
+                           { id: 'is_frozen', label: 'Is Frozen' },
+                           { id: 'on_hold', label: 'On Hold' },
+                           { id: 'is_internal_supplier', label: 'Internal Supplier' },
+                           { id: 'is_transporter', label: 'Is Transporter' },
+                           { id: 'warn_rfqs', label: 'Warn RFQs' },
+                           { id: 'warn_pos', label: 'Warn POs' },
+                           { id: 'prevent_rfqs', label: 'Prevent RFQs' },
+                           { id: 'prevent_pos', label: 'Prevent POs' },
+                           { id: 'allow_purchase_invoice_creation_without_purchase_order', label: 'Bill without PO' },
+                           { id: 'allow_purchase_invoice_creation_without_purchase_receipt', label: 'Bill without Receipt' }
+                        ].map(check => (
+                           <label key={check.id} className="flex items-center px-3 py-2.5 bg-slate-50/50 hover:bg-slate-100/50 border border-slate-100 rounded-lg cursor-pointer transition-all select-none group">
+                              <input
+                                 type="checkbox"
+                                 className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0"
+                                 style={{
+                                    accentColor: themeColor,
+                                    width: '16px',
+                                    height: '16px',
+                                    minWidth: '16px',
+                                    minHeight: '16px',
+                                    position: 'static',
+                                    display: 'inline-block',
+                                    margin: '0 10px 0 0',
+                                    flexShrink: 0,
+                                    cursor: 'pointer'
+                                 }}
+                                 checked={form[check.id]}
+                                 onChange={e => setForm({ ...form, [check.id]: e.target.checked })}
+                              />
+                              <span className="text-[9px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
+                           </label>
+                        ))}
+                     </div>
+
+                     <div className="space-y-1.5 flex flex-col flex-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Supplier Details
+                        </label>
+                        <textarea
+                           className="w-full px-4 py-3 border rounded-lg text-xs font-medium text-slate-700 bg-white min-h-[85px] resize-none flex-1"
+                           style={getInputStyle('supplier_details')}
+                           onFocus={() => setFocusedField('supplier_details')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.supplier_details}
+                           onChange={e => setForm({ ...form, supplier_details: e.target.value })}
+                           placeholder="Enter supplier details or description notes..."
+                        />
+                     </div>
+                  </div>
+               </div>
+
+               {/* Row 3 - Col 1: Section 5 (Source & Assignment) */}
+               <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                     <div className="flex items-center gap-3">
+                        <div
+                           className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                           style={{ backgroundColor: themeColor }}
+                        >
+                           5
                         </div>
                         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Source & Assignment</h3>
                      </div>
@@ -564,76 +946,6 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
                            <option value="">Select Template</option>
                            {meta.paymentTerms.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
-                     </div>
-                  </div>
-               </div>
-
-
-               {/* Row 2 - Col 2: Section 4 (Settings & Controls) */}
-               <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                     <div className="flex items-center gap-3">
-                        <div
-                           className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
-                           style={{ backgroundColor: themeColor }}
-                        >
-                           4
-                        </div>
-                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Additional Information</h3>
-                     </div>
-                  </div>
-                  <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
-                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                        {[
-                           { id: 'disabled', label: 'Disabled' },
-                           { id: 'is_frozen', label: 'Is Frozen' },
-                           { id: 'on_hold', label: 'On Hold' },
-                           { id: 'is_internal_supplier', label: 'Internal Supplier' },
-                           { id: 'is_transporter', label: 'Is Transporter' },
-                           { id: 'warn_rfqs', label: 'Warn RFQs' },
-                           { id: 'warn_pos', label: 'Warn POs' },
-                           { id: 'prevent_rfqs', label: 'Prevent RFQs' },
-                           { id: 'prevent_pos', label: 'Prevent POs' },
-                           { id: 'allow_purchase_invoice_creation_without_purchase_order', label: 'Bill without PO' },
-                           { id: 'allow_purchase_invoice_creation_without_purchase_receipt', label: 'Bill without Receipt' }
-                        ].map(check => (
-                           <label key={check.id} className="flex items-center px-3 py-2.5 bg-slate-50/50 hover:bg-slate-100/50 border border-slate-100 rounded-lg cursor-pointer transition-all select-none group">
-                              <input
-                                 type="checkbox"
-                                 className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0"
-                                 style={{
-                                    accentColor: themeColor,
-                                    width: '16px',
-                                    height: '16px',
-                                    minWidth: '16px',
-                                    minHeight: '16px',
-                                    position: 'static',
-                                    display: 'inline-block',
-                                    margin: '0 10px 0 0',
-                                    flexShrink: 0,
-                                    cursor: 'pointer'
-                                 }}
-                                 checked={form[check.id]}
-                                 onChange={e => setForm({ ...form, [check.id]: e.target.checked })}
-                              />
-                              <span className="text-[9px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
-                           </label>
-                        ))}
-                     </div>
-
-                     <div className="space-y-1.5 flex flex-col flex-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                           Supplier Details
-                        </label>
-                        <textarea
-                           className="w-full px-4 py-3 border rounded-lg text-xs font-medium text-slate-700 bg-white min-h-[85px] resize-none flex-1"
-                           style={getInputStyle('supplier_details')}
-                           onFocus={() => setFocusedField('supplier_details')}
-                           onBlur={() => setFocusedField(null)}
-                           value={form.supplier_details}
-                           onChange={e => setForm({ ...form, supplier_details: e.target.value })}
-                           placeholder="Enter supplier details or description notes..."
-                        />
                      </div>
                   </div>
                </div>
