@@ -547,6 +547,14 @@ function PurchaseReceiptList() {
     }
   };
 
+  const handleCreateInvoice = () => {
+    if (!docName) return;
+    setIsModalOpen(false);
+    setTimeout(() => {
+      navigate(`/purchaseinvoicelist?pr=${encodeURIComponent(docName)}`);
+    }, 100);
+  };
+
   const handleCreateReturn = async () => {
     if (!docName) return;
     setSaving(true);
