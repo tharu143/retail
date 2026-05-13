@@ -20,3 +20,16 @@ db.version(7).stores({
     opening_entries: '++id, offline_id, is_synced, timestamp',
     closing_entries: '++id, offline_id, is_synced, timestamp'
 });
+
+// Version 8: Added draft_orders for active orders functionality
+db.version(8).stores({
+    items: 'id, name, group, price, actual_qty, local_qty, custom_pieces_per_box',
+    customers: 'name, customer_name, mobile_no, is_synced',
+    invoices: '++id, offline_id, customer, grand_total, is_synced, posting_date, synced_at, server_name, retry_count, conflicts, pos_opening_entry',
+    tax_templates: 'name',
+    payment_modes: 'name',
+    sync_log: '++id, offline_id, action, timestamp, status, server_name',
+    opening_entries: '++id, offline_id, is_synced, timestamp',
+    closing_entries: '++id, offline_id, is_synced, timestamp',
+    draft_orders: '++id, customer, grand_total, timestamp'
+});

@@ -765,10 +765,12 @@ function PurchaseInvoiceList() {
         setIsViewMode(true);
         setIsEditMode(false);
         setIsModalOpen(true);
+        return mapped;
       }
     } catch (err) {
       alert('Failed to load invoice');
     }
+    return null;
   }, [fetchWorkflowActions]);
 
   const fetchLinkedDocuments = async (name) => {
@@ -1094,9 +1096,10 @@ function PurchaseInvoiceList() {
   };
 
   const openEditModal = async (invoice) => {
-    await fetchPurchaseInvoice(invoice.name);
-    setIsEditMode(true);
-    setIsViewMode(false);
+    const doc = await fetchPurchaseInvoice(invoice.name);
+    const isDraft = doc && (parseInt(doc.docstatus) === 0);
+    setIsEditMode(isDraft);
+    setIsViewMode(!isDraft);
     setIsModalOpen(true);
   };
 
@@ -2102,7 +2105,7 @@ function PurchaseInvoiceList() {
                                       width: col.width, 
                                       minWidth: col.id === 'item_code' ? 120 : undefined,
                                       textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
-                                                 ['custom_box_qty', 'custom_pieces_per_box', 'qty', 'uom', 'custom_ref_sl_no', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left'
+                                                 ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
                                     }}
                                   >
                                     {finalLabel}
@@ -2140,7 +2143,7 @@ function PurchaseInvoiceList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center" style={{ color: item.use_box_entry ? themeColor : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}>
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3" style={{ color: item.use_box_entry ? themeColor : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}>
                                                 {item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
                                               </div>
                                             ) : (
@@ -2148,7 +2151,7 @@ function PurchaseInvoiceList() {
                                                 type="number"
                                                 value={item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
                                                 onChange={e => updateItem(i, item.use_box_entry ? 'custom_box_qty' : 'qty', e.target.value)}
-                                                className="so-input text-center font-bold"
+                                                className="so-input text-left pl-3 font-bold"
                                                 style={{ border: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}
                                               />
                                             )}
@@ -2156,6 +2159,10 @@ function PurchaseInvoiceList() {
                                               <span 
                                                 className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
                                                 style={{
+                                                  position: 'absolute',
+                                                  right: '8px',
+                                                  top: '50%',
+                                                  transform: 'translateY(-50%)',
                                                   color: item.use_box_entry ? themeColor : '#64748b',
                                                   backgroundColor: item.use_box_entry ? `${themeColor}12` : '#f8fafc',
                                                   borderColor: item.use_box_entry ? `${themeColor}25` : '#e2e8f0',
@@ -2176,7 +2183,7 @@ function PurchaseInvoiceList() {
                                           <div className="premium-cell-box">
                                             {item.use_box_entry ? (
                                               isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center">
+                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3">
                                                   {(item.custom_pieces_per_box || 1)}
                                                 </div>
                                               ) : (
@@ -2184,11 +2191,11 @@ function PurchaseInvoiceList() {
                                                   type="number"
                                                   value={item.custom_pieces_per_box || 1}
                                                   onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
-                                                  className="so-input text-center font-bold"
+                                                  className="so-input text-left pl-3 font-bold"
                                                 />
                                               )
                                             ) : (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3">—</div>
                                             )}
                                           </div>
                                         </div>
@@ -2221,7 +2228,7 @@ function PurchaseInvoiceList() {
                                                   alignItems: 'center',
                                                   height: '36px'
                                                 }}>
-                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'center' }}>
                                                     {item.item_name || 'Unnamed Item'}
                                                   </div>
                                                 </div>
@@ -2259,7 +2266,7 @@ function PurchaseInvoiceList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-[var(--so-primary)]" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-[var(--so-primary)]" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>
                                                 {item.qty}
                                               </div>
                                             ) : (
@@ -2267,7 +2274,7 @@ function PurchaseInvoiceList() {
                                                 type="number"
                                                 value={item.qty}
                                                 onChange={e => updateItem(i, 'qty', e.target.value)}
-                                                className="so-input text-center font-bold"
+                                                className="so-input text-left pl-3 font-bold"
                                                 style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
                                               />
                                             )}
@@ -2275,6 +2282,10 @@ function PurchaseInvoiceList() {
                                               <span 
                                                 className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
                                                 style={{
+                                                  position: 'absolute',
+                                                  right: '8px',
+                                                  top: '50%',
+                                                  transform: 'translateY(-50%)',
                                                   color: '#64748b',
                                                   backgroundColor: '#f8fafc',
                                                   borderColor: '#e2e8f0',
@@ -2321,7 +2332,7 @@ function PurchaseInvoiceList() {
                                           <div className="premium-cell-box">
                                             {item.use_box_entry ? (
                                               isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right font-bold">
+                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold">
                                                   {formatPrice(item.custom_box_price)}
                                                 </div>
                                               ) : (
@@ -2329,7 +2340,7 @@ function PurchaseInvoiceList() {
                                                   type="number"
                                                   value={item.custom_box_price || 0}
                                                   onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
-                                                  className="so-input text-right font-bold"
+                                                  className="so-input text-right pr-3 font-bold"
                                                   step="0.01"
                                                 />
                                               )
@@ -2346,7 +2357,7 @@ function PurchaseInvoiceList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-right font-bold text-[var(--so-primary)]">
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[var(--so-primary)]">
                                                 {formatPrice(item.rate)}
                                               </div>
                                             ) : (
@@ -2354,7 +2365,7 @@ function PurchaseInvoiceList() {
                                                 type="number"
                                                 value={item.rate}
                                                 onChange={e => updateItem(i, 'rate', e.target.value)}
-                                                className="so-input text-right font-bold"
+                                                className="so-input text-right pr-3 font-bold"
                                                 step="0.01"
                                               />
                                             )}
@@ -2368,7 +2379,7 @@ function PurchaseInvoiceList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-right font-bold text-[#6366f1]">
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
                                                 {formatPrice(item.custom_selling_price)}
                                               </div>
                                             ) : (
@@ -2376,7 +2387,7 @@ function PurchaseInvoiceList() {
                                                 type="number"
                                                 value={item.custom_selling_price || 0}
                                                 onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                                className="so-input text-right font-bold text-[#6366f1]"
+                                                className="so-input text-right pr-3 font-bold text-[#6366f1]"
                                                 placeholder="Selling"
                                               />
                                             )}
@@ -2389,7 +2400,7 @@ function PurchaseInvoiceList() {
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
-                                            <div className="premium-cell-readonly premium-cell-readonly-right font-bold text-slate-800">
+                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
                                               {formatPrice(item.amount)}
                                             </div>
                                           </div>

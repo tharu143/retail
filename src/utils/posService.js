@@ -161,6 +161,29 @@ const POSService = {
             method: 'kyle_retail.retail_api.api.enable_item_for_branch_retail',
             args: { item_code: itemCode, warehouse: warehouse }
         });
+    },
+
+    getDraftInvoices: async (posProfile) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_draft_invoices',
+            args: { pos_profile: posProfile },
+            type: 'GET'
+        });
+    },
+
+    getDraftInvoiceDetails: async (invoiceName) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_draft_invoice_details',
+            args: { invoice_name: invoiceName },
+            type: 'GET'
+        });
+    },
+
+    deleteDraftInvoice: async (invoiceName) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.delete_draft_invoice',
+            args: { invoice_name: invoiceName }
+        });
     }
 };
 

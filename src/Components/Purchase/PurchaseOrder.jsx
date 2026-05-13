@@ -2025,10 +2025,17 @@ function PurchaseOrder() {
                                 if (col.id === 'custom_pieces_per_box') finalLabel = '';
                               }
 
+                              let alignClass = "text-center";
+                              if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
+                                alignClass = "text-left pl-3";
+                              } else if (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id)) {
+                                alignClass = "text-right pr-3";
+                              }
+
                               return (
                                 <th
                                   key={col.id}
-                                  className="purchase-th text-center"
+                                  className={`purchase-th ${alignClass}`}
                                   style={{ width: col.width, minWidth: col.id === 'item_code' ? 120 : undefined }}
                                 >
                                   {finalLabel}
@@ -2100,7 +2107,7 @@ function PurchaseOrder() {
                                                   alignItems: 'center',
                                                   height: '36px'
                                                 }}>
-                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'center' }}>
                                                     {item.item_name || 'Unnamed Item'}
                                                   </div>
                                                 </div>
@@ -2124,7 +2131,7 @@ function PurchaseOrder() {
                                               onChange={(e) => handleInputChange(e, idx)}
                                               onFocus={(e) => e.target.select()}
                                               onKeyDown={handleNextFocus}
-                                              className={`text-center font-bold outline-none ${item.use_box_entry ? 'text-sky-600' : 'text-slate-800'}`}
+                                              className={`text-left pl-3 font-bold outline-none ${item.use_box_entry ? 'text-sky-600' : 'text-slate-800'}`}
                                               style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}
                                               title={item.use_box_entry ? "Number of Boxes" : "Quantity"}
                                             />
@@ -2160,11 +2167,11 @@ function PurchaseOrder() {
                                                 onChange={(e) => handleInputChange(e, idx)}
                                                 onFocus={(e) => e.target.select()}
                                                 onKeyDown={handleNextFocus}
-                                                className="text-center"
+                                                className="text-left pl-3"
                                                 title="Pieces per Box"
                                               />
                                             ) : (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3">—</div>
                                             )}
                                           </div>
                                         </div>
@@ -2188,7 +2195,7 @@ function PurchaseOrder() {
                                                   onChange={(e) => handleInputChange(e, idx)}
                                                   onFocus={(e) => e.target.select()}
                                                   onKeyDown={handleNextFocus}
-                                                  className="text-right font-bold"
+                                                  className="text-right pr-3 font-bold"
                                                 />
                                               )
                                             ) : (
@@ -2215,7 +2222,7 @@ function PurchaseOrder() {
                                                 onChange={(e) => handleInputChange(e, idx)}
                                                 onFocus={(e) => e.target.select()}
                                                 onKeyDown={handleNextFocus}
-                                                className="text-right font-bold !text-[var(--po-primary)]"
+                                                className="text-right pr-3 font-bold !text-[var(--po-primary)]"
                                               />
                                             )}
                                           </div>
@@ -2246,7 +2253,7 @@ function PurchaseOrder() {
                                       <td key={col.id} className="purchase-td">
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box" style={{ position: 'relative' }}>
-                                            <div className="premium-cell-readonly premium-cell-readonly-center font-bold" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>{item.qty || 0}</div>
+                                            <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>{item.qty || 0}</div>
                                             {item.use_box_entry && (
                                               <span 
                                                 className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
@@ -2300,7 +2307,7 @@ function PurchaseOrder() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {isViewOnly && !isUpdateMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center font-bold">{formatPrice(item.rate)}</div>
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold">{formatPrice(item.rate)}</div>
                                             ) : (
                                               <input
                                                 type="text"
@@ -2311,7 +2318,7 @@ function PurchaseOrder() {
                                                 onChange={(e) => handleInputChange(e, idx)}
                                                 onFocus={(e) => e.target.select()}
                                                 onKeyDown={handleNextFocus}
-                                                className={`text-center font-bold outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`}
+                                                className={`text-right pr-3 font-bold outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`}
                                               />
                                             )}
                                           </div>
@@ -2323,7 +2330,7 @@ function PurchaseOrder() {
                                       <td key={col.id} className="purchase-td">
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
-                                            <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-slate-900 tabular-nums">{formatPrice(item.amount)}</div>
+                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-900 tabular-nums">{formatPrice(item.amount)}</div>
                                           </div>
                                         </div>
                                       </td>

@@ -888,6 +888,24 @@ input[type=number].so-td-input::-webkit-outer-spin-button {
   box-sizing: border-box !important;
 }
 
+.premium-cell-box input.text-right,
+.premium-cell-box select.text-right,
+.premium-cell-box .so-input.text-right {
+  text-align: right !important;
+}
+
+.premium-cell-box input.text-left,
+.premium-cell-box select.text-left,
+.premium-cell-box .so-input.text-left {
+  text-align: left !important;
+}
+
+.premium-cell-box input.text-center,
+.premium-cell-box select.text-center,
+.premium-cell-box .so-input.text-center {
+  text-align: center !important;
+}
+
 .premium-cell-box input:focus,
 .premium-cell-box select:focus,
 .premium-cell-box .so-input:focus {

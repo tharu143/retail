@@ -532,6 +532,207 @@ function Home() {
           </div>
         </div>
       )}
+      {showDraftsModal && (
+        <div className="home-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowDraftsModal(false)}>
+          <div className="home-modal" style={{ maxWidth: '800px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="home-modal-header">
+              <h3>Active Saved Orders (Drafts)</h3>
+              <button className="home-modal-close" onClick={() => setShowDraftsModal(false)}><X size={20} /></button>
+            </div>
+            <div className="home-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+              {draftOrders.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                  <Package size={48} style={{ margin: '0 auto 15px', opacity: 0.5 }} />
+                  <p style={{ fontWeight: 700, fontSize: '16px' }}>No Active Draft Orders</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: '15px' }}>
+                  {draftOrders.map(draft => (
+                    <div key={draft.id} style={{ 
+                      background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '15px' }}>
+                          {draft.customerName || 'Cash Customer'} 
+                          <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '10px', fontWeight: 600 }}>{draft.mobile}</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
+                          {draft.items.length} Items • Saved: {format(new Date(draft.timestamp), 'MMM dd, HH:mm')}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', letterSpacing: '1px' }}>TOTAL</div>
+                          <div style={{ fontWeight: 900, color: '#0ea5e9', fontSize: '18px' }}>AED {draft.grand_total?.toFixed(2)}</div>
+                        </div>
+                        <button 
+                          onClick={() => loadDraftOrder(draft)}
+                          style={{
+                            background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '8px',
+                            padding: '10px 20px', fontWeight: 800, fontSize: '13px', cursor: 'pointer',
+                            boxShadow: '0 4px 6px -1px rgba(14, 165, 233, 0.3)'
+                          }}
+                        >
+                          RESUME
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showThemeSidebar && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.4)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 99999,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            transition: 'opacity 0.3s ease'
+          }}
+          onClick={() => setShowThemeSidebar(false)}
+        >
+          <div 
+            style={{
+              width: '340px',
+              height: '100%',
+              background: '#ffffff',
+              boxShadow: '-4px 0 25px -5px rgba(0,0,0,0.1), -10px 0 10px -5px rgba(0,0,0,0.04)',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '24px',
+              animation: 'slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              fontFamily: 'Inter, system-ui, sans-serif'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <style>{`
+              @keyframes slideIn {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+              }
+            `}</style>
+
+            {/* Sidebar Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Palette className="text-slate-700" size={18} />
+                <h3 style={{ margin: 0, fontWeight: 900, fontSize: '14px', color: '#1e293b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Theme Customizer</h3>
+              </div>
+              <button 
+                onClick={() => setShowThemeSidebar(false)} 
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                className="hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Section: Layout Style */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Layout Style</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  onClick={() => { if (theme === 'legacy') dispatch(toggleTheme()); }}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: '2px solid',
+                    borderColor: theme !== 'legacy' ? '#0ea5e9' : '#e2e8f0',
+                    background: theme !== 'legacy' ? '#f0f9ff' : '#ffffff',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>Modern UI</span>
+                  <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>Sleek, bright cards</span>
+                </button>
+                <button
+                  onClick={() => { if (theme !== 'legacy') dispatch(toggleTheme()); }}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: '2px solid',
+                    borderColor: theme === 'legacy' ? '#10b981' : '#e2e8f0',
+                    background: theme === 'legacy' ? '#ecfdf5' : '#ffffff',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>Classic UI</span>
+                  <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>Retro POS terminal</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Section: Color Palette (Only shown for legacy/classic layout) */}
+            {theme === 'legacy' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+                <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Classic Accent Color</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button
+                    onClick={() => setLegacySubTheme('green')}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '2px solid',
+                      borderColor: legacySubTheme === 'green' ? '#10b981' : '#e2e8f0',
+                      background: legacySubTheme === 'green' ? '#ecfdf5' : '#ffffff',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10b981' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e293b' }}>Green Theme</span>
+                  </button>
+                  <button
+                    onClick={() => setLegacySubTheme('blue')}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '2px solid',
+                      borderColor: legacySubTheme === 'blue' ? '#0ea5e9' : '#e2e8f0',
+                      background: legacySubTheme === 'blue' ? '#f0f9ff' : '#ffffff',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#0ea5e9' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e293b' }}>Blue Theme</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9', paddingTop: '16px', textAlign: 'center' }}>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.1em' }}>RETAIL POS v1.2</span>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 
@@ -618,6 +819,11 @@ function Home() {
   const [discount, setDiscount] = useState({ type: 'amount', value: 0 });
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
+
+  // Drafts & Themes
+  const [showDraftsModal, setShowDraftsModal] = useState(false);
+  const [draftOrders, setDraftOrders] = useState([]);
+  const [showThemeSidebar, setShowThemeSidebar] = useState(false);
 
   // Payment
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -1845,6 +2051,160 @@ function Home() {
   // including pending POS sales.
 
 
+  // ---------- SAVE DRAFT ----------
+  const handleSaveDraft = async () => {
+    if (billItems.length === 0) {
+      Swal.fire('Info', 'No items to save as draft', 'info');
+      return;
+    }
+    
+    Swal.fire({
+      title: 'Saving Draft...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    const customerId = selectedCustomer?.name || selectedCustomer?.customer_name || customerName || 'Cash';
+
+    // Construct backend payload format
+    const draftPayload = {
+      customer: customerId,
+      customer_name: customerName,
+      contact_mobile: phoneNumber,
+      items: billItems.map(item => {
+        const discRate = item.custom_pieces_per_box > 0 && item.uom === 'Box' 
+          ? item.price * item.custom_pieces_per_box 
+          : item.price;
+        return {
+          item_code: item.id,
+          item_name: item.name || item.item_name,
+          qty: item.qty,
+          uom: item.uom,
+          uom_type: item.uom,
+          custom_pieces_per_box: item.custom_pieces_per_box,
+          rate: discRate,
+          price_list_rate: discRate,
+          income_account: 'Sales of I/C - KSPL',
+          warehouse: warehouse
+        };
+      }),
+      company,
+      pos_profile: posProfile,
+      warehouse: warehouse,
+      pos_opening_entry: posOpeningEntry,
+      discount_amount: displayDiscount,
+      apply_discount_on: "Net Total",
+      tax_template: selectedTaxTemplate,
+      taxes_and_charges: selectedTaxTemplate,
+      posting_date: new Date().toISOString().slice(0, 10),
+      currency: 'AED',
+      due_date: new Date().toISOString().slice(0, 10),
+      docstatus: 0,
+      is_draft: true
+    };
+
+    try {
+      const data = await POSService.createInvoice(draftPayload);
+      if (data && (data.status === 'success' || data.name)) {
+        const serverName = data.name || data.invoice_name;
+        
+        setBillItems([]);
+        setDiscount({ type: 'amount', value: 0 });
+        setCustomerName('Cash');
+        setPhoneNumber('');
+        setSelectedCustomer(null);
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Draft Saved',
+          text: `Order has been saved as draft on server: ${serverName}`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } else {
+        throw new Error(data?.message || 'Server did not return a valid response');
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', `Could not save draft: ${err.message}`, 'error');
+    }
+  };
+
+  const loadDraftOrder = async (draft) => {
+    Swal.fire({
+      title: 'Loading Draft Order...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const res = await POSService.getDraftInvoiceDetails(draft.name);
+      if (res && res.status === 'success') {
+        // Map backend items back to frontend format
+        const loadedItems = res.items.map(item => ({
+          id: item.id || item.item_code,
+          name: item.item_name,
+          qty: item.qty,
+          uom: item.uom,
+          price: item.rate,
+          custom_pieces_per_box: item.custom_pieces_per_box,
+          image: item.image,
+          category: item.category
+        }));
+
+        setBillItems(loadedItems);
+        if (res.discount) {
+          setDiscount(res.discount);
+        } else {
+          setDiscount({ type: 'amount', value: 0 });
+        }
+        setCustomerName(res.customer_name || res.customer || 'Cash');
+        setPhoneNumber(res.mobile || '');
+        if (res.tax_template) setSelectedTaxTemplate(res.tax_template);
+        setShowDraftsModal(false);
+
+        // Delete the draft on loading so it is removed from lists, 
+        // preventing duplicates when editing or resaving
+        await POSService.deleteDraftInvoice(draft.name);
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Draft Loaded',
+          text: 'Draft order loaded into cart successfully!',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      } else {
+        throw new Error(res?.message || 'Failed to fetch details');
+      }
+    } catch (e) {
+      console.error(e);
+      Swal.fire('Error', `Failed to load draft: ${e.message}`, 'error');
+    }
+  };
+
+  const fetchDrafts = async () => {
+    try {
+      const drafts = await POSService.getDraftInvoices(posProfile);
+      setDraftOrders((drafts || []).map(d => ({
+        id: d.name,
+        name: d.name,
+        customerName: d.customer_name || d.customer,
+        grand_total: d.grand_total,
+        timestamp: new Date(d.creation).getTime(),
+        creation: d.creation
+      })));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (showDraftsModal) {
+      fetchDrafts();
+    }
+  }, [showDraftsModal]);
+
   // ---------- COMPLETE PAYMENT ----------
   const completePayment = async () => {
     if (paymentLoading) return;
@@ -2629,7 +2989,7 @@ function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [billItems.length, showPaymentModal, showDiscountModal, showItemDropdown, selectedPaymentMode, showOpeningModal, lastInteractedItem, balanceRemaining, tenderedAmount, paymentLoading, handleBarcodeScan]);
 
-  if (loadingItems) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
+  if (loadingItems && Items.length === 0) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
 
   if (error) return (
     <div className="home-container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: '1.5rem', backgroundColor: '#fff' }}>
@@ -2716,40 +3076,69 @@ function Home() {
           <div className="h-6 w-px bg-slate-200 mx-2"></div>
 
           <button
-            onClick={toggleLegacyColor}
+            onClick={() => setShowThemeSidebar(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0 0.75rem', height: '2rem', background: 'transparent',
-              border: `1.5px solid var(--so-primary)`, borderRadius: '0.375rem',
-              fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-primary)',
+              padding: '0 0.85rem', height: '2.2rem', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+              border: '1.5px solid #cbd5e1', borderRadius: '0.5rem',
+              fontSize: '0.75rem', fontWeight: 900, color: '#334155',
               cursor: 'pointer', transition: 'all 0.2s',
-              textTransform: 'uppercase'
+              textTransform: 'uppercase',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
             }}
+            className="hover:bg-slate-100 hover:border-slate-400 active:scale-95 flex items-center gap-1.5"
+            title="Configure Themes & Layouts"
           >
-            <Palette size={12} /> {!isGreen ? 'GREEN' : 'BLUE'}
-          </button>
-
-          <button
-            onClick={() => dispatch(toggleTheme())}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0 0.75rem', height: '2rem', background: 'transparent',
-              border: '1.5px solid var(--so-border)', borderRadius: '0.375rem',
-              fontSize: '0.7rem', fontWeight: 850, color: 'var(--so-text-muted)',
-              cursor: 'pointer', transition: 'all 0.2s',
-              textTransform: 'uppercase'
-            }}
-          >
-            <MonitorSmartphone size={12} /> Layout
+            <Palette size={14} className="text-indigo-600" /> Theme Customizer
           </button>
 
           <div className="flex-1"></div>
+          
+          <button
+            onClick={() => setShowDraftsModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0 0.75rem', height: '2rem', background: '#f0f9ff',
+              border: '1.5px solid #bae6fd', borderRadius: '0.375rem',
+              fontSize: '0.7rem', fontWeight: 850, color: '#0369a1',
+              cursor: 'pointer', transition: 'all 0.2s',
+              textTransform: 'uppercase', marginRight: '0.5rem'
+            }}
+          >
+            <Package size={12} /> ACTIVE ORDERS
+          </button>
+
+          {/* Persistent Top-Right User Header */}
+          <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm mr-2" style={{ height: '2.5rem' }}>
+            <div className="flex flex-col items-end text-right">
+              <span className="text-[9px] font-black uppercase leading-tight">
+                <span className="text-slate-400 mr-1">USER:</span>
+                <span className="text-slate-800">{user?.full_name || user || 'CASHIER'}</span>
+              </span>
+              <span className="text-[9px] font-black uppercase leading-tight mt-0.5">
+                <span className="text-slate-400 mr-1">BRANCH:</span>
+                <span className="text-emerald-600">{warehouse}</span>
+              </span>
+              <span className="text-[8px] font-bold uppercase mt-0.5 tracking-tighter">
+                <span className="text-slate-400 mr-1">DATE:</span>
+                <span className="text-slate-500">{format(currentTime, 'MMM dd, yyyy | HH:mm:ss')}</span>
+              </span>
+            </div>
+            <div className="w-8 h-8 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400">
+              <UserIcon size={14} />
+            </div>
+          </div>
+
+          <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full mr-2" title="Logout">
+            <Power size={18} />
+          </button>
+
           <button
             onClick={() => navigate('/dashboard')}
             className="so-btn-primary"
-            style={{ padding: '0 1.5rem', height: '2.5rem' }}
+            style={{ padding: '0 1.25rem', height: '2.5rem' }}
           >
-            <Package size={16} /> Dashboard
+            <LayoutDashboard size={14} /> Dashboard
           </button>
         </div>
 
@@ -3003,6 +3392,14 @@ function Home() {
                   <Palette size={14} /> % Discount
                 </button>
                 <button
+                  onClick={handleSaveDraft}
+                  className="so-btn-secondary flex-1"
+                  style={{ color: '#d97706', borderColor: '#fef3c7' }}
+                  disabled={billItems.length === 0}
+                >
+                  <Package size={14} /> Save Draft
+                </button>
+                <button
                   onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}
                   className="so-btn-secondary flex-1"
                   style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
@@ -3060,41 +3457,53 @@ function Home() {
             </span>
           </div>
 
-          <div className="ml-auto flex items-center gap-8 pr-4">
-            <div className={`flex items-center gap-2 font-black text-[13px] uppercase tracking-wide ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-700' : 'text-sky-700')}`}>
-              {isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}
-              {isOffline ? 'OFFLINE' : 'ONLINE'}
+          <div className="ml-auto flex items-center gap-6 pr-4">
+            
+            {/* Quick Actions / Status grouped together */}
+            <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+              <div className={`flex items-center gap-2 font-black text-[11px] uppercase tracking-wider ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-700' : 'text-sky-700')}`}>
+                {isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}
+                {isOffline ? 'OFFLINE' : 'ONLINE'}
+              </div>
+              <div className="w-[1px] h-4 bg-slate-300"></div>
+              <button
+                onClick={() => setShowThemeSidebar(true)}
+                className={`font-black text-[11px] uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-1.5 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
+                title="Open Theme Settings Sidebar"
+              >
+                <Palette size={13} /> THEME CONFIG
+              </button>
+              <div className="w-[1px] h-4 bg-slate-300"></div>
+              <button
+                onClick={() => setShowDraftsModal(true)}
+                className={`font-black text-[11px] uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-1.5 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
+              >
+                <Package size={14} />
+                ACTIVE ORDERS
+              </button>
             </div>
 
             <button
-              onClick={() => setLegacySubTheme(isGreen ? 'blue' : 'green')}
-              className={`font-black text-[13px] uppercase tracking-wide transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700 hover:text-emerald-900' : 'text-sky-700 hover:text-sky-900'}`}
-              title="Toggle Legacy Color"
-            >
-              {legacySubTheme.toUpperCase()}
-            </button>
-
-            <button
-              onClick={() => dispatch(toggleTheme())}
-              className={`font-black text-[13px] uppercase tracking-wide transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700 hover:text-emerald-900' : 'text-sky-700 hover:text-sky-900'}`}
-              title="Switch to Modern UI"
-            >
-              SWITCH THEME
-            </button>
-
-            <button
               onClick={() => navigate('/dashboard')}
-              className={`font-black text-[13px] uppercase tracking-wide transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700 hover:text-emerald-900' : 'text-sky-700 hover:text-sky-900'}`}
+              className={`font-black text-[12px] uppercase tracking-wider transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
             >
               ADMIN
             </button>
 
-            <div className="flex items-center gap-3 pr-2">
+            {/* User Info with Labels */}
+            <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm ml-2">
               <div className="flex flex-col items-end text-right">
-                <span className="text-[11px] font-black text-slate-800 uppercase leading-tight">{user?.full_name || user || 'CASHIER'}</span>
-                <span className={`text-[10px] font-black uppercase tracking-tight ${isGreen ? 'text-emerald-600' : 'text-sky-600'}`}>{warehouse}</span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5 tracking-tighter">
-                  {format(currentTime, 'MMM dd, yyyy | HH:mm:ss')}
+                <span className="text-[10px] font-black uppercase leading-tight">
+                  <span className="text-slate-400 mr-1">USER:</span>
+                  <span className="text-slate-800">{user?.full_name || user || 'CASHIER'}</span>
+                </span>
+                <span className="text-[10px] font-black uppercase leading-tight mt-0.5">
+                  <span className="text-slate-400 mr-1">BRANCH:</span>
+                  <span className={isGreen ? 'text-emerald-600' : 'text-sky-600'}>{warehouse}</span>
+                </span>
+                <span className="text-[9px] font-bold uppercase mt-1 tracking-tighter">
+                  <span className="text-slate-400 mr-1">DATE:</span>
+                  <span className="text-slate-500">{format(currentTime, 'MMM dd, yyyy | HH:mm:ss')}</span>
                 </span>
               </div>
               <div className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400">
@@ -3102,7 +3511,7 @@ function Home() {
               </div>
             </div>
 
-            <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1">
+            <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full ml-2">
               <Power size={20} />
             </button>
           </div>
@@ -3114,6 +3523,7 @@ function Home() {
             <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
             <div className="relative group" ref={dropdownRef}>
               <input
+                ref={mobileInputRef}
                 value={customerMobile || customerName}
                 onChange={e => {
                   const val = e.target.value;
@@ -3203,7 +3613,7 @@ function Home() {
                   <col style={{ width: 40 }} />
                   <col style={{ width: 140 }} />
                   <col style={{ width: 'auto' }} />
-                  <col style={{ width: 70 }} />
+                  <col style={{ width: 100 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 80 }} />
@@ -3403,47 +3813,135 @@ function Home() {
             </div>
 
             {/* BOTTOM BAR: SHORTCUTS & TOTALS */}
-            <div className="classic-bottom-bar">
+            <div className="classic-bottom-bar flex items-center justify-between px-6 py-3">
               {/* Shortcut Overview on the Left */}
-              <div className="shortcut-guide">
-                <div className="shortcut-item">
-                  <span className="shortcut-key">F2</span>
-                  <span className="shortcut-label">Customer</span>
-                </div>
-                <div className="shortcut-item">
-                  <span className="shortcut-key">F4</span>
-                  <span className="shortcut-label">Item Search</span>
-                </div>
-                <div className="shortcut-item">
-                  <span className="shortcut-key">F8</span>
-                  <span className="shortcut-label">Stock Check</span>
-                </div>
-                <div className="shortcut-item">
-                  <span className="shortcut-key">F12</span>
-                  <span className="shortcut-label">Pay</span>
-                </div>
+              <div className="shortcut-guide flex gap-3 flex-none">
+                <button
+                  onClick={() => mobileInputRef.current?.focus()}
+                  className="shortcut-item flex items-center gap-2 bg-white/40 hover:bg-slate-50 border border-slate-200/60 p-1.5 rounded-lg transition-all active:scale-95 group cursor-pointer"
+                  style={{ background: 'none', border: 'none' }}
+                  title="Click to search customer (F2)"
+                >
+                  <span 
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
+                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+                  >
+                    F2
+                  </span>
+                  <span className="shortcut-label text-[11px] font-black text-slate-500 uppercase tracking-wider group-hover:text-blue-600 transition-colors">Customer</span>
+                </button>
+
+                <button
+                  onClick={() => barcodeInputRef.current?.focus()}
+                  className="shortcut-item flex items-center gap-2 bg-white/40 hover:bg-slate-50 border border-slate-200/60 p-1.5 rounded-lg transition-all active:scale-95 group cursor-pointer"
+                  style={{ background: 'none', border: 'none' }}
+                  title="Click to search items (F4)"
+                >
+                  <span 
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
+                    style={{ background: 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+                  >
+                    F4
+                  </span>
+                  <span className="shortcut-label text-[11px] font-black text-slate-500 uppercase tracking-wider group-hover:text-purple-600 transition-colors">Search</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (lastInteractedItem) {
+                      handleFindNearestStock(lastInteractedItem);
+                    } else {
+                      alert('Please select or search for an item first to check warehouse stock!');
+                    }
+                  }}
+                  className="shortcut-item flex items-center gap-2 bg-white/40 hover:bg-slate-50 border border-slate-200/60 p-1.5 rounded-lg transition-all active:scale-95 group cursor-pointer"
+                  style={{ background: 'none', border: 'none' }}
+                  title="Click to check warehouse stock (F8)"
+                >
+                  <span 
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
+                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+                  >
+                    F8
+                  </span>
+                  <span className="shortcut-label text-[11px] font-black text-slate-500 uppercase tracking-wider group-hover:text-amber-600 transition-colors">Stock</span>
+                </button>
+
+                <button
+                  onClick={() => { if (billItems.length > 0) handleCheckout(); }}
+                  className="shortcut-item flex items-center gap-2 bg-white/40 hover:bg-emerald-50 border border-emerald-200/60 p-1.5 rounded-lg transition-all active:scale-95 group cursor-pointer"
+                  style={{ background: 'none', border: 'none' }}
+                  disabled={billItems.length === 0}
+                  title="Click to checkout & pay (F12)"
+                >
+                  <span 
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
+                    style={{ 
+                      background: billItems.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)' : '#94a3b8', 
+                      textShadow: '0 1px 1px rgba(0,0,0,0.2)',
+                      opacity: billItems.length > 0 ? 1 : 0.6 
+                    }}
+                  >
+                    F12
+                  </span>
+                  <span className="shortcut-label text-[11px] font-black text-emerald-600 uppercase tracking-wider group-hover:text-emerald-700 transition-colors">Pay</span>
+                </button>
               </div>
 
-              {/* Totals on the Right - ml-auto forces it to the end */}
-              <div className="flex items-center gap-12 ml-auto">
+              {/* Totals Section grouped together on the Right with clean divider columns */}
+              <div className="flex items-center gap-6 ml-auto flex-none">
+                {/* Tax Template Selector */}
+                <div className="flex flex-col items-start gap-1">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">TAX TEMPLATE:</span>
+                  <select
+                    value={selectedTaxTemplate}
+                    onChange={(e) => setSelectedTaxTemplate(e.target.value)}
+                    className={`bg-slate-100 border border-slate-200 text-[11px] font-black rounded px-3 py-1 cursor-pointer focus:outline-none transition-all ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
+                  >
+                    {taxTemplates.length === 0 ? (
+                      <option value="">No Tax Templates</option>
+                    ) : (
+                      taxTemplates.map(t => (
+                        <option key={t.name} value={t.name}>
+                          {t.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                <div className="h-8 w-[1.5px] bg-slate-200" />
+
+                {/* Subtotal */}
                 <div className="flex flex-col items-end">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">SUBTOTAL</label>
                   <span className="text-slate-900 font-black text-xl leading-none">AED {displaySubtotal.toFixed(2)}</span>
                 </div>
+
                 {displayDiscount > 0 && (
-                  <div className="flex flex-col items-end">
-                    <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">
-                      DISCOUNT {(discount.type === 'percentage' || discount.type === 'percent') ? `(${discount.value}%)` : ''}
-                    </label>
-                    <span className="text-rose-500 font-black text-xl leading-none">-AED {displayDiscount.toFixed(2)}</span>
-                  </div>
+                  <>
+                    <div className="h-8 w-[1.5px] bg-slate-200" />
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">
+                        DISCOUNT {(discount.type === 'percentage' || discount.type === 'percent') ? `(${discount.value}%)` : ''}
+                      </label>
+                      <span className="text-rose-500 font-black text-xl leading-none">-AED {displayDiscount.toFixed(2)}</span>
+                    </div>
+                  </>
                 )}
+
+                <div className="h-8 w-[1.5px] bg-slate-200" />
+
+                {/* VAT */}
                 <div className="flex flex-col items-end">
                   <label className={`text-[10px] font-black ${isGreen ? 'text-emerald-500' : 'text-sky-500'} uppercase tracking-widest mb-0.5`}>VAT ({taxRate}%)</label>
                   <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-xl leading-none`}>AED {displayTax.toFixed(2)}</span>
                 </div>
-                <div className="h-10 w-[1px] bg-slate-200 mx-1" />
-                <div className="flex flex-col items-end min-w-[140px]">
+
+                <div className="h-10 w-[2px] bg-slate-300 mx-2" />
+
+                {/* Grand Total */}
+                <div className="flex flex-col items-end min-w-[180px]">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">TOTAL AMOUNT</label>
                   <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-[36px] tracking-tighter leading-none`}>AED {grandTotal.toFixed(2)}</span>
                 </div>
@@ -3451,45 +3949,33 @@ function Home() {
             </div>
 
             {/* ACTION BAR */}
-            <div className="classic-action-bar flex items-center gap-3 p-2 bg-white border-t border-slate-100">
+            <div className="classic-action-bar flex items-center justify-end gap-4 p-3 bg-slate-50 border-t border-slate-200 shadow-inner">
+              <div className="flex-1" />
               <button
-                className={`px-6 py-2 bg-slate-50 border border-slate-200 ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide`}
+                className={`px-6 py-2.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
                 onClick={() => setShowDiscountModal(true)}
               >
-                % DISCOUNT
+                <Palette size={14} /> % DISCOUNT
               </button>
               <button
-                className={`px-6 py-2 bg-slate-50 border border-slate-200 ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide`}
+                className={`px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
                 onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}
               >
-                ↺ CLEAR BILL
+                <Trash2 size={14} /> CLEAR BILL
               </button>
-              <div className="flex-1" />
-              {/* Sales Taxes and Charges Template Dropdown (Legacy Theme) */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">TAXES:</span>
-                <select
-                  value={selectedTaxTemplate}
-                  onChange={(e) => setSelectedTaxTemplate(e.target.value)}
-                  className={`bg-slate-50 border border-slate-200 text-xs font-black rounded px-3 py-2 cursor-pointer focus:outline-none transition-all ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'}`}
-                >
-                  {taxTemplates.length === 0 ? (
-                    <option value="">No Tax Templates</option>
-                  ) : (
-                    taxTemplates.map(t => (
-                      <option key={t.name} value={t.name}>
-                        {t.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
               <button
-                className={`px-10 py-2.5 bg-slate-50 border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-white' : 'text-sky-700 hover:bg-white'} transition-all font-black text-[13px] rounded shadow-md uppercase tracking-wider active:scale-95`}
+                className={`px-8 py-2.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[13px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center gap-2 ml-4`}
+                onClick={handleSaveDraft}
+                disabled={billItems.length === 0}
+              >
+                <Package size={16} /> SAVE DRAFT
+              </button>
+              <button
+                className={`px-12 py-2.5 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[14px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center gap-2`}
                 onClick={handleCheckout}
                 disabled={grandTotal <= 0}
               >
-                💳 PROCESS PAYMENT
+                <CreditCard size={18} /> PROCESS PAYMENT
               </button>
             </div>
 

@@ -2136,7 +2136,7 @@ function PurchaseReceiptList() {
                                       width: col.width, 
                                       minWidth: col.id === 'item_code' ? 200 : undefined, 
                                       textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
-                                                 ['custom_box_qty', 'custom_pieces_per_box', 'accepted_qty', 'rejected_qty', 'uom', 'custom_ref_sl_no', 'custom_supplier_sl_num'].includes(col.id) ? 'center' : 'left' 
+                                                 ['custom_box_qty', 'accepted_qty', 'rejected_qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
                                     }}
                                   >
                                     {finalLabel}
@@ -2171,9 +2171,9 @@ function PurchaseReceiptList() {
                                     return (
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
+                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center" style={{ color: item.use_box_entry ? themeColor : undefined }}>
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold" style={{ color: item.use_box_entry ? themeColor : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}>
                                                 {item.use_box_entry ? (item.custom_box_qty || 0) : (item.accepted_qty || 0)}
                                               </div>
                                             ) : (
@@ -2181,16 +2181,28 @@ function PurchaseReceiptList() {
                                                 type="number"
                                                 value={item.use_box_entry ? (item.custom_box_qty || 0) : (item.accepted_qty || 0)}
                                                 onChange={e => updateItem(i, item.use_box_entry ? "custom_box_qty" : "accepted_qty", e.target.value)}
-                                                className="so-input text-center font-bold"
-                                                style={{ border: item.use_box_entry ? `1px solid ${themeColor}40` : undefined }}
+                                                className="so-input text-left pl-3 font-bold"
+                                                style={{ border: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}
                                               />
                                             )}
+                                            {item.item_code && (
+                                              <span 
+                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                                style={{
+                                                  position: 'absolute',
+                                                  right: '8px',
+                                                  top: '50%',
+                                                  transform: 'translateY(-50%)',
+                                                  color: item.use_box_entry ? themeColor : '#64748b',
+                                                  backgroundColor: item.use_box_entry ? `${themeColor}12` : '#f8fafc',
+                                                  borderColor: item.use_box_entry ? `${themeColor}25` : '#e2e8f0',
+                                                  lineHeight: 1
+                                                }}
+                                              >
+                                                {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                              </span>
+                                            )}
                                           </div>
-                                          {item.item_code && (
-                                            <span className="premium-subtext" style={{ color: item.use_box_entry ? themeColor : undefined }}>
-                                              {item.use_box_entry ? "BOXES" : "NOS"}
-                                            </span>
-                                          )}
                                         </div>
                                       </td>
                                     );
@@ -2246,7 +2258,7 @@ function PurchaseReceiptList() {
                                                   height: '36px',
                                                   boxSizing: 'border-box'
                                                 }}>
-                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'center' }}>
                                                     {item.item_name || 'Unnamed Item'}
                                                   </div>
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
@@ -2310,7 +2322,7 @@ function PurchaseReceiptList() {
                                           <div className="premium-cell-box">
                                             {item.use_box_entry ? (
                                               isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center">
+                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3">
                                                   {(item.custom_pieces_per_box || 1)}
                                                 </div>
                                               ) : (
@@ -2318,11 +2330,11 @@ function PurchaseReceiptList() {
                                                   type="number"
                                                   value={item.custom_pieces_per_box || 1}
                                                   onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
-                                                  className="so-input text-center font-bold"
+                                                  className="so-input text-left pl-3 font-bold"
                                                 />
                                               )
                                             ) : (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3">—</div>
                                             )}
                                           </div>
                                         </div>
@@ -2356,9 +2368,9 @@ function PurchaseReceiptList() {
                                     return (
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
+                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-[var(--so-primary)]">
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-[var(--so-primary)]" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>
                                                 {item.accepted_qty}
                                               </div>
                                             ) : (
@@ -2366,13 +2378,28 @@ function PurchaseReceiptList() {
                                                 type="number"
                                                 value={item.accepted_qty}
                                                 onChange={e => updateItem(i, 'accepted_qty', e.target.value)}
-                                                className="so-input text-center font-bold"
+                                                className="so-input text-left pl-3 font-bold"
+                                                style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
                                               />
                                             )}
+                                            {item.use_box_entry && (
+                                              <span 
+                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                                style={{
+                                                  position: 'absolute',
+                                                  right: '8px',
+                                                  top: '50%',
+                                                  transform: 'translateY(-50%)',
+                                                  color: '#64748b',
+                                                  backgroundColor: '#f8fafc',
+                                                  borderColor: '#e2e8f0',
+                                                  lineHeight: 1
+                                                }}
+                                              >
+                                                NOS
+                                              </span>
+                                            )}
                                           </div>
-                                          {item.use_box_entry && (
-                                            <span className="premium-subtext text-slate-400">NOS</span>
-                                          )}
                                         </div>
                                       </td>
                                     );
@@ -2382,7 +2409,7 @@ function PurchaseReceiptList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-red-500">
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-red-500">
                                                 {item.rejected_qty}
                                               </div>
                                             ) : (
@@ -2390,7 +2417,7 @@ function PurchaseReceiptList() {
                                                 type="number"
                                                 value={item.rejected_qty}
                                                 onChange={e => updateItem(i, 'rejected_qty', e.target.value)}
-                                                className="so-input text-center font-bold text-red-500"
+                                                className="so-input text-left pl-3 font-bold text-red-500"
                                               />
                                             )}
                                           </div>
@@ -2403,7 +2430,7 @@ function PurchaseReceiptList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-right font-bold text-[#6366f1]">
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
                                                 {formatPrice(item.custom_selling_price)}
                                               </div>
                                             ) : (
@@ -2411,7 +2438,7 @@ function PurchaseReceiptList() {
                                                 type="number"
                                                 value={item.custom_selling_price || 0}
                                                 onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                                className="so-input text-right font-bold text-[#6366f1]"
+                                                className="so-input text-right pr-3 font-bold text-[#6366f1]"
                                                 placeholder="Selling"
                                               />
                                             )}
@@ -2426,7 +2453,7 @@ function PurchaseReceiptList() {
                                           <div className="premium-cell-box">
                                             {item.use_box_entry ? (
                                               isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right font-bold">
+                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold">
                                                   {formatPrice(item.custom_box_price)}
                                                 </div>
                                               ) : (
@@ -2434,7 +2461,7 @@ function PurchaseReceiptList() {
                                                   type="number"
                                                   value={item.custom_box_price || 0}
                                                   onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
-                                                  className="so-input text-right font-bold"
+                                                  className="so-input text-right pr-3 font-bold"
                                                   step="0.01"
                                                 />
                                               )
@@ -2451,7 +2478,7 @@ function PurchaseReceiptList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-right font-bold text-[var(--so-primary)]">
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[var(--so-primary)]">
                                                 {formatPrice(item.rate)}
                                               </div>
                                             ) : (
@@ -2459,7 +2486,7 @@ function PurchaseReceiptList() {
                                                 type="number"
                                                 value={item.rate}
                                                 onChange={e => updateItem(i, 'rate', e.target.value)}
-                                                className="so-input text-right font-bold"
+                                                className="so-input text-right pr-3 font-bold"
                                                 step="0.01"
                                                 placeholder={rateLoading[i] ? "..." : "0.00"}
                                                 disabled={rateLoading[i]}
@@ -2475,7 +2502,7 @@ function PurchaseReceiptList() {
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
-                                            <div className="premium-cell-readonly premium-cell-readonly-right font-bold text-slate-800">
+                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
                                               {formatPrice(item.amount)}
                                             </div>
                                           </div>
@@ -2498,7 +2525,7 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
-                <div className="so-form-grid" style={{ gridTemplateColumns: '1.2fr 1fr', alignItems: 'start' }}>
+                <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr', alignItems: 'start' }}>
                   {/* Taxes and Charges Card */}
                   <div className="so-card">
                     <div className="so-card-header">
@@ -2583,74 +2610,8 @@ function PurchaseReceiptList() {
                       </div>
                     </div>
                   </div>
-                  {/* Summary Section */}
+                                      {/* Summary Section */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div className="so-card">
-                      <div className="so-card-header">
-                        <p className="so-card-title">Discounts & Rounding</p>
-                      </div>
-                      <div className="so-card-body">
-                        <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                          <div className="so-field column-span-2">
-                            <label className="so-label">Apply Discount On</label>
-                            {isViewMode ? (
-                              <div className="so-view-field">{formData.apply_discount_on || 'Net Total'}</div>
-                            ) : (
-                              <select
-                                value={formData.apply_discount_on}
-                                onChange={e => updateDiscount('apply_discount_on', e.target.value)}
-                                className="so-select"
-                              >
-                                <option value="Net Total">Net Total</option>
-                                <option value="Grand Total">Grand Total</option>
-                              </select>
-                            )}
-                          </div>
-                          <div className="so-field">
-                            <label className="so-label">Discount %</label>
-                            {isViewMode ? (
-                              <div className="so-view-field">{formData.additional_discount_percentage || 0}%</div>
-                            ) : (
-                              <input
-                                type="number"
-                                value={formData.additional_discount_percentage}
-                                onChange={e => updateDiscount('additional_discount_percentage', e.target.value)}
-                                className="so-input"
-                                step="0.01"
-                              />
-                            )}
-                          </div>
-                          <div className="so-field">
-                            <label className="so-label">Discount Amount</label>
-                            {isViewMode ? (
-                              <div className="so-view-field">{formatPrice(formData.discount_amount)}</div>
-                            ) : (
-                              <input
-                                type="number"
-                                value={formData.discount_amount}
-                                onChange={e => updateDiscount('discount_amount', e.target.value)}
-                                className="so-input"
-                                step="0.01"
-                              />
-                            )}
-                          </div>
-                          <div className="so-field column-span-2">
-                            <label className="so-label">Rounded Total</label>
-                            {isViewMode ? (
-                              <div className="so-view-field">{formatPrice(formData.rounded_total)}</div>
-                            ) : (
-                              <input
-                                type="number"
-                                value={formData.rounded_total}
-                                onChange={e => updateDiscount('rounded_total', e.target.value)}
-                                className="so-input"
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                     <div style={{
                       background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColorHover} 100%)`,
                       color: 'white',
@@ -2667,22 +2628,11 @@ function PurchaseReceiptList() {
                           <span>Total Tax</span>
                           <span style={{ fontWeight: 700 }}>AED {formatPrice(formData.total_taxes_and_charges)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
-                          <span>Less Discount</span>
-                          <span style={{ fontWeight: 700 }}>AED {formatPrice(formData.discounted_amount)}</span>
-                        </div>
                         <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '0.5rem 0' }}></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '1rem', fontWeight: 600 }}>Grand Total</span>
-                          <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>AED {formatPrice(formData.grand_total)}</span>
+                          <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Grand Total</span>
+                          <span style={{ fontSize: '1.6rem', fontWeight: 900 }}>AED {formatPrice(formData.grand_total)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '0.5rem' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Rounded Total</span>
-                          <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>AED {formatPrice(formData.rounded_total)}</span>
-                        </div>
-                        <p style={{ fontSize: '0.65rem', opacity: 0.7, fontStyle: 'italic', marginTop: '0.5rem', textAlign: 'center' }}>
-                          * Rounding Adjustment: AED {((parseFloat(formData.rounded_total) || 0) - (parseFloat(formData.grand_total) || 0)).toFixed(2)}
-                        </p>
                       </div>
                     </div>
                   </div>

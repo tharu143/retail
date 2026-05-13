@@ -398,6 +398,11 @@ const DeliveryNoteDetails = () => {
         finally { setSaving(false); }
     };
 
+    const handleCreateInvoice = () => {
+        if (!form.name) return;
+        navigate(`/salesinvoice?dn=${encodeURIComponent(form.name)}`);
+    };
+
     const updateItem = (i, field, value) => {
         const items = [...form.items];
         items[i][field] = value;
