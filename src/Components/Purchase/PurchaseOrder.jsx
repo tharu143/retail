@@ -2052,102 +2052,110 @@ function PurchaseOrder() {
                                 switch (col.id) {
                                   case 'scanner':
                                     return (
-                                      <td key={col.id} className="purchase-td !pl-5">
-                                        <input
-                                          type="text"
-                                          value={item.temp_barcode ?? ''}
-                                          placeholder={isViewOnly ? '' : 'Barcode'}
-                                          readOnly={isViewOnly || formData.docstatus !== 0}
-                                          onChange={(e) => handleBarcodeScan(e, idx)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && e.target.value) handleBarcodeEnter(e, idx);
-                                            else handleNextFocus(e);
-                                          }}
-                                          className="w-full text-[11px] font-bold outline-none disabled:text-slate-400"
-                                        />
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <input
+                                              type="text"
+                                              value={item.temp_barcode ?? ''}
+                                              placeholder={isViewOnly ? '' : 'Barcode'}
+                                              readOnly={isViewOnly || formData.docstatus !== 0}
+                                              onChange={(e) => handleBarcodeScan(e, idx)}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && e.target.value) handleBarcodeEnter(e, idx);
+                                                else handleNextFocus(e);
+                                              }}
+                                              className="text-center font-bold"
+                                            />
+                                          </div>
+                                        </div>
                                       </td>
                                     );
                                   case 'item_code':
                                     return (
                                       <td key={col.id} className="purchase-td">
-                                        <div className="relative product-search-container">
-                                          <input
-                                            type="text"
-                                            value={item.item_name ?? ''}
-                                            placeholder="Search product..."
-                                            readOnly={isViewOnly || formData.docstatus !== 0}
-                                            onFocus={async (e) => {
-                                              if (isViewOnly || formData.docstatus !== 0) return;
-                                              const q = e.target.value;
-                                              const results = await fetchItems(q);
-                                              setAllItems(results || []);
-                                              setActiveDropdownRow(idx);
-                                              setSelectedProductIndex(0);
-                                              const rect = e.target.getBoundingClientRect();
-                                              setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-                                            }}
-                                            onBlur={() => setTimeout(() => setActiveDropdownRow(null), 200)}
-                                            onKeyDown={(e) => {
-                                              if (isViewOnly || formData.docstatus !== 0) return;
-                                              if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev)); }
-                                              else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedProductIndex(prev => (prev > 0 ? prev - 1 : 0)); }
-                                              else if (e.key === 'Enter') {
-                                                if (activeDropdownRow !== null && allItems[selectedProductIndex]) {
-                                                  e.preventDefault();
-                                                  handleItemSelect(allItems[selectedProductIndex], idx);
-                                                  setActiveDropdownRow(null);
-                                                } else handleNextFocus(e);
-                                              }
-                                            }}
-                                            onChange={async (e) => {
-                                              if (isViewOnly || formData.docstatus !== 0) return;
-                                              const q = e.target.value;
-                                              setFormData(prev => { const its = [...prev.items]; its[idx] = { ...its[idx], item_name: q }; return { ...prev, items: its }; });
-                                              if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-                                              searchTimeoutRef.current = setTimeout(async () => {
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box relative product-search-container">
+                                            <input
+                                              type="text"
+                                              value={item.item_name ?? ''}
+                                              placeholder="Search product..."
+                                              readOnly={isViewOnly || formData.docstatus !== 0}
+                                              onFocus={async (e) => {
+                                                if (isViewOnly || formData.docstatus !== 0) return;
+                                                const q = e.target.value;
                                                 const results = await fetchItems(q);
                                                 setAllItems(results || []);
                                                 setActiveDropdownRow(idx);
                                                 setSelectedProductIndex(0);
                                                 const rect = e.target.getBoundingClientRect();
                                                 setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-                                              }, 300);
-                                            }}
-                                            className="w-full outline-none disabled:bg-transparent"
-                                          />
-                                          {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
-                                            <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
-                                              {allItems.map((it, i) => (
-                                                <div key={it.item_code} onMouseDown={(e) => { e.preventDefault(); handleItemSelect(it, idx); setActiveDropdownRow(null); }} className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}>
-                                                  <div className="flex justify-between items-center gap-3">
-                                                    <div className={`text-[11px] font-bold ${selectedProductIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-800'}`}>{it.item_name}</div>
-                                                    <div className="text-[9px] font-bold text-[#003d7c] bg-slate-100 px-1.5 py-0.5 rounded italic opacity-70">{it.item_code}</div>
+                                              }}
+                                              onBlur={() => setTimeout(() => setActiveDropdownRow(null), 200)}
+                                              onKeyDown={(e) => {
+                                                if (isViewOnly || formData.docstatus !== 0) return;
+                                                if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedProductIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev)); }
+                                                else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedProductIndex(prev => (prev > 0 ? prev - 1 : 0)); }
+                                                else if (e.key === 'Enter') {
+                                                  if (activeDropdownRow !== null && allItems[selectedProductIndex]) {
+                                                    e.preventDefault();
+                                                    handleItemSelect(allItems[selectedProductIndex], idx);
+                                                    setActiveDropdownRow(null);
+                                                  } else handleNextFocus(e);
+                                                }
+                                              }}
+                                              onChange={async (e) => {
+                                                if (isViewOnly || formData.docstatus !== 0) return;
+                                                const q = e.target.value;
+                                                setFormData(prev => { const its = [...prev.items]; its[idx] = { ...its[idx], item_name: q }; return { ...prev, items: its }; });
+                                                if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                                                searchTimeoutRef.current = setTimeout(async () => {
+                                                  const results = await fetchItems(q);
+                                                  setAllItems(results || []);
+                                                  setActiveDropdownRow(idx);
+                                                  setSelectedProductIndex(0);
+                                                  const rect = e.target.getBoundingClientRect();
+                                                  setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+                                                }, 300);
+                                              }}
+                                              className="text-left font-bold"
+                                            />
+                                            {activeDropdownRow === idx && dropdownPosition && allItems.length > 0 && createPortal(
+                                              <div ref={dropdownRef} className="absolute bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto min-w-[300px] product-dropdown-portal" style={{ top: dropdownPosition.top, left: dropdownPosition.left }}>
+                                                {allItems.map((it, i) => (
+                                                  <div key={it.item_code} onMouseDown={(e) => { e.preventDefault(); handleItemSelect(it, idx); setActiveDropdownRow(null); }} className={`px-4 py-2.5 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors ${selectedProductIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}>
+                                                    <div className="flex justify-between items-center gap-3">
+                                                      <div className={`text-[11px] font-bold ${selectedProductIndex === i ? 'text-[var(--po-primary)]' : 'text-slate-800'}`}>{it.item_name}</div>
+                                                      <div className="text-[9px] font-bold text-[#003d7c] bg-slate-100 px-1.5 py-0.5 rounded italic opacity-70">{it.item_code}</div>
+                                                    </div>
                                                   </div>
-                                                </div>
-                                              ))}
-                                            </div>, document.body
-                                          )}
+                                                ))}
+                                              </div>, document.body
+                                            )}
+                                          </div>
                                         </div>
                                       </td>
                                     );
                                   case 'custom_box_qty':
                                     return (
                                       <td key={col.id} className="purchase-td">
-                                        <div className="flex flex-col items-center gap-0.5">
-                                          <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            name={item.use_box_entry ? "custom_box_qty" : "qty"}
-                                            value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
-                                            readOnly={isViewOnly || formData.docstatus !== 0}
-                                            onChange={(e) => handleInputChange(e, idx)}
-                                            onFocus={(e) => e.target.select()}
-                                            onKeyDown={handleNextFocus}
-                                            className={`w-full text-center font-bold outline-none ${!item.use_box_entry ? 'text-slate-800' : 'text-sky-600'}`}
-                                            title={item.use_box_entry ? "Number of Boxes" : "Quantity"}
-                                          />
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <input
+                                              type="text"
+                                              inputMode="decimal"
+                                              name={item.use_box_entry ? "custom_box_qty" : "qty"}
+                                              value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                              readOnly={isViewOnly || formData.docstatus !== 0}
+                                              onChange={(e) => handleInputChange(e, idx)}
+                                              onFocus={(e) => e.target.select()}
+                                              onKeyDown={handleNextFocus}
+                                              className={`text-center font-bold outline-none ${item.use_box_entry ? 'text-sky-600' : 'text-slate-800'}`}
+                                              title={item.use_box_entry ? "Number of Boxes" : "Quantity"}
+                                            />
+                                          </div>
                                           {item.item_code && (
-                                            <span className={`text-[8px] font-black uppercase tracking-wider px-1 py-0.5 rounded ${item.use_box_entry ? 'text-sky-500 bg-sky-50' : 'text-slate-400 bg-slate-100'}`}>
+                                            <span className={`premium-subtext ${item.use_box_entry ? 'text-sky-500' : 'text-slate-400'}`}>
                                               {item.use_box_entry ? 'BOXES' : 'NOS'}
                                             </span>
                                           )}
@@ -2157,115 +2165,176 @@ function PurchaseOrder() {
                                   case 'custom_pieces_per_box':
                                     return (
                                       <td key={col.id} className="purchase-td">
-                                        {item.use_box_entry ? (
-                                          <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            name="custom_pieces_per_box"
-                                            value={item.custom_pieces_per_box || ''}
-                                            readOnly={isViewOnly || formData.docstatus !== 0}
-                                            onChange={(e) => handleInputChange(e, idx)}
-                                            onFocus={(e) => e.target.select()}
-                                            onKeyDown={handleNextFocus}
-                                            className="w-full text-center outline-none"
-                                            title="Pieces per Box"
-                                          />
-                                        ) : (
-                                          <span className="w-full flex items-center justify-center text-[10px] text-slate-300 font-bold">—</span>
-                                        )}
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {item.use_box_entry ? (
+                                              <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                name="custom_pieces_per_box"
+                                                value={item.custom_pieces_per_box || ''}
+                                                readOnly={isViewOnly || formData.docstatus !== 0}
+                                                onChange={(e) => handleInputChange(e, idx)}
+                                                onFocus={(e) => e.target.select()}
+                                                onKeyDown={handleNextFocus}
+                                                className="text-center"
+                                                title="Pieces per Box"
+                                              />
+                                            ) : (
+                                              <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                            )}
+                                          </div>
+                                        </div>
                                       </td>
                                     );
                                   case 'custom_box_price':
                                     return (
-                                      <td key={col.id} className="purchase-td text-right">
-                                        {item.use_box_entry ? (
-                                          isViewOnly ? (
-                                            <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.custom_box_price)}</span>
-                                          ) : (
-                                            <input
-                                              type="text"
-                                              inputMode="decimal"
-                                              name="custom_box_price"
-                                              value={item.custom_box_price || ''}
-                                              readOnly={formData.docstatus !== 0}
-                                              onChange={(e) => handleInputChange(e, idx)}
-                                              onFocus={(e) => e.target.select()}
-                                              onKeyDown={handleNextFocus}
-                                              className="w-full text-right outline-none"
-                                            />
-                                          )
-                                        ) : (
-                                          <span className="w-full flex items-center justify-end text-[10px] text-slate-300 font-bold pr-4">—</span>
-                                        )}
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {item.use_box_entry ? (
+                                              isViewOnly ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-right">{formatPrice(item.custom_box_price)}</div>
+                                              ) : (
+                                                <input
+                                                  type="text"
+                                                  inputMode="decimal"
+                                                  name="custom_box_price"
+                                                  value={item.custom_box_price || ''}
+                                                  readOnly={formData.docstatus !== 0}
+                                                  onChange={(e) => handleInputChange(e, idx)}
+                                                  onFocus={(e) => e.target.select()}
+                                                  onKeyDown={handleNextFocus}
+                                                  className="text-right font-bold"
+                                                />
+                                              )
+                                            ) : (
+                                              <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                            )}
+                                          </div>
+                                        </div>
                                       </td>
                                     );
                                   case 'custom_selling_price':
                                     return (
-                                      <td key={col.id} className="purchase-td text-right">
-                                        {isViewOnly ? <span className="text-[11px] font-bold text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</span> : <input type="text" inputMode="decimal" name="custom_selling_price" value={item.custom_selling_price || ''} readOnly={formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onFocus={(e) => e.target.select()} onKeyDown={handleNextFocus} className="w-full text-right !text-[var(--po-primary)] outline-none" />}
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {isViewOnly ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-right !text-[var(--po-primary)]">{formatPrice(item.custom_selling_price)}</div>
+                                            ) : (
+                                              <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                name="custom_selling_price"
+                                                value={item.custom_selling_price || ''}
+                                                readOnly={formData.docstatus !== 0}
+                                                onChange={(e) => handleInputChange(e, idx)}
+                                                onFocus={(e) => e.target.select()}
+                                                onKeyDown={handleNextFocus}
+                                                className="text-right font-bold !text-[var(--po-primary)]"
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
                                       </td>
                                     );
                                   case 'custom_ref_sl_no':
-                                    return <td key={col.id} className="purchase-td"><input type="text" name="custom_ref_sl_no" value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''} readOnly={isViewOnly || formData.docstatus !== 0} onChange={(e) => handleInputChange(e, idx)} onKeyDown={handleNextFocus} placeholder={isViewOnly ? '' : 'Serial...'} className="w-full text-center text-[10px] outline-none" /></td>;
+                                    return (
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <input
+                                              type="text"
+                                              name="custom_ref_sl_no"
+                                              value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
+                                              readOnly={isViewOnly || formData.docstatus !== 0}
+                                              onChange={(e) => handleInputChange(e, idx)}
+                                              onKeyDown={handleNextFocus}
+                                              placeholder={isViewOnly ? '' : 'Serial...'}
+                                              className="text-center text-[10px] font-bold"
+                                            />
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
                                   case 'qty':
                                     return (
-                                      <td key={col.id} className="purchase-td text-center">
-                                        <div className="flex flex-col items-center">
-                                          <span className="text-[11px] font-bold text-slate-700">{item.qty || 0}</span>
-                                          {item.use_box_entry && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8' }}>NOS</div>}
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <div className="premium-cell-readonly premium-cell-readonly-center font-bold">{item.qty || 0}</div>
+                                          </div>
+                                          {item.use_box_entry && (
+                                            <span className="premium-subtext text-slate-400">NOS</span>
+                                          )}
                                         </div>
                                       </td>
                                     );
                                   case 'uom':
                                     return (
-                                      <td key={col.id} className="purchase-td text-center">
-                                        {!item.item_code || isViewOnly || formData.docstatus !== 0 ? (
-                                          <span className="text-[10px] font-bold text-slate-700 uppercase">
-                                            {item.use_box_entry ? 'BOX' : (item.uom || item.stock_uom || 'NOS')}
-                                          </span>
-                                        ) : (
-                                          <select
-                                            value={item.uom || item.stock_uom || ''}
-                                            onChange={(e) => handleUOMChange(e.target.value, idx)}
-                                            className="w-full text-center text-[10px] font-bold text-slate-600 bg-white border border-slate-200 rounded outline-none cursor-pointer hover:text-indigo-600 transition-colors"
-                                            title="Select Unit of Measure"
-                                          >
-                                            {(item.uom_list && item.uom_list.length > 0
-                                              ? item.uom_list
-                                              : [{ uom: item.stock_uom || item.uom || 'Nos' }]
-                                            ).map(u => (
-                                              <option key={u.uom} value={u.uom}>{u.uom}</option>
-                                            ))}
-                                            {!item.uom_list?.some(u => u.uom === 'Box') && <option value="Box">Box</option>}
-                                            {!item.uom_list?.some(u => u.uom === (item.uom || item.stock_uom || 'Nos')) && <option value={item.uom || item.stock_uom || 'Nos'}>{item.uom || item.stock_uom || 'Nos'}</option>}
-                                          </select>
-                                        )}
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {!item.item_code || isViewOnly || formData.docstatus !== 0 ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-center text-[10px] font-bold uppercase text-slate-700">
+                                                {item.use_box_entry ? 'BOX' : (item.uom || item.stock_uom || 'NOS')}
+                                              </div>
+                                            ) : (
+                                              <select
+                                                value={item.uom || item.stock_uom || ''}
+                                                onChange={(e) => handleUOMChange(e.target.value, idx)}
+                                                className="text-center text-[10px] font-bold text-slate-600 bg-white"
+                                                title="Select Unit of Measure"
+                                              >
+                                                {(item.uom_list && item.uom_list.length > 0
+                                                  ? item.uom_list
+                                                  : [{ uom: item.stock_uom || item.uom || 'Nos' }]
+                                                ).map(u => (
+                                                  <option key={u.uom} value={u.uom}>{u.uom}</option>
+                                                ))}
+                                                {!item.uom_list?.some(u => u.uom === 'Box') && <option value="Box">Box</option>}
+                                                {!item.uom_list?.some(u => u.uom === (item.uom || item.stock_uom || 'Nos')) && <option value={item.uom || item.stock_uom || 'Nos'}>{item.uom || item.stock_uom || 'Nos'}</option>}
+                                              </select>
+                                            )}
+                                          </div>
+                                        </div>
                                       </td>
                                     );
                                   case 'rate':
                                     return (
-                                      <td key={col.id} className="purchase-td text-right !text-center">
-                                        {isViewOnly && !isUpdateMode ? (
-                                          <span className="text-[11px] font-bold text-slate-700">{formatPrice(item.rate)}</span>
-                                        ) : (
-                                          <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            name="rate"
-                                            value={item.rate || ''}
-                                            readOnly={!isUpdateMode && formData.docstatus !== 0}
-                                            onChange={(e) => handleInputChange(e, idx)}
-                                            onFocus={(e) => e.target.select()}
-                                            onKeyDown={handleNextFocus}
-                                            className={`w-full text-center outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`}
-                                          />
-                                        )}
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {isViewOnly && !isUpdateMode ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-center font-bold">{formatPrice(item.rate)}</div>
+                                            ) : (
+                                              <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                name="rate"
+                                                value={item.rate || ''}
+                                                readOnly={!isUpdateMode && formData.docstatus !== 0}
+                                                onChange={(e) => handleInputChange(e, idx)}
+                                                onFocus={(e) => e.target.select()}
+                                                onKeyDown={handleNextFocus}
+                                                className={`text-center font-bold outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`}
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
                                       </td>
                                     );
                                   case 'amount':
-                                    return <td key={col.id} className="purchase-td text-right !pr-5 !text-center"><span className="text-xs font-bold text-slate-900 tabular-nums">{formatPrice(item.amount)}</span></td>;
-                                  default:
-                                    return null;
+                                    return (
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-slate-900 tabular-nums">{formatPrice(item.amount)}</div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
                                 }
                               });
                             })()}

@@ -842,3 +842,115 @@ input[type=number].so-td-input::-webkit-outer-spin-button {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   margin-top: 0.25rem;
 }
+
+/* ============================================================
+   Premium Symmetrical & Uniform-Sized Input Table Fields
+   ============================================================ */
+.premium-cell-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  min-height: 54px;
+  padding: 2px 0;
+  box-sizing: border-box;
+}
+
+.premium-cell-box {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+/* For inputs inside the premium box */
+.premium-cell-box input,
+.premium-cell-box select,
+.premium-cell-box .so-input {
+  width: 100% !important;
+  height: 36px !important;
+  border: 1px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border-radius: 6px !important;
+  padding: 0 0.5rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  text-align: inherit !important;
+  outline: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.15s ease !important;
+  box-sizing: border-box !important;
+}
+
+.premium-cell-box input:focus,
+.premium-cell-box select:focus,
+.premium-cell-box .so-input:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+}
+
+.premium-cell-box input:hover:not(:focus),
+.premium-cell-box select:hover:not(:focus),
+.premium-cell-box .so-input:hover:not(:focus) {
+  border-color: #94a3b8 !important;
+  background-color: #fafafa !important;
+}
+
+/* For read-only text / views */
+.premium-cell-readonly {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 36px !important;
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  border-radius: 6px !important;
+  padding: 0 0.5rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+.premium-cell-readonly-center {
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.premium-cell-readonly-right {
+  justify-content: flex-end !important;
+  text-align: right !important;
+}
+
+/* For disabled or read-only elements inside the premium box */
+.premium-cell-box input:disabled,
+.premium-cell-box input[readonly],
+.premium-cell-box select:disabled,
+.premium-cell-box .so-input:disabled,
+.premium-cell-box .so-input[readonly] {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  box-shadow: none !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+.premium-subtext {
+  font-size: 0.55rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  margin-top: 3px !important;
+  text-align: center !important;
+  line-height: 1 !important;
+  display: block !important;
+  width: 100% !important;
+}
