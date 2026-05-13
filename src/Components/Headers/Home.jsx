@@ -3487,7 +3487,7 @@ function Home() {
               onClick={() => navigate('/dashboard')}
               className={`font-black text-[12px] uppercase tracking-wider transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
             >
-              ADMIN
+              DASHBOARD
             </button>
 
             {/* User Info with Labels */}

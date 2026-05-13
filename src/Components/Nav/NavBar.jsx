@@ -436,7 +436,7 @@ function NavBar() {
             onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
             onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
           >
-            ADMIN
+            DASHBOARD
           </div>
           <LayoutDashboard className="cursor-pointer nav-icon" onClick={() => navigate('/syncmanager')} title="Sync Manager" />
           <i className="bi bi-power cursor-pointer nav-icon logout" onClick={handleLogout} title="Logout"></i>
