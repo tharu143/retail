@@ -7,7 +7,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 
-const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) => {
+const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, userWarehouse = null }) => {
    const { themeColor, isGreen } = useLegacyTheme();
    const [focusedField, setFocusedField] = useState(null);
 
@@ -66,7 +66,8 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
       warn_rfqs: false,
       warn_pos: false,
       prevent_rfqs: false,
-      prevent_pos: false
+      prevent_pos: false,
+      custom_branch: ''
    });
 
    const [saving, setSaving] = useState(false);
@@ -109,6 +110,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
             warn_pos: !!editingSupplier.warn_pos,
             prevent_rfqs: !!editingSupplier.prevent_rfqs,
             prevent_pos: !!editingSupplier.prevent_pos,
+            custom_branch: editingSupplier.custom_branch || '',
             // Map Address Details
             address_title: editingSupplier.address_details?.address_title || '',
             address_type: editingSupplier.address_details?.address_type || 'Office',
@@ -145,7 +147,8 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
             allow_purchase_invoice_creation_without_purchase_receipt: false,
             is_frozen: false, on_hold: false, is_internal_supplier: false,
             is_transporter: false, warn_rfqs: false, warn_pos: false,
-            prevent_rfqs: false, prevent_pos: false
+            prevent_rfqs: false, prevent_pos: false,
+            custom_branch: userWarehouse || ''
          });
       }
    }, [editingSupplier, isOpen]);
@@ -397,6 +400,18 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null }) 
                            placeholder="https://www.example.com"
                         />
                      </div>
+                      <div className="space-y-1.5 col-span-1 md:col-span-2">
+                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                            Branch (Warehouse)
+                         </label>
+                         <input
+                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-slate-100 cursor-not-allowed"
+                            style={getInputStyle('custom_branch')}
+                            value={form.custom_branch}
+                            readOnly
+                            placeholder="Current Login Branch"
+                         />
+                      </div>
                   </div>
                </div>
                {/* Row 1 - Col 2: Section 2 (Address Information) */}

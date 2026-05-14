@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import Swal from 'sweetalert2';
 import './SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
@@ -23,6 +24,10 @@ const StatusBadge = ({ isInactive, themeColor }) => (
 
 export default function SupplierList() {
   const navigate = useNavigate();
+  const user = useSelector((state) => state.user.user);
+  const user_roles = useSelector((state) => state.user.user_roles || []);
+  const warehouse = useSelector((state) => state.user.warehouse);
+  const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -43,6 +48,7 @@ export default function SupplierList() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [globalSearching, setGlobalSearching] = useState(false);
 
   // Allow browser scroll
   useEffect(() => {
@@ -83,12 +89,19 @@ export default function SupplierList() {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
+      const params = {
+        fields: JSON.stringify(['name', 'supplier_name', 'supplier_group', 'supplier_type', 'disabled', 'email_id', 'mobile_no', 'tax_id', 'custom_branch']),
+        order_by: 'modified desc',
+        limit_page_length: 1000
+      };
+
+      // Apply branch restriction if not admin
+      if (!isAdmin && warehouse) {
+        params.filters = JSON.stringify([['custom_branch', '=', warehouse]]);
+      }
+
       const res = await axios.get('/api/resource/Supplier', {
-        params: {
-          fields: JSON.stringify(['name', 'supplier_name', 'supplier_group', 'supplier_type', 'disabled', 'email_id', 'mobile_no', 'tax_id']),
-          order_by: 'modified desc',
-          limit_page_length: 1000
-        },
+        params: params,
         withCredentials: true
       });
       setSuppliers(res.data.data || []);
@@ -139,6 +152,38 @@ export default function SupplierList() {
       return matchesSearch && matchesGroup && matchesType && matchesStatus;
     });
   }, [suppliers, filterSearch, filterGroup, filterType, filterStatus]);
+
+  const checkSupplierGlobally = async () => {
+    if (!filterSearch) return;
+    setGlobalSearching(true);
+    try {
+      const res = await axios.get('/api/resource/Supplier', {
+        params: {
+          filters: JSON.stringify([['supplier_name', 'like', `%${filterSearch}%`]]),
+          fields: JSON.stringify(['name', 'supplier_name', 'custom_branch'])
+        },
+        withCredentials: true
+      });
+      const match = res.data.data?.find(s => s.custom_branch !== warehouse);
+      if (match) {
+        Swal.fire({
+          title: 'Supplier in Other Branch',
+          html: `<div style="text-align: left; font-size: 14px;">
+                  <p><b>${match.supplier_name}</b> is registered in another branch.</p>
+                  <p style="margin-top: 10px;">Branch: <b style="color: #4f46e5;">${match.custom_branch || 'Global'}</b></p>
+                 </div>`,
+          icon: 'info',
+          confirmButtonColor: '#4f46e5'
+        });
+      } else {
+        Swal.fire('Not Found', 'No such supplier found in any branch.', 'info');
+      }
+    } catch (err) {
+      console.error('Global supplier search failed:', err);
+    } finally {
+      setGlobalSearching(false);
+    }
+  };
 
   const total = filteredSuppliers.length;
   const paginatedSuppliers = filteredSuppliers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -345,7 +390,17 @@ export default function SupplierList() {
                     <tr>
                       <td colSpan="5" className="so-empty">
                         <Building2 size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
-                        No partners match the current filter criteria.
+                        <p>No partners match the current filter criteria.</p>
+                        {filterSearch && (
+                          <button 
+                            className="so-btn-ghost" 
+                            style={{ marginTop: '1rem', color: themeColor, fontWeight: 800, border: `1px solid ${themeColor}` }}
+                            onClick={checkSupplierGlobally}
+                            disabled={globalSearching}
+                          >
+                            {globalSearching ? 'Searching...' : `Check if "${filterSearch}" exists globally`}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -439,6 +494,7 @@ export default function SupplierList() {
            handleCloseForm();
         }}
         editingSupplier={editingSupplier}
+        userWarehouse={warehouse}
       />
     </>
   );

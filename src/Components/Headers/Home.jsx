@@ -97,8 +97,9 @@ function Home() {
   const posProfile = useSelector((state) => state.user.posProfile);
   const warehouse = useSelector((state) => state.user.warehouse);
   const branchPrefix = useSelector((state) => state.user.branchPrefix);
-  const isManager = useSelector((state) => state.user.is_manager);
   const loading = useSelector((state) => state.user.loading || false);
+  const user_roles = useSelector((state) => state.user.user_roles || []);
+  const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
 
   const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
   const [showOpeningModal, setShowOpeningModal] = useState(false);
@@ -1221,7 +1222,21 @@ function Home() {
           // STRICT ONLINE MODE: Always fetch full state from server
           const results = await POSService.getRetailItems({ warehouse: warehouse });
           if (results) {
-            apiItems = results;
+            // Apply Branch Restriction if not Admin
+            let filteredResults = results;
+            if (!isAdmin) {
+              filteredResults = results.filter(item => {
+                if (item.branch_availability && item.branch_availability.length > 0) {
+                  return item.branch_availability.some(ba => ba.warehouse === warehouse);
+                }
+                if (item.warehouse_details && item.warehouse_details.length > 0) {
+                  return item.warehouse_details.some(wd => (wd.warehouse_name || wd.warehouse) === warehouse);
+                }
+                return true; 
+              });
+            }
+            apiItems = filteredResults;
+
             // Background: Update local cache for offline fallback
             db.items.bulkPut(results.map(item => ({
               id: item.name,
@@ -1233,6 +1248,7 @@ function Home() {
               local_qty: item.actual_qty || 0,
               total_qty: item.total_qty || item.actual_qty || 0,
               warehouse_details: item.warehouse_details || [],
+              branch_availability: item.branch_availability || [],
               barcodes: item.barcodes || [],
               modified: item.modified,
               custom_pieces_per_box: item.custom_pieces_per_box || 1
@@ -1250,10 +1266,22 @@ function Home() {
           apiItems = await db.items.toArray();
         }
       } else {
-        // Strictly Offline - load what we have in cache
-        apiItems = await db.items.toArray();
+        // STRICT OFFLINE MODE: Use local Dexie cache
+        let allCached = await db.items.toArray();
+        if (!isAdmin) {
+          allCached = allCached.filter(item => {
+            if (item.branch_availability && item.branch_availability.length > 0) {
+              return item.branch_availability.some(ba => ba.warehouse === warehouse);
+            }
+            if (item.warehouse_details && item.warehouse_details.length > 0) {
+              return item.warehouse_details.some(wd => (wd.warehouse_name || wd.warehouse) === warehouse);
+            }
+            return true;
+          });
+        }
+        apiItems = allCached;
         if (apiItems.length === 0) {
-          setError("You are currently OFFLINE and no local item cache was found. Please connect to internet to sync items.");
+          setError("Offline: No local item cache found for your branch. Please connect to internet to sync.");
         }
       }
 
@@ -1487,25 +1515,26 @@ function Home() {
           // Tier 3: Global Discovery Fallback
           try {
             setSearchLoading(true);
-            const globalRes = await POSService.findItemGlobal(barcode.trim());
+            const globalRes = await POSService.findItemGlobally(barcode.trim());
             const it = globalRes?.message?.[0] || globalRes?.[0] || null;
 
             if (it) {
-              const itemToBill = {
-                id: it.name || it.item_code,
-                name: it.item_name || it.name,
-                price: it.price_list_rate || it.price || 0,
-                actual_qty: it.actual_qty || 0,
-                local_qty: 0, // Mark as 0 if global Discovery
-                warehouse_details: it.warehouse_details || [],
-                custom_pieces_per_box: it.pcs_per_box || it.custom_pieces_per_box || 1,
-                prices: it.prices || { "Nos": it.price || it.price_list_rate || 0 },
-                uom_conversions: it.uom_conversions || { "Nos": 1 },
-                barcode_image: it.barcode_image || null,
-                _global: true // Flag for UI
-              };
+              const availableBranches = (it.warehouse_details || it.branch_availability || [])
+                .filter(b => (b.actual_qty || b.qty || 0) > 0)
+                .map(b => b.warehouse_name || b.warehouse)
+                .filter((v, i, a) => a.indexOf(v) === i)
+                .join(", ");
 
-              handleAddToBill(itemToBill);
+              Swal.fire({
+                title: 'Item Found in Other Branches',
+                html: `<div style="text-align: left; font-size: 14px;">
+                        <p><b>${it.item_name || it.name}</b> is not enabled for <b>${warehouse}</b>.</p>
+                        <p style="margin-top: 10px;">Stock available in:</p>
+                        <p style="color: #059669; font-weight: 700;">${availableBranches || 'None (No physical stock)'}</p>
+                       </div>`,
+                icon: 'info',
+                confirmButtonColor: '#4f46e5'
+              });
               setBarcodeInput('');
             } else {
               Swal.fire('Not Found', 'Item not found in local or global database.', 'error');
@@ -1528,6 +1557,40 @@ function Home() {
       setSearchLoading(false);
     }
   }, [Items, warehouse, authFetch, handleAddToBill]);
+
+  const triggerGlobalSearch = async (term) => {
+    if (!term) return;
+    try {
+      setSearchLoading(true);
+      const globalRes = await POSService.findItemGlobally(term.trim());
+      const it = globalRes?.message?.[0] || globalRes?.[0] || null;
+      if (it) {
+        const availableBranches = (it.warehouse_details || it.branch_availability || [])
+          .filter(b => (b.actual_qty || b.qty || 0) > 0)
+          .map(b => b.warehouse_name || b.warehouse)
+          .filter((v, i, a) => a.indexOf(v) === i)
+          .join(", ");
+
+        Swal.fire({
+          title: 'Global Stock Check',
+          html: `<div style="text-align: left; font-size: 14px;">
+                  <p><b>${it.item_name || it.name}</b> is not in your branch catalog.</p>
+                  <p style="margin-top: 10px;">Available Stock elsewhere:</p>
+                  <p style="color: #059669; font-weight: 700;">${availableBranches || 'None in stock anywhere'}</p>
+                 </div>`,
+          icon: 'info',
+          confirmButtonColor: '#4f46e5'
+        });
+      } else {
+        Swal.fire('Not Found', 'Item not found in global database.', 'info');
+      }
+    } catch (err) {
+      console.error("Global search error:", err);
+    } finally {
+      setSearchLoading(false);
+      setShowItemDropdown(false);
+    }
+  };
 
   // ---------- CAMERA SCANNER ENGINE ----------
   if (!homeCodeReader.current) {
@@ -2249,7 +2312,8 @@ function Home() {
       taxes_and_charges: selectedTaxTemplate,
       posting_date: new Date().toISOString().slice(0, 10),
       currency: 'AED',
-      due_date: new Date().toISOString().slice(0, 10)
+      due_date: new Date().toISOString().slice(0, 10),
+      account_manager: user
     };
 
     try {
@@ -4238,10 +4302,15 @@ function Home() {
                         </div>
                       ))}
                       {itemSearchResults.length === 0 && barcodeInput.length >= 2 && !searchLoading && (
-                        <div style={{ padding: '2rem', textAlign: 'center', background: '#f8fafc', color: '#64748b' }}>
-                          <SearchSlash size={24} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
-                          <p style={{ fontSize: 11, fontWeight: 800 }}>NOT IN THIS BRANCH</p>
-                          <p style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>Try scanning Industry Registry or Check Global</p>
+                        <div 
+                          onClick={() => triggerGlobalSearch(barcodeInput)}
+                          style={{ padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: '#f5f3ff', borderTop: '1px dashed #ddd6fe' }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#ede9fe'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#f5f3ff'}
+                        >
+                          <Search size={20} style={{ margin: '0 auto 8px', color: '#4f46e5' }} />
+                          <p style={{ fontSize: 12, fontWeight: 800, color: '#4f46e5' }}>NOT IN THIS BRANCH</p>
+                          <p style={{ fontSize: 10, fontWeight: 600, color: '#6366f1', marginTop: 4 }}>Tap to Check Global Stock</p>
                         </div>
                       )}
                     </div>
