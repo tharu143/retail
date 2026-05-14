@@ -1178,8 +1178,8 @@ function Home() {
   const fetchCategories = useCallback(async () => {
     try {
       if (!session) return;
-      const isActuallyOnline = navigator.onLine;
-      if (isActuallyOnline) {
+      const isActuallyOnline = !isOffline;
+      if (isActuallyOnline) { // Strictly Online Check
         const results = await POSService.getItemCategories();
         if (results && results.length > 0) {
           const catNames = results.map(c =>
@@ -1188,15 +1188,16 @@ function Home() {
           // Combine with "all" and remove duplicates just in case
           const uniqueCats = ["all", ...new Set(catNames.sort())];
           setCategories(uniqueCats);
-
-          // Cache to Dexie for offline use
-          await db.payment_modes.put({ name: 'categories', data: uniqueCats }); // reusing payment_modes or create new store
+          await db.payment_modes.put({ name: 'categories', data: uniqueCats });
         }
+      } else {
+        const cached = await db.payment_modes.get('categories');
+        if (cached && cached.data) setCategories(cached.data);
       }
     } catch (err) {
       console.error("Failed to fetch categories:", err);
     }
-  }, [session]);
+  }, [session, isOffline]);
 
   const fetchItems = useCallback(async (force = false) => {
     if (!session) return;
@@ -1206,85 +1207,42 @@ function Home() {
       }
       setError("");
 
-      const rawLastSync = localStorage.getItem('last_item_sync_time') || "";
-      const storedLastSync = (rawLastSync === "undefined" || rawLastSync === "null") ? "" : rawLastSync;
 
-      let url = `custom_retailpos.custom_retailpos.retail_api.retail.get_item_details?warehouse=${encodeURIComponent(warehouse)}`;
 
-      if (storedLastSync && !force) {
-        const d = new Date(storedLastSync);
-        if (d instanceof Date && !isNaN(d.getTime())) {
-          const formattedDate = format(d, 'yyyy-MM-dd HH:mm:ss');
-          url += `&modified_after=${encodeURIComponent(formattedDate)}`;
-        }
-      }
+
+
+
 
       let apiItems = [];
-      const isActuallyOnline = navigator.onLine;
+      const isActuallyOnline = !isOffline;
 
       if (isActuallyOnline) {
         try {
-          const results = await POSService.getRetailItems({
-            warehouse: warehouse,
-            modified_after: (!force && storedLastSync) ? (() => {
-              const d = new Date(storedLastSync);
-              return (d instanceof Date && !isNaN(d.getTime())) ? format(d, 'yyyy-MM-dd HH:mm:ss') : undefined;
-            })() : undefined
-          });
-          if (force || results?.length > 0) {
-            if (force) await db.items.clear();
-
-            // Recalibrate local_qty: server_actual_qty - pending_sales
-            const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
-            const pendingSales = {};
-            pendingInvoices.forEach(inv => {
-              (inv.items || []).forEach(it => {
-                const code = it.item_code || it.id;
-                const qtyPieces = it.uom === 'Box' ? (it.quantity || it.qty || 0) * (it.custom_pieces_per_box || 1) : (it.quantity || it.qty || 0);
-                pendingSales[code] = (pendingSales[code] || 0) + qtyPieces;
-              });
-            });
-
-            await db.items.bulkPut(results.map(item => {
-              const serverQty = item.actual_qty || 0;
-              const pendingQty = pendingSales[item.name] || 0;
-
-              // Recalibrate warehouse_details: server_actual_qty - pending_sales (for current warehouse)
-              const recalibratedWarehouseDetails = (item.warehouse_details || []).map(wd => {
-                const name = wd.warehouse_name || wd.warehouse;
-                if (name === warehouse) {
-                  return { ...wd, actual_qty: (wd.actual_qty || 0) - pendingQty };
-                }
-                return wd;
-              });
-
-              return {
-                id: item.name,
-                name: item.item_name,
-                image: item.image,
-                group: (item.item_group || "others").toLowerCase(),
-                price: item.price_list_rate || 0,
-                actual_qty: serverQty,
-                local_qty: serverQty - pendingQty,
-                total_qty: (item.total_qty || serverQty) - pendingQty,
-                warehouse_details: recalibratedWarehouseDetails,
-                barcodes: item.barcodes || [],
-                modified: item.modified,
-                custom_pieces_per_box: item.custom_pieces_per_box || 1
-              };
-            }));
-
-            const newestTimeFromItems = results.reduce((max, item) => {
-              if (!item.modified) return max;
-              if (!max) return item.modified;
-              return item.modified > max ? item.modified : max;
-            }, storedLastSync);
-
-            const finalSyncTime = newestTimeFromItems || new Date().toISOString();
-            localStorage.setItem('last_item_sync_time', finalSyncTime);
-            apiItems = await db.items.toArray();
-          } else {
-            apiItems = await db.items.toArray();
+          // STRICT ONLINE MODE: Always fetch full state from server
+          const results = await POSService.getRetailItems({ warehouse: warehouse });
+          if (results) {
+            apiItems = results;
+            // Background: Update local cache for offline fallback
+            db.items.bulkPut(results.map(item => ({
+              id: item.name,
+              name: item.item_name,
+              image: item.image,
+              group: (item.item_group || "others").toLowerCase(),
+              price: item.price_list_rate || 0,
+              actual_qty: item.actual_qty || 0,
+              local_qty: item.actual_qty || 0,
+              total_qty: item.total_qty || item.actual_qty || 0,
+              warehouse_details: item.warehouse_details || [],
+              barcodes: item.barcodes || [],
+              modified: item.modified,
+              custom_pieces_per_box: item.custom_pieces_per_box || 1
+            }))).catch(e => console.error("Dexie background update failed", e));
+            
+            if (results.length > 0) {
+              const newestModified = results.reduce((max, item) => 
+                (item.modified > max ? item.modified : max), "");
+              localStorage.setItem('last_item_sync_time', newestModified || new Date().toISOString());
+            }
           }
         } catch (fetchErr) {
           console.error("Strict Online fetch failed:", fetchErr);
@@ -1341,7 +1299,7 @@ function Home() {
     } finally {
       setLoadingItems(false);
     }
-  }, [authFetch, session, warehouse]);
+  }, [session, warehouse, categories.length, isOffline]);
 
   const forceFullRefresh = useCallback(async () => {
     try {

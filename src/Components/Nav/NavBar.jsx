@@ -352,7 +352,7 @@ function NavBar() {
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search administration... (Ctrl + K)"
+              placeholder="Search dashboard... (Ctrl + K)"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -367,7 +367,7 @@ function NavBar() {
 
           {showSearchResults && searchResults.length > 0 && (
             <div className="nav-search-results-dropdown">
-              <div className="nav-search-results-header">ADMINISTRATION / PAGES</div>
+              <div className="nav-search-results-header">DASHBOARD / PAGES</div>
               {searchResults.map((result, idx) => (
                 <div
                   key={result.path}
