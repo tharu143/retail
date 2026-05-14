@@ -9,10 +9,14 @@ import POSService from '../../utils/posService';
 import { db } from '../../db';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { createPortal } from 'react-dom';
+import { useSelector } from 'react-redux';
 import '../Admin/SalesOrder.css';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 
 const QuickStockInStandalone = () => {
+    const user_roles = useSelector((state) => state.user.user_roles || []);
+    const warehouse = useSelector((state) => state.user.warehouse);
+    const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
     const handleSupplierCreate = async (name) => {
         try {
             const res = await POSService.createSupplier(name);
@@ -90,7 +94,7 @@ const QuickStockInStandalone = () => {
             try {
                 const [whData, supData, taxData] = await Promise.all([
                     POSService.getWarehouses(),
-                    POSService.getSuppliers(),
+                    POSService.getSuppliers(isAdmin ? {} : { filters: JSON.stringify([['custom_branch', '=', warehouse]]) }),
                     POSService.getPurchaseTaxTemplates()
                 ]);
                 const safeWh = Array.isArray(whData) ? whData : (whData?.data || []);

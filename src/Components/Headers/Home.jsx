@@ -100,6 +100,7 @@ function Home() {
   const loading = useSelector((state) => state.user.loading || false);
   const user_roles = useSelector((state) => state.user.user_roles || []);
   const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
+  const isManager = useSelector((state) => state.user.is_manager || false) || isAdmin;
 
   const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
   const [showOpeningModal, setShowOpeningModal] = useState(false);
@@ -1220,7 +1221,8 @@ function Home() {
       if (isActuallyOnline) {
         try {
           // STRICT ONLINE MODE: Always fetch full state from server
-          const results = await POSService.getRetailItems({ warehouse: warehouse });
+          // If Admin, fetch all. If not, restrict by warehouse.
+          const results = await POSService.getRetailItems(isAdmin ? {} : { warehouse: warehouse });
           if (results) {
             // Apply Branch Restriction if not Admin
             let filteredResults = results;
