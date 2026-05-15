@@ -336,7 +336,7 @@ function Home() {
   useEffect(() => {
     const syncCount = async () => {
       if (offlineIdType !== 'continuous' || !user) return;
-      
+
       try {
         setIsSyncingCount(true);
         const now = new Date();
@@ -345,10 +345,10 @@ function Home() {
         const userNumMatch = usernamePart.match(/\d+$/);
         const userCode = userNumMatch ? `CS${userNumMatch[0]}` : 'CS1';
         const year = format(now, 'yyyy');
-        
+
         const searchPrefix = `${bPrefix}-${userCode}-`;
         const lastSeq = await POSService.getLastOfflineId(searchPrefix);
-        
+
         if (lastSeq >= 0) {
           const localCount = parseInt(localStorage.getItem('offlineIdContinuousCount')) || 1;
           // Use whichever is higher
@@ -550,13 +550,13 @@ function Home() {
               ) : (
                 <div style={{ display: 'grid', gap: '15px' }}>
                   {draftOrders.map(draft => (
-                    <div key={draft.id} style={{ 
+                    <div key={draft.id} style={{
                       background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                     }}>
                       <div>
                         <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '15px' }}>
-                          {draft.customerName || 'Cash Customer'} 
+                          {draft.customerName || 'Cash Customer'}
                           <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '10px', fontWeight: 600 }}>{draft.mobile}</span>
                         </div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
@@ -568,7 +568,7 @@ function Home() {
                           <div style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', letterSpacing: '1px' }}>TOTAL</div>
                           <div style={{ fontWeight: 900, color: '#0ea5e9', fontSize: '18px' }}>AED {draft.grand_total?.toFixed(2)}</div>
                         </div>
-                        <button 
+                        <button
                           onClick={() => loadDraftOrder(draft)}
                           style={{
                             background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '8px',
@@ -589,7 +589,7 @@ function Home() {
       )}
 
       {showThemeSidebar && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             inset: 0,
@@ -602,7 +602,7 @@ function Home() {
           }}
           onClick={() => setShowThemeSidebar(false)}
         >
-          <div 
+          <div
             style={{
               width: '340px',
               height: '100%',
@@ -630,8 +630,8 @@ function Home() {
                 <Palette className="text-slate-700" size={18} />
                 <h3 style={{ margin: 0, fontWeight: 900, fontSize: '14px', color: '#1e293b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Theme Customizer</h3>
               </div>
-              <button 
-                onClick={() => setShowThemeSidebar(false)} 
+              <button
+                onClick={() => setShowThemeSidebar(false)}
                 style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                 className="hover:text-slate-600 transition-colors"
               >
@@ -803,11 +803,19 @@ function Home() {
   const [filteredItems, setFilteredItems] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [billItems, setBillItems] = useState([]);
+  const [selectedBillIndex, setSelectedBillIndex] = useState(-1);
   const [customerName, setCustomerName] = useState('Cash');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+
+  useEffect(() => {
+    if (selectedBillIndex !== -1) {
+      const el = document.getElementById(`bill-row-${selectedBillIndex}`);
+      if (el) el.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+    }
+  }, [selectedBillIndex]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -838,26 +846,6 @@ function Home() {
   const nameInputRef = useRef(null);
 
   // ---------- CALCULATIONS (Defined before handlers) ----------
-  const subtotal = useMemo(() =>
-    billItems.reduce((sum, item) => {
-      // Calculate effective price for the selected UOM
-      // If Box is selected and a specific Box price exists, use it. Otherwise, use piece price * factor.
-      const factor = (item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1);
-      const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
-      return sum + flt(effectivePrice * item.qty);
-    }, 0)
-    , [billItems]);
-
-  const discountAmount = useMemo(() => {
-    if (discount.value <= 0) return 0;
-    const amt = (discount.type === 'percentage' || discount.type === 'percent')
-      ? (subtotal * discount.value) / 100
-      : discount.value;
-    return flt(amt);
-  }, [subtotal, discount]);
-
-  const netTotal = useMemo(() => flt(subtotal - discountAmount), [subtotal, discountAmount]);
-
   const taxRate = useMemo(() => {
     // 1. GLOBAL FALLBACK: If company is KSPL, we default to 5% if API fails
     if (taxTemplates.length === 0) return 5.0;
@@ -891,6 +879,33 @@ function Home() {
     // Default to 5.0 if still 0 but we have a template selected (likely 5% template)
     return flt(rate || 5.0);
   }, [selectedTaxTemplate, taxTemplates]);
+
+  const subtotal = useMemo(() =>
+    billItems.reduce((sum, item) => {
+      // Calculate effective price for the selected UOM
+      const factor = (item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1);
+      const price = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
+      const lineTotal = price * item.qty;
+
+      // If inclusive, we extract the base price from the total
+      // If exclusive, the price is the base
+      let netItem = lineTotal;
+      if (item.is_tax_inclusive) {
+        netItem = lineTotal / (1 + (taxRate / 100));
+      }
+      return sum + flt(netItem);
+    }, 0)
+    , [billItems, taxRate]);
+
+  const discountAmount = useMemo(() => {
+    if (discount.value <= 0) return 0;
+    const amt = (discount.type === 'percentage' || discount.type === 'percent')
+      ? (subtotal * discount.value) / 100
+      : discount.value;
+    return flt(amt);
+  }, [subtotal, discount]);
+
+  const netTotal = useMemo(() => flt(subtotal - discountAmount), [subtotal, discountAmount]);
 
   const taxAmount = useMemo(() => flt(netTotal * (taxRate / 100)), [netTotal, taxRate]);
 
@@ -1236,7 +1251,7 @@ function Home() {
                 if (item.warehouse_details && item.warehouse_details.length > 0) {
                   return item.warehouse_details.some(wd => (wd.warehouse_name || wd.warehouse) === warehouse);
                 }
-                return true; 
+                return true;
               });
             }
             apiItems = filteredResults;
@@ -1257,9 +1272,9 @@ function Home() {
               modified: item.modified,
               custom_pieces_per_box: item.custom_pieces_per_box || 1
             }))).catch(e => console.error("Dexie background update failed", e));
-            
+
             if (results.length > 0) {
-              const newestModified = results.reduce((max, item) => 
+              const newestModified = results.reduce((max, item) =>
                 (item.modified > max ? item.modified : max), "");
               localStorage.setItem('last_item_sync_time', newestModified || new Date().toISOString());
             }
@@ -1408,10 +1423,9 @@ function Home() {
   const handleAddToBill = (item) => {
     setLastInteractedItem(item);
     setBillItems(prev => {
-      const existing = prev.find(i => i.id === item.id);
-      if (existing) {
-        // --- Stock Verification ---
-        // Get conversion factor for current UOM
+      const existingIdx = prev.findIndex(i => i.id === item.id);
+      if (existingIdx !== -1) {
+        const existing = prev[existingIdx];
         const factor = existing.uom_conversions?.[existing.uom] || (existing.uom === 'Box' ? (existing.custom_pieces_per_box || 1) : 1);
         const piecesNeeded = factor;
         const currentPieces = existing.qty * factor;
@@ -1420,22 +1434,26 @@ function Home() {
           Swal.fire('Out of Stock', `Only ${item.local_qty} pieces available.`, 'warning');
           return prev;
         }
-        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+        const next = prev.map((i, idx) => idx === existingIdx ? { ...i, qty: i.qty + 1 } : i);
+        setSelectedBillIndex(existingIdx);
+        return next;
       } else {
         if (item.local_qty <= 0) {
           Swal.fire('Out of Stock', `"${item.name}" is out of stock.`, 'warning');
           return prev;
         }
-        // Default to Base UOM (usually Nos or Piece)
         const baseUom = item.uom_conversions?.Nos ? 'Nos' : (item.uom_conversions?.Piece ? 'Piece' : 'Nos');
         const initialPrice = item.prices?.[baseUom] || item.price || 0;
 
-        return [...prev, {
+        const newItem = {
           ...item,
           qty: 1,
           uom: baseUom,
-          price: initialPrice // Set rate initially based on Base UOM
-        }];
+          price: initialPrice,
+          is_tax_inclusive: true // Default to inclusive for retail
+        };
+        setSelectedBillIndex(prev.length);
+        return [...prev, newItem];
       }
     });
     barcodeInputRef.current?.focus();
@@ -1699,12 +1717,22 @@ function Home() {
   };
 
   const onBarcodeKeyDown = (e) => {
-    if (e.key === 'ArrowDown' && showItemDropdown) {
-      e.preventDefault();
-      setActiveItemIndex(prev => Math.min(prev + 1, itemSearchResults.length - 1));
-    } else if (e.key === 'ArrowUp' && showItemDropdown) {
-      e.preventDefault();
-      setActiveItemIndex(prev => Math.max(prev - 1, 0));
+    if (e.key === 'ArrowDown') {
+      if (showItemDropdown) {
+        e.preventDefault();
+        setActiveItemIndex(prev => Math.min(prev + 1, itemSearchResults.length - 1));
+      } else if (billItems.length > 0) {
+        e.preventDefault();
+        setSelectedBillIndex(prev => Math.min(prev + 1, billItems.length - 1));
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (showItemDropdown) {
+        e.preventDefault();
+        setActiveItemIndex(prev => Math.max(prev - 1, 0));
+      } else if (billItems.length > 0) {
+        e.preventDefault();
+        setSelectedBillIndex(prev => Math.max(prev - 1, 0));
+      }
     } else if (e.key === 'Enter') {
       if (activeItemIndex >= 0 && itemSearchResults[activeItemIndex]) {
         handleAddToBill(itemSearchResults[activeItemIndex]);
@@ -1843,7 +1871,7 @@ function Home() {
       const buyPrice = parseFloat(d.buying_price || 0);
       const sellPrice = parseFloat(d.selling_price || 0);
       const branchName = d.warehouse_name || d.warehouse;
-      
+
       return `
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 10px; align-items: center; border-bottom: 1px solid #f1f5f9; padding: 12px 0; font-size: 13px;">
                     <div style="display: flex; flex-direction: column; min-width: 0;">
@@ -1931,7 +1959,14 @@ function Home() {
       return item;
     }));
   };
-  const removeFromBill = (id) => setBillItems(prev => prev.filter(i => i.id !== id));
+  const removeFromBill = (id) => {
+    setBillItems(prev => {
+      const next = prev.filter(i => i.id !== id);
+      if (next.length === 0) setSelectedBillIndex(-1);
+      else if (selectedBillIndex >= next.length) setSelectedBillIndex(next.length - 1);
+      return next;
+    });
+  };
 
   const openPurchaseTools = (item) => {
     setPurchaseForm({
@@ -2106,7 +2141,7 @@ function Home() {
       Swal.fire('Info', 'No items to save as draft', 'info');
       return;
     }
-    
+
     Swal.fire({
       title: 'Saving Draft...',
       allowOutsideClick: false,
@@ -2121,8 +2156,8 @@ function Home() {
       customer_name: customerName,
       contact_mobile: phoneNumber,
       items: billItems.map(item => {
-        const discRate = item.custom_pieces_per_box > 0 && item.uom === 'Box' 
-          ? item.price * item.custom_pieces_per_box 
+        const discRate = item.custom_pieces_per_box > 0 && item.uom === 'Box'
+          ? item.price * item.custom_pieces_per_box
           : item.price;
         return {
           item_code: item.id,
@@ -2156,13 +2191,13 @@ function Home() {
       const data = await POSService.createInvoice(draftPayload);
       if (data && (data.status === 'success' || data.name)) {
         const serverName = data.name || data.invoice_name;
-        
+
         setBillItems([]);
         setDiscount({ type: 'amount', value: 0 });
         setCustomerName('Cash');
         setPhoneNumber('');
         setSelectedCustomer(null);
-        
+
         Swal.fire({
           icon: 'success',
           title: 'Draft Saved',
@@ -2504,6 +2539,7 @@ function Home() {
 
   const finalizeOrder = () => {
     setBillItems([]);
+    setSelectedBillIndex(-1);
     setDiscount({ type: 'amount', value: 0 });
     setCustomerName('Cash'); setSelectedCustomer(null); setPhoneNumber('');
     setSelectedPaymentMode(''); setTenderedAmount('');
@@ -2540,7 +2576,7 @@ function Home() {
         try {
           const res = await frappeCall({
             method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
-            args: { 
+            args: {
               mobile_no: searchTerm,
               warehouse: warehouse
             }
@@ -2623,36 +2659,36 @@ function Home() {
           </div>
         </div>
         <div className="home-modal-footer" style={{ gap: '12px', padding: '20px' }}>
-          <button 
-            className="home-modal-cancel" 
+          <button
+            className="home-modal-cancel"
             onClick={clearDiscount}
-            style={{ 
-              flex: 1, 
-              padding: '12px', 
-              borderRadius: '12px', 
-              background: '#f1f5f9', 
-              color: '#64748b', 
-              fontWeight: 800, 
-              fontSize: '13px', 
-              textTransform: 'uppercase', 
+            style={{
+              flex: 1,
+              padding: '12px',
+              borderRadius: '12px',
+              background: '#f1f5f9',
+              color: '#64748b',
+              fontWeight: 800,
+              fontSize: '13px',
+              textTransform: 'uppercase',
               letterSpacing: '0.05em',
               transition: 'all 0.2s'
             }}
           >
             Clear
           </button>
-          <button 
-            className="home-modal-apply" 
+          <button
+            className="home-modal-apply"
             onClick={() => { setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }); setShowDiscountModal(false); }}
-            style={{ 
-              flex: 2, 
-              padding: '12px', 
-              borderRadius: '12px', 
-              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
-              color: '#ffffff', 
-              fontWeight: 800, 
-              fontSize: '13px', 
-              textTransform: 'uppercase', 
+            style={{
+              flex: 2,
+              padding: '12px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              color: '#ffffff',
+              fontWeight: 800,
+              fontSize: '13px',
+              textTransform: 'uppercase',
               letterSpacing: '0.05em',
               boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
               transition: 'all 0.2s'
@@ -2786,8 +2822,8 @@ function Home() {
             onClick={completePayment}
             disabled={paymentLoading || balanceRemaining > 0}
             className={`px-10 py-3 rounded-xl font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-3 ${balanceRemaining <= 0
-                ? 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+              ? 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'
+              : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
               }`}
           >
             {paymentLoading ? <Loader2 size={20} className="animate-spin" /> : <Package size={20} />}
@@ -3004,6 +3040,102 @@ function Home() {
         }
       }
 
+      // + / -: Increase/Decrease Qty (Global / Selection)
+      if (e.key === '+' || e.key === '=') {
+        const isQtyInput = document.activeElement.id?.startsWith('qty-input-');
+        if (!isInputFocused || isQtyInput || selectedBillIndex !== -1) {
+          e.preventDefault();
+          const targetItem = isQtyInput ? billItems[parseInt(document.activeElement.id.replace('qty-input-', ''))] : billItems[selectedBillIndex];
+          if (targetItem) updateQuantity(targetItem.id, 1);
+          else if (lastInteractedItem) updateQuantity(lastInteractedItem.id, 1);
+        }
+      } else if (e.key === '-' || e.key === '_') {
+        const isQtyInput = document.activeElement.id?.startsWith('qty-input-');
+        if (!isInputFocused || isQtyInput || selectedBillIndex !== -1) {
+          e.preventDefault();
+          const targetItem = isQtyInput ? billItems[parseInt(document.activeElement.id.replace('qty-input-', ''))] : billItems[selectedBillIndex];
+          if (targetItem) updateQuantity(targetItem.id, -1);
+          else if (lastInteractedItem) updateQuantity(lastInteractedItem.id, -1);
+        }
+      }
+
+      // F6: Quick Price Update
+      if (e.key === 'F6') {
+        e.preventDefault();
+        if (selectedBillIndex !== -1) {
+          const item = billItems[selectedBillIndex];
+          Swal.fire({
+            title: `Update Price: ${item.item_name || item.name}`,
+            input: 'number',
+            inputValue: item.price,
+            showCancelButton: true,
+            confirmButtonText: 'Update',
+            inputAttributes: { step: '0.01' }
+          }).then(result => {
+            if (result.isConfirmed && result.value) {
+              const newBill = [...billItems];
+              newBill[selectedBillIndex].price = parseFloat(result.value);
+              setBillItems(newBill);
+            }
+          });
+        }
+      }
+
+      // F10: Bulk Quantity Update
+      if (e.key === 'F10') {
+        e.preventDefault();
+        if (selectedBillIndex !== -1) {
+          const item = billItems[selectedBillIndex];
+          Swal.fire({
+            title: `Bulk Qty: ${item.item_name || item.name}`,
+            input: 'number',
+            inputValue: item.qty,
+            showCancelButton: true,
+            confirmButtonText: 'Update'
+          }).then(result => {
+            if (result.isConfirmed && result.value) {
+              const newQty = parseInt(result.value);
+              const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
+              if (newQty * factor > (item.local_qty || 0)) {
+                Swal.fire('Out of Stock', 'Insufficient stock.', 'warning');
+              } else {
+                const newBill = [...billItems];
+                newBill[selectedBillIndex].qty = newQty;
+                setBillItems(newBill);
+              }
+            }
+          });
+        }
+      }
+
+      // Arrow Keys for Bill Navigation
+      const isSearchDropdownOpen = showItemDropdown || showDropdown;
+      if (billItems.length > 0 && !isSearchDropdownOpen) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedBillIndex(prev => Math.min(prev + 1, billItems.length - 1));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedBillIndex(prev => Math.max(prev - 1, 0));
+        } else if (e.key === 'ArrowRight') {
+          // Toggle Inclusive Tax
+          e.preventDefault();
+          if (selectedBillIndex !== -1) {
+            const nextBill = [...billItems];
+            nextBill[selectedBillIndex].is_tax_inclusive = true;
+            setBillItems(nextBill);
+          }
+        } else if (e.key === 'ArrowLeft') {
+          // Toggle Exclusive Tax
+          e.preventDefault();
+          if (selectedBillIndex !== -1) {
+            const nextBill = [...billItems];
+            nextBill[selectedBillIndex].is_tax_inclusive = false;
+            setBillItems(nextBill);
+          }
+        }
+      }
+
       // Space or F12: Open Payment (Global focus handling)
       if ((e.key === ' ' || e.key === 'F12') && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
         if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
@@ -3032,8 +3164,13 @@ function Home() {
           setShowDiscountModal(false);
         } else if (showItemDropdown) {
           setShowItemDropdown(false);
+        } else if (showPriceModal) {
+          setShowPriceModal(false);
+        } else if (showQtyModal) {
+          setShowQtyModal(false);
         } else if (billItems.length > 0) {
           setBillItems([]);
+          setSelectedBillIndex(-1);
         }
       }
     };
@@ -3127,9 +3264,29 @@ function Home() {
             <span className="so-shortcut-key">SPACE</span>
             <span className="so-shortcut-label">Pay Now</span>
           </div>
-          <div className="so-shortcut-badge" style={{ background: '#fef2f2', borderColor: '#fee2e2' }} onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}>
+          <div className="so-shortcut-badge" style={{ background: '#fef2f2', borderColor: '#fee2e2' }} onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}>
             <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
             <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear Bill</span>
+          </div>
+          <div className="so-shortcut-badge">
+            <span className="so-shortcut-key">F6</span>
+            <span className="so-shortcut-label">Price</span>
+          </div>
+          <div className="so-shortcut-badge">
+            <span className="so-shortcut-key">F10</span>
+            <span className="so-shortcut-label">Bulk Qty</span>
+          </div>
+          <div className="so-shortcut-badge">
+            <span className="so-shortcut-key">↑ ↓</span>
+            <span className="so-shortcut-label">Navigate</span>
+          </div>
+          <div className="so-shortcut-badge">
+            <span className="so-shortcut-key">+ / -</span>
+            <span className="so-shortcut-label">Quantity</span>
+          </div>
+          <div className="so-shortcut-badge">
+            <span className="so-shortcut-key">← / →</span>
+            <span className="so-shortcut-label">Tax Mode</span>
           </div>
 
           <div className="h-6 w-px bg-slate-200 mx-2"></div>
@@ -3461,7 +3618,7 @@ function Home() {
                   <Package size={14} /> Save Draft
                 </button>
                 <button
-                  onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}
+                  onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}
                   className="so-btn-secondary flex-1"
                   style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
                 >
@@ -3519,7 +3676,7 @@ function Home() {
           </div>
 
           <div className="ml-auto flex items-center gap-6 pr-4">
-            
+
             {/* Quick Actions / Status grouped together */}
             <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
               <div className={`flex items-center gap-2 font-black text-[11px] uppercase tracking-wider ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-700' : 'text-sky-700')}`}>
@@ -3702,12 +3859,17 @@ function Home() {
                     const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
                     const lineTotal = item.qty * effectivePrice;
                     return (
-                      <tr key={idx} className="bg-white hover:bg-amber-50 group border-b border-slate-100">
+                      <tr
+                        key={idx}
+                        id={`bill-row-${idx}`}
+                        className={`border-b border-slate-100 transition-all cursor-pointer ${idx === selectedBillIndex ? 'bg-amber-100 border-l-4 border-l-amber-600 shadow-md ring-1 ring-inset ring-amber-200' : 'bg-white hover:bg-amber-50/50'}`}
+                        onClick={() => setSelectedBillIndex(idx)}
+                      >
                         <td className="text-center font-bold text-slate-400 text-[10px]">{idx + 1}</td>
                         <td className="px-2 font-bold text-slate-900 text-center">
                           <span className="classic-cell-text" title={item.item_code || item.id}>{item.item_code || item.id}</span>
                         </td>
-                        <td className="p-0">
+                        <td className="p-0 relative group">
                           <input
                             type="text"
                             value={item.item_name || item.name}
@@ -3717,9 +3879,16 @@ function Home() {
                               else newBill[idx].name = e.target.value;
                               setBillItems(newBill);
                             }}
-                            className="w-full h-full px-2 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300"
+                            className="w-full h-full px-2 pr-8 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300"
                             placeholder="Description"
                           />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-sky-500 transition-colors cursor-pointer"
+                            title="Item Info & Stock"
+                          >
+                            <Info size={14} />
+                          </button>
                         </td>
                         <td className="p-0">
                           <select
@@ -3747,6 +3916,12 @@ function Home() {
                                 } else {
                                   barcodeInputRef.current?.focus();
                                 }
+                              } else if (e.key === '+' || e.key === '=') {
+                                e.preventDefault();
+                                updateQuantity(item.id, 1);
+                              } else if (e.key === '-' || e.key === '_') {
+                                e.preventDefault();
+                                updateQuantity(item.id, -1);
                               }
                             }}
                             className="w-full h-full text-center px-2 font-black text-sky-600 focus:bg-amber-100 outline-none border-none"
@@ -3755,7 +3930,7 @@ function Home() {
                         <td className="text-center px-2 font-black text-amber-600 bg-amber-50">
                           {item.qty * factor}
                         </td>
-                        <td className="p-0">
+                        <td className="p-0 relative">
                           <input
                             type="number"
                             step="0.01"
@@ -3764,11 +3939,23 @@ function Home() {
                             className="w-full h-full text-center px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none"
                             onFocus={e => e.target.select()}
                           />
+                          <div 
+                            className={`absolute -top-1 -right-1 px-1 rounded-[4px] text-[8px] font-black tracking-tighter ${item.is_tax_inclusive ? 'bg-sky-500 text-white' : 'bg-amber-500 text-white'}`}
+                            style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                          >
+                            {item.is_tax_inclusive ? 'INC' : 'EXC'}
+                          </div>
                         </td>
                         <td className="text-center px-2 font-bold text-slate-500 text-[10px] italic">
-                          {(lineTotal * 0.05).toFixed(2)}
+                          {item.is_tax_inclusive 
+                            ? (lineTotal - (lineTotal / (1 + (taxRate / 100)))).toFixed(2)
+                            : (lineTotal * (taxRate / 100)).toFixed(2)}
                         </td>
-                        <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50">AED {(parseFloat(lineTotal) || 0).toFixed(2)}</td>
+                        <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50">
+                          AED {item.is_tax_inclusive 
+                            ? (parseFloat(lineTotal) || 0).toFixed(2)
+                            : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
+                        </td>
                         <td className="text-center">
                           <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
                         </td>
@@ -3883,7 +4070,7 @@ function Home() {
                   style={{ background: 'none', border: 'none' }}
                   title="Click to search customer (F2)"
                 >
-                  <span 
+                  <span
                     className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
                     style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
                   >
@@ -3898,7 +4085,7 @@ function Home() {
                   style={{ background: 'none', border: 'none' }}
                   title="Click to search items (F4)"
                 >
-                  <span 
+                  <span
                     className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
                     style={{ background: 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
                   >
@@ -3919,7 +4106,7 @@ function Home() {
                   style={{ background: 'none', border: 'none' }}
                   title="Click to check warehouse stock (F8)"
                 >
-                  <span 
+                  <span
                     className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
                     style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
                   >
@@ -3935,18 +4122,68 @@ function Home() {
                   disabled={billItems.length === 0}
                   title="Click to checkout & pay (F12)"
                 >
-                  <span 
+                  <span
                     className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
-                    style={{ 
-                      background: billItems.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)' : '#94a3b8', 
+                    style={{
+                      background: billItems.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)' : '#94a3b8',
                       textShadow: '0 1px 1px rgba(0,0,0,0.2)',
-                      opacity: billItems.length > 0 ? 1 : 0.6 
+                      opacity: billItems.length > 0 ? 1 : 0.6
                     }}
                   >
                     F12
                   </span>
                   <span className="shortcut-label text-[11px] font-black text-emerald-600 uppercase tracking-wider group-hover:text-emerald-700 transition-colors">Pay</span>
                 </button>
+
+                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+                  <span
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+                    style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+                  >
+                    F6
+                  </span>
+                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Price</span>
+                </div>
+
+                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+                  <span
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+                    style={{ background: 'linear-gradient(135deg, #d946ef 0%, #a21caf 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+                  >
+                    F10
+                  </span>
+                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Bulk Qty</span>
+                </div>
+
+                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+                  <span
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+                    style={{ background: 'linear-gradient(135deg, #64748b 0%, #334155 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+                  >
+                    ↑↓
+                  </span>
+                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Navigate</span>
+                </div>
+
+                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+                  <span
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+                    style={{ background: 'linear-gradient(135deg, #64748b 0%, #334155 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+                  >
+                    +/-
+                  </span>
+                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Qty</span>
+                </div>
+
+                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+                  <span
+                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+                    style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+                  >
+                    ← / →
+                  </span>
+                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Tax Mode</span>
+                </div>
               </div>
 
               {/* Totals Section grouped together on the Right with clean divider columns */}
@@ -4020,7 +4257,7 @@ function Home() {
               </button>
               <button
                 className={`px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
-                onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}
+                onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}
               >
                 <Trash2 size={14} /> CLEAR BILL
               </button>
@@ -4341,7 +4578,7 @@ function Home() {
                         </div>
                       ))}
                       {itemSearchResults.length === 0 && barcodeInput.length >= 2 && !searchLoading && (
-                        <div 
+                        <div
                           onClick={() => triggerGlobalSearch(barcodeInput)}
                           style={{ padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: '#f5f3ff', borderTop: '1px dashed #ddd6fe' }}
                           onMouseEnter={e => e.currentTarget.style.backgroundColor = '#ede9fe'}
@@ -4435,7 +4672,7 @@ function Home() {
                         {grandTotal > 0 && <button className="home-bill-pay-btn" onClick={handleCheckout}>Pay</button>}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
-                        {billItems.length > 0 && <button className="home-bill-clear-btn" onClick={() => { setBillItems([]); setDiscount({ type: 'amount', value: 0 }); }}>Clear Bill</button>}
+                        {billItems.length > 0 && <button className="home-bill-clear-btn" onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}>Clear Bill</button>}
                         <button className="home-bill-clear-btn" onClick={closingEntry} style={{ backgroundColor: '#26abff' }}>Closing</button>
                       </div>
                     </div>

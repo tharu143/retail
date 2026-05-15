@@ -486,7 +486,14 @@ export default function ItemList() {
         if (item.branch_availability) setForm(prev => ({ ...prev, branch_availability: item.branch_availability }));
       }
       try {
-        const connRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_linked_documents', { params: { doctype: 'Item', name: code }, withCredentials: true });
+        const connRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_linked_documents', { 
+          params: { 
+            doctype: 'Item', 
+            name: code,
+            warehouse: localStorage.getItem('warehouse')
+          }, 
+          withCredentials: true 
+        });
         if (connRes.data?.message?.categories) setDashboardData(prev => ({ ...prev, connections: connRes.data.message.categories }));
       } catch { }
     } catch { setDashboardData({}); } finally { setLoadingDashboard(false); }
@@ -495,7 +502,13 @@ export default function ItemList() {
   const fetchItemValuation = async (code) => {
     try {
       setLoadingValuation(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_valuation_retail', { params: { item_code: code }, withCredentials: true });
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_valuation_retail', { 
+        params: { 
+          item_code: code,
+          warehouse: localStorage.getItem('warehouse')
+        }, 
+        withCredentials: true 
+      });
       setValuationData(res.data?.message || null);
     } catch { setValuationData(null); } finally { setLoadingValuation(false); }
   };
@@ -503,7 +516,13 @@ export default function ItemList() {
   const fetchPriceList = async (code) => {
     try {
       setLoadingPrices(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_prices', { params: { item_code: code }, withCredentials: true });
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_prices', { 
+        params: { 
+          item_code: code,
+          warehouse: localStorage.getItem('warehouse')
+        }, 
+        withCredentials: true 
+      });
       const r = res.data.message;
       setPriceData({ prices: r?.data || [], metrics: r?.metrics || {}, warehouse_breakdown: r?.warehouse_breakdown || [] });
     } catch { setPriceData({ prices: [], metrics: {}, warehouse_breakdown: [] }); } finally { setLoadingPrices(false); }
@@ -1519,32 +1538,76 @@ export default function ItemList() {
                         <tbody>
                           {loadingPrices ? (
                             <tr><td colSpan={4} style={{ padding: '50px', textAlign: 'center' }}><Loader2 size={24} style={{ color: T.blue, margin: '0 auto' }} className="spin" /></td></tr>
-                          ) : priceData.warehouse_breakdown?.length > 0 ? priceData.warehouse_breakdown.map((w, i) => (
-                            <tr key={i}>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                                  <div style={{ width: 30, height: 30, background: T.blueLight, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Warehouse size={14} color={T.blue} />
-                                  </div>
-                                  <span style={{ fontWeight: 600 }}>{w.warehouse}</span>
-                                </div>
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span style={{ fontWeight: 700, color: T.blue }}>{w.stock}</span>
-                                <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 3 }}>{form.default_uom}</span>
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span style={{ fontSize: 11, color: T.textMuted, marginRight: 2 }}>AED</span>
-                                <span style={{ fontWeight: 600 }}>{Number(w.avg_buying_price || 0).toFixed(2)}</span>
-                              </td>
-                              <td style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: 11, color: T.textMuted, marginRight: 2 }}>AED</span>
-                                <span style={{ fontWeight: 700, color: T.green }}>{Number(w.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                              </td>
-                            </tr>
-                          )) : <tr><td colSpan={4} style={{ padding: '50px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No stock data found</td></tr>}
+                          ) : priceData.warehouse_breakdown?.length > 0 ? (
+                            priceData.warehouse_breakdown
+                              .filter(w => !localStorage.getItem('warehouse') || w.warehouse === localStorage.getItem('warehouse'))
+                              .map((w, i) => (
+                                <tr key={i}>
+                                  <td>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                                      <div style={{ width: 30, height: 30, background: T.blueLight, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Warehouse size={14} color={T.blue} />
+                                      </div>
+                                      <span style={{ fontWeight: 600 }}>{w.warehouse}</span>
+                                    </div>
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <span style={{ fontWeight: 700, color: T.blue }}>{w.stock}</span>
+                                    <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 3 }}>{form.default_uom}</span>
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <span style={{ fontSize: 11, color: T.textMuted, marginRight: 2 }}>AED</span>
+                                    <span style={{ fontWeight: 600 }}>{Number(w.avg_buying_price || 0).toFixed(2)}</span>
+                                  </td>
+                                  <td style={{ textAlign: 'right' }}>
+                                    <span style={{ fontSize: 11, color: T.textMuted, marginRight: 2 }}>AED</span>
+                                    <span style={{ fontWeight: 700, color: T.green }}>{Number(w.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </td>
+                                </tr>
+                              ))
+                          ) : <tr><td colSpan={4} style={{ padding: '50px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No stock data found</td></tr>}
                         </tbody>
                       </table>
+                    </div>
+                    {/* Check All Branches Button */}
+                    <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center' }}>
+                      <button 
+                        className="il-btn il-btn-secondary"
+                        style={{ height: 44, padding: '0 24px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}
+                        onClick={() => {
+                          const html = `
+                            <div style="text-align: left; max-height: 400px; overflow-y: auto;">
+                              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead style="position: sticky; top: 0; background: #fff; border-bottom: 2px solid #e2e8f0;">
+                                  <tr>
+                                    <th style="padding: 12px; text-align: left;">Warehouse</th>
+                                    <th style="padding: 12px; text-align: right;">On Hand</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  ${priceData.warehouse_breakdown.map(w => `
+                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                      <td style="padding: 12px; font-weight: 600;">${w.warehouse}</td>
+                                      <td style="padding: 12px; text-align: right; font-weight: 700; color: #2563eb;">${w.stock} ${form.default_uom}</td>
+                                    </tr>
+                                  `).join('')}
+                                </tbody>
+                              </table>
+                            </div>
+                          `;
+                          Swal.fire({
+                            title: 'Global Stock Inventory',
+                            html: html,
+                            width: '500px',
+                            showConfirmButton: false,
+                            showCloseButton: true,
+                            customClass: { popup: 'swal2-popup-custom' }
+                          });
+                        }}
+                      >
+                        <Search size={16} />
+                        <span style={{ fontSize: 13, fontWeight: 800 }}>Check All Branches Stock</span>
+                      </button>
                     </div>
                   </div>
                 )}
