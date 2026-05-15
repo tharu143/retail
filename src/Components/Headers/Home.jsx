@@ -1347,7 +1347,7 @@ function Home() {
       Swal.fire({
         icon: 'success',
         title: 'Database Synchronized',
-        text: 'Local cache cleared and updated with the latest 61 items from server.',
+        text: 'Local cache cleared and updated with the latest items and branch prices.',
         timer: 3000,
         showConfirmButton: false
       });
@@ -1357,6 +1357,16 @@ function Home() {
       setLoadingItems(false);
     }
   }, [fetchItems]);
+
+  useEffect(() => {
+    const syncToken = localStorage.getItem('price_sync_v4');
+    if (!syncToken && session) {
+      db.items.clear().then(() => {
+        localStorage.setItem('price_sync_v4', 'done');
+        fetchItems(true);
+      });
+    }
+  }, [session, fetchItems]);
 
   useEffect(() => {
     fetchCategories();
@@ -1821,27 +1831,41 @@ function Home() {
     }
 
     const html = `
-        <div style="text-align: left; padding: 10px; max-height: 400px; overflow-y: auto;">
-             <div style="display: flex; justify-content: space-between; font-weight: 800; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; margin-bottom: 10px;">
+        <div style="text-align: left; padding: 10px; max-height: 500px; overflow-y: auto; font-family: 'Inter', sans-serif;">
+             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 10px; font-weight: 800; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-bottom: 10px; font-size: 11px; text-transform: uppercase; color: #64748b;">
                 <span>Branch / Warehouse</span>
-                <span>Stock / Action</span>
+                <span style="text-align: center;">Stock</span>
+                <span style="text-align: center;">Buy</span>
+                <span style="text-align: right;">Sell / Action</span>
             </div>
             ${details.map(d => {
       const qty = parseFloat(d.actual_qty);
+      const buyPrice = parseFloat(d.buying_price || 0);
+      const sellPrice = parseFloat(d.selling_price || 0);
       const branchName = d.warehouse_name || d.warehouse;
+      
       return `
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 12px 0;">
-                    <div style="display: flex; flex-direction: column;">
-                      <span style="font-weight: 600;">${branchName}</span>
-                      ${d.distance ? `<span style="font-size: 10px; color: #64748b;">${d.distance} KM away</span>` : ''}
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 10px; align-items: center; border-bottom: 1px solid #f1f5f9; padding: 12px 0; font-size: 13px;">
+                    <div style="display: flex; flex-direction: column; min-width: 0;">
+                      <span style="font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${branchName}">${branchName}</span>
+                      ${d.distance ? `<span style="font-size: 9px; color: #94a3b8; font-weight: 600;">${d.distance} KM</span>` : ''}
                     </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                      <span style="font-weight: 700; color: ${qty > 0 ? '#10b981' : '#ef4444'}">${qty}</span>
+                    
+                    <div style="text-align: center;">
+                      <span style="font-weight: 800; color: ${qty > 0 ? '#10b981' : '#ef4444'}">${qty}</span>
+                    </div>
+
+                    <div style="text-align: center;">
+                      <span style="font-weight: 600; color: #64748b;">${buyPrice.toFixed(2)}</span>
+                    </div>
+
+                    <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                      <span style="font-weight: 800; color: #3b82f6;">${sellPrice.toFixed(2)}</span>
                       ${(qty > 0 && branchName !== warehouse) ? `
                         <button 
                           onclick="window.requestStock('${item.id}', '${branchName}')"
-                          style="background: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer;"
-                        >Request</button>
+                          style="background: #3b82f6; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);"
+                        >REQUEST</button>
                       ` : ''}
                     </div>
                 </div>
