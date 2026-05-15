@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import {
   Plus, Filter, MoreVertical, Search, Calendar, Building2,
@@ -28,6 +29,8 @@ function PurchaseOrderLists() {
 
   // Theme Hook
   const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
+  const { warehouse, user_roles } = useSelector((state) => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
 
   const getSession = () => localStorage.getItem('session') || '';
@@ -50,7 +53,11 @@ function PurchaseOrderLists() {
     try {
       setLoading(true);
       const res = await axios.get(`${API_PATH}.get_purchase_order_list_retail`, {
-        params: { limit: 2000, limit_page_length: 2000 },
+        params: { 
+          limit: 2000, 
+          limit_page_length: 2000,
+          warehouse: !isAdmin ? warehouse : undefined
+        },
         withCredentials: true,
         headers: { 'X-Frappe-SID': getSession() }
       });

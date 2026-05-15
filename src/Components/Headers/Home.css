@@ -1,6 +1,6 @@
 /* ============================================================ 
    Home.css — Emerald & Slate Theme (Modern POS Refinement)
-   Unified with SalesOrder and PurchaseOrder directory designs.
+   Optimized for High Density & Premium Aesthetics
    ============================================================ */
 
 :root {
@@ -17,7 +17,7 @@
   --so-radius: 0.5rem;
   
   /* Layout specific */
-  --so-bill-width: 440px;
+  --so-bill-width: 480px; /* Increased further to prevent button overflow */
 }
 
 /* Global Page Wrapper - POS requires strict full-screen */
@@ -30,7 +30,7 @@
 }
 
 .so-page {
-  height: 100vh;
+  height: 100%; /* Fill container */
   background-color: var(--so-bg);
   color: var(--so-text-body);
   display: flex;
@@ -39,19 +39,12 @@
   overflow: hidden;
 }
 
-/* Theme Blue Override */
-.theme-blue {
-  --so-primary: #0ea5e9;
-  --so-primary-hover: #0284c7;
-  --so-primary-light: #f0f9ff;
-}
-
 /* Standard Header (Mirrors Directory Pages) */
 .so-page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.8rem 1.5rem;
+  padding: 0.5rem 1.25rem;
   background: var(--so-white);
   border-bottom: 1px solid var(--so-border);
   flex-shrink: 0;
@@ -59,13 +52,13 @@
 }
 
 .so-page-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 800;
   color: var(--so-text-heading);
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   letter-spacing: -0.01em;
   text-transform: uppercase;
 }
@@ -77,15 +70,15 @@
 /* Buttons (Directory Style) */
 .so-btn-primary,
 .so-btn-secondary {
-  height: 2.1rem;
-  padding: 0 1rem;
-  font-size: 0.7rem;
-  font-weight: 700;
+  height: 1.85rem;
+  padding: 0 0.45rem; /* Reduced for better density in small areas */
+  font-size: 0.65rem;
+  font-weight: 750;
   border-radius: 0.375rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
@@ -96,7 +89,7 @@
 .so-btn-primary {
   background: var(--so-primary);
   color: var(--so-white);
-  border: 1.5px solid var(--so-primary);
+  border: 1px solid var(--so-primary);
 }
 .so-btn-primary:hover {
   background: var(--so-primary-hover);
@@ -106,40 +99,38 @@
 .so-btn-secondary {
   background: var(--so-white);
   color: var(--so-text-body);
-  border: 1.5px solid var(--so-border);
-}
-.so-btn-secondary:hover {
-  border-color: var(--so-primary);
-  color: var(--so-primary);
+  border: 1px solid var(--so-border);
 }
 
 /* Modern POS Layout - Flexible Height */
 .so-main-layout {
   display: grid;
   grid-template-columns: 1fr var(--so-bill-width);
-  flex: 1; /* This makes it fill the remaining space */
+  flex: 1; 
   overflow: hidden;
+  min-height: 0;
 }
 
 /* Sidebar / Toolstrip Refinement */
 .so-tool-strip {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 1.5rem;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
   background: var(--so-white);
   border-bottom: 1px solid var(--so-border);
   flex-shrink: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .so-tool-strip::-webkit-scrollbar { display: none; }
 
 .so-shortcut-badge {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.6rem;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
   background: var(--so-bg);
   border: 1px solid var(--so-border);
   border-radius: 0.375rem;
@@ -147,23 +138,19 @@
   transition: all 0.2s;
   flex-shrink: 0;
 }
-.so-shortcut-badge:hover {
-  border-color: var(--so-primary);
-  background: var(--so-white);
-}
 
 .so-shortcut-key {
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 900;
   color: var(--so-primary);
-  padding: 1px 4px;
+  padding: 1px 3px;
   background: var(--so-white);
   border: 1px solid var(--so-primary);
   border-radius: 3px;
 }
 
 .so-shortcut-label {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
   color: var(--so-text-muted);
   text-transform: uppercase;
@@ -172,26 +159,28 @@
 /* Category Bar */
 .so-cat-bar {
   background: var(--so-white);
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 0.75rem;
   border-bottom: 1px solid var(--so-border);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   flex-shrink: 0;
 }
 
 .so-cat-tabs {
   flex: 1;
   display: flex;
-  gap: 0.4rem;
+  gap: 0.3rem;
   overflow-x: auto;
   scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.so-cat-tabs::-webkit-scrollbar { display: none; }
 
 .so-cat-tab {
-  padding: 0.4rem 1rem;
+  padding: 0.3rem 0.75rem;
   border-radius: 0.25rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   border: none;
   background: transparent;
@@ -217,54 +206,65 @@
 .so-grid-area {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
+  padding: 0.75rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.25rem;
-  align-content: start; /* Fixes alignment when fewer items */
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.6rem;
+  align-content: start; 
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--so-border) transparent;
 }
 
-/* Premium Card */
+.so-grid-area::-webkit-scrollbar {
+  width: 4px;
+}
+.so-grid-area::-webkit-scrollbar-thumb {
+  background-color: var(--so-border);
+  border-radius: 10px;
+}
+
+/* Premium Card - Highly Optimized */
 .so-item-card {
   background: var(--so-white);
-  border: 1.5px solid var(--so-border);
-  border-radius: 0.625rem;
-  padding: 0.65rem;
+  border: 1px solid var(--so-border);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 240px; /* Standard uniform height */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  min-height: 180px; 
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
 .so-item-card:hover {
   border-color: var(--so-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px -8px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px rgba(0,0,0,0.08);
 }
 
 .so-item-img {
   width: 100%;
-  height: 120px;
+  height: 90px;
   border-radius: 0.25rem;
   object-fit: cover;
   background: var(--so-bg);
 }
 
 .so-item-name {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 850;
   color: var(--so-text-heading);
   text-transform: uppercase;
-  line-height: 1.25;
+  line-height: 1.15;
   display: -webkit-box;
   -webkit-line-clamp: 2;
-  line-clamp: 2; /* Added for standard compatibility */
+  line-clamp: 2; 
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 1.8rem;
+  min-height: 1.5rem;
   margin: 0;
   letter-spacing: -0.01em;
 }
@@ -272,12 +272,11 @@
 .so-item-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 8px;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  font-size: 7px;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .so-badge-emerald { background: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
@@ -294,278 +293,173 @@
 }
 
 .so-bill-header {
-  padding: 0.75rem 1.25rem;
+  padding: 0.5rem 1rem;
   background: var(--so-bg);
   border-bottom: 1px solid var(--so-border);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .so-bill-items {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 0.65rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.4rem;
+  scrollbar-width: thin;
 }
 
 .so-bill-item {
   background: var(--so-white);
   border: 1px solid var(--so-border);
-  border-radius: 0.5rem;
-  padding: 0.65rem 0.85rem;
+  border-radius: 0.375rem;
+  padding: 0.4rem 0.6rem;
   display: flex;
   flex-direction: column;
 }
 
-.so-bill-item:hover {
-  border-color: var(--so-primary);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-  transform: translateY(-1px);
-}
-
 .so-bill-item-name {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  color: var(--so-secondary);
-  line-height: 1.3;
-  margin-bottom: 0.35rem;
+  color: var(--so-text-heading);
+  line-height: 1.2;
+  margin-bottom: 0.2rem;
   text-transform: uppercase;
-  max-width: 82%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-clamp: 2;
 }
 
 .so-bill-qty-control {
   background: var(--so-bg);
-  border: 1.2px solid var(--so-border);
-  padding: 0.2rem;
-  border-radius: 0.65rem;
+  border: 1px solid var(--so-border);
+  padding: 0.1rem;
+  border-radius: 0.4rem;
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.1rem;
 }
 
 .so-bill-qty-btn {
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.45rem;
-  color: var(--so-text-muted);
-  transition: all 0.2s;
+  border-radius: 0.3rem;
+  font-size: 9px;
   background: transparent;
   border: none;
   cursor: pointer;
-}
-
-.so-bill-qty-btn:hover {
-  background: var(--so-white);
-  color: var(--so-primary);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+  color: var(--so-text-muted);
 }
 
 .so-bill-qty-input {
-  width: 32px;
+  width: 24px;
   text-align: center;
   font-weight: 850;
-  font-size: 0.8rem;
-  color: var(--so-secondary);
+  font-size: 0.7rem;
   background: transparent;
   border: none;
   outline: none;
-}
-
-.so-bill-remove {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  color: #d1d5db;
-  transition: all 0.2s;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-
-.so-bill-remove:hover {
-  color: var(--so-danger);
-  transform: scale(1.1);
+  color: var(--so-text-heading);
 }
 
 /* Summary Box at bottom of bill */
 .so-bill-footer {
-    padding: 1.25rem;
+    padding: 0.75rem 1rem;
     background: var(--so-white);
     border-top: 1px solid var(--so-border);
     flex-shrink: 0;
-    box-shadow: 0 -10px 20px rgba(0,0,0,0.02);
 }
 
 .so-total-box {
   background: var(--so-white);
-  border: 1.5px solid var(--so-primary);
-  border-radius: 0.75rem;
-  padding: 1rem;
-  margin-bottom: 1.25rem;
+  border: 1px solid var(--so-primary);
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+  margin-bottom: 0.65rem;
 }
 
 .so-total-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.4rem;
-  font-size: 0.8rem;
+  margin-bottom: 0.2rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--so-text-muted);
 }
 
 .so-grand-total {
-  border-top: 1.5px dashed var(--so-border);
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
+  border-top: 1px dashed var(--so-border);
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 1.7rem;
+  font-size: 1.4rem;
   font-weight: 900;
   color: var(--so-primary);
 }
 
 .so-btn-pay {
   width: 100%;
-  padding: 1.15rem;
+  padding: 0.85rem;
   background: var(--so-primary);
   color: var(--so-white);
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
   font-weight: 950;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   text-transform: uppercase;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.3);
-  letter-spacing: 0.02em;
-}
-
-.so-btn-pay:hover:not(:disabled) {
-  background: var(--so-primary-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-}
-
-.so-btn-pay:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-/* Modals Refined */
-.home-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 1.5rem;
-}
-
-.home-modal {
-  background: var(--so-white);
-  border-radius: 1rem;
-  width: 100%;
-  max-width: 500px;
-  overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  display: flex;
-  flex-direction: column;
-}
-
-.home-modal-header {
-  padding: 1.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: none;
-}
-
-.home-modal-header h3 {
-  font-size: 1.1rem;
-  font-weight: 850;
-  color: var(--so-text-heading);
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  margin: 0;
-}
-
-.home-modal-body {
-  padding: 1.25rem 1.5rem 1.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.home-modal-footer {
-  padding: 1rem 1.5rem;
-  display: flex;
-  gap: 0.75rem;
-  border-top: 1px solid var(--so-border);
-  background: var(--so-bg);
-}
-
-.home-modal-body .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-
-.home-modal-body label {
-    font-size: 8px;
-    font-weight: 950;
-    color: var(--so-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding-left: 0.15rem;
+  gap: 0.5rem;
 }
 
 .so-customer-input {
   width: 100%;
-  padding: 0.7rem 1.15rem;
+  padding: 0.45rem 0.85rem;
   background: var(--so-bg);
-  border: 1.5px solid var(--so-border);
-  border-radius: 0.625rem;
-  font-size: 0.85rem;
+  border: 1px solid var(--so-border);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--so-text-heading);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
 }
 
+.so-customer-input.pl-10 {
+    padding-left: 2.25rem !important; /* Explicitly handling the pl-10 class for icon spacing */
+}
+
 .so-customer-input.pl-12 {
-    padding-left: 2.8rem !important;
+    padding-left: 2.75rem !important;
 }
 
-.so-customer-input:focus {
-  border-color: var(--so-primary);
-  background: var(--so-white);
-  box-shadow: 0 0 0 4px var(--so-primary-light);
-}
-
-/* Responsive */
+/* Responsive - Viewport Locked */
 @media (max-width: 1440px) {
-  :root { --so-bill-width: 480px; }
+  :root { --so-bill-width: 420px; }
+}
+
+@media (max-width: 1200px) {
+  :root { --so-bill-width: 380px; }
 }
 
 @media (max-width: 1024px) {
   .so-main-layout {
     grid-template-columns: 1fr;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
-  .so-item-side, .so-bill-side { height: auto; overflow: visible; }
+  .so-item-side {
+    height: 55vh;
+    border-right: none;
+    border-bottom: 1px solid var(--so-border);
+  }
+  .so-bill-side {
+    height: 45vh;
+  }
 }

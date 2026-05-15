@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './SalesOrder.css';
 
@@ -283,6 +284,8 @@ const getUpdatedPhone = (currentPhone, newCode) => {
 function CustomerList() {
   const navigate = useNavigate();
   const { themeColor, themeLight, isGreen, toggleTheme, legacySubTheme } = useLegacyTheme();
+  const { warehouse, user_roles } = useSelector(state => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
   // View States
   const [view, setView] = useState('list'); // 'list' or 'detail'
@@ -311,10 +314,10 @@ function CustomerList() {
   const [meta, setMeta] = useState({
     customer_group: [], territory: [], customer_type: ['Individual', 'Company'],
     salutations: [], address_type: [], emirates: [], countries: [],
-    price_lists: [], tax_categories: [], payment_terms: [], loyalty_programs: []
+    price_lists: [], tax_categories: [], payment_terms: [], loyalty_programs: [],
+    warehouses: []
   });
 
-  // EXHAUSTIVE FORM STATE (Matches all requested fields for Create & Edit)
   const [form, setForm] = useState({
     customer_name: '', mobile_no: '+971', email_id: '', salutation: '',
     customer_type: 'Individual', customer_group: 'All Customer Groups',
@@ -329,7 +332,8 @@ function CustomerList() {
     // Personnel Profile (Primary Contact)
     first_name: '', middle_name: '', last_name: '', designation: '',
     contact_email: '', contact_mobile: '', status: 'Passive',
-    custom_phone_code: '+971'
+    custom_phone_code: '+971',
+    branch_availability: []
   });
 
   const [saving, setSaving] = useState(false);
@@ -349,10 +353,11 @@ function CustomerList() {
       const res = await axios.get(`${API_BASE}.get_customers_list`, { 
         params: { 
           order_by: `${sortField} ${sortOrder}`,
-          search: filterSearch 
+          search: filterSearch,
+          warehouse: !isAdmin ? warehouse : undefined
         } 
       });
-      setCustomers(res.data.message?.data || []);
+      setCustomers(Array.isArray(res.data.message?.data) ? res.data.message.data : []);
     } catch (err) { console.error('List failed', err); }
     finally { setLoading(false); }
   };
@@ -368,9 +373,17 @@ function CustomerList() {
 
   const fetchMeta = async () => {
     try {
-      const res = await axios.get(`${API_BASE}.get_customer_meta_options`);
-      const data = res.data.message?.data;
-      if (data) setMeta(prev => ({ ...prev, ...data }));
+      const [metaRes, whRes] = await Promise.all([
+        axios.get(`${API_BASE}.get_customer_meta_options`),
+        axios.get('/api/resource/Warehouse?fields=["name"]&limit=500')
+      ]);
+      const data = metaRes.data.message?.data;
+      const whData = whRes.data?.data || [];
+      if (data) setMeta(prev => ({ 
+        ...prev, 
+        ...data,
+        warehouses: whData.map(w => w.name)
+      }));
     } catch (err) { console.error('Meta failed', err); }
   };
 
@@ -413,7 +426,8 @@ function CustomerList() {
       address_type: 'Billing', address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
       first_name: '', middle_name: '', last_name: '', designation: '',
       contact_email: '', contact_mobile: '', status: 'Passive',
-      custom_phone_code: '+971'
+      custom_phone_code: '+971',
+      branch_availability: []
     });
     setShowModal(true);
   };
@@ -464,7 +478,8 @@ function CustomerList() {
       contact_email: cont.email_id || '',
       contact_mobile: cont.mobile_no || '',
       status: cont.status || 'Passive',
-      custom_phone_code: selectedCustomer.custom_phone_code || derivedCode
+      custom_phone_code: selectedCustomer.custom_phone_code || derivedCode,
+      branch_availability: selectedCustomer.branch_availability || []
     });
     setShowModal(true);
   };
@@ -525,7 +540,8 @@ function CustomerList() {
           contact_email: cont.email_id || '',
           contact_mobile: cont.mobile_no || '',
           status: cont.status || 'Passive',
-          custom_phone_code: fullCustomer.custom_phone_code || derivedCode
+          custom_phone_code: fullCustomer.custom_phone_code || derivedCode,
+          branch_availability: fullCustomer.branch_availability || []
         });
         setShowModal(true);
       }
@@ -537,6 +553,60 @@ function CustomerList() {
     }
   };
 
+  const handleGlobalSearch = async () => {
+    if (!filterSearch) return Swal.fire('Search', 'Enter name or mobile for Global Discovery', 'info');
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}.find_customer_globally_retail`, {
+        params: { search: filterSearch }
+      });
+      if (res.data.message?.success) {
+        const found = res.data.message.data;
+        if (found.length === 0) {
+          Swal.fire('Not Found', 'No customers discovered in any branch.', 'info');
+        } else {
+          setCustomers(found);
+          Swal.fire('Discovered', `Found ${found.length} customers across branches.`, 'success');
+        }
+      }
+    } catch (err) {
+      console.error('Global search failed', err);
+      Swal.fire('Search Error', 'Cross-branch discovery unavailable.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnableForBranch = async (e, customer) => {
+    e.stopPropagation();
+    const result = await Swal.fire({
+      title: 'Enable for Branch?',
+      text: `Enable ${customer.customer_name} for this branch (${warehouse})?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: themeColor,
+      confirmButtonText: 'Yes, Enable'
+    });
+
+    if (result.isConfirmed) {
+      setSaving(true);
+      try {
+        const res = await axios.post(`${API_BASE}.enable_customer_for_branch_retail`, {
+          customer_id: customer.name || customer.value,
+          warehouse: warehouse
+        });
+        if (res.data.message?.success) {
+          Swal.fire('Enabled', 'Customer is now active for your branch.', 'success');
+          fetchCustomers();
+        } else throw new Error(res.data.message?.message);
+      } catch (err) {
+        Swal.fire('Error', err.message, 'error');
+      } finally {
+        setSaving(false);
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!form.customer_name) return Swal.fire('Error', 'Customer Name is required', 'warning');
     setSaving(true);
@@ -544,7 +614,9 @@ function CustomerList() {
       const payload = {
         customer_data: {
           ...form,
-          name: modalMode === 'edit' ? selectedCustomer.name : undefined
+          name: modalMode === 'edit' ? selectedCustomer.name : undefined,
+          custom_branch: modalMode === 'create' ? (!isAdmin ? warehouse : form.custom_branch) : form.custom_branch,
+          branch_availability: form.branch_availability
         },
         address_data: form.address_line1 ? {
           address_type: form.address_type,
@@ -645,6 +717,9 @@ function CustomerList() {
               <Users size={20} /> Customers
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button className="so-btn-secondary" onClick={handleGlobalSearch} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
+                <Globe size={16} /> Global Search
+              </button>
               <button className="so-btn-secondary" onClick={toggleTheme} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
                 <Palette size={16} /> {legacySubTheme.toUpperCase()}
               </button>
@@ -794,32 +869,49 @@ function CustomerList() {
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{c.owner?.split('@')[0]}</span>
-                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(c.creation).toLocaleDateString()}</span>
+                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{c.custom_branch || 'Global'}</span>
                             </div>
                           </td>
                           <td>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${c.disabled !== 1 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
-                              {c.disabled !== 1 ? 'Operational' : 'Restricted'}
-                            </span>
+                            {c.is_global ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-100">OTHER BRANCH</span>
+                            ) : (
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${c.disabled !== 1 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                                {c.disabled !== 1 ? 'Operational' : 'Restricted'}
+                              </span>
+                            )}
                           </td>
                           <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
-                              <button
-                                className="so-btn-ghost"
-                                style={{ padding: '0.25rem' }}
-                                onClick={() => handleCustomerClick(c)}
-                                title="View Customer Details"
-                              >
-                                <Eye size={15} />
-                              </button>
-                              <button
-                                className="so-btn-ghost"
-                                style={{ padding: '0.25rem' }}
-                                onClick={(e) => handleEditClick(e, c)}
-                                title="Edit Customer Details"
-                              >
-                                <Edit2 size={15} />
-                              </button>
+                              {c.is_global ? (
+                                <button
+                                  className="so-btn-ghost text-emerald-600 hover:bg-emerald-50"
+                                  style={{ padding: '0.25rem' }}
+                                  onClick={(e) => handleEnableForBranch(e, c)}
+                                  title="Enable for My Branch"
+                                >
+                                  <CheckCircle2 size={15} />
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    className="so-btn-ghost"
+                                    style={{ padding: '0.25rem' }}
+                                    onClick={() => handleCustomerClick(c)}
+                                    title="View Customer Details"
+                                  >
+                                    <Eye size={15} />
+                                  </button>
+                                  <button
+                                    className="so-btn-ghost"
+                                    style={{ padding: '0.25rem' }}
+                                    onClick={(e) => handleEditClick(e, c)}
+                                    title="Edit Customer Details"
+                                  >
+                                    <Edit2 size={15} />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1517,6 +1609,43 @@ function CustomerList() {
                       onChange={e => setForm({ ...form, customer_details: e.target.value })}
                       placeholder="Enter customer details or description notes..."
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3 - Col 1: Section 5 (Branch Availability) */}
+              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      5
+                    </div>
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Branch Availability</h3>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4 flex-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select branches where this customer can be used:</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto p-1">
+                    {meta.warehouses?.map(wh => (
+                      <label key={wh} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg cursor-pointer transition-all hover:bg-slate-100/80">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300"
+                          style={{ accentColor: themeColor }}
+                          checked={form.branch_availability?.some(b => b.warehouse === wh)}
+                          onChange={e => {
+                            const updated = e.target.checked 
+                              ? [...form.branch_availability, { warehouse: wh }]
+                              : form.branch_availability.filter(b => b.warehouse !== wh);
+                            setForm({ ...form, branch_availability: updated });
+                          }}
+                        />
+                        <span className="text-[11px] font-bold text-slate-600">{wh}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>

@@ -1027,7 +1027,8 @@ function Home() {
             method: 'kyle_retail.retail_api.api.get_customers',
             args: {
               search: searchTerm,
-              search_type: searchType
+              search_type: searchType,
+              warehouse: warehouse
             }
           });
           setSearchResults(results || []);
@@ -1118,6 +1119,7 @@ function Home() {
       if (createForm.phone) formData.append("phone", createForm.phone);
       if (createForm.address) formData.append("address", createForm.address);
       if (createForm.email) formData.append("email", createForm.email);
+      if (warehouse) formData.append("warehouse", warehouse);
 
       const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
         method: 'POST',
@@ -2423,7 +2425,7 @@ function Home() {
       });
 
       const results = await frappeCall({
-        method: 'kyle_retail.retail_api.api.auto_handle_missing_stock',
+        method: 'kyle_retail.retail_api.api.find_nearest_stock',
         args: { item_code: item.id, current_warehouse: warehouse }
       });
 
@@ -2514,7 +2516,10 @@ function Home() {
         try {
           const res = await frappeCall({
             method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
-            args: { mobile_no: searchTerm }
+            args: { 
+              mobile_no: searchTerm,
+              warehouse: warehouse
+            }
           });
 
           if (res && res.name) {
@@ -3080,6 +3085,12 @@ function Home() {
       <div className="so-page">
         {/* MODERN TOOL STRIP */}
         <div className="so-tool-strip">
+          <div className="flex items-center gap-2 mr-6 border-r border-slate-200 pr-6">
+            <h1 className="text-xl font-black tracking-tighter text-slate-800">
+              POS<span className="text-emerald-500">8</span>
+            </h1>
+          </div>
+
           <div className="so-shortcut-badge" onClick={() => nameInputRef.current?.focus()}>
             <span className="so-shortcut-key">F2</span>
             <span className="so-shortcut-label">Customer</span>
@@ -3116,8 +3127,18 @@ function Home() {
             <Palette size={14} className="text-indigo-600" /> Theme Customizer
           </button>
 
+          <div className="h-6 w-px bg-slate-200 mx-2"></div>
+
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="so-btn-primary hover:scale-[1.02] active:scale-95"
+            style={{ padding: '0 1.25rem', height: '2.2rem', borderRadius: '0.5rem', background: '#0f172a', border: 'none' }}
+          >
+            <LayoutDashboard size={14} /> Dashboard
+          </button>
+
           <div className="flex-1"></div>
-          
+
           <button
             onClick={() => setShowDraftsModal(true)}
             style={{
@@ -3155,14 +3176,6 @@ function Home() {
 
           <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full mr-2" title="Logout">
             <Power size={18} />
-          </button>
-
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="so-btn-primary"
-            style={{ padding: '0 1.25rem', height: '2.5rem' }}
-          >
-            <LayoutDashboard size={14} /> Dashboard
           </button>
         </div>
 
@@ -3246,9 +3259,9 @@ function Home() {
                     {item.local_qty <= 0 && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
-                        className="w-full mt-2 py-2.5 bg-sky-50 text-sky-600 rounded-xl border border-sky-100 text-[10px] font-black uppercase tracking-tighter hover:bg-sky-600 hover:text-white transition-all"
+                        className="w-full mt-1 py-1.5 bg-sky-50 text-sky-600 rounded-lg border border-sky-100 text-[9px] font-black uppercase tracking-tighter hover:bg-sky-600 hover:text-white transition-all"
                       >
-                        Locate in Other Branches
+                        Find in Branches
                       </button>
                     )}
                   </div>
@@ -3258,33 +3271,33 @@ function Home() {
           </div>
 
           <aside className="so-bill-side">
-            <div className="so-bill-header flex flex-col gap-4">
+            <div className="so-bill-header flex flex-col gap-3">
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <UserPlus size={18} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
                 </div>
                 <input
                   ref={nameInputRef}
                   type="text"
-                  placeholder="Search Customer..."
+                  placeholder="Customer Name..."
                   value={customerName === 'Cash' ? '' : customerName}
-                  className="so-customer-input pl-12"
+                  className="so-customer-input pl-10"
                   onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
                   onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); setShowDropdown(true); }}
                   onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
                 />
                 {showDropdown && (
-                  <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[300] mt-2 max-h-56 overflow-y-auto">
+                  <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-[300] mt-1 max-h-56 overflow-y-auto">
                     {searchResults.map(c => (
-                      <div key={c.name} onMouseDown={() => pickCustomer(c)} className="p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
+                      <div key={c.name} onMouseDown={() => pickCustomer(c)} className="p-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
                         <div>
-                          <div className="font-black text-[13px] text-slate-800 uppercase">{c.customer_name}</div>
-                          <div className="text-[11px] text-slate-400 font-bold">{c.mobile_no}</div>
+                          <div className="font-black text-[12px] text-slate-800 uppercase">{c.customer_name}</div>
+                          <div className="text-[10px] text-slate-400 font-bold">{c.mobile_no}</div>
                         </div>
-                        <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500" />
+                        <ChevronRight size={12} className="text-slate-300 group-hover:text-emerald-500" />
                       </div>
                     ))}
-                    <div onMouseDown={openCreate} className="p-4 bg-emerald-50 text-emerald-600 font-black text-[11px] uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
+                    <div onMouseDown={openCreate} className="p-3 bg-emerald-50 text-emerald-600 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
                       + Register New Customer
                     </div>
                   </div>
@@ -3292,26 +3305,26 @@ function Home() {
               </div>
 
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search size={18} className="text-sky-400 group-focus-within:text-sky-600 transition-colors" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={14} className="text-sky-400 group-focus-within:text-sky-600 transition-colors" />
                 </div>
                 <input
                   ref={barcodeInputRef}
                   type="text"
-                  placeholder="SCAN OR TYPE PRODUCT NAME..."
+                  placeholder="SCAN / SEARCH PRODUCT..."
                   value={barcodeInput}
                   onChange={e => setBarcodeInput(e.target.value)}
                   onKeyDown={onBarcodeKeyDown}
-                  className="so-customer-input pl-12 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
+                  className="so-customer-input pl-10 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
                 />
               </div>
             </div>
 
             <div className="so-bill-items">
               {billItems.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center opacity-30 gap-4 mt-12 grayscale">
-                  <MonitorSmartphone size={80} strokeWidth={1} />
-                  <span className="font-black text-[11px] uppercase tracking-widest text-center px-16 leading-relaxed">
+                <div className="flex-1 flex flex-col items-center justify-center opacity-20 gap-3 grayscale">
+                  <MonitorSmartphone size={64} strokeWidth={1} />
+                  <span className="font-black text-[10px] uppercase tracking-widest text-center px-12 leading-relaxed">
                     Select items or scan barcode<br />to start a new transaction
                   </span>
                 </div>
@@ -3408,7 +3421,7 @@ function Home() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mb-4">
+              <div className="flex gap-1.5 mb-4">
                 <button
                   onClick={() => setShowDiscountModal(true)}
                   className="so-btn-secondary flex-1"

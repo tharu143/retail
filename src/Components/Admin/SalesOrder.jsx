@@ -4,6 +4,7 @@ import {
   Plus, Trash2, Package, Loader2,
   ChevronLeft, ChevronRight, X, Search, ScanLine, Palette, Zap
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import './SalesOrder.css';
 
@@ -95,6 +96,7 @@ const emptyForm = () => ({
 
 /* ------------------------------------------------------------------ */
 function SalesOrder() {
+  const { warehouse } = useSelector((state) => state.user);
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -125,7 +127,18 @@ function SalesOrder() {
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
 
-  const [form, setForm] = useState(emptyForm());
+  const [form, setForm] = useState({ ...emptyForm(), selling_price_list: 'Standard Selling' });
+  
+  useEffect(() => {
+    if (warehouse) {
+      // Determine Price List from Warehouse name convention
+      const branchName = warehouse.split(' Warehouse')[0];
+      const pl = `${branchName} Selling`;
+      // We set it as default, but backend will also check POS Profile
+      setForm(prev => ({ ...prev, selling_price_list: pl }));
+    }
+  }, [warehouse]);
+
   const [customers, setCustomers] = useState([]);
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [itemsList, setItemsList] = useState([]);
@@ -214,7 +227,11 @@ function SalesOrder() {
   const selectItem = async (idx, item) => {
     try {
       const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
-        params: { item_code: item.item_code, price_list: form.selling_price_list },
+        params: { 
+          item_code: item.item_code, 
+          price_list: form.selling_price_list,
+          warehouse: warehouse // Pass warehouse for backend fallback
+        },
         withCredentials: true
       });
       const rate =

@@ -11,7 +11,10 @@ const CustomSearchDropdown = ({
   optionsLabel = "name",
   extraCreateFields,
   disabled = false,
-  themeColor = "#10b981" // Default to green
+  themeColor = "#10b981", // Default to green
+  globalSearch = false,
+  onGlobalSearch, // (query) => Promise<results>
+  onActivate // (item) => Promise<success>
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -19,6 +22,9 @@ const CustomSearchDropdown = ({
   const [loading, setLoading] = useState(false);
   const [justCreated, setJustCreated] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [globalResults, setGlobalResults] = useState([]);
+  const [isGlobalView, setIsGlobalView] = useState(false);
+  const [activating, setActivating] = useState(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const ref = useRef(null);
   const inputRef = useRef(null);
@@ -90,7 +96,40 @@ const CustomSearchDropdown = ({
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [query, fetchData, justCreated]);
+  }, [query, fetchData, justCreated, isGlobalView]);
+
+  const handleGlobalSearch = async () => {
+    if (!onGlobalSearch) return;
+    setLoading(true);
+    try {
+      const data = await onGlobalSearch(query);
+      setGlobalResults(data || []);
+      setIsGlobalView(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleActivate = async (item) => {
+    if (!onActivate) return;
+    try {
+      setActivating(item.name || item.item_code);
+      const success = await onActivate(item);
+      if (success) {
+        // Refresh local search and select
+        const localData = await fetchData(query);
+        setResults(localData || []);
+        setIsGlobalView(false);
+        handleItemClick(item);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActivating(null);
+    }
+  };
 
   const handleCreate = async () => {
     if (!createOption || !query.trim()) return;
@@ -177,6 +216,7 @@ const CustomSearchDropdown = ({
               setQuery(e.target.value);
               setJustCreated(false);
               setSelectedIndex(-1);
+              setIsGlobalView(false);
             }}
             onFocus={() => !disabled && setShow(true)}
             onKeyDown={handleKeyDown}
@@ -222,10 +262,17 @@ const CustomSearchDropdown = ({
                   onMouseEnter={() => setSelectedIndex(i)}
                   className={`px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
                 >
-                  <div className="flex flex-col">
-                    <span className={`font-bold text-[13px] transition-colors ${selectedIndex === i ? 'text-[var(--po-primary,#6366f1)]' : 'text-slate-700'}`}>
-                      {item[optionsLabel] || item.name || item.item_code || 'Unknown'}
-                    </span>
+                    <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold text-[13px] transition-colors ${selectedIndex === i ? 'text-[var(--po-primary,#6366f1)]' : 'text-slate-700'}`}>
+                        {item[optionsLabel] || item.name || item.item_code || 'Unknown'}
+                      </span>
+                      {item.actual_qty !== undefined && (
+                        <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded uppercase tracking-tight">
+                          Stock: {item.actual_qty}
+                        </span>
+                      )}
+                    </div>
                     {(item.name || item.item_code) && (item.name || item.item_code) !== item[optionsLabel] && (
                       <span className="text-[10px] text-slate-400 font-medium">{item.item_name || item.name || item.item_code}</span>
                     )}
@@ -237,42 +284,78 @@ const CustomSearchDropdown = ({
                   )}
                 </div>
               ))}
-              
-              {createOption && (
-                 <div 
-                   onClick={handleCreate}
-                   className="mt-1 px-4 py-3 border-t border-slate-100 cursor-pointer bg-slate-50 hover:bg-[var(--po-primary-light)] group transition-colors"
-                 >
-                   <div className="flex items-center gap-2 text-[var(--po-primary)] font-black text-xs">
-                     <Plus size={14} />
-                     CREATE NEW: "{query}"
-                   </div>
-                 </div>
-              )}
             </div>
           )}
 
-          {results.length === 0 && query.length >= 1 && !loading && !justCreated && (
+          {isGlobalView && (
+            <div className="py-1">
+               <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Results (Other Branches)</span>
+                  <button 
+                    onClick={() => setIsGlobalView(false)}
+                    className="text-[10px] font-bold text-blue-600 hover:underline"
+                  >
+                    Back to Local
+                  </button>
+               </div>
+               {globalResults.length > 0 ? (
+                 globalResults.map((item, i) => (
+                   <div
+                     key={i}
+                     className="px-4 py-3 border-b border-slate-50 flex items-center justify-between hover:bg-slate-50 group"
+                   >
+                     <div className="flex flex-col">
+                        <span className="font-bold text-[13px] text-slate-700">{item[optionsLabel] || item.name}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">Available in: {item.active_branches || 'Registry'}</span>
+                     </div>
+                     <button
+                       onClick={() => handleActivate(item)}
+                       disabled={activating === (item.name || item.item_code)}
+                       className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm"
+                     >
+                       {activating === (item.name || item.item_code) ? '...' : 'ACTIVATE'}
+                     </button>
+                   </div>
+                 ))
+               ) : (
+                 <div className="p-8 text-center">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No match in other branches</p>
+                 </div>
+               )}
+            </div>
+          )}
+
+          {results.length === 0 && !isGlobalView && query.length >= 1 && !loading && !justCreated && (
             <div className="p-6 text-center">
-              {createOption ? (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center">
-                    <Search className="w-5 h-5 text-slate-300" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">No Matches Found</p>
-                    <p className="text-[10px] text-slate-400 mb-3 font-medium">Register "{query}" as a new record?</p>
-                    <button
-                      onClick={handleCreate}
-                      className="text-[11px] bg-[var(--po-primary)] text-white font-black py-2 px-6 rounded-lg hover:opacity-90 transition-all shadow-lg flex items-center gap-2 mx-auto"
-                    >
-                      <Plus size={14} /> CREATE NEW
-                    </button>
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center">
+                  <Search className="w-5 h-5 text-slate-300" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">No Local Matches</p>
+                  <p className="text-[10px] text-slate-400 mb-4 font-medium italic">Check other branches for "{query}"?</p>
+                  
+                  <div className="flex flex-col gap-2">
+                    {globalSearch && (
+                      <button
+                        onClick={handleGlobalSearch}
+                        className="text-[11px] bg-blue-600 text-white font-black py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <Search size={14} /> SEARCH OTHER BRANCHES
+                      </button>
+                    )}
+                    
+                    {createOption && (
+                      <button
+                        onClick={handleCreate}
+                        className="text-[11px] bg-[var(--po-primary)] text-white font-black py-2.5 px-6 rounded-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <Plus size={14} /> REGISTER NEW RECORD
+                      </button>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No entries found</p>
-              )}
+              </div>
             </div>
           )}
         </div>,

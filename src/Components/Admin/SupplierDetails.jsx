@@ -9,6 +9,7 @@ import {
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import './SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import SupplierFormModal from './SupplierFormModal';
@@ -84,6 +85,7 @@ const InfoSection = ({ title, children, icon: Icon, themeColor }) => (
 const SupplierDetails = () => {
   const { name } = useParams();
   const navigate = useNavigate();
+  const warehouse = useSelector((state) => state.user.warehouse);
   const { legacySubTheme, isGreen, themeColor, themeLight, toggleTheme } = useLegacyTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -198,7 +200,8 @@ const SupplierDetails = () => {
           supplier_primary_contact: data.supplier_primary_contact || '',
           supplier_details: data.supplier_details || '',
           allow_purchase_invoice_creation_without_purchase_order: data.allow_purchase_invoice_creation_without_purchase_order || 0,
-          allow_purchase_invoice_creation_without_purchase_receipt: data.allow_purchase_invoice_creation_without_purchase_receipt || 0
+          allow_purchase_invoice_creation_without_purchase_receipt: data.allow_purchase_invoice_creation_without_purchase_receipt || 0,
+          branch_availability: data.branch_availability || []
         });
       }
       const dash = dashRes.data.message || dashRes.data;
@@ -545,6 +548,7 @@ const SupplierDetails = () => {
               { id: 'General', icon: FileText },
               { id: 'Addresses', icon: MapPin },
               { id: 'Contacts', icon: Users },
+              { id: 'Branches', icon: Building2 },
               { id: 'Settings', icon: ShieldCheck }
             ].map(tab => (
               <button
@@ -846,6 +850,39 @@ const SupplierDetails = () => {
             </div>
           )}
 
+          {activeTab === 'Branches' && (
+            <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+               <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-8 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Branch Availability</h3>
+                  </div>
+                  <div className="p-8">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {(supplier?.branch_availability || []).length > 0 ? (
+                           supplier.branch_availability.map((branch, idx) => (
+                              <div key={idx} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                                 <div className="p-2 bg-white rounded-lg shadow-sm">
+                                    <Building2 size={16} style={{ color: themeColor }} />
+                                 </div>
+                                 <div>
+                                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{branch.warehouse}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Authorized Branch</p>
+                                 </div>
+                              </div>
+                           ))
+                        ) : (
+                           <div className="col-span-full py-12 flex flex-col items-center justify-center text-center opacity-40">
+                              <Building2 size={48} className="mb-4 text-gray-300" />
+                              <p className="text-sm font-bold uppercase tracking-widest text-gray-600">No Branch Restrictions</p>
+                              <p className="text-xs text-gray-400 mt-2">This supplier is available across all operational zones.</p>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            </div>
+          )}
+
           {activeTab === 'Settings' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
               <InfoSection title="Policy Controls" icon={ShieldCheck} themeColor={themeColor}>
@@ -918,6 +955,7 @@ const SupplierDetails = () => {
           setShowEditModal(false);
         }}
         editingSupplier={supplier}
+        userWarehouse={warehouse}
       />
     </>
   );

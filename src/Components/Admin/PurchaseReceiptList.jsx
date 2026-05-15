@@ -83,7 +83,8 @@ function PurchaseReceiptList() {
     setShowColConfig(false);
   };
 
-  const theme = useSelector(state => state.user.theme);
+  const { theme, warehouse, user_roles } = useSelector(state => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
   const [barcodeInput, setBarcodeInput] = useState('');
 
   const formatPrice = (val) => {
@@ -346,7 +347,8 @@ function PurchaseReceiptList() {
       const barcode = barcodeInput.trim();
       try {
         // Fetch items by barcode (your existing endpoint supports it)
-        const res = await axios.get(`${LEGACY_API}.get_items_for_pr`, {
+        const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
+        const res = await axios.get(`${LEGACY_API}.get_items_for_pr?${warehouseParam}`, {
           params: { query: barcode },
           withCredentials: true
         });
@@ -402,7 +404,8 @@ function PurchaseReceiptList() {
           limit: 2000, 
           limit_page_length: 2000, 
           order_by: 'modified desc',
-          fields: '["name","supplier","supplier_name","posting_date","status","grand_total","rounded_total","total","net_total","base_net_total"]'
+          fields: '["name","supplier","supplier_name","posting_date","status","grand_total","rounded_total","total","net_total","base_net_total"]',
+          warehouse: !isAdmin ? warehouse : undefined
         }, 
         withCredentials: true 
       });
@@ -418,7 +421,7 @@ function PurchaseReceiptList() {
   const fetchSuppliers = async (query = '') => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_suppliers_pr`, {
-        params: { query: query || undefined },
+        params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
         withCredentials: true
       });
       const data = Array.isArray(res.data.message) ? res.data.message : [];
@@ -430,7 +433,8 @@ function PurchaseReceiptList() {
   };
   const fetchItems = async (query = '') => {
     try {
-      const res = await axios.get(`${LEGACY_API}.get_items_for_pr`, {
+      const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
+      const res = await axios.get(`${LEGACY_API}.get_items_for_pr?${warehouseParam}`, {
         params: { query: query || undefined },
         withCredentials: true
       });
@@ -443,7 +447,10 @@ function PurchaseReceiptList() {
   };
   const fetchWarehouses = async () => {
     try {
-      const res = await axios.get(`${LEGACY_API}.get_company_warehouses`, { withCredentials: true });
+      const res = await axios.get(`${LEGACY_API}.get_company_warehouses`, { 
+        params: { warehouse: !isAdmin ? warehouse : undefined },
+        withCredentials: true 
+      });
       const data = Array.isArray(res.data.message) ? res.data.message : [];
       setWarehouses(data);
       if (data.length > 0 && !formData.set_warehouse) {

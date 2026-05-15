@@ -55,7 +55,8 @@ function PurchaseInvoiceList() {
   const [docName, setDocName] = useState('');
   const [docStatus, setDocStatus] = useState(null);
   const [allowedActions, setAllowedActions] = useState([]);
-  const theme = useSelector(state => state.user.theme);
+  const { theme, warehouse, user_roles } = useSelector(state => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
   // Theme toggle (synced across pages)
   const [piTheme, setPiTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
@@ -120,7 +121,7 @@ function PurchaseInvoiceList() {
   const fetchSuppliersAPI = async (query) => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_suppliers_pr`, {
-        params: { query: query || undefined },
+        params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
         withCredentials: true
       });
       return Array.isArray(res.data.message) ? res.data.message : [];
@@ -132,7 +133,7 @@ function PurchaseInvoiceList() {
   const fetchItemsAPI = async (query) => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_items_for_pi`, {
-        params: { query: query || undefined },
+        params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
         withCredentials: true
       });
       return Array.isArray(res.data.message) ? res.data.message : [];
@@ -149,7 +150,7 @@ function PurchaseInvoiceList() {
     posting_date: getLocalISODate(),
     due_date: '', bill_no: '',
     update_stock: true,
-    accepted_warehouse: localStorage.getItem('warehouse') || '',
+    accepted_warehouse: warehouse || '',
     rejected_warehouse: '',
     is_subcontracted: false,
     apply_discount_on: 'Grand Total',
@@ -426,6 +427,7 @@ function PurchaseInvoiceList() {
   const fetchWarehouses = async () => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_company_warehouses`, {
+        params: { warehouse: !isAdmin ? warehouse : undefined },
         withCredentials: true
       });
       const whs = Array.isArray(res.data.message) ? res.data.message : [];
@@ -448,7 +450,8 @@ function PurchaseInvoiceList() {
       setBarcodeLoading(true);
       try {
         // Call API to fetch item by barcode (enhance backend if needed)
-        const res = await axios.get(`${API_PATH}.get_item_by_barcode_pi`, {
+        const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
+        const res = await axios.get(`${API_PATH}.get_item_by_barcode_pi?${warehouseParam}`, {
           params: { barcode: barcodeInput.trim() },
           withCredentials: true
         });
@@ -501,7 +504,12 @@ function PurchaseInvoiceList() {
     try {
       setLoading(true);
       const res = await axios.get(`${LEGACY_API}.get_purchase_invoices`, { 
-        params: { limit: 2000, limit_page_length: 2000, order_by: 'modified desc' }, 
+        params: { 
+          limit: 2000, 
+          limit_page_length: 2000, 
+          order_by: 'modified desc',
+          warehouse: !isAdmin ? warehouse : undefined
+        }, 
         withCredentials: true 
       });
       if (res.data.message?.success) setInvoices(res.data.message.data || []);
@@ -543,7 +551,7 @@ function PurchaseInvoiceList() {
   const fetchSuppliers = async (query = '') => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_suppliers_pi`, {
-        params: { query: query || undefined },
+        params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
         withCredentials: true
       });
       setSuppliers(Array.isArray(res.data.message) ? res.data.message : []);
@@ -553,7 +561,7 @@ function PurchaseInvoiceList() {
   const fetchItems = async (query = '') => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_items_for_pi`, {
-        params: { query: query || undefined },
+        params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
         withCredentials: true
       });
       setItemsList(Array.isArray(res.data.message) ? res.data.message : []);

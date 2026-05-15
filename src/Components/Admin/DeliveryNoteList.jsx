@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { frappeCall } from '../../utils/frappe';
 import Swal from 'sweetalert2';
+import { useSelector } from 'react-redux';
 import '../Admin/SalesOrder.css';
 
 const CustomerDropdown = ({ query, onSelect, customers, targetRef }) => {
@@ -164,6 +165,8 @@ const ItemDropdown = ({ query, onSelect, warehouse, targetRef }) => {
 
 const DeliveryNoteList = () => {
     const navigate = useNavigate();
+    const { warehouse, user_roles } = useSelector(state => state.user || {});
+    const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
     const customerInputRef = useRef(null);
     const itemInputRefs = useRef({});
 
@@ -309,24 +312,10 @@ const DeliveryNoteList = () => {
         const currencyStr = getCurrencyName(currency);
         return currencyStr ? `${currencyStr} ${words} Only` : `${currency} ${words} Only.`;
     };
-const setDefaultBranch = async () => {
-        try {
-            const userEmail = localStorage.getItem('user_id');
-            if (userEmail) {
-                const branchRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_branch_name', {
-                    params: { user_email: userEmail }
-                });
-                if (branchRes.data.message) {
-                    const whs = warehouses.length > 0 ? warehouses : (await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_dn')).data.message || [];
-                    const defaultWh = whs.find(w => w.name.includes(branchRes.data.message))?.name;
-                    if (defaultWh) {
-                        setForm(prev => ({ ...prev, set_warehouse: defaultWh }));
-                        return defaultWh;
-                    }
-                }
-            }
-        } catch (err) {
-            console.error("Error setting default branch:", err);
+    const setDefaultBranch = async () => {
+        if (!isAdmin && warehouse) {
+            setForm(prev => ({ ...prev, set_warehouse: warehouse }));
+            return warehouse;
         }
         return null;
     };
@@ -338,25 +327,29 @@ const setDefaultBranch = async () => {
         try {
             setLoading(true);
             const [custRes, whRes, taxRes, plRes, dnRes, companyRes, nsRes] = await Promise.all([
-                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_dn'),
-                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_dn'),
+                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_dn', {
+                    params: { warehouse: !isAdmin ? warehouse : undefined }
+                }),
+                axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_dn', {
+                    params: { warehouse: !isAdmin ? warehouse : undefined }
+                }),
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn'),
                 axios.get('/api/method/frappe.client.get_list', {
                     params: { doctype: 'Price List', filters: { selling: 1 }, fields: ['name'] }
                 }),
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_delivery_note_list_retail', {
-                    params: { limit: 2000 }
+                    params: { limit: 2000, warehouse: !isAdmin ? warehouse : undefined }
                 }),
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_info_dn'),
                 axios.get('/api/method/kyle_retail.retail_api.api.get_naming_series_retail', { params: { doctype: 'Delivery Note' } })
             ]);
 
-            setCustomers(custRes.data.message || []);
-            setWarehouses(whRes.data.message || []);
-            setTaxTemplates(taxRes.data.message || []);
-            setPriceLists(plRes.data.data?.map(pl => pl.name) || ['Standard Selling']);
-            setDeliveryNotes(dnRes.data.message || []);
-            setFilteredNotes(dnRes.data.message || []);
+            setCustomers(Array.isArray(custRes.data.message) ? custRes.data.message : []);
+            setWarehouses(Array.isArray(whRes.data.message) ? whRes.data.message : []);
+            setTaxTemplates(Array.isArray(taxRes.data.message) ? taxRes.data.message : []);
+            setPriceLists(Array.isArray(plRes.data.data) ? plRes.data.data.map(pl => pl.name) : ['Standard Selling']);
+            setDeliveryNotes(Array.isArray(dnRes.data.message) ? dnRes.data.message : []);
+            setFilteredNotes(Array.isArray(dnRes.data.message) ? dnRes.data.message : []);
 
             const nsData = nsRes.data.message || {};
             const nsOptions = nsData.options || [];
@@ -567,7 +560,7 @@ const setDefaultBranch = async () => {
         try {
             const res = await axios.get(
                 '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_dn',
-                { params: { query } }
+                { params: { query, warehouse: !isAdmin ? warehouse : undefined } }
             );
             setAllItems(res.data.message || []);
         } catch (err) { /* silent */ }

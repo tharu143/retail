@@ -9,6 +9,7 @@ import {
 import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
 
@@ -376,6 +377,8 @@ const defaultForm = () => ({
 /* ========== MAIN COMPONENT ========== */
 export default function ItemList() {
   const navigate = useNavigate();
+  const { warehouse, user_roles } = useSelector(state => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -462,7 +465,7 @@ export default function ItemList() {
       // Use the custom retail API which returns barcodes and other retail-ready data
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
         params: {
-          warehouse: localStorage.getItem('warehouse')
+          warehouse: !isAdmin ? warehouse : undefined
         },
         withCredentials: true
       });
@@ -473,7 +476,7 @@ export default function ItemList() {
   const fetchItemDashboardDetails = async (code) => {
     try {
       setLoadingDashboard(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', { params: { item_code: code }, withCredentials: true });
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', { params: { item_code: code, warehouse: !isAdmin ? warehouse : undefined }, withCredentials: true });
       const result = res.data?.message || {};
       setDashboardData(result);
       if (result.item_details) {
@@ -560,7 +563,10 @@ export default function ItemList() {
 
   const fetchWarehouses = async () => {
     try {
-      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses', { withCredentials: true });
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses', { 
+        params: { warehouse: !isAdmin ? warehouse : undefined },
+        withCredentials: true 
+      });
       const raw = res.data.message || [];
       setWarehouses((Array.isArray(raw) ? raw : []).map(w => ({
         label: w.warehouse_name || w.name,

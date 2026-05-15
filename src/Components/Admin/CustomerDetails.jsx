@@ -5,7 +5,7 @@ import {
   Building2, Users, MapPin, Phone, Mail, ChevronLeft, Loader2,
   Globe, Tag, Receipt, Layers, ShoppingCart, Edit2, Save, X,
   Clock, Award, User, Briefcase, Hash, FileText, ShieldCheck,
-  UserPlus, Shield, UserCircle2, Percent
+  UserPlus, Shield, UserCircle2, Percent, Warehouse, Plus, Trash2
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
@@ -319,7 +319,8 @@ const CustomerDetails = () => {
   const [meta, setMeta] = useState({
     customer_group: [], territory: [], customer_type: ['Individual', 'Company'],
     salutations: [], address_type: [], emirates: [], countries: [],
-    price_lists: [], tax_categories: [], payment_terms: [], loyalty_programs: []
+    price_lists: [], tax_categories: [], payment_terms: [], loyalty_programs: [],
+    warehouses: []
   });
 
   // Form state containing all customer create fields
@@ -337,7 +338,8 @@ const CustomerDetails = () => {
     first_name: '', middle_name: '', last_name: '', designation: '',
     contact_email: '', contact_mobile: '', status: 'Passive',
     contact_name: '', // Added to track existing contact
-    custom_phone_code: '+971'
+    custom_phone_code: '+971',
+    branch_availability: []
   });
 
   useEffect(() => {
@@ -408,7 +410,8 @@ const CustomerDetails = () => {
         contact_mobile: cont.mobile_no || '',
         status: cont.status || 'Passive',
         contact_name: cont.name || '',
-        custom_phone_code: cust.custom_phone_code || derivedCode
+        custom_phone_code: cust.custom_phone_code || derivedCode,
+        branch_availability: cust.branch_availability || []
       });
     } catch (err) { Swal.fire('Error', 'Failed to retrieve profile data', 'error'); }
     finally { setTimeout(() => setLoading(false), 300); }
@@ -421,7 +424,8 @@ const CustomerDetails = () => {
       const payload = {
         customer_data: {
           ...form,
-          name: isNew ? undefined : id
+          name: isNew ? undefined : id,
+          branch_availability: form.branch_availability.filter(b => b.warehouse)
         },
         address_data: form.address_line1 ? {
           name: form.address_name || undefined,
@@ -622,6 +626,30 @@ const CustomerDetails = () => {
               </div>
             </div>
 
+            {/* Card 5: Branch Availability Visibility */}
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden lg:col-span-2">
+              <SectionHeader num="5" text="Regional Branch Availability" />
+              <div className="p-6">
+                {customer?.branch_availability?.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {customer.branch_availability.map((b, idx) => (
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <div className="w-8 h-8 rounded bg-white flex items-center justify-center shadow-xs">
+                          <Warehouse size={14} className="text-slate-400" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-700">{b.warehouse}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <Warehouse size={32} className="mx-auto text-slate-300 mb-2 opacity-50" />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available in all branches (Global Access)</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
         ) : (
           /* Full Screen Edit Form */
@@ -746,6 +774,55 @@ const CustomerDetails = () => {
                     onChange={e => setForm({ ...form, customer_details: e.target.value })}
                     placeholder="Internal description notes"
                   />
+                </div>
+
+                {/* Branch Availability Management */}
+                <div className="space-y-3 col-span-1 md:col-span-2 mt-4 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between px-0.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Branch Hub Availability</label>
+                    <button 
+                      onClick={() => setForm({ ...form, branch_availability: [...form.branch_availability, { warehouse: '' }] })}
+                      className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors flex items-center gap-1.5"
+                    >
+                      <Plus size={12} /> Add Branch Hub
+                    </button>
+                  </div>
+                  
+                  {form.branch_availability.length === 0 ? (
+                    <div className="py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center">
+                      <Warehouse size={24} className="text-slate-300 mb-2 opacity-60" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Global access (All Branches)</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {form.branch_availability.map((b, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <select
+                            className="flex-1 h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                            style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                            value={b.warehouse}
+                            onChange={e => {
+                              const newB = [...form.branch_availability];
+                              newB[idx].warehouse = e.target.value;
+                              setForm({ ...form, branch_availability: newB });
+                            }}
+                          >
+                            <option value="">Select Branch / Warehouse</option>
+                            {meta.warehouses?.map(w => <option key={w} value={w}>{w}</option>)}
+                          </select>
+                          <button 
+                            onClick={() => {
+                              const newB = form.branch_availability.filter((_, i) => i !== idx);
+                              setForm({ ...form, branch_availability: newB });
+                            }}
+                            className="w-11 h-11 flex items-center justify-center bg-rose-50 text-rose-500 rounded-lg border border-rose-100 hover:bg-rose-100 transition-all"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

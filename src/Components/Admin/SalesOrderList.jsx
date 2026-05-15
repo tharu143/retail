@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
@@ -90,6 +91,8 @@ const StatusBadge = ({ docstatus }) => {
 
 export default function SalesOrderList() {
   const navigate = useNavigate();
+  const { warehouse, user_roles } = useSelector((state) => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -148,11 +151,12 @@ export default function SalesOrderList() {
         params: {
           limit_page_length: 2000,
           fields: JSON.stringify(['name', 'customer', 'customer_name', 'transaction_date', 'grand_total', 'docstatus', 'status', 'total_qty', 'base_total', 'naming_series']),
+          filters: !isAdmin && warehouse ? JSON.stringify([['set_warehouse', '=', warehouse]]) : undefined,
           order_by: 'modified desc'
         },
         withCredentials: true
       });
-      setOrders(res.data.data || []);
+      setOrders(Array.isArray(res.data.data) ? res.data.data : []);
     } catch (err) {
       console.error('Failed to fetch sales orders:', err);
     } finally {
@@ -196,7 +200,7 @@ export default function SalesOrderList() {
       po_date: today,
       naming_series: 'SAL-ORD-.YYYY.-',
       order_type: 'Sales',
-      set_source_warehouse: localStorage.getItem('warehouse') || '',
+      set_source_warehouse: warehouse || '',
       taxes_and_charges: '',
       taxes: [],
       advance_paid: ''
@@ -209,7 +213,7 @@ export default function SalesOrderList() {
         setLoadingMetadata(true);
         const [metaRes, whRes, taxRes] = await Promise.all([
           axios.get(`${API_PATH_C}.get_doctype_metadata`, { params: { doctype: 'Sales Order' }, withCredentials: true }),
-          axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_warehouses', { params: { is_group: 0 }, withCredentials: true }),
+          axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_warehouses', { params: { is_group: 0, warehouse: warehouse }, withCredentials: true }),
           axios.get('/api/resource/Sales Taxes and Charges Template', { params: { fields: JSON.stringify(['name']) }, withCredentials: true })
         ]);
         setMetadata(metaRes.data.message || null);
@@ -237,7 +241,7 @@ export default function SalesOrderList() {
       // Always fetch initially if search is empty to show recent or basic list, or fetch on typing
       try {
         const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_customers_list', {
-          params: { order_by: 'modified desc', limit_page_length: 50 },
+          params: { order_by: 'modified desc', limit_page_length: 50, warehouse: warehouse },
           withCredentials: true
         });
         const fetched = res.data.message?.data || [];
@@ -449,7 +453,8 @@ export default function SalesOrderList() {
     setShowItemDropdowns(prev => ({ ...prev, [idx]: true }));
     try {
       // 1. Try specialized Sales Order search
-      let res = await axios.get('/api/method/kyle_retail.retail_api.api.get_items_so', {
+      const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
+      let res = await axios.get(`/api/method/kyle_retail.retail_api.api.get_items_so?${warehouseParam}`, {
         params: { query: query || '' },
         withCredentials: true
       });

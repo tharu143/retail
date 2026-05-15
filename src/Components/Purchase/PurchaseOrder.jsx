@@ -55,7 +55,8 @@ const getLocalISOString = () => {
 
 function PurchaseOrder() {
   const navigate = useNavigate();
-  const theme = useSelector((state) => state.user.theme);
+  const { warehouse, user_roles, theme } = useSelector((state) => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
   const navigateToDoc = (doctype, docname) => {
     const routes = {
@@ -369,7 +370,8 @@ function PurchaseOrder() {
 
     setScanningRow(rowIndex);
     try {
-      const res = await fetch(`${API_PATH}.get_item_by_barcode_retail?barcode=${encodeURIComponent(barcode)}`, {
+      const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
+      const res = await fetch(`${API_PATH}.get_item_by_barcode_retail?barcode=${encodeURIComponent(barcode)}${warehouseParam}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -644,7 +646,8 @@ function PurchaseOrder() {
   const fetchWarehouses = async () => {
     try {
       const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
-      const res = await fetch(`${OLD_API}.get_warehouses?is_group=0`, {
+      const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
+      const res = await fetch(`${OLD_API}.get_warehouses?is_group=0${warehouseParam}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -1461,7 +1464,7 @@ function PurchaseOrder() {
 
   const fetchSuppliers = async (query) => {
     try {
-      const res = await fetch(`${API_PATH}.get_suppliers_po?search=${encodeURIComponent(query || '')}`, {
+      const res = await fetch(`${API_PATH}.get_suppliers_po?search=${encodeURIComponent(query || '')}&warehouse=${warehouse || ''}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -1471,6 +1474,32 @@ function PurchaseOrder() {
     } catch (err) {
       return [];
     }
+  };
+
+  const handleGlobalSupplierSearch = async (term) => {
+    const res = await axios.get(`${API_PATH}.find_supplier_globally_retail`, { params: { search_term: term } });
+    return res.data.message.data;
+  };
+
+  const handleActivateSupplier = async (item) => {
+    const res = await axios.post(`${API_PATH}.enable_supplier_for_branch_retail`, { 
+      supplier: item.name, 
+      warehouse: warehouse 
+    });
+    return res.data.message.success;
+  };
+
+  const handleGlobalItemSearch = async (term) => {
+    const res = await axios.get(`${API_PATH}.find_item_globally_retail`, { params: { search_term: term } });
+    return res.data.message.data;
+  };
+
+  const handleActivateItem = async (item) => {
+    const res = await axios.post(`${API_PATH}.enable_item_for_branch_retail`, { 
+      item_code: item.name || item.item_code, 
+      warehouse: warehouse 
+    });
+    return res.data.message.success;
   };
 
   const handleItemSelect = (item, rowIndex) => {
@@ -1543,7 +1572,9 @@ function PurchaseOrder() {
         // Optional: Return a default set or empty if needed
         // For now, allow default fetching
       }
-      const res = await fetch(`${API_PATH}.get_items_for_po?query=${encodeURIComponent(query)}&search=${encodeURIComponent(query)}`, {
+      const wh = formData.set_warehouse || (!isAdmin ? warehouse : '');
+      const warehouseParam = wh ? `&warehouse=${encodeURIComponent(wh)}` : '';
+      const res = await fetch(`${API_PATH}.get_items_for_po?query=${encodeURIComponent(query)}&search=${encodeURIComponent(query)}${warehouseParam}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -1843,6 +1874,9 @@ function PurchaseOrder() {
                               fetchData={fetchSuppliers}
                               createOption={handleSupplierCreate}
                               optionsLabel="supplier_name"
+                              globalSearch={true}
+                              onGlobalSearch={handleGlobalSupplierSearch}
+                              onActivate={handleActivateSupplier}
                             />
                           )}
                         </div>
@@ -2093,6 +2127,9 @@ function PurchaseOrder() {
                                                 themeColor="var(--po-primary)"
                                                 optionsLabel="name"
                                                 fetchData={fetchItems}
+                                                globalSearch={true}
+                                                onGlobalSearch={handleGlobalItemSearch}
+                                                onActivate={handleActivateItem}
                                               />
                                             ) : (
                                               item.item_code && (

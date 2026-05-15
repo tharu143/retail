@@ -11,7 +11,8 @@ import { useSelector } from 'react-redux';
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { company: loggedCompany } = useSelector(state => state.user || {});
+  const { company: loggedCompany, warehouse, user_roles } = useSelector(state => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
@@ -283,22 +284,23 @@ const SalesInvoiceList = () => {
       try {
         setLoading(true);
         const [custRes, whRes, taxRes, invRes] = await Promise.all([
-          axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_si'),
-          axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_si'),
+          axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_customers_list_si', { params: { warehouse } }),
+          axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses_si', { params: { warehouse } }),
           axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_si'),
           axios.get('/api/resource/Sales Invoice', {
             params: {
               fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
+              filters: !isAdmin && warehouse ? JSON.stringify([['set_warehouse', '=', warehouse]]) : undefined,
               limit_page_length: 2000,
               order_by: 'modified desc'
             }
           })
         ]);
-        setCustomers(custRes.data.message || []);
-        setWarehouses(whRes.data.message || []);
-        setTaxTemplates(taxRes.data.message || []);
-        setInvoices(invRes.data.data || []);
-        setFilteredInvoices(invRes.data.data || []);
+        setCustomers(Array.isArray(custRes.data.message) ? custRes.data.message : []);
+        setWarehouses(Array.isArray(whRes.data.message) ? whRes.data.message : []);
+        setTaxTemplates(Array.isArray(taxRes.data.message) ? taxRes.data.message : []);
+        setInvoices(Array.isArray(invRes.data.data) ? invRes.data.data : []);
+        setFilteredInvoices(Array.isArray(invRes.data.data) ? invRes.data.data : []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -575,6 +577,7 @@ const SalesInvoiceList = () => {
       const invRes = await axios.get('/api/resource/Sales Invoice', {
         params: {
           fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
+          filters: !isAdmin && warehouse ? JSON.stringify([['set_warehouse', '=', warehouse]]) : undefined,
           limit_page_length: 2000,
           order_by: 'modified desc'
         }

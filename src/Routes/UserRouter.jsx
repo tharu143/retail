@@ -40,6 +40,8 @@ import AddressList from '../Components/Admin/AddressList'
 import ContactList from '../Components/Admin/ContactList'
 import SalesReturnPage from '../Pages/SalesReturnPage'
 import PurchaseReturnList from '../Components/Admin/PurchaseReturnList'
+import InterBranchTransferList from '../Components/Admin/InterBranchTransferList'
+import InterBranchTransferDetails from '../Components/Admin/InterBranchTransferDetails'
 
 
 
@@ -47,15 +49,15 @@ import PurchaseReturnList from '../Components/Admin/PurchaseReturnList'
 function UserRouter() {
   const location = useLocation();
   const theme = useSelector((state) => state.user.theme);
-  const showNavBar = location.pathname !== '/';
+  const showNavBar = location.pathname !== '/' && location.pathname !== '/homepage';
 
-  // Don't apply padding if the NavBar is hidden (e.g., legacy theme on homepage)
-  const applyPadding = showNavBar && !(theme === 'legacy' && location.pathname === '/homepage');
+  // Don't apply padding if the NavBar is hidden
+  const applyPadding = showNavBar;
 
   return (
     <>
       {showNavBar && <NavBar />}
-      <div style={{ paddingTop: applyPadding ? '74px' : '0' }}>
+      <div style={{ paddingTop: applyPadding ? '56px' : '0' }}>
         <Routes>
           <Route path='/' element={<LoginPage />} />
           <Route path='homepage' element={<HomePage />} />
@@ -97,6 +99,9 @@ function UserRouter() {
           <Route path='supplier-details/:name' element={<SupplierDetailsPage />} />
           <Route path='addresslist' element={<AddressList />} />
           <Route path='contactlist' element={<ContactList />} />
+          <Route path='interbranchrequests' element={<InterBranchTransferList />} />
+          <Route path='newinterbranchrequest' element={<InterBranchTransferDetails />} />
+          <Route path='interbranchrequest/:name' element={<InterBranchTransferDetails />} />
         </Routes>
       </div>
     </>

@@ -67,7 +67,8 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
       warn_pos: false,
       prevent_rfqs: false,
       prevent_pos: false,
-      custom_branch: ''
+      custom_branch: '',
+      branch_availability: []
    });
 
    const [saving, setSaving] = useState(false);
@@ -79,6 +80,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
       taxCategories: [],
       taxWithholdingCategories: [],
       paymentTerms: [],
+      warehouses: [],
       salutations: ['Mr', 'Ms', 'Mrs', 'Dr', 'Prof'],
       genders: ['Male', 'Female', 'Other']
    });
@@ -111,6 +113,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             prevent_rfqs: !!editingSupplier.prevent_rfqs,
             prevent_pos: !!editingSupplier.prevent_pos,
             custom_branch: editingSupplier.custom_branch || '',
+            branch_availability: editingSupplier.branch_availability || [],
             // Map Address Details
             address_title: editingSupplier.address_details?.address_title || '',
             address_type: editingSupplier.address_details?.address_type || 'Office',
@@ -148,7 +151,8 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             is_frozen: false, on_hold: false, is_internal_supplier: false,
             is_transporter: false, warn_rfqs: false, warn_pos: false,
             prevent_rfqs: false, prevent_pos: false,
-            custom_branch: userWarehouse || ''
+            custom_branch: userWarehouse || '',
+            branch_availability: userWarehouse ? [{ warehouse: userWarehouse }] : []
          });
       }
    }, [editingSupplier, isOpen]);
@@ -156,14 +160,15 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
    useEffect(() => {
       const fetchMeta = async () => {
          try {
-            const [groups, prices, countries, currencies, taxCat, taxWith, payTerms] = await Promise.all([
+            const [groups, prices, countries, currencies, taxCat, taxWith, payTerms, warehouses] = await Promise.all([
                axios.get('/api/resource/Supplier Group?fields=["name"]&limit=100', { withCredentials: true }),
                axios.get('/api/resource/Price List?fields=["name"]&limit=100', { withCredentials: true }),
                axios.get('/api/resource/Country?fields=["name"]&limit=250', { withCredentials: true }),
                axios.get('/api/resource/Currency?fields=["name"]&limit=250', { withCredentials: true }),
                axios.get('/api/resource/Tax Category?fields=["name"]&limit=100', { withCredentials: true }),
                axios.get('/api/resource/Tax Withholding Category?fields=["name"]&limit=100', { withCredentials: true }),
-               axios.get('/api/resource/Payment Terms Template?fields=["name"]&limit=100', { withCredentials: true })
+               axios.get('/api/resource/Payment Terms Template?fields=["name"]&limit=100', { withCredentials: true }),
+               axios.get('/api/resource/Warehouse?fields=["name"]&limit=500', { withCredentials: true })
             ]);
 
             setMeta(prev => ({
@@ -174,7 +179,8 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                currencies: (currencies.data?.data || []).map(g => g.name),
                taxCategories: (taxCat.data?.data || []).map(g => g.name),
                taxWithholdingCategories: (taxWith.data?.data || []).map(g => g.name),
-               paymentTerms: (payTerms.data?.data || []).map(g => g.name)
+               paymentTerms: (payTerms.data?.data || []).map(g => g.name),
+               warehouses: (warehouses.data?.data || []).map(g => g.name)
             }));
          } catch (e) { console.error('Meta fetch error:', e); }
       };
@@ -203,7 +209,8 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             warn_pos: form.warn_pos ? 1 : 0,
             prevent_rfqs: form.prevent_rfqs ? 1 : 0,
             prevent_pos: form.prevent_pos ? 1 : 0,
-            currency: form.default_currency // Map for backend create_supplier function
+            currency: form.default_currency, // Map for backend create_supplier function
+            custom_branch: form.custom_branch || userWarehouse
          };
          let response;
          if (editingSupplier) {
@@ -961,6 +968,43 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                            <option value="">Select Template</option>
                            {meta.paymentTerms.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
+                     </div>
+                  </div>
+               </div>
+
+               {/* Row 3 - Col 2: Section 6 (Branch Availability) */}
+               <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                     <div className="flex items-center gap-3">
+                        <div
+                           className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                           style={{ backgroundColor: themeColor }}
+                        >
+                           6
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Branch Availability</h3>
+                     </div>
+                  </div>
+                  <div className="p-6 space-y-4 flex-1">
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select branches where this supplier can be used:</p>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto p-1">
+                        {meta.warehouses.map(wh => (
+                           <label key={wh} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg cursor-pointer transition-all hover:bg-slate-100/80">
+                              <input
+                                 type="checkbox"
+                                 className="rounded border-slate-300"
+                                 style={{ accentColor: themeColor }}
+                                 checked={form.branch_availability.some(b => b.warehouse === wh)}
+                                 onChange={e => {
+                                    const updated = e.target.checked 
+                                       ? [...form.branch_availability, { warehouse: wh }]
+                                       : form.branch_availability.filter(b => b.warehouse !== wh);
+                                    setForm({ ...form, branch_availability: updated });
+                                 }}
+                              />
+                              <span className="text-[11px] font-bold text-slate-600">{wh}</span>
+                           </label>
+                        ))}
                      </div>
                   </div>
                </div>

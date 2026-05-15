@@ -89,22 +89,14 @@ export default function SupplierList() {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const params = {
-        fields: JSON.stringify(['name', 'supplier_name', 'supplier_group', 'supplier_type', 'disabled', 'email_id', 'mobile_no', 'tax_id', 'custom_branch']),
-        order_by: 'modified desc',
-        limit_page_length: 1000
-      };
-
-      // Apply branch restriction if not admin
-      if (!isAdmin && warehouse) {
-        params.filters = JSON.stringify([['custom_branch', '=', warehouse]]);
-      }
-
-      const res = await axios.get('/api/resource/Supplier', {
-        params: params,
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_suppliers_list', {
+        params: {
+          warehouse: warehouse,
+          limit: 1000
+        },
         withCredentials: true
       });
-      setSuppliers(res.data.data || []);
+      setSuppliers(Array.isArray(res.data.message?.data) ? res.data.message.data : []);
     } catch (err) {
       console.error('Failed to load suppliers:', err);
       Swal.fire({ icon: 'error', title: 'Connection Failure', text: 'System unable to synchronize with supplier database.', borderRadius: '2rem' });
@@ -157,29 +149,70 @@ export default function SupplierList() {
     if (!filterSearch) return;
     setGlobalSearching(true);
     try {
-      const res = await axios.get('/api/resource/Supplier', {
-        params: {
-          filters: JSON.stringify([['supplier_name', 'like', `%${filterSearch}%`]]),
-          fields: JSON.stringify(['name', 'supplier_name', 'custom_branch'])
-        },
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.find_supplier_globally_retail', {
+        params: { search_term: filterSearch },
         withCredentials: true
       });
-      const match = res.data.data?.find(s => s.custom_branch !== warehouse);
-      if (match) {
+      const results = res.data.message?.data || [];
+      if (results.length > 0) {
+        const html = `
+          <div style="text-align: left; max-height: 400px; overflow-y: auto; padding: 10px;">
+            ${results.map(s => `
+              <div style="display: flex; gap: 12px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 8px; background: #fff;">
+                <div style="width: 38px; height: 38px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <b style="color: #4f46e5; font-size: 14px;">${s.supplier_name.charAt(0)}</b>
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-weight: 700; font-size: 14px; color: #1e293b;">${s.supplier_name}</div>
+                  <div style="font-size: 11px; color: #64748b; font-family: monospace;">${s.name}</div>
+                  <div style="font-size: 10px; color: #4f46e5; font-weight: 700; margin-top: 4px;">ACTIVE IN: ${s.active_branches || 'Primary Branch Only'}</div>
+                </div>
+                <button 
+                  onclick="window.enableSupplierForBranch('${s.name}')" 
+                  style="background: #4f46e5; color: #fff; border: none; padding: 6px 14px; border-radius: 8px; height: fit-content; align-self: center; font-size: 11px; font-weight: 800; cursor: pointer; transition: 0.2s;"
+                  onmouseover="this.style.opacity='0.9'"
+                  onmouseout="this.style.opacity='1'"
+                >
+                  ENABLE FOR MY BRANCH
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+
+        window.enableSupplierForBranch = async (supplierName) => {
+          try {
+            Swal.fire({ title: 'Enabling Partner...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const syncRes = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', { 
+              supplier: supplierName, 
+              warehouse: warehouse 
+            }, { withCredentials: true });
+            
+            if (syncRes.data.message?.success) {
+              Swal.fire({ icon: 'success', title: 'Partner Enabled', text: 'Supplier is now available in your branch.', timer: 2000 });
+              fetchSuppliers();
+            } else {
+              Swal.fire('Error', syncRes.data.message?.message || 'Failed to enable supplier.', 'error');
+            }
+          } catch (e) { 
+            Swal.fire('Error', e.message, 'error'); 
+          }
+        };
+
         Swal.fire({
-          title: 'Supplier in Other Branch',
-          html: `<div style="text-align: left; font-size: 14px;">
-                  <p><b>${match.supplier_name}</b> is registered in another branch.</p>
-                  <p style="margin-top: 10px;">Branch: <b style="color: #4f46e5;">${match.custom_branch || 'Global'}</b></p>
-                 </div>`,
-          icon: 'info',
-          confirmButtonColor: '#4f46e5'
+          title: 'Global Partner Discovery',
+          html: html,
+          width: '600px',
+          showConfirmButton: false,
+          showCloseButton: true,
+          customClass: { popup: 'swal2-popup-custom', title: 'swal2-title-custom' }
         });
       } else {
         Swal.fire('Not Found', 'No such supplier found in any branch.', 'info');
       }
     } catch (err) {
       console.error('Global supplier search failed:', err);
+      Swal.fire('Search Failed', 'Unable to reach global registry.', 'error');
     } finally {
       setGlobalSearching(false);
     }
@@ -191,8 +224,8 @@ export default function SupplierList() {
 
   const stats = useMemo(() => ({
     total: suppliers.length,
-    active: suppliers.filter(s => !s.disabled).length,
-    inactive: suppliers.filter(s => s.disabled).length,
+    active: suppliers.filter(s => !s.disabled && !s.is_frozen && !s.on_hold).length,
+    inactive: suppliers.filter(s => s.disabled || s.is_frozen || s.on_hold).length,
     types: [...new Set(suppliers.map(s => s.supplier_type))].length
   }), [suppliers]);
 
@@ -424,14 +457,14 @@ export default function SupplierList() {
                         </td>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                            {s.email_id && (
+                            {(s.email_id || s.contact_details?.email_id) && (
                               <div style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569' }}>
-                                <Mail size={12} className="text-slate-600" /> {s.email_id}
+                                <Mail size={12} className="text-slate-600" /> {s.email_id || s.contact_details?.email_id}
                               </div>
                             )}
-                            {s.mobile_no && (
+                            {(s.mobile_no || s.contact_details?.mobile_no) && (
                               <div style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569' }}>
-                                <Phone size={12} className="text-slate-600" /> {s.mobile_no}
+                                <Phone size={12} className="text-slate-600" /> {s.mobile_no || s.contact_details?.mobile_no}
                               </div>
                             )}
                           </div>
@@ -441,7 +474,7 @@ export default function SupplierList() {
                           <div style={{ fontSize: '0.68rem', color: themeColor, textTransform: 'uppercase', fontWeight: 800, marginTop: '0.1rem' }}>{s.supplier_group}</div>
                         </td>
                         <td>
-                          <StatusBadge isInactive={s.disabled} themeColor={themeColor} />
+                          <StatusBadge isInactive={s.disabled || s.is_frozen || s.on_hold} themeColor={themeColor} />
                         </td>
                         <td onClick={e => e.stopPropagation()}>
                           <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
