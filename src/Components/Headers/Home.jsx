@@ -65,6 +65,9 @@ const getImageUrl = (path) => {
     // 3. For relative paths (ERPNext /files/...), add the domain.
     // We ensure there is exactly one slash between domain and path.
     const cleanPath = trimmedPath.startsWith('/') ? trimmedPath : `/${trimmedPath}`;
+    if (window.location.protocol !== 'file:') {
+        return cleanPath;
+    }
     return `https://retail.kylesolutions.com${cleanPath}`;
 };
 
