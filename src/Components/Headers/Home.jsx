@@ -43,7 +43,14 @@ const getImageUrl = (path) => {
 
     const trimmedPath = path.trim();
 
-    // 1. IMPROVED: Check for 'data:' anywhere in the first 10 characters
+    // 0. ULTIMATE FIX: If the path contains a base64 image (data:image) anywhere,
+    // extract it directly to remove any prepended domain, baseUrl, or slashes.
+    const dataIdx = trimmedPath.indexOf('data:image');
+    if (dataIdx !== -1) {
+        return trimmedPath.substring(dataIdx);
+    }
+
+    // 1. Check for 'data:' anywhere in the first 10 characters
     // This catches cases like "/data:image..." or if there's a hidden char
     if (/^.?data:image/i.test(trimmedPath)) {
         // If it starts with a slash like "/data:image", remove the slash
@@ -1364,7 +1371,7 @@ function Home() {
                 const hasImage = item.image && item.image.trim() !== "";
                 let finalImage = null;
                 if (hasImage) {
-                    if (item.image.startsWith('http')) {
+                    if (item.image.startsWith('http') || item.image.includes('data:image')) {
                         finalImage = item.image;
                     } else {
                         // Ensure leading slash for relative paths
@@ -2910,7 +2917,7 @@ function Home() {
                         <div className="flex items-center gap-4">
                             {selectedTemplateItem.image ? (
                                 <img
-                                    src={selectedTemplateItem.image}
+                                    src={getImageUrl(selectedTemplateItem.image)}
                                     alt={selectedTemplateItem.name}
                                     style={{
                                         width: '48px',
