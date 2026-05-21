@@ -416,6 +416,7 @@ function Home() {
             {showDiscountModal && renderDiscountModal()}
             {showLoyaltyModal && renderLoyaltyModal()}
             {showPaymentModal && renderPaymentModal()}
+            {showVariantModal && renderVariantModal()}
             {showOpeningModal && (
                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
                     <div className="home-modal" style={{ maxWidth: '900px', maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
@@ -820,6 +821,11 @@ function Home() {
     const [categories, setCategories] = useState(["all"]);
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [filteredItems, setFilteredItems] = useState([]);
+    // Variant Selection Modal States
+    const [showVariantModal, setShowVariantModal] = useState(false);
+    const [selectedTemplateItem, setSelectedTemplateItem] = useState(null);
+    const [variantsList, setVariantsList] = useState([]);
+    const [highlightedVariantIndex, setHighlightedVariantIndex] = useState(0);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [billItems, setBillItems] = useState([]);
     const [selectedBillIndex, setSelectedBillIndex] = useState(-1);
@@ -1105,10 +1111,12 @@ function Home() {
     // NEW: Item search logic for barcode input
     useEffect(() => {
         const query = barcodeInput.trim().toLowerCase();
+        const nonVariantItems = Items.filter(it => !it.variant_of);
+
         if (query.length === 0 && (searchContext === 'inline' || searchContext === 'header')) {
             // Show top 10 items if empty (only when active)
             if (showItemDropdown) {
-                setItemSearchResults(Items.slice(0, 10));
+                setItemSearchResults(nonVariantItems.slice(0, 10));
             } else {
                 setItemSearchResults([]);
             }
@@ -1123,7 +1131,7 @@ function Home() {
                 ).slice(0, 12);
             } else {
                 // generic search in inline
-                results = Items.filter(it =>
+                results = nonVariantItems.filter(it =>
                     (it.name || "").toLowerCase().includes(query) ||
                     (it.id || "").toLowerCase().includes(query) ||
                     (it.barcodes || []).some(b => (b.barcode || "").toLowerCase().includes(query))
@@ -1303,7 +1311,10 @@ function Home() {
                             branch_availability: item.branch_availability || [],
                             barcodes: item.barcodes || [],
                             modified: item.modified,
-                            custom_pieces_per_box: item.custom_pieces_per_box || 1
+                            custom_pieces_per_box: item.custom_pieces_per_box || 1,
+                            has_variants: item.has_variants || 0,
+                            variant_of: item.variant_of || null,
+                            attributes: item.attributes || []
                         }))).catch(e => console.error("Dexie background update failed", e));
 
                         if (results.length > 0) {
@@ -1338,6 +1349,17 @@ function Home() {
             }
 
             const baseUrl = window.location.protocol === 'file:' ? 'https://retail.kylesolutions.com' : '';
+            const variantsOfMap = {};
+            apiItems.forEach(item => {
+                const parentId = item.variant_of || null;
+                if (parentId) {
+                    if (!variantsOfMap[parentId]) {
+                        variantsOfMap[parentId] = [];
+                    }
+                    variantsOfMap[parentId].push(item);
+                }
+            });
+
             const transformed = apiItems.map(item => {
                 const hasImage = item.image && item.image.trim() !== "";
                 let finalImage = null;
@@ -1350,18 +1372,39 @@ function Home() {
                         finalImage = `${baseUrl}${imagePath}`;
                     }
                 }
+
+                let localQty = item.local_qty !== undefined ? item.local_qty : (item.actual_qty || 0);
+                let totalQty = item.total_qty || item.actual_qty || 0;
+                let price = item.price || item.price_list_rate || 0;
+                const itemId = item.id || item.name;
+
+                if (item.has_variants) {
+                    const myVariants = variantsOfMap[itemId] || [];
+                    if (myVariants.length > 0) {
+                        localQty = myVariants.reduce((sum, v) => sum + (v.local_qty !== undefined ? v.local_qty : (v.actual_qty || 0)), 0);
+                        totalQty = myVariants.reduce((sum, v) => sum + (v.total_qty || v.actual_qty || 0), 0);
+                        const prices = myVariants.map(v => v.price || v.price_list_rate || 0).filter(p => p > 0);
+                        if (prices.length > 0) {
+                            price = Math.min(...prices);
+                        }
+                    }
+                }
+
                 return {
-                    id: item.id || item.name,
+                    id: itemId,
                     name: item.item_name || item.name,
                     image: finalImage,
                     group: (item.group || item.item_group || "others").toLowerCase(),
-                    price: item.price || item.price_list_rate || 0,
+                    price: price,
                     actual_qty: item.actual_qty || 0,
-                    local_qty: item.local_qty !== undefined ? item.local_qty : (item.actual_qty || 0),
-                    total_qty: item.total_qty || item.actual_qty || 0,
+                    local_qty: localQty,
+                    total_qty: totalQty,
                     warehouse_details: item.warehouse_details || [],
                     barcodes: item.barcodes || [],
-                    custom_pieces_per_box: item.custom_pieces_per_box || 1
+                    custom_pieces_per_box: item.custom_pieces_per_box || 1,
+                    has_variants: item.has_variants || 0,
+                    variant_of: item.variant_of || null,
+                    attributes: item.attributes || []
                 };
             });
 
@@ -1436,9 +1479,11 @@ function Home() {
 
     // Filter items
     useEffect(() => {
+        const nonVariantItems = Items.filter(i => !i.variant_of);
+
         let filtered = selectedCategory === "all"
-            ? Items
-            : Items.filter(i => i.group === selectedCategory.toLowerCase());
+            ? nonVariantItems
+            : nonVariantItems.filter(i => i.group === selectedCategory.toLowerCase());
 
         if (barcodeInput.trim()) {
             const term = barcodeInput.toLowerCase().trim();
@@ -1454,6 +1499,16 @@ function Home() {
     // ---------- ITEM HANDLERS ----------
     const handleFilter = (cat) => setSelectedCategory(cat);
     const handleAddToBill = (item) => {
+        if (item.has_variants) {
+            const vList = Items.filter(it => it.variant_of === item.id);
+            if (vList.length > 0) {
+                setSelectedTemplateItem(item);
+                setVariantsList(vList);
+                setHighlightedVariantIndex(0);
+                setShowVariantModal(true);
+                return;
+            }
+        }
         setLastInteractedItem(item);
         setBillItems(prev => {
             const existingIdx = prev.findIndex(i => i.id === item.id);
@@ -1526,7 +1581,10 @@ function Home() {
                     custom_pieces_per_box: apiItem.pcs_per_box || apiItem.custom_pieces_per_box || 1,
                     prices: apiItem.prices || {},
                     uom_conversions: apiItem.uom_conversions || {},
-                    barcode_image: apiItem.barcode_image || null
+                    barcode_image: apiItem.barcode_image || null,
+                    has_variants: apiItem.has_variants || 0,
+                    variant_of: apiItem.variant_of || null,
+                    attributes: apiItem.attributes || []
                 };
 
                 // Fallback for prices if missing
@@ -1760,6 +1818,27 @@ function Home() {
     };
 
     const onBarcodeKeyDown = (e) => {
+        if (showVariantModal) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setHighlightedVariantIndex(prev => (prev + 1) % variantsList.length);
+                return;
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlightedVariantIndex(prev => (prev - 1 + variantsList.length) % variantsList.length);
+                return;
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const selectedVariant = variantsList[highlightedVariantIndex];
+                if (selectedVariant) handleAddToBill(selectedVariant);
+                setShowVariantModal(false);
+                return;
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setShowVariantModal(false);
+                return;
+            }
+        }
         if (e.key === 'ArrowDown') {
             if (showItemDropdown) {
                 e.preventDefault();
@@ -2790,6 +2869,278 @@ function Home() {
         }
     };
 
+    const renderVariantModal = () => {
+        if (!selectedTemplateItem) return null;
+
+        return (
+            <div
+                className="home-modal-overlay"
+                onClick={() => setShowVariantModal(false)}
+                style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(12px)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 10000
+                }}
+            >
+                <div
+                    className="home-modal"
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                        width: '100%',
+                        maxWidth: '650px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(20px)',
+                        borderRadius: '24px',
+                        border: '1px solid rgba(255, 255, 255, 0.4)',
+                        boxShadow: '0 30px 60px rgba(0, 0, 0, 0.25)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                        margin: '20px',
+                        maxHeight: '90vh'
+                    }}
+                >
+                    {/* Header */}
+                    <div className="home-modal-header border-b border-slate-200 p-5 flex justify-between items-center" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b' }}>
+                        <div className="flex items-center gap-4">
+                            {selectedTemplateItem.image ? (
+                                <img
+                                    src={selectedTemplateItem.image}
+                                    alt={selectedTemplateItem.name}
+                                    style={{
+                                        width: '48px',
+                                        height: '48px',
+                                        borderRadius: '12px',
+                                        objectFit: 'cover',
+                                        border: '2px solid rgba(255, 255, 255, 0.2)'
+                                    }}
+                                />
+                            ) : (
+                                <div
+                                    style={{
+                                        width: '48px',
+                                        height: '48px',
+                                        borderRadius: '12px',
+                                        backgroundColor: '#1e293b',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: '#64748b'
+                                    }}
+                                >
+                                    <Package size={24} />
+                                </div>
+                            )}
+                            <div>
+                                <h3 className="text-sm font-black uppercase tracking-wider text-white m-0" style={{ color: '#ffffff', margin: 0 }}>
+                                    {selectedTemplateItem.name}
+                                </h3>
+                                <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: '#94a3b8', margin: '4px 0 0 0', fontSize: '10px' }}>
+                                    Select Variant (Parent: {selectedTemplateItem.id})
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            className="home-modal-close"
+                            onClick={() => setShowVariantModal(false)}
+                            style={{
+                                width: '2rem',
+                                height: '2rem',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '1px solid #334155',
+                                background: '#1e293b',
+                                color: '#94a3b8',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+
+                    {/* Ribbon */}
+                    <div
+                        style={{
+                            background: 'linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%)',
+                            color: '#ffffff',
+                            padding: '8px 20px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            textAlign: 'center',
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase'
+                        }}
+                    >
+                        💡 ↑↓ Arrow Keys to navigate | Enter to add selection | Esc to close
+                    </div>
+
+                    {/* List of variants */}
+                    <div
+                        className="home-modal-body"
+                        style={{
+                            padding: '16px',
+                            flex: 1,
+                            overflowY: 'auto',
+                            backgroundColor: '#f8fafc',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                        }}
+                    >
+                        {variantsList.map((variant, index) => {
+                            const isSelected = index === highlightedVariantIndex;
+                            const isOutOfStock = variant.local_qty <= 0;
+                            
+                            // Stock badge colors
+                            let stockColor = '#ef4444'; // Red
+                            let stockBg = '#fef2f2';
+                            let stockText = 'Out of Stock';
+                            if (variant.local_qty > 10) {
+                                stockColor = '#10b981'; // Green
+                                stockBg = '#ecfdf5';
+                                stockText = `${variant.local_qty} In Stock`;
+                            } else if (variant.local_qty > 0) {
+                                stockColor = '#f59e0b'; // Amber
+                                stockBg = '#fffbeb';
+                                stockText = `${variant.local_qty} Low Stock`;
+                            }
+
+                            return (
+                                <div
+                                    key={variant.id}
+                                    onClick={() => {
+                                        setHighlightedVariantIndex(index);
+                                    }}
+                                    onDoubleClick={() => {
+                                        handleAddToBill(variant);
+                                        setShowVariantModal(false);
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '12px 16px',
+                                        borderRadius: '16px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease',
+                                        background: isSelected 
+                                            ? 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)' 
+                                            : '#ffffff',
+                                        color: isSelected ? '#ffffff' : '#1e293b',
+                                        border: isSelected 
+                                            ? '2px solid transparent' 
+                                            : '2px solid #e2e8f0',
+                                        boxShadow: isSelected 
+                                            ? '0 10px 20px -5px rgba(59, 130, 246, 0.4)' 
+                                            : 'none',
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                            <span style={{ fontWeight: '800', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {variant.name}
+                                            </span>
+                                            <span 
+                                                style={{ 
+                                                    fontSize: '9px', 
+                                                    fontWeight: '700', 
+                                                    background: isSelected ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
+                                                    color: isSelected ? '#ffffff' : '#64748b',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px'
+                                                }}
+                                            >
+                                                {variant.id}
+                                            </span>
+                                        </div>
+                                        
+                                        {/* Attributes */}
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                                            {variant.attributes && variant.attributes.map((attr, idx) => (
+                                                <span 
+                                                    key={idx}
+                                                    style={{
+                                                        fontSize: '9px',
+                                                        fontWeight: '700',
+                                                        backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : '#e2e8f0',
+                                                        color: isSelected ? '#ffffff' : '#475569',
+                                                        padding: '1px 6px',
+                                                        borderRadius: '4px',
+                                                        textTransform: 'uppercase'
+                                                    }}
+                                                >
+                                                    {attr.attribute}: {attr.attribute_value}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Stock & Price */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
+                                        <span 
+                                            style={{
+                                                fontSize: '10px',
+                                                fontWeight: '800',
+                                                padding: '4px 8px',
+                                                borderRadius: '6px',
+                                                backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.2)' : stockBg,
+                                                color: isSelected ? '#ffffff' : stockColor,
+                                                textTransform: 'uppercase'
+                                            }}
+                                        >
+                                            {stockText}
+                                        </span>
+                                        <span 
+                                            style={{ 
+                                                fontWeight: '900', 
+                                                fontSize: '16px',
+                                                color: isSelected ? '#ffffff' : '#10b981'
+                                            }}
+                                        >
+                                            AED {parseFloat(variant.price || 0).toFixed(2)}
+                                        </span>
+                                        <ChevronRight size={18} style={{ opacity: isSelected ? 1 : 0.4 }} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="home-modal-footer" style={{ padding: '16px 20px', background: '#f1f5f9', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <button 
+                            className="home-modal-cancel" 
+                            onClick={() => setShowVariantModal(false)}
+                            style={{ minWidth: '100px' }}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            className="home-modal-apply"
+                            onClick={() => {
+                                const selectedVariant = variantsList[highlightedVariantIndex];
+                                if (selectedVariant) {
+                                    handleAddToBill(selectedVariant);
+                                }
+                                setShowVariantModal(false);
+                            }}
+                            style={{ minWidth: '140px' }}
+                        >
+                            Add to Bill
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     // ---------- MODAL RENDERERS (REUSABLE) ----------
     const renderDiscountModal = () => (
         <div
@@ -3445,6 +3796,34 @@ function Home() {
     // ---------- KEYBOARD SHORTCUTS ENGINE ----------
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // Variant Selection Modal Keyboard Shortcuts Intercept
+            if (showVariantModal) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setHighlightedVariantIndex(prev => (prev + 1) % variantsList.length);
+                    return;
+                }
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setHighlightedVariantIndex(prev => (prev - 1 + variantsList.length) % variantsList.length);
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const selectedVariant = variantsList[highlightedVariantIndex];
+                    if (selectedVariant) {
+                        handleAddToBill(selectedVariant);
+                    }
+                    setShowVariantModal(false);
+                    return;
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowVariantModal(false);
+                    return;
+                }
+            }
+
             // 1. GLOBAL HID SCANNER LISTENER (Intercepts rapid digits)
             const now = Date.now();
             const isInputFocused = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
@@ -3662,7 +4041,7 @@ function Home() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [billItems.length, showPaymentModal, showDiscountModal, showLoyaltyModal, showItemDropdown, selectedPaymentMode, showOpeningModal, lastInteractedItem, balanceRemaining, tenderedAmount, paymentLoading, handleBarcodeScan, clearBillHandler]);
+    }, [billItems.length, showPaymentModal, showDiscountModal, showLoyaltyModal, showItemDropdown, selectedPaymentMode, showOpeningModal, lastInteractedItem, balanceRemaining, tenderedAmount, paymentLoading, handleBarcodeScan, clearBillHandler, showVariantModal, variantsList, highlightedVariantIndex]);
 
     if (loadingItems && Items.length === 0) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
 
