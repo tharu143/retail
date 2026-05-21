@@ -12,6 +12,7 @@ const userSlice = createSlice({
     is_manager: false,
     user_roles: [],
     theme: 'modern', // 'modern' or 'legacy'
+    secret_key: '1234', // Default cashier secret key
     message: {
       allowed_item_groups: [],
       allowed_customer_groups: [],
@@ -30,6 +31,7 @@ const userSlice = createSlice({
       state.is_manager = action.payload.is_manager || false;
       state.user_roles = action.payload.user_roles || [];
       state.message = action.payload.message;
+      state.secret_key = action.payload.secret_key || action.payload.user?.custom_secret_key || '1234';
     },
     logout: (state) => {
       state.user = null;
@@ -39,6 +41,7 @@ const userSlice = createSlice({
       state.warehouse = null;
       state.branchPrefix = null;
       state.theme = 'modern';
+      state.secret_key = '1234';
       state.message = {
         allowed_item_groups: [],
         allowed_customer_groups: [],
@@ -52,8 +55,11 @@ const userSlice = createSlice({
     toggleTheme: (state) => {
       state.theme = state.theme === 'modern' ? 'legacy' : 'modern';
     },
+    setSecretKey: (state, action) => {
+      state.secret_key = action.payload;
+    },
   },
 });
 
-export const { loginSuccess, logout, setWarehouse, toggleTheme } = userSlice.actions;
+export const { loginSuccess, logout, setWarehouse, toggleTheme, setSecretKey } = userSlice.actions;
 export default userSlice.reducer;
