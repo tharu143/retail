@@ -171,6 +171,77 @@ function PurchaseOrder() {
     if (formData.name) fetchWorkflowActions();
   }, [formData.name, formData.docstatus]);
 
+  useEffect(() => {
+    const handleGlobalShortcuts = (e) => {
+      // 1. Focus Supplier Search: F2
+      if (e.key === 'F2') {
+        e.preventDefault();
+        const supplierInput = document.querySelector('input[placeholder="Search supplier..."]');
+        if (supplierInput) {
+          supplierInput.focus();
+          supplierInput.select?.();
+        }
+      }
+
+      // 1.5 Focus Item Search of last row: F3
+      if (e.key === 'F3') {
+        e.preventDefault();
+        const itemInputs = document.querySelectorAll('input[placeholder="Search item..."]');
+        if (itemInputs.length > 0) {
+          const lastInput = itemInputs[itemInputs.length - 1];
+          lastInput.focus();
+          lastInput.select?.();
+        }
+      }
+
+      // 2. Focus Barcode/Scan input: F4
+      if (e.key === 'F4') {
+        e.preventDefault();
+        const scanInput = document.querySelector('input[placeholder="Enter Barcode / Scan here..."]');
+        if (scanInput) {
+          scanInput.focus();
+          scanInput.select?.();
+        }
+      }
+
+      // 3. Add Item Row: F8
+      if (e.key === 'F8') {
+        e.preventDefault();
+        if (formData.docstatus === 0 && !isViewOnly) {
+          addItemRow();
+        }
+      }
+
+      // 4. Focus Target Warehouse Select: F9
+      if (e.key === 'F9') {
+        e.preventDefault();
+        const warehouseSelect = document.querySelector('select[name="set_warehouse"]');
+        if (warehouseSelect) {
+          warehouseSelect.focus();
+        }
+      }
+
+      // 5. Save Draft: Ctrl + S or F10
+      if ((e.ctrlKey && e.key === 's') || e.key === 'F10') {
+        e.preventDefault();
+        if (!saving && formData.docstatus === 0) {
+          handleDocAction('save');
+        }
+      }
+
+      // 6. Submit PO: Ctrl + Enter or F12
+      if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
+        e.preventDefault();
+        if (!loading && formData.docstatus === 0 && allowedActions.includes('submit')) {
+          handleDocAction('submit');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [formData, allowedActions, isViewOnly, saving, loading]);
+
 
 
   const isDirty = useMemo(() => {
@@ -352,13 +423,47 @@ function PurchaseOrder() {
 
   const handleNextFocus = (e) => {
     if (e.key === 'Enter') {
-      const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled])'));
-      const index = inputs.indexOf(e.target);
-      if (index > -1 && index < inputs.length - 1) {
-        e.preventDefault();
-        const next = inputs[index + 1];
-        next.focus();
-        if (next.tagName === 'INPUT' && next.select) next.select();
+      e.preventDefault();
+
+      // Find the row of the current input field
+      const row = e.target.closest('tr');
+      if (row) {
+        // Find all editable inputs & selects in this row
+        const rowInputs = Array.from(row.querySelectorAll('input:not([disabled]), select:not([disabled])')).filter(el => {
+          return !el.readOnly && el.tabIndex !== -1 && el.offsetWidth > 0 && el.offsetHeight > 0;
+        });
+
+        const index = rowInputs.indexOf(e.target);
+        if (index > -1 && index < rowInputs.length - 1) {
+          // Move focus to next input in the same row
+          const next = rowInputs[index + 1];
+          next.focus();
+          if (next.tagName === 'INPUT' && next.select) next.select();
+        } else {
+          // At the end of the current row, jump to the Item Search of the next row!
+          const nextRow = row.nextElementSibling;
+          if (nextRow) {
+            const nextItemSearch = nextRow.querySelector('input[placeholder="Search item..."]');
+            if (nextItemSearch) {
+              nextItemSearch.focus();
+            }
+          } else {
+            // No next row, focus on Save Draft or primary action button
+            const saveBtn = document.querySelector('.so-btn-primary');
+            saveBtn?.focus();
+          }
+        }
+      } else {
+        // Fallback for fields not inside the items table (e.g. headers)
+        const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled])')).filter(el => {
+          return !el.readOnly && el.offsetWidth > 0 && el.offsetHeight > 0;
+        });
+        const index = inputs.indexOf(e.target);
+        if (index > -1 && index < inputs.length - 1) {
+          const next = inputs[index + 1];
+          next.focus();
+          if (next.tagName === 'INPUT' && next.select) next.select();
+        }
       }
     }
   };
@@ -421,12 +526,10 @@ function PurchaseOrder() {
             temp_barcode: ''
           };
         }
-
         // Add new empty row if all existing rows are filled
         if (items.every(i => i.item_code)) {
           items.push({ ...POItemModel, schedule_date: prev.transaction_date });
         }
-
         const totals = calculateTotals(items, prev.taxes);
         return { ...prev, items, ...totals };
       });
@@ -1482,9 +1585,9 @@ function PurchaseOrder() {
   };
 
   const handleActivateSupplier = async (item) => {
-    const res = await axios.post(`${API_PATH}.enable_supplier_for_branch_retail`, { 
-      supplier: item.name, 
-      warehouse: warehouse 
+    const res = await axios.post(`${API_PATH}.enable_supplier_for_branch_retail`, {
+      supplier: item.name,
+      warehouse: warehouse
     });
     return res.data.message.success;
   };
@@ -1495,9 +1598,9 @@ function PurchaseOrder() {
   };
 
   const handleActivateItem = async (item) => {
-    const res = await axios.post(`${API_PATH}.enable_item_for_branch_retail`, { 
-      item_code: item.name || item.item_code, 
-      warehouse: warehouse 
+    const res = await axios.post(`${API_PATH}.enable_item_for_branch_retail`, {
+      item_code: item.name || item.item_code,
+      warehouse: warehouse
     });
     return res.data.message.success;
   };
@@ -1564,6 +1667,16 @@ function PurchaseOrder() {
       const totals = calculateTotals(items, prev.taxes);
       return { ...prev, items, ...totals };
     });
+
+    // Auto-focus the quantity field of the selected item row
+    setTimeout(() => {
+      const rowNum = rowIndex + 1;
+      const qtyInput = document.querySelector(`tr:nth-child(${rowNum}) input[name="custom_box_qty"], tr:nth-child(${rowNum}) input[name="qty"]`);
+      if (qtyInput) {
+        qtyInput.focus();
+        qtyInput.select?.();
+      }
+    }, 150);
   };
 
   const fetchItems = async (query) => {
@@ -1615,13 +1728,51 @@ function PurchaseOrder() {
     <>
       <div className={`font-sans purchase-container ${theme === 'legacy' ? 'theme-legacy' : ''}`} style={{ height: '100vh', overflowY: 'auto' }}>
         <div className="bg-white px-6 py-2 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex flex-col text-left">
-            <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
-              {formData.docstatus === 1 ? `Purchase Order: ${formData.name}` : (formData.name ? (isViewOnly ? `View PO: ${formData.name}` : `Edit PO: ${formData.name}`) : 'New Purchase Order')}
-            </h1>
-            <p className="text-[11px] font-normal text-slate-400 mt-0.5">
-              {formData.docstatus === 1 ? 'Submitted Document' : 'Procurement & Inventory'}
-            </p>
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col text-left">
+              <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
+                {formData.docstatus === 1 ? `Purchase Order: ${formData.name}` : (formData.name ? (isViewOnly ? `View PO: ${formData.name}` : `Edit PO: ${formData.name}`) : 'New Purchase Order')}
+              </h1>
+              <p className="text-[11px] font-normal text-slate-400 mt-0.5">
+                {formData.docstatus === 1 ? 'Submitted Document' : 'Procurement & Inventory'}
+              </p>
+            </div>
+
+            {/* Premium Symmetrical Keyboard Shortcut Strip */}
+            <div className="hidden xl:flex items-center gap-3.5 border-l border-slate-100 pl-6 py-1">
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">F2</kbd>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Supplier</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">F3</kbd>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Item Search</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">F4</kbd>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Barcode</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-500 shadow-sm" style={{ borderColor: 'var(--po-primary)', color: 'var(--po-primary)', background: 'var(--po-primary-light)' }}>F8</kbd>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Add Row</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">F9</kbd>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Warehouse</span>
+              </div>
+              {formData.docstatus === 0 && (
+                <div className="flex items-center gap-1.5">
+                  <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">Ctrl+S</kbd>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Save</span>
+                </div>
+              )}
+              {formData.docstatus === 0 && allowedActions.includes('submit') && (
+                <div className="flex items-center gap-1.5">
+                  <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">Ctrl+Enter</kbd>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Submit</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -2133,8 +2284,8 @@ function PurchaseOrder() {
                                               />
                                             ) : (
                                               item.item_code && (
-                                                <div style={{ 
-                                                  padding: '4px 10px', 
+                                                <div style={{
+                                                  padding: '4px 10px',
                                                   background: 'white',
                                                   border: '1px solid #e2e8f0',
                                                   borderLeft: '4px solid var(--po-primary)',
@@ -2173,7 +2324,7 @@ function PurchaseOrder() {
                                               title={item.use_box_entry ? "Number of Boxes" : "Quantity"}
                                             />
                                             {item.item_code && (
-                                              <span 
+                                              <span
                                                 className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
                                                 style={{
                                                   color: item.use_box_entry ? '#0284c7' : '#64748b',
@@ -2292,7 +2443,7 @@ function PurchaseOrder() {
                                           <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>{item.qty || 0}</div>
                                             {item.use_box_entry && (
-                                              <span 
+                                              <span
                                                 className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
                                                 style={{
                                                   color: '#64748b',

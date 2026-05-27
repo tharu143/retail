@@ -33,8 +33,6 @@ function NavBar() {
     { name: "Item Group List", path: "/itemgrouplist", keywords: ["item group", "category", "product group", "itemgrouplist"] },
     { name: "Item List", path: "/itemlist", keywords: ["items", "products", "inventory", "stock", "itemlist"] },
     { name: "Item Price List", path: "/itempricelist", keywords: ["price", "item price", "selling price", "itempricelist"] },
-    { name: "POS Closing Entry", path: "/posclosingentrylist", keywords: ["closing", "shift close", "cashier close", "posclosingentrylist"] },
-    { name: "POS Opening Entry", path: "/posopeningentrylist", keywords: ["opening", "shift open", "cashier open", "posopeningentrylist"] },
     { name: "POS Profile List", path: "/posprofilelist", keywords: ["profile", "pos profile", "terminal settings", "posprofilelist"] },
     { name: "Purchase Invoice", path: "/purchaseinvoicelist", keywords: ["purchase invoice", "pi", "bill", "vendor bill", "purchaseinvoicelist"] },
     { name: "Purchase Receipt", path: "/purchasereceiptlist", keywords: ["purchase receipt", "pr", "goods receipt", "grn", "purchasereceiptlist"] },
@@ -203,7 +201,11 @@ function NavBar() {
         console.log(`[Sync] Customers: Found ${pendingCust.length}`);
         for (const cust of pendingCust) {
           const res = await authFetchBase('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
-            method: 'POST', body: JSON.stringify({ name: cust.customer_name, mobile_no: cust.mobile_no })
+            method: 'POST', body: JSON.stringify({
+              name: cust.customer_name,
+              mobile_no: cust.mobile_no,
+              customer_group: cust.customer_group || "Retail Customer"
+            })
           });
           const result = await res.json();
           const data = result.message || result;
@@ -313,57 +315,57 @@ function NavBar() {
     if (!socket || !warehouse) return;
 
     const handleNewRequest = (data) => {
-        console.log("[Socket] New Inter-Branch Request Received:", data);
-        // Only notify if we are the SOURCE warehouse (Case-insensitive check)
-        if (data.from_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
-            const description = data.item_code 
-                ? `is requesting <b>${data.qty}</b> of <b>${data.item_code}</b>.`
-                : `is requesting <b>${data.item_count} items</b> (Total Qty: ${data.qty}).`;
+      console.log("[Socket] New Inter-Branch Request Received:", data);
+      // Only notify if we are the SOURCE warehouse (Case-insensitive check)
+      if (data.from_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+        const description = data.item_code
+          ? `is requesting <b>${data.qty}</b> of <b>${data.item_code}</b>.`
+          : `is requesting <b>${data.item_count} items</b> (Total Qty: ${data.qty}).`;
 
-            Swal.fire({
-                title: 'NEW STOCK REQUEST',
-                html: `Branch <b>${data.to_warehouse}</b> ${description}`,
-                icon: 'info',
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: true,
-                confirmButtonText: 'VIEW REQUEST',
-                confirmButtonColor: '#3b82f6',
-                timer: 15000,
-                timerProgressBar: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    navigate(`/interbranchrequest/${data.name}`);
-                }
-            });
-        }
+        Swal.fire({
+          title: 'NEW STOCK REQUEST',
+          html: `Branch <b>${data.to_warehouse}</b> ${description}`,
+          icon: 'info',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: true,
+          confirmButtonText: 'VIEW REQUEST',
+          confirmButtonColor: '#3b82f6',
+          timer: 15000,
+          timerProgressBar: true
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate(`/interbranchrequest/${data.name}`);
+          }
+        });
+      }
     };
 
     const handleDecision = (data) => {
-        console.log("[Socket] Inter-Branch Decision Received:", data);
-        // Show notification for decision (Accepted/Rejected)
-        Swal.fire({
-            title: `TRANSFER ${data.decision.toUpperCase()}`,
-            text: `Request ${data.name} has been ${data.decision}. ${data.message || ''}`,
-            icon: data.decision === 'accepted' ? 'success' : 'error',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: true,
-            confirmButtonText: 'OPEN',
-            timer: 8000
-        }).then((result) => {
-            if (result.isConfirmed) {
-                navigate(`/interbranchrequest/${data.name}`);
-            }
-        });
+      console.log("[Socket] Inter-Branch Decision Received:", data);
+      // Show notification for decision (Accepted/Rejected)
+      Swal.fire({
+        title: `TRANSFER ${data.decision.toUpperCase()}`,
+        text: `Request ${data.name} has been ${data.decision}. ${data.message || ''}`,
+        icon: data.decision === 'accepted' ? 'success' : 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: true,
+        confirmButtonText: 'OPEN',
+        timer: 8000
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate(`/interbranchrequest/${data.name}`);
+        }
+      });
     };
 
     socket.on('inter_branch_request_created', handleNewRequest);
     socket.on('inter_branch_decision', handleDecision);
 
     return () => {
-        socket.off('inter_branch_request_created', handleNewRequest);
-        socket.off('inter_branch_decision', handleDecision);
+      socket.off('inter_branch_request_created', handleNewRequest);
+      socket.off('inter_branch_decision', handleDecision);
     };
   }, [warehouse, navigate]);
 

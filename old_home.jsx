@@ -15,9 +15,7 @@ import {
     QrCode,
     Smartphone,
     Banknote,
-    Building2,
-    Award,
-    Coins
+    Building2
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { logout, toggleTheme } from '../../Redux/Slices/userSlice';
@@ -309,18 +307,22 @@ function Home() {
             const unsynced = await db.invoices.where('is_synced').equals(0).count();
             setPendingSyncCount(unsynced);
 
-            // 2. Sequential Order Number for today's date
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const shiftCount = await db.invoices
-                .where('posting_date')
-                .equals(todayStr)
-                .count();
-            setSessionOrderCount(shiftCount + 1);
+            // 2. Sequential Order Number for current Opening Entry
+            if (posOpeningEntry) {
+                const shiftCount = await db.invoices
+                    .where('pos_opening_entry')
+                    .equals(posOpeningEntry)
+                    .count();
+                // The NEXT order is current count + 1
+                setSessionOrderCount(shiftCount + 1);
+            } else {
+                setSessionOrderCount(1);
+            }
         };
         updateStats();
         const interval = setInterval(updateStats, 10000);
         return () => clearInterval(interval);
-    }, []);
+    }, [posOpeningEntry]);
 
 
 
@@ -410,7 +412,6 @@ function Home() {
     const renderCommonModals = () => (
         <>
             {showDiscountModal && renderDiscountModal()}
-            {showLoyaltyModal && renderLoyaltyModal()}
             {showPaymentModal && renderPaymentModal()}
             {showOpeningModal && (
                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
@@ -575,7 +576,7 @@ function Home() {
                                                     <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '10px', fontWeight: 600 }}>{draft.mobile}</span>
                                                 </div>
                                                 <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
-                                                    {draft.total_qty || (draft.items && draft.items.length) || 0} Items • Saved: {format(new Date(draft.timestamp), 'MMM dd, HH:mm')}
+                                                    {draft.items.length} Items • Saved: {format(new Date(draft.timestamp), 'MMM dd, HH:mm')}
                                                 </div>
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -759,8 +760,9 @@ function Home() {
             navigate('/');
             return;
         }
-        // No POS Opening Entry is needed anymore; cashiers log in based on their branch.
-    }, [user, session, navigate]);
+        // Only show opening modal if NOT a manager
+        if (!posOpeningEntry && !isManager) setShowOpeningModal(true);
+    }, [user, session, posOpeningEntry, isManager, navigate]);
 
     const handleOpeningSuccess = (entryId) => {
         localStorage.setItem('posOpeningEntry', entryId);
@@ -843,18 +845,6 @@ function Home() {
     const [discount, setDiscount] = useState({ type: 'amount', value: 0 });
     const [showDiscountModal, setShowDiscountModal] = useState(false);
     const [discountInput, setDiscountInput] = useState("");
-    const [discountCustInput, setDiscountCustInput] = useState('');
-    const [creatingDiscountCust, setCreatingDiscountCust] = useState(false);
-
-    // Loyalty Points State
-    const [loyaltyPointsToRedeem, setLoyaltyPointsToRedeem] = useState(0);
-    const [loyaltyAmount, setLoyaltyAmount] = useState(0);
-    const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
-    const [loyaltyInput, setLoyaltyInput] = useState("");
-
-    // Authorization State
-    const [secretKeyInput, setSecretKeyInput] = useState("");
-    const userSecretKey = useSelector((state) => state.user.secret_key || '1234');
 
     // Drafts & Themes
     const [showDraftsModal, setShowDraftsModal] = useState(false);
@@ -872,6 +862,26 @@ function Home() {
     const nameInputRef = useRef(null);
 
     // ---------- CALCULATIONS (Defined before handlers) ----------
+    const subtotal = useMemo(() =>
+        billItems.reduce((sum, item) => {
+            // Calculate effective price for the selected UOM
+            // If Box is selected and a specific Box price exists, use it. Otherwise, use piece price * factor.
+            const factor = (item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1);
+            const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
+            return sum + flt(effectivePrice * item.qty);
+        }, 0)
+        , [billItems]);
+
+    const discountAmount = useMemo(() => {
+        if (discount.value <= 0) return 0;
+        const amt = (discount.type === 'percentage' || discount.type === 'percent')
+            ? (subtotal * discount.value) / 100
+            : discount.value;
+        return flt(amt);
+    }, [subtotal, discount]);
+
+    const netTotal = useMemo(() => flt(subtotal - discountAmount), [subtotal, discountAmount]);
+
     const taxRate = useMemo(() => {
         // 1. GLOBAL FALLBACK: If company is KSPL, we default to 5% if API fails
         if (taxTemplates.length === 0) return 5.0;
@@ -905,37 +915,6 @@ function Home() {
         // Default to 5.0 if still 0 but we have a template selected (likely 5% template)
         return flt(rate || 5.0);
     }, [selectedTaxTemplate, taxTemplates]);
-
-    const subtotal = useMemo(() =>
-        billItems.reduce((sum, item) => {
-            // Calculate effective price for the selected UOM
-            // If Box is selected and a specific Box price exists, use it. Otherwise, use piece price * factor.
-            const factor = (item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1);
-            const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
-            const lineTotal = effectivePrice * item.qty;
-
-            // If inclusive, extract base price; if exclusive, use the total as base
-            let netItem = lineTotal;
-            if (item.is_tax_inclusive) {
-                netItem = lineTotal / (1 + (taxRate / 100));
-            }
-            return sum + flt(netItem);
-        }, 0)
-        , [billItems, taxRate]);
-
-    const discountAmount = useMemo(() => {
-        if (discount.value <= 0) return 0;
-        const amt = (discount.type === 'percentage' || discount.type === 'percent')
-            ? (subtotal * discount.value) / 100
-            : discount.value;
-        return flt(amt);
-    }, [subtotal, discount]);
-
-    const activeReduction = useMemo(() => {
-        return discountAmount > 0 ? discountAmount : loyaltyAmount;
-    }, [discountAmount, loyaltyAmount]);
-
-    const netTotal = useMemo(() => flt(subtotal - activeReduction), [subtotal, activeReduction]);
 
     const taxAmount = useMemo(() => flt(netTotal * (taxRate / 100)), [netTotal, taxRate]);
 
@@ -1141,36 +1120,6 @@ function Home() {
         setShowCreateModal(true); setShowDropdown(false);
     };
 
-    const promoteCustomerGroup = async (cust, newGroup) => {
-        try {
-            const res = await frappeCall({
-                method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
-                args: {
-                    mobile_no: cust.mobile_no || phoneNumber,
-                    customer_name: cust.customer_name,
-                    warehouse: warehouse,
-                    customer_group: newGroup
-                }
-            });
-            if (res && res.name) {
-                const updatedCustomer = {
-                    ...cust,
-                    customer_group: newGroup
-                };
-                await db.customers.put(updatedCustomer);
-                if (selectedCustomer?.name === cust.name || selectedCustomer?.customer_name === cust.customer_name) {
-                    setSelectedCustomer(updatedCustomer);
-                    setCustomerName(updatedCustomer.customer_name);
-                    setPhoneNumber(updatedCustomer.mobile_no);
-                }
-                return updatedCustomer;
-            }
-        } catch (err) {
-            console.error("Promotion failed", err);
-        }
-        return null;
-    };
-
     const pickCustomer = (cust) => {
         setSelectedCustomer(cust);
         setCustomerName(cust.customer_name);
@@ -1178,29 +1127,6 @@ function Home() {
         setCustomerMobile(''); // Clear mobile search
         setShowDropdown(false);
         barcodeInputRef.current?.focus();
-
-        if (cust && cust.name !== 'Cash' && discount.value > 0 && cust.customer_group !== 'Discount Customer') {
-            setTimeout(async () => {
-                const result = await Swal.fire({
-                    title: 'Promote to Discount Customer?',
-                    text: `Do you want to promote "${cust.customer_name}" to the 'Discount Customer' group since a discount is active?`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, Promote',
-                    cancelButtonText: 'No'
-                });
-                if (result.isConfirmed) {
-                    Swal.showLoading();
-                    const updated = await promoteCustomerGroup(cust, 'Discount Customer');
-                    if (updated) {
-                        Swal.fire({
-                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                            icon: 'success', title: 'Customer group updated to Discount Customer'
-                        });
-                    }
-                }
-            }, 100);
-        }
     };
 
     const createCustomer = async () => {
@@ -1214,7 +1140,6 @@ function Home() {
         try {
             const formData = new FormData();
             formData.append("customer_name", createForm.name.trim());
-            formData.append("customer_group", "Retail Customer");
             if (createForm.phone) formData.append("phone", createForm.phone);
             if (createForm.address) formData.append("address", createForm.address);
             if (createForm.email) formData.append("email", createForm.email);
@@ -1275,86 +1200,8 @@ function Home() {
             setCreatingCustomer(false);  // ← Loading ends (always!)
         }
     };
-
-    const createDiscountCustomer = async () => {
-        const val = discountCustInput.trim();
-        if (!val) {
-            Swal.fire('Error', 'Please enter a name or number to create customer', 'error');
-            return;
-        }
-
-        setCreatingDiscountCust(true);
-
-        // Determine name and phone
-        let name = val;
-        let phone = "";
-        if (/^\d+$/.test(val)) {
-            phone = val;
-        }
-
-        try {
-            const formData = new FormData();
-            formData.append("customer_name", name);
-            formData.append("customer_group", "Discount Customer");
-            if (phone) formData.append("phone", phone);
-            if (warehouse) formData.append("warehouse", warehouse);
-
-            const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const result = await res.json();
-            const inner = result.message || result;
-
-            if (inner.status === "success" || inner.name) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Discount Customer Created',
-                    text: `"${name}" has been saved as a Discount Customer.`,
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-                const newCust = {
-                    name: inner.customer_id || inner.name,
-                    customer_name: name,
-                    mobile_no: phone,
-                    customer_group: "Discount Customer",
-                    primary_address: "",
-                    email_id: "",
-                    is_synced: 1
-                };
-                await db.customers.put(newCust); // Save locally for instant POS search
-                pickCustomer(newCust);
-                setDiscountCustInput('');
-            } else {
-                Swal.fire('Error', inner.message || "Failed to create customer", 'error');
-            }
-        } catch (err) {
-            console.error(err);
-            if (isOffline) {
-                const offlineCustomer = {
-                    name: `OFFLINE-CUST-${Date.now()}`,
-                    customer_name: name,
-                    mobile_no: phone,
-                    customer_group: "Discount Customer",
-                    primary_address: "",
-                    email_id: "",
-                    is_synced: 0,
-                    is_offline: true
-                };
-                await db.customers.put(offlineCustomer);
-                pickCustomer(offlineCustomer);
-                setDiscountCustInput('');
-                Swal.fire('Offline Save', 'Customer saved locally. Will sync when online.', 'info');
-            } else {
-                Swal.fire('Error', "Network error while creating customer", 'error');
-            }
-        } finally {
-            setCreatingDiscountCust(false);
-        }
-    };
     // ---------- FETCH ALL ITEMS ----------
+
 
     const fetchCategories = useCallback(async () => {
         try {
@@ -1611,8 +1458,7 @@ function Home() {
                     ...item,
                     qty: 1,
                     uom: baseUom,
-                    price: initialPrice,
-                    is_tax_inclusive: true // Default to inclusive for retail
+                    price: initialPrice
                 };
                 setSelectedBillIndex(prev.length);
                 return [...prev, newItem];
@@ -1721,16 +1567,11 @@ function Home() {
 
                             Swal.fire({
                                 title: 'Item Found in Other Branches',
-                                html: `<div style="font-size: 15px; font-weight: 600; color: #475569; text-align: left; line-height: 1.5; margin-bottom: 8px;">
-                                    This item is not enabled for <span style="font-weight: 800; color: #0f172a;">${warehouse}</span>.
-                                </div>
-                                <div style="font-size: 16px; font-weight: 700; color: #1e293b; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #4f46e5; text-align: left; line-height: 1.4; margin-bottom: 12px;">
-                                    ${it.item_name || it.name}
-                                </div>
-                                <div style="text-align: left; font-size: 14px; color: #475569;">
-                                    <p style="font-weight: 600; margin-bottom: 4px;">Stock available in:</p>
-                                    <p style="color: #059669; font-weight: 700;">${availableBranches || 'None (No physical stock)'}</p>
-                                </div>`,
+                                html: `<div style="text-align: left; font-size: 14px;">
+                        <p><b>${it.item_name || it.name}</b> is not enabled for <b>${warehouse}</b>.</p>
+                        <p style="margin-top: 10px;">Stock available in:</p>
+                        <p style="color: #059669; font-weight: 700;">${availableBranches || 'None (No physical stock)'}</p>
+                       </div>`,
                                 icon: 'info',
                                 confirmButtonColor: '#4f46e5'
                             });
@@ -1772,16 +1613,11 @@ function Home() {
 
                 Swal.fire({
                     title: 'Global Stock Check',
-                    html: `<div style="font-size: 15px; font-weight: 600; color: #475569; text-align: left; line-height: 1.5; margin-bottom: 8px;">
-                      This item is not in your branch catalog.
-                    </div>
-                    <div style="font-size: 16px; font-weight: 700; color: #1e293b; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #4f46e5; text-align: left; line-height: 1.4; margin-bottom: 12px;">
-                      ${it.item_name || it.name}
-                    </div>
-                    <div style="text-align: left; font-size: 14px; color: #475569;">
-                      <p style="font-weight: 600; margin-bottom: 4px;">Available Stock elsewhere:</p>
-                      <p style="color: #059669; font-weight: 700;">${availableBranches || 'None in stock anywhere'}</p>
-                    </div>`,
+                    html: `<div style="text-align: left; font-size: 14px;">
+                  <p><b>${it.item_name || it.name}</b> is not in your branch catalog.</p>
+                  <p style="margin-top: 10px;">Available Stock elsewhere:</p>
+                  <p style="color: #059669; font-weight: 700;">${availableBranches || 'None in stock anywhere'}</p>
+                 </div>`,
                     icon: 'info',
                     confirmButtonColor: '#4f46e5'
                 });
@@ -2002,18 +1838,11 @@ function Home() {
     const handleRequestStock = async (item) => {
         const { value: quantity } = await Swal.fire({
             title: 'Request Stock',
-            html: `<div style="font-size: 14px; font-weight: 600; color: #64748b; text-align: left; margin-bottom: 8px;">
-                Enter quantity you need for <span style="font-weight: 800; color: #0f172a;">${warehouse}</span>:
-            </div>
-            <div style="font-size: 15px; font-weight: 700; color: #475569; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #f59e0b; text-align: left; line-height: 1.4; margin-bottom: 8px;">
-                ${item.name || item.item_name}
-            </div>`,
+            text: `Enter quantity of "${item.name}" you need for ${warehouse}`,
             input: 'number',
+            inputLabel: 'Quantity',
             inputValue: 1,
             showCancelButton: true,
-            confirmButtonText: 'Submit Request',
-            confirmButtonColor: '#f59e0b',
-            cancelButtonColor: '#64748b',
             inputValidator: (value) => {
                 if (!value || parseInt(value) <= 0) {
                     return 'Please enter a valid quantity'
@@ -2122,10 +1951,8 @@ function Home() {
         };
 
         Swal.fire({
-            title: 'Stock Breakdown',
-            html: `<div style="font-size: 16px; font-weight: 700; color: #475569; margin-top: 8px; margin-bottom: 12px; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #3b82f6; text-align: left; line-height: 1.4;">
-                ${item.name}
-            </div>` + html,
+            title: `Stock Breakdown: ${item.name}`,
+            html: html,
             confirmButtonText: 'Close',
             confirmButtonColor: '#3b82f6',
             width: '600px'
@@ -2294,123 +2121,19 @@ function Home() {
     };
 
     // Discount
-    const applyDiscountHandler = async () => {
+    const applyDiscountHandler = () => {
         const value = parseFloat(discountInput) || 0;
-        if (value > 0) {
-            if (loyaltyAmount > 0) {
-                Swal.fire('Error', 'Cannot apply discount when loyalty points are redeemed. Reset loyalty first.', 'error');
-                return;
-            }
-            try {
-                if (isOffline) {
-                    if (secretKeyInput !== userSecretKey) {
-                        Swal.fire('Unauthorized', 'Incorrect Secret Key (Offline Verification). Discount rejected.', 'error');
-                        return;
-                    }
-                } else {
-                    const res = await POSService.verifySecretKey(secretKeyInput);
-                    if (res && res.status === 'error') {
-                        Swal.fire('Unauthorized', res.message || 'Incorrect Secret Key.', 'error');
-                        return;
-                    }
-                }
-            } catch (err) {
-                if (err.message && err.message.includes("Incorrect Secret Key")) {
-                    Swal.fire('Unauthorized', err.message, 'error');
-                    return;
-                }
-                if (secretKeyInput !== userSecretKey) {
-                    Swal.fire('Unauthorized', 'Incorrect Secret Key. Discount rejected.', 'error');
-                    return;
-                }
-            }
+        if (value >= 0) {
+            setDiscount(prev => ({ ...prev, value }));
         }
-        setDiscount(prev => ({ ...prev, value }));
         setShowDiscountModal(false);
         setDiscountInput("");
-        setSecretKeyInput("");
-
-        if (value > 0 && selectedCustomer && selectedCustomer.name !== 'Cash' && selectedCustomer.customer_group !== 'Discount Customer') {
-            setTimeout(async () => {
-                const result = await Swal.fire({
-                    title: 'Promote to Discount Customer?',
-                    text: `Do you want to promote "${selectedCustomer.customer_name}" to the 'Discount Customer' group since a discount is active?`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, Promote',
-                    cancelButtonText: 'No'
-                });
-                if (result.isConfirmed) {
-                    Swal.showLoading();
-                    const updated = await promoteCustomerGroup(selectedCustomer, 'Discount Customer');
-                    if (updated) {
-                        Swal.fire({
-                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                            icon: 'success', title: 'Customer group updated to Discount Customer'
-                        });
-                    }
-                }
-            }, 100);
-        }
     };
 
     const clearDiscount = () => {
         setDiscount({ type: 'amount', value: 0 });
         setDiscountInput("");
-        setSecretKeyInput("");
         setShowDiscountModal(false);
-    };
-
-    const clearBillHandler = useCallback(() => {
-        setBillItems([]);
-        setSelectedBillIndex(-1);
-        setDiscount({ type: 'amount', value: 0 });
-        setDiscountInput("");
-        setSecretKeyInput("");
-        setLoyaltyPointsToRedeem(0);
-        setLoyaltyAmount(0);
-        setLoyaltyInput("");
-    }, []);
-
-    // Loyalty Points
-    const handleLoyaltyPointsClick = () => {
-        if (discount.value > 0) {
-            Swal.fire('Restricted', 'Loyalty points cannot be redeemed when a manual discount is applied.', 'warning');
-            return;
-        }
-        if (!selectedCustomer || selectedCustomer.name === 'Cash') {
-            Swal.fire('Notice', 'Please select a customer first.', 'info');
-            return;
-        }
-        if (!selectedCustomer.loyalty_program) {
-            Swal.fire('Notice', 'Selected customer is not enrolled in a loyalty program.', 'info');
-            return;
-        }
-        setLoyaltyInput(loyaltyPointsToRedeem > 0 ? String(loyaltyPointsToRedeem) : "");
-        setShowLoyaltyModal(true);
-    };
-
-    const applyLoyaltyPoints = () => {
-        const points = parseInt(loyaltyInput) || 0;
-        if (points <= 0) {
-            Swal.fire('Error', 'Please enter a valid points value.', 'error');
-            return;
-        }
-        const redeemedValue = points * 1.0;
-        if (redeemedValue > subtotal) {
-            Swal.fire('Error', 'Redemption amount cannot exceed subtotal.', 'error');
-            return;
-        }
-        setLoyaltyPointsToRedeem(points);
-        setLoyaltyAmount(redeemedValue);
-        setShowLoyaltyModal(false);
-    };
-
-    const clearLoyaltyPoints = () => {
-        setLoyaltyPointsToRedeem(0);
-        setLoyaltyAmount(0);
-        setLoyaltyInput("");
-        setShowLoyaltyModal(false);
     };
 
     // Checkout
@@ -2419,7 +2142,10 @@ function Home() {
             Swal.fire('Info', 'No items in bill', 'info');
             return;
         }
-        // POS opening entry shift check is bypassed
+        if (!posOpeningEntry) {
+            Swal.fire('Warning', 'Open a shift first', 'warning');
+            return;
+        }
         setShowPaymentModal(true);
     };
     const selectPaymentMode = (mode) => {
@@ -2474,9 +2200,6 @@ function Home() {
             pos_opening_entry: posOpeningEntry,
             discount_amount: displayDiscount,
             apply_discount_on: "Net Total",
-            redeem_loyalty_points: loyaltyAmount > 0 ? 1 : 0,
-            loyalty_points: loyaltyPointsToRedeem,
-            loyalty_amount: loyaltyAmount,
             tax_template: selectedTaxTemplate,
             taxes_and_charges: selectedTaxTemplate,
             posting_date: new Date().toISOString().slice(0, 10),
@@ -2493,9 +2216,6 @@ function Home() {
 
                 setBillItems([]);
                 setDiscount({ type: 'amount', value: 0 });
-                setLoyaltyPointsToRedeem(0);
-                setLoyaltyAmount(0);
-                setLoyaltyInput("");
                 setCustomerName('Cash');
                 setPhoneNumber('');
                 setSelectedCustomer(null);
@@ -2577,7 +2297,6 @@ function Home() {
                 name: d.name,
                 customerName: d.customer_name || d.customer,
                 grand_total: d.grand_total,
-                total_qty: d.total_qty || 0,
                 timestamp: new Date(d.creation).getTime(),
                 creation: d.creation
             })));
@@ -2615,35 +2334,6 @@ function Home() {
         if (paidTotal < grandTotal) {
             Swal.fire('Error', `Insufficient amount. Paid: ${paidTotal}, Required: ${grandTotal}`, 'error');
             return;
-        }
-
-        // Validate Credit payment safeguard
-        const hasCreditPayment = finalPayments.some(p => p.mode_of_payment === 'Credit');
-        if (hasCreditPayment && selectedCustomer?.customer_group !== 'Credit Customer') {
-            if (selectedCustomer && selectedCustomer.name !== 'Cash') {
-                const result = await Swal.fire({
-                    title: 'Promote to Credit Customer?',
-                    text: `Only Credit Customers can check out on Credit. Do you want to promote "${selectedCustomer.customer_name}" to Credit Customer?`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, Promote',
-                    cancelButtonText: 'Cancel'
-                });
-                if (result.isConfirmed) {
-                    Swal.showLoading();
-                    const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
-                    if (!updated) {
-                        Swal.fire('Error', 'Failed to promote customer. Credit checkout aborted.', 'error');
-                        return;
-                    }
-                    Swal.close();
-                } else {
-                    return;
-                }
-            } else {
-                Swal.fire('Error', 'Credit Checkout is only allowed for named/registered customers.', 'error');
-                return;
-            }
         }
 
         setPaymentLoading(true);
@@ -2703,17 +2393,12 @@ function Home() {
             })),
             discount_amount: discountAmount,
             apply_discount_on: "Net Total",
-            redeem_loyalty_points: loyaltyAmount > 0 ? 1 : 0,
-            loyalty_points: loyaltyPointsToRedeem,
-            loyalty_amount: loyaltyAmount,
             tax_template: selectedTaxTemplate,
             taxes_and_charges: selectedTaxTemplate,
             posting_date: new Date().toISOString().slice(0, 10),
             currency: 'AED',
             due_date: new Date().toISOString().slice(0, 10),
-            account_manager: user,
-            docstatus: 1,
-            is_draft: false
+            account_manager: user
         };
 
         try {
@@ -2878,11 +2563,6 @@ function Home() {
         setBillItems([]);
         setSelectedBillIndex(-1);
         setDiscount({ type: 'amount', value: 0 });
-        setDiscountInput("");
-        setSecretKeyInput("");
-        setLoyaltyPointsToRedeem(0);
-        setLoyaltyAmount(0);
-        setLoyaltyInput("");
         setCustomerName('Cash'); setSelectedCustomer(null); setPhoneNumber('');
         setSelectedPaymentMode(''); setTenderedAmount('');
         setPayments([]);
@@ -2920,8 +2600,7 @@ function Home() {
                         method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
                         args: {
                             mobile_no: searchTerm,
-                            warehouse: warehouse,
-                            customer_group: 'Retail Customer'
+                            warehouse: warehouse
                         }
                     });
 
@@ -3036,67 +2715,9 @@ function Home() {
                             className="w-full pl-20 pr-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-4xl font-black text-slate-900 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-200"
                             value={discountInput}
                             onChange={e => setDiscountInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    if (parseFloat(discountInput) > 0) {
-                                        setTimeout(() => {
-                                            document.getElementById('cashier-secret-key-input')?.focus();
-                                        }, 50);
-                                    } else {
-                                        applyDiscountHandler();
-                                    }
-                                }
-                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && (setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }), setShowDiscountModal(false))}
                             autoFocus
                         />
-                    </div>
-
-                    {/* Cashier Secret Key Input (Premium Slate style) */}
-                    {parseFloat(discountInput) > 0 && (
-                        <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Cashier Secret Key</label>
-                            <div className="relative flex items-center bg-slate-50 border-2 border-slate-100 rounded-3xl overflow-hidden focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-50 transition-all">
-                                <input
-                                    id="cashier-secret-key-input"
-                                    type="password"
-                                    placeholder="••••"
-                                    className="w-full px-6 py-4 bg-transparent text-lg font-black text-slate-900 outline-none placeholder:text-slate-300"
-                                    value={secretKeyInput}
-                                    onChange={e => setSecretKeyInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && applyDiscountHandler()}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Discount Customer instant creation */}
-                    <div className="flex flex-col gap-2 border-t border-slate-100 pt-4 mt-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
-                            {creatingDiscountCust ? "Creating Discount Customer..." : "Create & Select Discount Customer"}
-                        </label>
-                        <div className="relative flex items-center bg-slate-50 border-2 border-slate-100 rounded-3xl overflow-hidden focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-50 transition-all">
-                            <div className="absolute left-5 text-slate-400">
-                                {creatingDiscountCust ? (
-                                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                                ) : (
-                                    <UserPlus className="w-5 h-5 text-blue-600" />
-                                )}
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Enter name or mobile & press Enter"
-                                className="w-full pl-14 pr-6 py-4 bg-transparent text-sm font-bold text-slate-900 outline-none placeholder:text-slate-300"
-                                value={discountCustInput}
-                                onChange={e => setDiscountCustInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        createDiscountCustomer();
-                                    }
-                                }}
-                                disabled={creatingDiscountCust}
-                            />
-                        </div>
                     </div>
 
                     {/* Impact Summary */}
@@ -3125,7 +2746,7 @@ function Home() {
                         Reset
                     </button>
                     <button
-                        onClick={applyDiscountHandler}
+                        onClick={() => { setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }); setShowDiscountModal(false); }}
                         className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all text-sm"
                     >
                         Apply Discount
@@ -3134,145 +2755,6 @@ function Home() {
             </div>
         </div>
     );
-
-
-    const renderLoyaltyModal = () => {
-        const points = parseInt(loyaltyInput) || 0;
-        const redeemedValue = points * 1.0;
-        return (
-            <div
-                className="home-modal-overlay"
-                onClick={() => setShowLoyaltyModal(false)}
-                style={{
-                    position: 'fixed',
-                    inset: 0,
-                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                    backdropFilter: 'blur(8px)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 10000
-                }}
-            >
-                <div
-                    className="home-modal"
-                    onClick={e => e.stopPropagation()}
-                    style={{
-                        width: '100%',
-                        maxWidth: '420px',
-                        backgroundColor: '#ffffff',
-                        borderRadius: '32px',
-                        overflow: 'hidden',
-                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        margin: '20px'
-                    }}
-                >
-                    <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-6 flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                                <Award size={20} />
-                            </div>
-                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Redeem Loyalty</h3>
-                        </div>
-                        <button
-                            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
-                            onClick={() => setShowLoyaltyModal(false)}
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <div className="home-modal-body p-8 flex flex-col gap-6">
-                        {/* Customer Loyalty Profile Card */}
-                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                            <div className="relative z-10 flex flex-col gap-4">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Loyalty Program</span>
-                                        <span className="text-lg font-black tracking-tight truncate max-w-[200px]">
-                                            {selectedCustomer?.loyalty_program || 'Tier Program'}
-                                        </span>
-                                    </div>
-                                    <div className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-wider">
-                                        Active
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-end pt-2">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Available Balance</span>
-                                        <span className="text-3xl font-black">{selectedCustomer?.loyalty_points || 0} <span className="text-xs font-normal">pts</span></span>
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">Redemption Rate</span>
-                                        <span className="text-xs font-bold">1 Pt = AED 1.00</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Input Area */}
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Points to Redeem</label>
-                            <div className="relative group">
-                                <input
-                                    type="number"
-                                    placeholder="0"
-                                    className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-3xl text-3xl font-black text-slate-900 outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50 transition-all placeholder:text-slate-200"
-                                    value={loyaltyInput}
-                                    onChange={e => {
-                                        const val = parseInt(e.target.value) || 0;
-                                        const maxPts = selectedCustomer?.loyalty_points || 0;
-                                        if (val > maxPts) {
-                                            setLoyaltyInput(String(maxPts));
-                                        } else {
-                                            setLoyaltyInput(e.target.value);
-                                        }
-                                    }}
-                                    onKeyDown={(e) => e.key === 'Enter' && applyLoyaltyPoints()}
-                                    autoFocus
-                                />
-                            </div>
-                        </div>
-
-                        {/* Impact Summary */}
-                        <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full -mr-12 -mt-12 blur-xl"></div>
-                            <div className="flex justify-between items-center relative z-10">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Total</span>
-                                    <span className="text-lg font-black">AED {subtotal.toFixed(2)}</span>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Final Price</span>
-                                    <span className="text-2xl font-black text-emerald-400">
-                                        AED {Math.max(0, subtotal - redeemedValue).toFixed(2)}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="home-modal-footer p-8 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
-                        <button
-                            className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
-                            onClick={clearLoyaltyPoints}
-                        >
-                            Reset
-                        </button>
-                        <button
-                            onClick={applyLoyaltyPoints}
-                            className="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all text-sm"
-                        >
-                            Confirm Redemption
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
 
     const renderPaymentModal = () => (
@@ -3417,42 +2899,6 @@ function Home() {
                                             </div>
                                             <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[10px] text-center">Insta Bank</span>
                                         </button>
-                                        {selectedCustomer && selectedCustomer.name !== 'Cash' && (
-                                            <button
-                                                className="group p-5 bg-amber-50 border-2 border-amber-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative col-span-2"
-                                                onClick={async () => {
-                                                    if (selectedCustomer.customer_group !== 'Credit Customer') {
-                                                        const result = await Swal.fire({
-                                                            title: 'Promote to Credit Customer?',
-                                                            text: `Only Credit Customers can check out on Credit. Do you want to promote "${selectedCustomer.customer_name}" to Credit Customer?`,
-                                                            icon: 'question',
-                                                            showCancelButton: true,
-                                                            confirmButtonText: 'Yes, Promote',
-                                                            cancelButtonText: 'Cancel'
-                                                        });
-                                                        if (result.isConfirmed) {
-                                                            Swal.showLoading();
-                                                            const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
-                                                            if (updated) {
-                                                                setSelectedPaymentMode('Credit');
-                                                                Swal.fire({
-                                                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                                                    icon: 'success', title: 'Customer group updated to Credit Customer'
-                                                                });
-                                                            }
-                                                        }
-                                                    } else {
-                                                        setSelectedPaymentMode('Credit');
-                                                    }
-                                                }}
-                                            >
-                                                <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-600 text-white text-[10px] font-black rounded shadow-sm">5</div>
-                                                <div className="w-12 h-12 bg-white text-amber-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                    <Coins size={28} />
-                                                </div>
-                                                <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-xs">Credit Checkout</span>
-                                            </button>
-                                        )}
                                     </div>
                                 </>
                             ) : (
@@ -3666,7 +3112,7 @@ function Home() {
         catch { }
         localStorage.clear(); dispatch(logout()); navigate('/');
     };
-    // closingEntry bypassed
+    const closingEntry = () => navigate('/closingentry');
 
     // ---------- KEYBOARD SHORTCUTS ENGINE ----------
     useEffect(() => {
@@ -3747,33 +3193,6 @@ function Home() {
                     } else if (e.key === '4') {
                         e.preventDefault();
                         setSelectedPaymentMode('InstaPay Bank');
-                    } else if (e.key === '5' && selectedCustomer && selectedCustomer.name !== 'Cash') {
-                        e.preventDefault();
-                        if (selectedCustomer.customer_group !== 'Credit Customer') {
-                            (async () => {
-                                const result = await Swal.fire({
-                                    title: 'Promote to Credit Customer?',
-                                    text: `Only Credit Customers can check out on Credit. Do you want to promote "${selectedCustomer.customer_name}" to Credit Customer?`,
-                                    icon: 'question',
-                                    showCancelButton: true,
-                                    confirmButtonText: 'Yes, Promote',
-                                    cancelButtonText: 'Cancel'
-                                });
-                                if (result.isConfirmed) {
-                                    Swal.showLoading();
-                                    const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
-                                    if (updated) {
-                                        setSelectedPaymentMode('Credit');
-                                        Swal.fire({
-                                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                            icon: 'success', title: 'Customer group updated to Credit Customer'
-                                        });
-                                    }
-                                }
-                            })();
-                        } else {
-                            setSelectedPaymentMode('Credit');
-                        }
                     }
                 }
                 if (e.key === 'Escape') {
@@ -3794,17 +3213,12 @@ function Home() {
                 if (selectedBillIndex !== -1) {
                     const item = billItems[selectedBillIndex];
                     Swal.fire({
-                        title: 'Update Price',
-                        html: `<div style="font-size: 16px; font-weight: 700; color: #475569; margin-top: 8px; margin-bottom: 8px; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #0ea5e9; text-align: left; line-height: 1.4;">
-                            ${item.item_name || item.name}
-                        </div>`,
+                        title: `Update Price: ${item.item_name || item.name}`,
                         input: 'number',
                         inputValue: item.price,
                         showCancelButton: true,
                         confirmButtonText: 'Update',
-                        inputAttributes: { step: '0.01' },
-                        confirmButtonColor: '#0ea5e9',
-                        cancelButtonColor: '#64748b'
+                        inputAttributes: { step: '0.01' }
                     }).then(result => {
                         if (result.isConfirmed && result.value) {
                             const newBill = [...billItems];
@@ -3821,16 +3235,11 @@ function Home() {
                 if (selectedBillIndex !== -1) {
                     const item = billItems[selectedBillIndex];
                     Swal.fire({
-                        title: 'Bulk Qty',
-                        html: `<div style="font-size: 16px; font-weight: 700; color: #475569; margin-top: 8px; margin-bottom: 8px; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #d946ef; text-align: left; line-height: 1.4;">
-                            ${item.item_name || item.name}
-                        </div>`,
+                        title: `Bulk Qty: ${item.item_name || item.name}`,
                         input: 'number',
                         inputValue: item.qty,
                         showCancelButton: true,
-                        confirmButtonText: 'Update',
-                        confirmButtonColor: '#d946ef',
-                        cancelButtonColor: '#64748b'
+                        confirmButtonText: 'Update'
                     }).then(result => {
                         if (result.isConfirmed && result.value) {
                             const newQty = parseInt(result.value);
@@ -3896,8 +3305,6 @@ function Home() {
                     setSelectedPaymentMode('');
                 } else if (showDiscountModal) {
                     setShowDiscountModal(false);
-                } else if (showLoyaltyModal) {
-                    setShowLoyaltyModal(false);
                 } else if (showItemDropdown) {
                     setShowItemDropdown(false);
                 } else if (showPriceModal) {
@@ -3905,14 +3312,15 @@ function Home() {
                 } else if (showQtyModal) {
                     setShowQtyModal(false);
                 } else if (billItems.length > 0) {
-                    clearBillHandler();
+                    setBillItems([]);
+                    setSelectedBillIndex(-1);
                 }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [billItems.length, showPaymentModal, showDiscountModal, showLoyaltyModal, showItemDropdown, selectedPaymentMode, showOpeningModal, lastInteractedItem, balanceRemaining, tenderedAmount, paymentLoading, handleBarcodeScan, clearBillHandler]);
+    }, [billItems.length, showPaymentModal, showDiscountModal, showItemDropdown, selectedPaymentMode, showOpeningModal, lastInteractedItem, balanceRemaining, tenderedAmount, paymentLoading, handleBarcodeScan]);
 
     if (loadingItems && Items.length === 0) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
 
@@ -3999,7 +3407,7 @@ function Home() {
                         <span className="so-shortcut-key">SPACE / F12</span>
                         <span className="so-shortcut-label">Process Payment</span>
                     </div>
-                    <div className="so-shortcut-badge" style={{ background: '#fef2f2', borderColor: '#fee2e2' }} onClick={clearBillHandler}>
+                    <div className="so-shortcut-badge" style={{ background: '#fef2f2', borderColor: '#fee2e2' }} onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}>
                         <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
                         <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear Bill</span>
                     </div>
@@ -4326,12 +3734,6 @@ function Home() {
                                         <span>-AED {displayDiscount.toFixed(2)}</span>
                                     </div>
                                 )}
-                                {loyaltyAmount > 0 && (
-                                    <div className="so-total-row" style={{ color: '#10b981' }}>
-                                        <span>Loyalty Redeemed</span>
-                                        <span>-AED {loyaltyAmount.toFixed(2)}</span>
-                                    </div>
-                                )}
                                 <div className="so-total-row">
                                     <span>Tax ({taxRate}%)</span>
                                     <span>AED {displayTax.toFixed(2)}</span>
@@ -4343,23 +3745,13 @@ function Home() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-1.5 mb-2">
+                            <div className="flex gap-1.5 mb-4">
                                 <button
                                     onClick={() => setShowDiscountModal(true)}
                                     className="so-btn-secondary flex-1"
-                                    style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2' } : {}}
                                 >
                                     <Palette size={14} /> % Discount
                                 </button>
-                                <button
-                                    onClick={handleLoyaltyPointsClick}
-                                    className="so-btn-secondary flex-1"
-                                    style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5' } : {}}
-                                >
-                                    <Award size={14} /> Loyalty
-                                </button>
-                            </div>
-                            <div className="flex gap-1.5 mb-4">
                                 <button
                                     onClick={handleSaveDraft}
                                     className="so-btn-secondary flex-1"
@@ -4369,7 +3761,7 @@ function Home() {
                                     <Package size={14} /> Save Draft
                                 </button>
                                 <button
-                                    onClick={clearBillHandler}
+                                    onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}
                                     className="so-btn-secondary flex-1"
                                     style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
                                 >
@@ -4681,7 +4073,7 @@ function Home() {
                                                 <td className="text-center px-2 font-black text-amber-600 bg-amber-50">
                                                     {item.qty * factor}
                                                 </td>
-                                                <td className="p-0 relative">
+                                                <td className="p-0">
                                                     <input
                                                         type="number"
                                                         step="0.01"
@@ -4690,23 +4082,11 @@ function Home() {
                                                         className="w-full h-full text-center px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none"
                                                         onFocus={e => e.target.select()}
                                                     />
-                                                    <div
-                                                        className={`absolute -top-1 -right-1 px-1 rounded-[4px] text-[8px] font-black tracking-tighter ${item.is_tax_inclusive ? 'bg-sky-500 text-white' : 'bg-amber-500 text-white'}`}
-                                                        style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
-                                                    >
-                                                        {item.is_tax_inclusive ? 'INC' : 'EXC'}
-                                                    </div>
                                                 </td>
                                                 <td className="text-center px-2 font-bold text-slate-500 text-[10px] italic">
-                                                    {item.is_tax_inclusive
-                                                        ? (lineTotal - (lineTotal / (1 + (taxRate / 100)))).toFixed(2)
-                                                        : (lineTotal * (taxRate / 100)).toFixed(2)}
+                                                    {(lineTotal * 0.05).toFixed(2)}
                                                 </td>
-                                                <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50">
-                                                    AED {item.is_tax_inclusive
-                                                        ? (parseFloat(lineTotal) || 0).toFixed(2)
-                                                        : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
-                                                </td>
+                                                <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50">AED {(parseFloat(lineTotal) || 0).toFixed(2)}</td>
                                                 <td className="text-center">
                                                     <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
                                                 </td>
@@ -4830,7 +4210,7 @@ function Home() {
                                     { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
                                     { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
                                     { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
-                                    { key: 'ESC', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
+                                    { key: 'ESC', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: () => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); } },
                                 ].map((s, idx) => (
                                     <div
                                         key={idx}
@@ -4876,13 +4256,6 @@ function Home() {
                                     </div>
                                 )}
 
-                                {loyaltyAmount > 0 && (
-                                    <div className="flex flex-col items-end px-3 border-r border-slate-200">
-                                        <span className="text-[9px] font-black text-emerald-500 uppercase">Loyalty</span>
-                                        <span className="text-emerald-500 font-black text-base leading-none">-AED {loyaltyAmount.toFixed(2)}</span>
-                                    </div>
-                                )}
-
                                 <div className="flex flex-col items-end px-3 border-r border-slate-200">
                                     <span className={`text-[9px] font-black ${isGreen ? 'text-emerald-500' : 'text-sky-500'} uppercase`}>VAT ({taxRate}%)</span>
                                     <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-base leading-none`}>AED {displayTax.toFixed(2)}</span>
@@ -4907,14 +4280,8 @@ function Home() {
                                 <Palette size={14} /> % DISCOUNT
                             </button>
                             <button
-                                className={`px-6 py-2.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
-                                onClick={handleLoyaltyPointsClick}
-                            >
-                                <Award size={14} /> LOYALTY
-                            </button>
-                            <button
                                 className={`px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
-                                onClick={clearBillHandler}
+                                onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}
                             >
                                 <Trash2 size={14} /> CLEAR BILL
                             </button>
@@ -4945,8 +4312,8 @@ function Home() {
                                 <span className="font-black text-amber-400">{customerName}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-white/20 font-bold uppercase">Branch:</span>
-                                <span className="font-black text-emerald-400">{warehouse || 'No Branch'}</span>
+                                <span className="text-white/20 font-bold uppercase">Session:</span>
+                                <span className="font-black text-emerald-400">{posOpeningEntry}</span>
                             </div>
                             <div className="ml-auto opacity-50 font-bold">READY · SYSTEM OK</div>
                         </div>
@@ -5316,7 +4683,6 @@ function Home() {
                                 <div className="home-bill-summary">
                                     <div className="home-bill-summary-row"><span>Subtotal</span><span><strong>AED</strong> {displaySubtotal.toFixed(2)}</span></div>
                                     {discount.value > 0 && <div className="home-bill-summary-row home-bill-discount"><span>Discount {discount.type === 'percent' ? `(${discount.value}%)` : ''}</span><span>-<strong>AED</strong> {displayDiscount.toFixed(2)}</span></div>}
-                                    {loyaltyAmount > 0 && <div className="home-bill-summary-row home-bill-discount" style={{ color: '#10b981' }}><span>Loyalty Redeemed</span><span>-<strong>AED</strong> {loyaltyAmount.toFixed(2)}</span></div>}
                                     <div className="home-bill-summary-row"><span>Tax ({taxRate}%)</span><span><strong>AED</strong> {displayTax.toFixed(2)}</span></div>
                                     <div className="home-bill-summary-row home-bill-grand-total"><span>Grand Total</span><span><strong>AED</strong> {grandTotal.toFixed(2)}</span></div>
                                 </div>
@@ -5326,12 +4692,12 @@ function Home() {
                                     <div className="row">
                                         <div className="col-12">
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1 }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? `Edit (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}</button>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1, backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'}</button>
-                                                {grandTotal > 0 && <button className="home-bill-pay-btn" style={{ flex: 1 }} onClick={handleCheckout}>Pay</button>}
+                                                <button className="home-bill-discount-btn" onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? `Edit (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}</button>
+                                                {grandTotal > 0 && <button className="home-bill-pay-btn" onClick={handleCheckout}>Pay</button>}
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
-                                                {billItems.length > 0 && <button className="home-bill-clear-btn" style={{ flex: 1 }} onClick={clearBillHandler}>Clear Bill</button>}
+                                                {billItems.length > 0 && <button className="home-bill-clear-btn" onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}>Clear Bill</button>}
+                                                <button className="home-bill-clear-btn" onClick={closingEntry} style={{ backgroundColor: '#26abff' }}>Closing</button>
                                             </div>
                                         </div>
                                     </div>

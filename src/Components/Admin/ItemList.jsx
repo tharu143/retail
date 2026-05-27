@@ -81,6 +81,29 @@ const GlobalStyle = () => (
     .il-section-label { font-size: 11px; font-weight: 700; color: ${T.textMuted}; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 7px; display: block; }
     .il-check { width: 16px; height: 16px; accent-color: ${T.blue}; cursor: pointer; flex-shrink: 0; }
     .il-divider { height: 1.5px; background: ${T.borderLight}; border: none; }
+    .il-bulk-bar { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; border-radius: 18px; padding: 14px 22px; display: flex; align-items: center; gap: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.35), 0 8px 24px rgba(37,99,235,0.2); z-index: 5000; min-width: 520px; max-width: 90vw; animation: slideUpBar 0.25s ease-out both; }
+    @keyframes slideUpBar { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    .il-bulk-count { background: ${T.blue}; color: #fff; padding: '3px 10px'; border-radius: 100px; font-size: 13px; font-weight: 800; padding: 3px 12px; }
+    .il-bulk-btn-sync { background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 10px 22px; border-radius: 12px; font-size: 13px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all 0.15s; white-space: nowrap; }
+    .il-bulk-btn-sync:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .il-bulk-btn-sync:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .il-bulk-btn-cancel { background: rgba(255,255,255,0.1); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.12); padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .il-bulk-btn-cancel:hover { background: rgba(255,255,255,0.16); }
+    .il-bulk-wh-select { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; min-width: 200px; outline: none; cursor: pointer; }
+    .il-bulk-wh-select option { background: #1e293b; color: #fff; }
+    /* Sync Modal */
+    .il-sync-overlay { position: fixed; inset: 0; z-index: 12000; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center; animation: fadeIn 0.2s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .il-sync-panel { background: #fff; border-radius: 28px 28px 0 0; width: 100%; max-width: 820px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 -20px 60px rgba(0,0,0,0.2); animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .il-sync-header { padding: 22px 24px 16px; border-bottom: 1px solid ${T.border}; flex-shrink: 0; }
+    .il-sync-search { width: 100%; padding: 11px 16px 11px 42px; border: 1.5px solid ${T.border}; border-radius: 12px; font-size: 14px; font-weight: 500; outline: none; transition: border-color 0.15s; }
+    .il-sync-search:focus { border-color: ${T.blue}; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .il-sync-list { flex: 1; overflow-y: auto; padding: 10px 24px; }
+    .il-sync-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: background 0.1s; border: 1.5px solid transparent; margin-bottom: 4px; }
+    .il-sync-row:hover { background: ${T.bg}; }
+    .il-sync-row.selected { background: ${T.blueLight}; border-color: ${T.blue}30; }
+    .il-sync-footer { padding: 16px 24px; border-top: 1px solid ${T.border}; display: flex; align-items: center; gap: 12px; flex-shrink: 0; background: ${T.bg}; border-radius: 0 0 0 0; }
     .il-modal-panel { position: fixed; inset: 0; z-index: 11000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
     .il-modal-header { background: ${T.surface}; border-bottom: 1.5px solid ${T.border}; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
     .il-modal-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
@@ -428,6 +451,21 @@ export default function ItemList() {
   const [valuationData, setValuationData] = useState(null);
   const [loadingValuation, setLoadingValuation] = useState(false);
 
+  // ── Branch Sync Selection ──
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [bulkTargetWarehouse, setBulkTargetWarehouse] = useState(localStorage.getItem('warehouse') || '');
+
+  // ── Sync Items to Branch Modal ──
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [globalAllItems, setGlobalAllItems] = useState([]);
+  const [loadingGlobalItems, setLoadingGlobalItems] = useState(false);
+  const [syncSearch, setSyncSearch] = useState('');
+  const [syncSelectedItems, setSyncSelectedItems] = useState([]);
+  const [syncTargetWarehouse, setSyncTargetWarehouse] = useState(localStorage.getItem('warehouse') || '');
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncGroupFilter, setSyncGroupFilter] = useState('');
+
 
   const scanVideoRef = useRef(null);
   const codeReader = useRef(new BrowserMultiFormatReader());
@@ -592,6 +630,26 @@ export default function ItemList() {
         value: w.name
       })));
     } catch { }
+  };
+
+  const fetchAllGlobalItems = async () => {
+    try {
+      setLoadingGlobalItems(true);
+      // No warehouse param → returns ALL items from all branches
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
+        withCredentials: true
+      });
+      setGlobalAllItems(res.data?.message || []);
+    } catch { setGlobalAllItems([]); } finally { setLoadingGlobalItems(false); }
+  };
+
+  const openSyncModal = () => {
+    setSyncSearch('');
+    setSyncSelectedItems([]);
+    setSyncGroupFilter('');
+    setSyncTargetWarehouse(localStorage.getItem('warehouse') || '');
+    setShowSyncModal(true);
+    if (globalAllItems.length === 0) fetchAllGlobalItems();
   };
 
   const fetchSuppliers = async () => {
@@ -868,6 +926,89 @@ export default function ItemList() {
   const clearFilters = () => { setFilterName(''); setFilterGroup(''); setFilterStatus(''); setFilterHasVariants(''); setCurrentPage(1); };
   const hasFilters = filterName || filterGroup || filterStatus || filterHasVariants;
 
+  // ── Branch Sync Helpers ──
+  const toggleSelectItem = (e, itemCode) => {
+    e.stopPropagation();
+    setSelectedItems(prev =>
+      prev.includes(itemCode) ? prev.filter(c => c !== itemCode) : [...prev, itemCode]
+    );
+  };
+  const toggleSelectAll = () => {
+    if (selectedItems.length === paginatedItems.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(paginatedItems.map(i => i.item_code));
+    }
+  };
+  const handleBulkSyncToBranch = async () => {
+    if (!bulkTargetWarehouse) { Swal.fire('Error', 'Please select a target branch first.', 'error'); return; }
+    if (selectedItems.length === 0) return;
+    const confirm = await Swal.fire({
+      title: `Sync ${selectedItems.length} item(s)?`,
+      html: `Enable <strong>${selectedItems.length}</strong> item(s) for branch:<br/><code style="font-size:13px;color:#2563eb;">${bulkTargetWarehouse}</code>`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Sync to Branch',
+      cancelButtonText: 'Cancel',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'swal2-popup-custom', title: 'swal2-title-custom',
+        htmlContainer: 'swal2-text-custom', actions: 'swal2-actions-custom',
+        confirmButton: 'swal2-confirm-btn-custom', cancelButton: 'swal2-cancel-btn-custom'
+      }
+    });
+    if (!confirm.isConfirmed) return;
+    try {
+      setBulkSyncing(true);
+      const res = await axios.post(
+        '/api/method/kyle_retail.retail_api.api.bulk_enable_items_for_branch',
+        { item_codes: JSON.stringify(selectedItems), warehouse: bulkTargetWarehouse },
+        { withCredentials: true }
+      );
+      const result = res.data?.message || res.data;
+      Swal.fire({
+        icon: result.success ? 'success' : 'error',
+        title: result.success ? 'Branch Sync Complete' : 'Sync Failed',
+        text: result.message,
+        timer: 3000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+      if (result.success) { setSelectedItems([]); fetchItems(); }
+    } catch (err) {
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setBulkSyncing(false);
+    }
+  };
+
+  const handleSyncModalSubmit = async () => {
+    if (!syncTargetWarehouse) { Swal.fire('Error', 'Select a target branch.', 'error'); return; }
+    if (syncSelectedItems.length === 0) { Swal.fire('Error', 'Select at least one item.', 'error'); return; }
+    try {
+      setSyncLoading(true);
+      const res = await axios.post(
+        '/api/method/kyle_retail.retail_api.api.bulk_enable_items_for_branch',
+        { item_codes: JSON.stringify(syncSelectedItems), warehouse: syncTargetWarehouse },
+        { withCredentials: true }
+      );
+      const result = res.data?.message || res.data;
+      if (result.success) {
+        Swal.fire({ icon: 'success', title: 'Sync Complete!', text: result.message, timer: 2500, showConfirmButton: false, toast: true, position: 'top-end' });
+        setShowSyncModal(false);
+        setSyncSelectedItems([]);
+        fetchItems();
+      } else {
+        Swal.fire('Error', result.message, 'error');
+      }
+    } catch (err) {
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
   /* ============================
         RENDER
   ============================ */
@@ -897,6 +1038,13 @@ export default function ItemList() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}><Scale size={14} />Price Master</button>
               <button className="il-btn il-btn-secondary" onClick={fetchItems} title="Refresh"><RefreshCw size={14} /></button>
+              <button
+                className="il-btn il-btn-secondary"
+                onClick={openSyncModal}
+                style={{ color: '#7C3AED', borderColor: '#DDD6FE', background: '#F5F3FF', gap: 6 }}
+              >
+                <Warehouse size={14} />Sync Items to Branch
+              </button>
               <button className="il-btn il-btn-primary" onClick={() => {
                 resetForm();
                 const myWh = localStorage.getItem('warehouse');
@@ -1037,7 +1185,17 @@ export default function ItemList() {
                 <table className="il-table">
                   <thead>
                     <tr>
-                      <th style={{ width: 52, paddingLeft: 18 }}></th>
+                      <th style={{ width: 44, paddingLeft: 18 }}>
+                        <input
+                          type="checkbox"
+                          className="il-check"
+                          checked={paginatedItems.length > 0 && selectedItems.length === paginatedItems.length}
+                          onChange={toggleSelectAll}
+                          title="Select all on this page"
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </th>
+                      <th style={{ width: 52 }}></th>
                       <th>Item</th>
                       <th>Group</th>
                       <th>UOM</th>
@@ -1047,24 +1205,39 @@ export default function ItemList() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedItems.map(item => (
-                      <tr key={item.item_code} onClick={() => handleRowClick(item)}>
-                        <td style={{ paddingLeft: 18 }}>
-                          <div style={{ width: 36, height: 36, background: T.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${T.border}` }}>
-                            {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Package size={15} style={{ color: '#D1D9E6' }} />}
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{item.item_name}</div>
-                          <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{item.item_code}</div>
-                        </td>
-                        <td style={{ fontSize: 13, color: T.textSub }}>{item.item_group}</td>
-                        <td><span style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>{item.stock_uom || 'Nos'}</span></td>
-                        <td><StatusBadge disabled={item.disabled} /></td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>{Number(item.valuation_rate || 0).toFixed(2)}</td>
-                        <td style={{ paddingRight: 16 }}><ChevronRight size={15} style={{ color: T.textMuted }} /></td>
-                      </tr>
-                    ))}
+                    {paginatedItems.map(item => {
+                      const isChecked = selectedItems.includes(item.item_code);
+                      return (
+                        <tr
+                          key={item.item_code}
+                          onClick={() => handleRowClick(item)}
+                          style={{ background: isChecked ? '#EFF6FF' : undefined }}
+                        >
+                          <td style={{ paddingLeft: 18 }} onClick={e => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="il-check"
+                              checked={isChecked}
+                              onChange={e => toggleSelectItem(e, item.item_code)}
+                            />
+                          </td>
+                          <td>
+                            <div style={{ width: 36, height: 36, background: T.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${T.border}` }}>
+                              {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Package size={15} style={{ color: '#D1D9E6' }} />}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{item.item_name}</div>
+                            <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{item.item_code}</div>
+                          </td>
+                          <td style={{ fontSize: 13, color: T.textSub }}>{item.item_group}</td>
+                          <td><span style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>{item.stock_uom || 'Nos'}</span></td>
+                          <td><StatusBadge disabled={item.disabled} /></td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>{Number(item.valuation_rate || 0).toFixed(2)}</td>
+                          <td style={{ paddingRight: 16 }}><ChevronRight size={15} style={{ color: T.textMuted }} /></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1083,20 +1256,216 @@ export default function ItemList() {
                   : <>No items match your current filters in this branch. Expand your search to the global registry.</>
                 }
               </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+              <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap', justifyContent: 'center' }}>
                 {hasFilters && <button className="il-btn il-btn-secondary" onClick={clearFilters} style={{ height: 44, borderRadius: 12, padding: '0 24px' }}>Clear Local Filters</button>}
                 <button
                   onClick={() => handleGlobalSearchMaster(barcodeFilter || filterName)}
-                  className="il-btn il-btn-primary"
-                  style={{ padding: '0 32px', fontSize: 13, height: 44, borderRadius: 12, boxShadow: '0 10px 15px -3px rgba(37,99,235,0.2)' }}
+                  className="il-btn il-btn-secondary"
+                  style={{ padding: '0 28px', fontSize: 13, height: 44, borderRadius: 12 }}
                 >
                   <Search size={15} style={{ marginRight: 8 }} />
                   {barcodeFilter ? 'Deep Scan Registry' : 'Search Industry Registry'}
                 </button>
+                <button
+                  onClick={openSyncModal}
+                  className="il-btn il-btn-primary"
+                  style={{ padding: '0 28px', fontSize: 13, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#7C3AED,#6D28D9)', boxShadow: '0 8px 24px rgba(124,58,237,0.3)' }}
+                >
+                  <Warehouse size={15} style={{ marginRight: 8 }} />
+                  Sync Items to Branch
+                </button>
               </div>
             </div>
           )}
+
+          {/* ── FLOATING BRANCH SYNC ACTION BAR ── */}
+          {selectedItems.length > 0 && (
+            <div className="il-bulk-bar">
+              <span className="il-bulk-count">{selectedItems.length} selected</span>
+              <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>Sync to Branch:</span>
+              <select
+                className="il-bulk-wh-select"
+                value={bulkTargetWarehouse}
+                onChange={e => setBulkTargetWarehouse(e.target.value)}
+              >
+                <option value="">— Choose Branch —</option>
+                {warehouses.map(w => (
+                  <option key={w.value} value={w.value}>{w.label}</option>
+                ))}
+              </select>
+              <button
+                className="il-bulk-btn-sync"
+                onClick={handleBulkSyncToBranch}
+                disabled={bulkSyncing || !bulkTargetWarehouse}
+              >
+                {bulkSyncing
+                  ? <><Loader2 size={14} className="spin" />Syncing...</>
+                  : <><Warehouse size={14} />Enable for Branch</>}
+              </button>
+              <button
+                className="il-bulk-btn-cancel"
+                onClick={() => setSelectedItems([])}
+              >
+                <X size={13} /> Clear
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* ══════════════════════════════════
+             SYNC ITEMS TO BRANCH MODAL
+        ══════════════════════════════════ */}
+        {showSyncModal && (() => {
+          const syncGroups = [...new Set(globalAllItems.map(i => i.item_group).filter(Boolean))].sort();
+          const filteredSync = globalAllItems.filter(item => {
+            const s = syncSearch.toLowerCase();
+            const groupMatch = !syncGroupFilter || item.item_group === syncGroupFilter;
+            const nameMatch = !syncSearch ||
+              (item.item_name || '').toLowerCase().includes(s) ||
+              (item.item_code || '').toLowerCase().includes(s) ||
+              (item.barcodes || []).some(b => (b.barcode || '').toLowerCase().includes(s));
+            return groupMatch && nameMatch;
+          });
+          const allSyncSelected = filteredSync.length > 0 && filteredSync.every(i => syncSelectedItems.includes(i.item_code));
+          return (
+            <div className="il-sync-overlay" onClick={() => setShowSyncModal(false)}>
+              <div className="il-sync-panel" onClick={e => e.stopPropagation()}>
+
+                {/* Header */}
+                <div className="il-sync-header">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 36, height: 36, background: '#F5F3FF', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Warehouse size={18} color="#7C3AED" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>Sync Items to Branch</div>
+                        <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>Select items from global registry → enable for a branch</div>
+                      </div>
+                    </div>
+                    <button onClick={() => setShowSyncModal(false)} style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={15} /></button>
+                  </div>
+                  {/* Search + Group Filter */}
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <Search size={14} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
+                      <input
+                        className="il-sync-search"
+                        autoFocus
+                        placeholder="Search by name, code or barcode..."
+                        value={syncSearch}
+                        onChange={e => setSyncSearch(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ position: 'relative', minWidth: 160 }}>
+                      <select
+                        style={{ appearance: 'none', width: '100%', padding: '11px 32px 11px 14px', border: `1.5px solid ${T.border}`, borderRadius: 12, fontSize: 13, fontWeight: 600, color: T.text, outline: 'none', background: T.surface, cursor: 'pointer' }}
+                        value={syncGroupFilter}
+                        onChange={e => setSyncGroupFilter(e.target.value)}
+                      >
+                        <option value="">All Groups</option>
+                        {syncGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <ChevronDown size={13} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: T.textMuted }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Item List */}
+                <div className="il-sync-list">
+                  {loadingGlobalItems ? (
+                    <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                      <Loader2 size={26} color={T.blue} className="spin" style={{ margin: '0 auto' }} />
+                      <div style={{ marginTop: 10, fontSize: 13, color: T.textMuted, fontWeight: 600 }}>Loading global registry...</div>
+                    </div>
+                  ) : filteredSync.length === 0 ? (
+                    <div style={{ padding: '40px 0', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No items found</div>
+                  ) : (
+                    <>
+                      {/* Select all filtered */}
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: T.bg, marginBottom: 8, cursor: 'pointer' }}
+                        onClick={() => {
+                          if (allSyncSelected) {
+                            setSyncSelectedItems(prev => prev.filter(c => !filteredSync.map(i => i.item_code).includes(c)));
+                          } else {
+                            const codes = filteredSync.map(i => i.item_code);
+                            setSyncSelectedItems(prev => [...new Set([...prev, ...codes])]);
+                          }
+                        }}
+                      >
+                        <input type="checkbox" className="il-check" checked={allSyncSelected} onChange={() => {}} onClick={e => e.stopPropagation()} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: T.textSub }}>
+                          {allSyncSelected ? 'Deselect All' : `Select All (${filteredSync.length})`}
+                        </span>
+                        {syncSelectedItems.length > 0 && (
+                          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, background: '#7C3AED', color: '#fff', padding: '2px 10px', borderRadius: 100 }}>
+                            {syncSelectedItems.length} selected
+                          </span>
+                        )}
+                      </div>
+                      {filteredSync.map(item => {
+                        const checked = syncSelectedItems.includes(item.item_code);
+                        return (
+                          <div
+                            key={item.item_code}
+                            className={`il-sync-row${checked ? ' selected' : ''}`}
+                            onClick={() => setSyncSelectedItems(prev =>
+                              prev.includes(item.item_code) ? prev.filter(c => c !== item.item_code) : [...prev, item.item_code]
+                            )}
+                          >
+                            <input type="checkbox" className="il-check" checked={checked} onChange={() => {}} onClick={e => e.stopPropagation()} />
+                            <div style={{ width: 40, height: 40, background: T.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: `1px solid ${T.border}` }}>
+                              {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Package size={16} color={T.textMuted} />}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: 14, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.item_name}</div>
+                              <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{item.item_code}</div>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: T.textSub, background: T.bg, padding: '2px 8px', borderRadius: 6, flexShrink: 0 }}>{item.item_group}</span>
+                            <span style={{ fontSize: 11, color: T.textMuted, padding: '2px 8px', borderRadius: 6, background: T.bg, flexShrink: 0 }}>{item.stock_uom || 'Nos'}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="il-sync-footer">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Target Branch</span>
+                    <div style={{ position: 'relative', width: 260 }}>
+                      <select
+                        style={{ appearance: 'none', width: '100%', padding: '9px 32px 9px 14px', border: `1.5px solid ${syncTargetWarehouse ? '#7C3AED' : T.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: T.text, outline: 'none', background: '#fff', cursor: 'pointer', boxShadow: syncTargetWarehouse ? '0 0 0 3px rgba(124,58,237,0.1)' : 'none' }}
+                        value={syncTargetWarehouse}
+                        onChange={e => setSyncTargetWarehouse(e.target.value)}
+                      >
+                        <option value="">— Choose Branch —</option>
+                        {warehouses.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                      </select>
+                      <ChevronDown size={13} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: T.textMuted }} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowSyncModal(false)}
+                    style={{ background: T.bg, border: `1.5px solid ${T.border}`, padding: '10px 20px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: T.textSub }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSyncModalSubmit}
+                    disabled={syncLoading || syncSelectedItems.length === 0 || !syncTargetWarehouse}
+                    style={{ background: syncLoading || syncSelectedItems.length === 0 || !syncTargetWarehouse ? '#a78bfa' : 'linear-gradient(135deg,#7C3AED,#6D28D9)', color: '#fff', border: 'none', padding: '10px 28px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: syncLoading || syncSelectedItems.length === 0 || !syncTargetWarehouse ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 16px rgba(124,58,237,0.3)', transition: 'all 0.15s' }}
+                  >
+                    {syncLoading ? <><Loader2 size={14} className="spin" />Syncing...</> : <><Warehouse size={14} />Sync {syncSelectedItems.length > 0 ? syncSelectedItems.length : ''} Items to Branch</>}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          );
+        })()}
 
         {/* PAGINATION */}
         {!loading && total > 0 && (

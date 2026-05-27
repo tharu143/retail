@@ -66,8 +66,8 @@ const CustomSearchDropdown = ({
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
-        ref.current && 
-        !ref.current.contains(e.target) && 
+        ref.current &&
+        !ref.current.contains(e.target) &&
         !e.target.closest('.custom-dropdown-portal')
       ) {
         setShow(false);
@@ -197,10 +197,10 @@ const CustomSearchDropdown = ({
   };
 
   return (
-    <div 
-      className="relative w-full" 
+    <div
+      className="relative w-full"
       ref={ref}
-      style={{ 
+      style={{
         '--po-primary': themeColor,
         '--po-primary-light': `${themeColor}15`
       }}
@@ -249,6 +249,7 @@ const CustomSearchDropdown = ({
             top: position.top + 8,
             left: position.left,
             width: position.width,
+            zIndex: 20000, // CRITICAL: Focus above modal overlay (10500 z-index)
             '--po-primary': themeColor || '#6366f1',
             '--po-primary-light': themeColor ? `${themeColor}15` : '#6366f115'
           }}
@@ -262,7 +263,7 @@ const CustomSearchDropdown = ({
                   onMouseEnter={() => setSelectedIndex(i)}
                   className={`px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
                 >
-                    <div className="flex flex-col">
+                  <div className="flex flex-col">
                     <div className="flex items-center gap-2">
                       <span className={`font-bold text-[13px] transition-colors ${selectedIndex === i ? 'text-[var(--po-primary,#6366f1)]' : 'text-slate-700'}`}>
                         {item[optionsLabel] || item.name || item.item_code || 'Unknown'}
@@ -289,39 +290,39 @@ const CustomSearchDropdown = ({
 
           {isGlobalView && (
             <div className="py-1">
-               <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Results (Other Branches)</span>
-                  <button 
-                    onClick={() => setIsGlobalView(false)}
-                    className="text-[10px] font-bold text-blue-600 hover:underline"
+              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Results (Other Branches)</span>
+                <button
+                  onClick={() => setIsGlobalView(false)}
+                  className="text-[10px] font-bold text-blue-600 hover:underline"
+                >
+                  Back to Local
+                </button>
+              </div>
+              {globalResults.length > 0 ? (
+                globalResults.map((item, i) => (
+                  <div
+                    key={i}
+                    className="px-4 py-3 border-b border-slate-50 flex items-center justify-between hover:bg-slate-50 group"
                   >
-                    Back to Local
-                  </button>
-               </div>
-               {globalResults.length > 0 ? (
-                 globalResults.map((item, i) => (
-                   <div
-                     key={i}
-                     className="px-4 py-3 border-b border-slate-50 flex items-center justify-between hover:bg-slate-50 group"
-                   >
-                     <div className="flex flex-col">
-                        <span className="font-bold text-[13px] text-slate-700">{item[optionsLabel] || item.name}</span>
-                        <span className="text-[10px] text-slate-400 font-medium">Available in: {item.active_branches || 'Registry'}</span>
-                     </div>
-                     <button
-                       onClick={() => handleActivate(item)}
-                       disabled={activating === (item.name || item.item_code)}
-                       className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm"
-                     >
-                       {activating === (item.name || item.item_code) ? '...' : 'ACTIVATE'}
-                     </button>
-                   </div>
-                 ))
-               ) : (
-                 <div className="p-8 text-center">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No match in other branches</p>
-                 </div>
-               )}
+                    <div className="flex flex-col">
+                      <span className="font-bold text-[13px] text-slate-700">{item[optionsLabel] || item.name}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">Available in: {item.active_branches || 'Registry'}</span>
+                    </div>
+                    <button
+                      onClick={() => handleActivate(item)}
+                      disabled={activating === (item.name || item.item_code)}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm"
+                    >
+                      {activating === (item.name || item.item_code) ? '...' : 'ACTIVATE'}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No match in other branches</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -334,7 +335,7 @@ const CustomSearchDropdown = ({
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">No Local Matches</p>
                   <p className="text-[10px] text-slate-400 mb-4 font-medium italic">Check other branches for "{query}"?</p>
-                  
+
                   <div className="flex flex-col gap-2">
                     {globalSearch && (
                       <button
@@ -344,7 +345,7 @@ const CustomSearchDropdown = ({
                         <Search size={14} /> SEARCH OTHER BRANCHES
                       </button>
                     )}
-                    
+
                     {createOption && (
                       <button
                         onClick={handleCreate}
