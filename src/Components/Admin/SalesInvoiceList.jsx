@@ -625,6 +625,9 @@ const SalesInvoiceList = () => {
         selling_price_list: inv.selling_price_list || 'Standard Selling',
         update_outstanding_amount_in_self: inv.update_outstanding_amount_in_self === 1,
         update_billed_amount_in_delivery_note: inv.update_billed_amount_in_delivery_note === 1,
+        payments: inv.payments || [],
+        outstanding_amount: inv.outstanding_amount || 0,
+        paid_amount: inv.paid_amount || 0,
         items: inv.items.map(i => ({
           item_code: i.item_code,
           item_name: i.item_name,
@@ -1094,6 +1097,43 @@ const SalesInvoiceList = () => {
                               <span style={{ color: "#1e293b", fontWeight: 700 }}>{getCurrencySymbol()}{t.tax_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                             </div>
                           ))}
+                        </div>
+                      </div>
+
+                      {/* Payment Mode & Details */}
+                      <div style={{ background: "white", borderRadius: "0.75rem", border: "1px solid #e2e8f0", padding: "1.5rem", display: "flex", flexDirection: "column", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                        <h3 style={{ fontSize: "0.8rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f1f5f9", paddingBottom: "0.75rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span style={{ width: "4px", height: "14px", borderRadius: "2px", background: themeColor, display: "inline-block" }}></span>
+                          Payment Details
+                        </h3>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", flex: 1, justifyContent: "center" }}>
+                          {form.payments && form.payments.some(p => parseFloat(p.amount) > 0) ? (
+                            form.payments.filter(p => parseFloat(p.amount) > 0).map((p, idx) => (
+                              <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", borderTop: idx > 0 ? "1px dashed #f1f5f9" : "none", paddingTop: idx > 0 ? "0.5rem" : "0", marginTop: idx > 0 ? "0.5rem" : "0" }}>
+                                <span style={{ color: "#64748b", fontWeight: 600 }}>{p.mode_of_payment}</span>
+                                <span style={{ color: "#1e293b", fontWeight: 800 }}>{getCurrencySymbol()}{parseFloat(p.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                              </div>
+                            ))
+                          ) : form.outstanding_amount > 0 ? (
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem" }}>
+                              <span style={{ color: "#ef4444", fontWeight: 700 }}>Credit Amount (Credit Sale)</span>
+                              <span style={{ color: "#ef4444", fontWeight: 800 }}>{getCurrencySymbol()}{parseFloat(form.outstanding_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          ) : (
+                            <div style={{ color: "#94a3b8", fontSize: "0.875rem", textAlign: "center" }}>No payment details recorded</div>
+                          )}
+
+                          {form.outstanding_amount > 0 && form.payments && form.payments.some(p => parseFloat(p.amount) > 0) && (
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", borderTop: "1px dashed #ef4444", paddingTop: "0.5rem", marginTop: "0.5rem" }}>
+                              <span style={{ color: "#ef4444", fontWeight: 700 }}>Outstanding Balance (Credit)</span>
+                              <span style={{ color: "#ef4444", fontWeight: 800 }}>{getCurrencySymbol()}{parseFloat(form.outstanding_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
+
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", borderTop: "2px solid #e2e8f0", paddingTop: "0.75rem", marginTop: "0.75rem" }}>
+                            <span style={{ color: "#475569", fontWeight: 800 }}>Total Paid Amount</span>
+                            <span style={{ color: themeColor, fontWeight: 900 }}>{getCurrencySymbol()}{parseFloat(form.paid_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                          </div>
                         </div>
                       </div>
 

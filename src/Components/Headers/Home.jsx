@@ -992,13 +992,13 @@ function Home() {
         const fetchTaxTemplates = async () => {
             try {
                 const res = await POSService.getSalesTaxes({ company: company });
-                // Filter templates to only include those matching the current company
-                const templates = (res || []).filter(t => !t.company || t.company === company);
+                // Filter templates to only include those matching the current company's abbreviation (e.g., - NS)
+                const companyAbbr = warehouse && warehouse.includes(' - ') ? warehouse.split(' - ').pop() : 'NS';
+                const templates = (res || []).filter(t => t.name.includes(`- ${companyAbbr}`));
                 setTaxTemplates(templates);
                 if (templates.length) {
-                    // Default to the requested template: VAT 5% - KSPL
-                    const defaultTax = templates.find(t => t.name.includes("VAT 5% - KSPL")) ||
-                        templates.find(t => t.name.includes("UAE VAT 5%")) ||
+                    const defaultTax = templates.find(t => t.name.includes("VAT 5%")) ||
+                        templates.find(t => t.name.includes("5%")) ||
                         templates[0];
                     setSelectedTaxTemplate(defaultTax.name);
                 }
@@ -1015,8 +1015,8 @@ function Home() {
                     const cached = await db.tax_templates.toArray();
                     if (cached.length) {
                         setTaxTemplates(cached);
-                        const defaultTax = cached.find(t => t.name.includes("VAT 5% - KSPL")) ||
-                            cached.find(t => t.name.includes("UAE VAT 5%")) ||
+                        const defaultTax = cached.find(t => t.name.includes("VAT 5%")) ||
+                            cached.find(t => t.name.includes("5%")) ||
                             cached[0];
                         setSelectedTaxTemplate(defaultTax.name);
                     }
