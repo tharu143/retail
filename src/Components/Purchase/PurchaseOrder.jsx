@@ -204,6 +204,68 @@ function PurchaseOrder() {
         }
       }
 
+      // F6: Toggle UOM of active row (or last row)
+      if (e.key === 'F6') {
+        e.preventDefault();
+        const activeEl = document.activeElement;
+        let rowIndex = formData.items.length - 1;
+        if (activeEl) {
+          const tr = activeEl.closest('tr');
+          if (tr && tr.parentNode) {
+            const index = Array.from(tr.parentNode.children).indexOf(tr);
+            if (index !== -1 && index < formData.items.length) {
+              rowIndex = index;
+            }
+          }
+        }
+
+        if (rowIndex >= 0 && rowIndex < formData.items.length) {
+          const item = formData.items[rowIndex];
+          if (item && item.item_code) {
+            let nextUom = '';
+            const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
+            const uomList = item.uom_list || [];
+            
+            if (uomList.length > 1) {
+              const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
+              const nextIndex = (currentIndex + 1) % uomList.length;
+              nextUom = uomList[nextIndex].uom;
+            } else {
+              nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
+            }
+
+            handleUOMChange(nextUom, rowIndex);
+            Swal.fire({
+              icon: 'info',
+              title: 'UOM Switched',
+              text: `Row ${rowIndex + 1}: Switched UOM to ${nextUom}`,
+              toast: true,
+              position: 'top-end',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          }
+        }
+      }
+
+      // F7: Auto-Apply VAT 5% Template
+      if (e.key === 'F7') {
+        e.preventDefault();
+        const defaultTax = taxTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name;
+        if (defaultTax) {
+          onTaxChange(defaultTax);
+          Swal.fire({
+            icon: 'success',
+            title: 'Tax Applied',
+            text: `Applied Tax Template: ${defaultTax}`,
+            toast: true,
+            position: 'top-end',
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }
+      }
+
       // 3. Add Item Row: F8
       if (e.key === 'F8') {
         e.preventDefault();
@@ -222,7 +284,7 @@ function PurchaseOrder() {
       }
 
       // 5. Save Draft: Ctrl + S or F10
-      if ((e.ctrlKey && e.key === 's') || e.key === 'F10') {
+      if ((e.ctrlKey && e.key.toLowerCase() === 's') || e.key === 'F10') {
         e.preventDefault();
         if (!saving && formData.docstatus === 0) {
           handleDocAction('save');
@@ -236,11 +298,58 @@ function PurchaseOrder() {
           handleDocAction('submit');
         }
       }
+
+      // Arrow Up/Down navigation inside table inputs
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr) {
+            e.preventDefault();
+            const colIndex = Array.from(tr.children).indexOf(td);
+            const targetTr = e.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling;
+            if (targetTr) {
+              const targetTd = targetTr.children[colIndex];
+              if (targetTd) {
+                const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                if (targetInput) {
+                  targetInput.focus();
+                  targetInput.select?.();
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // + / -: Increase / Decrease focused row quantity
+      if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+        const activeEl = document.activeElement;
+        if (activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
+          const td = activeEl.closest('td');
+          const isQtyField = activeEl.name?.toLowerCase().includes('qty') || 
+                             activeEl.placeholder?.toLowerCase().includes('qty') ||
+                             (activeEl.previousElementSibling && activeEl.previousElementSibling.innerText === '-') ||
+                             (activeEl.nextElementSibling && activeEl.nextElementSibling.innerText === '+') ||
+                             (td && (td.closest('table')?.querySelector(`thead th:nth-child(${Array.from(td.closest('tr').children).indexOf(td) + 1})`)?.innerText.toLowerCase().includes('qty') || activeEl.placeholder?.toLowerCase().includes('qty')));
+          if (isQtyField) {
+            e.preventDefault();
+            const currentVal = parseFloat(activeEl.value) || 0;
+            const diff = (e.key === '+' || e.key === '=') ? 1 : -1;
+            const newVal = Math.max(0, currentVal + diff);
+            activeEl.value = newVal;
+            // Dispatch a change event so React registers the update
+            const event = new Event('input', { bubbles: true });
+            activeEl.dispatchEvent(event);
+          }
+        }
+      }
     };
 
     window.addEventListener('keydown', handleGlobalShortcuts);
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
-  }, [formData, allowedActions, isViewOnly, saving, loading]);
+  }, [formData, allowedActions, isViewOnly, saving, loading, taxTemplates]);
 
 
 
@@ -786,7 +895,7 @@ function PurchaseOrder() {
 
       // Auto-set default 5% tax for NEW documents if nothing selected
       if (!formData.name && !formData.taxes_and_charges && templates.length > 0) {
-        const defaultTax = templates.find(t => t.name === 'UAE VAT 5%') || templates.find(t => t.name.includes('5%'));
+        const defaultTax = templates.find(t => t.name.includes('UAE VAT 5% - NS')) || templates.find(t => t.name === 'UAE VAT 5%') || templates.find(t => t.name.includes('5%'));
         if (defaultTax) {
           onTaxChange(defaultTax.name);
         }
@@ -1871,6 +1980,63 @@ function PurchaseOrder() {
                 </div>
               ) : null
             )}
+          </div>
+        </div>
+
+        {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
+        <div className="w-full bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-sky-50/50 backdrop-blur-md border-b border-emerald-100/60 px-6 py-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-[11px] font-medium text-slate-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
+          <div className="flex items-center gap-1.5 text-emerald-800 font-bold uppercase tracking-wider text-[10px]">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Quick Shortcuts
+          </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F2</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Supplier</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F3</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
+              <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
+              <span className="text-[10px] font-semibold text-emerald-800">Apply VAT 5%</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+S / F10</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Save Draft</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Submit</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">↑ / ↓</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Navigate Grid</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Qty Adjust</span>
+            </div>
           </div>
         </div>
 

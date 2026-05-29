@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-    RefreshCw, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
+    RefreshCw, ExternalLink, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
     Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
     DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan,
     ShoppingCart, Minus, Plus, Upload, Percent,
@@ -17,7 +17,8 @@ import {
     Banknote,
     Building2,
     Award,
-    Coins
+    Coins,
+    Barcode
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { logout, toggleTheme } from '../../Redux/Slices/userSlice';
@@ -3295,9 +3296,9 @@ function Home() {
                 onClick={e => e.stopPropagation()}
                 style={{
                     width: '100%',
-                    maxWidth: '540px',
+                    maxWidth: '500px',
                     backgroundColor: '#ffffff',
-                    borderRadius: '32px',
+                    borderRadius: '24px',
                     overflow: 'hidden',
                     boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
                     display: 'flex',
@@ -3306,7 +3307,7 @@ function Home() {
                     maxHeight: '90vh'
                 }}
             >
-                <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-6 flex justify-between items-center">
+                <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-5 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-sky-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-sky-200">
                             <CreditCard size={20} />
@@ -3321,11 +3322,11 @@ function Home() {
                     </button>
                 </div>
 
-                <div className="home-modal-body p-8 flex flex-col gap-6 overflow-y-auto">
+                <div className="home-modal-body p-5 flex flex-col gap-4 overflow-y-auto">
                     {/* Summary Card */}
-                    <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
+                    <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-xl relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                        <div className="flex justify-between items-center mb-6 relative z-10">
+                        <div className="flex justify-between items-center mb-4 relative z-10">
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Bill</span>
                                 <span className="text-2xl font-black">AED {grandTotal.toFixed(2)}</span>
@@ -3335,11 +3336,11 @@ function Home() {
                                 <span className="text-2xl font-black text-emerald-400">AED {totalPaid.toFixed(2)}</span>
                             </div>
                         </div>
-                        <div className="pt-4 border-t border-white/10 flex justify-between items-center relative z-10">
+                        <div className="pt-3 border-t border-white/10 flex justify-between items-center relative z-10">
                             <span className="text-xs font-black uppercase tracking-widest text-slate-400">
                                 {balanceRemaining > 0 ? 'Remaining Balance' : 'Change to Return'}
                             </span>
-                            <span className={`text-3xl font-black ${balanceRemaining > 0 ? 'text-sky-400' : 'text-amber-400'}`}>
+                            <span className={`text-2xl font-black ${balanceRemaining > 0 ? 'text-sky-400' : 'text-amber-400'}`}>
                                 AED {Math.abs(balanceRemaining).toFixed(2)}
                             </span>
                         </div>
@@ -3347,11 +3348,11 @@ function Home() {
 
                     {/* Added Payments List */}
                     {payments.length > 0 && (
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2">
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Payment Ledger</h4>
-                            <div className="flex flex-col gap-2 max-h-[100px] overflow-y-auto pr-1">
+                            <div className="flex flex-col gap-1.5 max-h-[100px] overflow-y-auto pr-1">
                                 {payments.map((p, idx) => (
-                                    <div key={idx} className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100 group">
+                                    <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 px-3 rounded-2xl border border-slate-100 group">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.mode_of_payment.includes('Cash') ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
                                                 {p.mode_of_payment.includes('Cash') ? <Banknote size={16} /> : <CreditCard size={16} />}
@@ -3372,54 +3373,54 @@ function Home() {
 
                     {/* Payment Selection Area */}
                     {balanceRemaining > 0 && (
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-3">
                             {!selectedPaymentMode ? (
                                 <>
                                     <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Select Payment Method</h5>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-3">
                                         <button
-                                            className="group p-5 bg-emerald-50 border-2 border-emerald-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="group p-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Cash')}
                                         >
-                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded shadow-sm">1</div>
-                                            <div className="w-12 h-12 bg-white text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <DollarSign size={28} />
+                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-black rounded shadow-sm">1</div>
+                                            <div className="w-10 h-10 bg-white text-emerald-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <DollarSign size={20} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white text-xs">Cash</span>
+                                            <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white text-[10px]">Cash</span>
                                         </button>
                                         <button
-                                            className="group p-5 bg-sky-50 border-2 border-sky-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="group p-3.5 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Credit Card')}
                                         >
-                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-sky-600 text-white text-[10px] font-black rounded shadow-sm">2</div>
-                                            <div className="w-12 h-12 bg-white text-sky-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <CreditCard size={28} />
+                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-sky-600 text-white text-[9px] font-black rounded shadow-sm">2</div>
+                                            <div className="w-10 h-10 bg-white text-sky-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <CreditCard size={20} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white text-xs">Card</span>
+                                            <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white text-[10px]">Card</span>
                                         </button>
                                         <button
-                                            className="group p-5 bg-purple-50 border-2 border-purple-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="group p-3.5 bg-purple-50 border-2 border-purple-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('InstaPay Cash')}
                                         >
-                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-purple-600 text-white text-[10px] font-black rounded shadow-sm">3</div>
-                                            <div className="w-12 h-12 bg-white text-purple-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <Banknote size={28} />
+                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-purple-600 text-white text-[9px] font-black rounded shadow-sm">3</div>
+                                            <div className="w-10 h-10 bg-white text-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <Banknote size={20} />
                                             </div>
                                             <span className="font-black uppercase tracking-widest text-purple-700 group-hover:text-white text-[10px] text-center">Insta Cash</span>
                                         </button>
                                         <button
-                                            className="group p-5 bg-indigo-50 border-2 border-indigo-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="group p-3.5 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('InstaPay Bank')}
                                         >
-                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black rounded shadow-sm">4</div>
-                                            <div className="w-12 h-12 bg-white text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <Building2 size={28} />
+                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-indigo-600 text-white text-[9px] font-black rounded shadow-sm">4</div>
+                                            <div className="w-10 h-10 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <Building2 size={20} />
                                             </div>
                                             <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[10px] text-center">Insta Bank</span>
                                         </button>
                                         {selectedCustomer && selectedCustomer.name !== 'Cash' && (
                                             <button
-                                                className="group p-5 bg-amber-50 border-2 border-amber-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative col-span-2"
+                                                className="group p-3.5 bg-amber-50 border-2 border-amber-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative col-span-2"
                                                 onClick={async () => {
                                                     if (selectedCustomer.customer_group !== 'Credit Customer') {
                                                         const result = await Swal.fire({
@@ -3446,35 +3447,35 @@ function Home() {
                                                     }
                                                 }}
                                             >
-                                                <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-600 text-white text-[10px] font-black rounded shadow-sm">5</div>
-                                                <div className="w-12 h-12 bg-white text-amber-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                    <Coins size={28} />
+                                                <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-amber-600 text-white text-[9px] font-black rounded shadow-sm">5</div>
+                                                <div className="w-10 h-10 bg-white text-amber-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                    <Coins size={20} />
                                                 </div>
-                                                <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-xs">Credit Checkout</span>
+                                                <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-[10px]">Credit Checkout</span>
                                             </button>
                                         )}
                                     </div>
                                 </>
                             ) : (
-                                <div className="bg-slate-50 p-6 rounded-[2.5rem] border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2">
-                                    <div className="flex justify-between items-center mb-4 px-2">
-                                        <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{selectedPaymentMode} Amount</span>
+                                <div className="bg-slate-50 p-4 rounded-2xl border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="flex justify-between items-center mb-3 px-2">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedPaymentMode} Amount</span>
                                         <button onClick={() => setSelectedPaymentMode('')} className="text-[10px] font-black text-sky-600 hover:underline uppercase">Change Mode</button>
                                     </div>
-                                    <div className="mb-4 flex items-center bg-white border-2 border-sky-500 rounded-2xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
-                                        <span className="pl-6 pr-3 text-xl font-black text-slate-400">AED</span>
+                                    <div className="mb-3 flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
+                                        <span className="pl-4 pr-2 text-base font-black text-slate-400">AED</span>
                                         <input
                                             type="number"
                                             value={tenderedAmount}
                                             onChange={e => setTenderedAmount(e.target.value)}
-                                            className="w-full pr-6 py-5 bg-transparent text-4xl font-black text-slate-900 outline-none"
+                                            className="w-full pr-4 py-3 bg-transparent text-2xl font-black text-slate-900 outline-none"
                                             autoFocus
                                             onKeyDown={(e) => e.key === 'Enter' && addPayment()}
                                         />
                                     </div>
                                     <button
                                         onClick={addPayment}
-                                        className="w-full py-5 bg-sky-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all text-sm"
+                                        className="w-full py-3.5 bg-sky-600 text-white rounded-xl font-black uppercase tracking-[0.2em] shadow-xl shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all text-xs"
                                     >
                                         Add {selectedPaymentMode} AED {(parseFloat(tenderedAmount) || 0).toFixed(2)}
                                     </button>
@@ -3484,9 +3485,9 @@ function Home() {
                     )}
                 </div>
 
-                <div className="home-modal-footer p-8 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
+                <div className="home-modal-footer p-5 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
                     <button
-                        className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
+                        className="flex-1 py-3 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
                         onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}
                     >
                         Cancel Order
@@ -3494,13 +3495,20 @@ function Home() {
                     <button
                         onClick={completePayment}
                         disabled={paymentLoading || balanceRemaining > 0}
-                        className={`flex-[2] py-4 rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 text-sm ${balanceRemaining <= 0
+                        className={`flex-[2] py-3 rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 text-xs ${balanceRemaining <= 0
                             ? 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                             }`}
                     >
-                        {paymentLoading ? <Loader2 size={20} className="animate-spin" /> : <Package size={20} />}
-                        {paymentLoading ? 'Finalizing...' : 'Complete Payment'}
+                        {paymentLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
+                        {paymentLoading ? (
+                            'Finalizing...'
+                        ) : (
+                            <span className="flex items-center gap-1.5">
+                                Complete Payment
+                                <kbd className="px-1.5 py-0.5 text-[9px] font-black bg-white/20 rounded border border-white/10 uppercase tracking-normal">Enter</kbd>
+                            </span>
+                        )}
                     </button>
                 </div>
             </div>
@@ -3847,6 +3855,16 @@ function Home() {
                 }
             }
 
+            // F8: Toggle UOM of active cart item
+            if (e.key === 'F8') {
+                e.preventDefault();
+                if (selectedBillIndex !== -1) {
+                    const item = billItems[selectedBillIndex];
+                    const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
+                    toggleUom(item.id, newUom);
+                }
+            }
+
             // Arrow Keys for Bill Navigation & Tax Toggle
             const isSearchDropdownOpen = showItemDropdown || showDropdown;
             if (billItems.length > 0 && !isSearchDropdownOpen) {
@@ -3869,8 +3887,6 @@ function Home() {
                 }
             }
 
-            // Space or F12: Open Payment (Global focus handling)
-            // F12 or Space: Open Payment
             if (e.key === 'F7' || (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
                 if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
                     e.preventDefault();
@@ -3878,14 +3894,33 @@ function Home() {
                 }
             }
 
-            // Enter: Smart Handling in Payment Modal
-            if (e.key === 'Enter' && showPaymentModal) {
-                if (selectedPaymentMode && tenderedAmount > 0) {
-                    e.preventDefault();
-                    addPayment();
-                } else if (balanceRemaining <= 0 && !paymentLoading) {
-                    e.preventDefault();
-                    completePayment();
+            // F9: Active Orders Toggle
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowDraftsModal(prev => !prev);
+            }
+
+            // Enter / F12 / Ctrl+Enter: Smart Handling in Payment Modal
+            if (showPaymentModal) {
+                if (e.key === 'F12' || (e.key === 'Enter' && e.ctrlKey)) {
+                    if (balanceRemaining <= 0 && !paymentLoading) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        completePayment();
+                        return;
+                    }
+                }
+
+                if (e.key === 'Enter') {
+                    if (selectedPaymentMode && tenderedAmount > 0) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        addPayment();
+                    } else if (balanceRemaining <= 0 && !paymentLoading) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        completePayment();
+                    }
                 }
             }
 
@@ -3900,10 +3935,6 @@ function Home() {
                     setShowLoyaltyModal(false);
                 } else if (showItemDropdown) {
                     setShowItemDropdown(false);
-                } else if (showPriceModal) {
-                    setShowPriceModal(false);
-                } else if (showQtyModal) {
-                    setShowQtyModal(false);
                 } else if (billItems.length > 0) {
                     clearBillHandler();
                 }
@@ -3912,7 +3943,30 @@ function Home() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [billItems.length, showPaymentModal, showDiscountModal, showLoyaltyModal, showItemDropdown, selectedPaymentMode, showOpeningModal, lastInteractedItem, balanceRemaining, tenderedAmount, paymentLoading, handleBarcodeScan, clearBillHandler]);
+    }, [
+        billItems,
+        showPaymentModal,
+        showDiscountModal,
+        showLoyaltyModal,
+        showItemDropdown,
+        selectedPaymentMode,
+        showOpeningModal,
+        lastInteractedItem,
+        balanceRemaining,
+        tenderedAmount,
+        paymentLoading,
+        handleBarcodeScan,
+        clearBillHandler,
+        selectedBillIndex,
+        updateQuantity,
+        selectedCustomer,
+        promoteCustomerGroup,
+        toggleUom,
+        showDropdown,
+        handleCheckout,
+        addPayment,
+        completePayment
+    ]);
 
     if (loadingItems && Items.length === 0) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
 
@@ -3980,7 +4034,7 @@ function Home() {
         return (
             <div className="so-page">
                 {/* MODERN TOOL STRIP */}
-                <div className="so-tool-strip" style={{ display: 'flex', flexWrap: 'nowrap', gap: '8px', padding: '8px 16px', overflowX: 'auto', minHeight: 'fit-content', alignItems: 'center' }}>
+                <div className="so-tool-strip" style={{ display: 'flex', flexWrap: 'nowrap', gap: '8px', padding: '8px 16px', overflowX: 'auto', minHeight: 'fit-content', alignItems: 'center', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
                     <div className="flex items-center gap-2 mr-6 border-r border-slate-200 pr-6" style={{ flexShrink: 0 }}>
                         <h1 className="text-xl font-black tracking-tighter text-slate-800">
                             POS<span className="text-emerald-500">8</span>
@@ -4009,7 +4063,25 @@ function Home() {
                     </div>
                     <div className="so-shortcut-badge">
                         <span className="so-shortcut-key">F5</span>
+                        <span className="so-shortcut-label">Stock Check</span>
+                    </div>
+                    <div className="so-shortcut-badge">
+                        <span className="so-shortcut-key">F6</span>
                         <span className="so-shortcut-label">Bulk Qty</span>
+                    </div>
+                    <div className="so-shortcut-badge" onClick={() => {
+                        if (selectedBillIndex !== -1) {
+                            const item = billItems[selectedBillIndex];
+                            const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
+                            toggleUom(item.id, newUom);
+                        }
+                    }} style={{ cursor: 'pointer' }}>
+                        <span className="so-shortcut-key">F8</span>
+                        <span className="so-shortcut-label">Toggle UOM</span>
+                    </div>
+                    <div className="so-shortcut-badge" onClick={() => setShowDraftsModal(prev => !prev)} style={{ cursor: 'pointer' }}>
+                        <span className="so-shortcut-key">F9</span>
+                        <span className="so-shortcut-label">Active Orders</span>
                     </div>
                     <div className="so-shortcut-badge">
                         <span className="so-shortcut-key">← →</span>
@@ -4072,7 +4144,12 @@ function Home() {
                     </button>
 
                     {/* Persistent Top-Right User Header */}
-                    <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm mr-2" style={{ height: '2.5rem', flexShrink: 0 }}>
+                    <div
+                        onClick={() => setShowThemeSidebar(true)}
+                        className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm mr-2 cursor-pointer hover:bg-slate-50 transition-colors"
+                        style={{ height: '2.5rem', flexShrink: 0 }}
+                        title="Open Theme Settings Sidebar"
+                    >
                         <div className="flex flex-col items-end text-right">
                             <span className="text-[9px] font-black uppercase leading-tight">
                                 <span className="text-slate-400 mr-1">USER:</span>
@@ -4091,6 +4168,15 @@ function Home() {
                             <UserIcon size={14} />
                         </div>
                     </div>
+
+                    <button
+                        onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
+                        className="text-slate-500 hover:text-slate-800 transition-all p-1 hover:bg-slate-50 rounded-full mr-2"
+                        title="Open POS in New Tab"
+                        style={{ flexShrink: 0 }}
+                    >
+                        <ExternalLink size={18} />
+                    </button>
 
                     <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full mr-2" title="Logout" style={{ flexShrink: 0 }}>
                         <Power size={18} />
@@ -4156,6 +4242,11 @@ function Home() {
                                             <h4 className="so-item-name">
                                                 {item.name}
                                             </h4>
+                                            {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) && (
+                                                <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+                                                    <Barcode size={10} style={{ opacity: 0.6 }} /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
+                                                </span>
+                                            )}
 
                                             <div className="flex items-center justify-between pt-2">
                                                 <div className="flex flex-col">
@@ -4247,45 +4338,49 @@ function Home() {
                                     </span>
                                 </div>
                             ) : (
-                                billItems.map((item, idx) => (
-                                    <div key={item.id} className="so-bill-item">
-                                        <div className="relative flex justify-between items-start">
-                                            <div className="flex-1 pr-6">
-                                                <h4 className="so-bill-item-name">{item.name}</h4>
-                                                <div className="flex items-center gap-4">
-                                                    <span className="text-[11px] font-black text-slate-400">AED {item.price}</span>
-                                                    <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-                                                        <button onClick={() => toggleUom(item.id, 'Piece')} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
-                                                        <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
+                                billItems.map((item, idx) => {
+                                    const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
+                                    const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
+                                    return (
+                                        <div key={item.id} className="so-bill-item">
+                                            <div className="relative flex justify-between items-start">
+                                                <div className="flex-1 pr-6">
+                                                    <h4 className="so-bill-item-name">{item.name}</h4>
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="text-[11px] font-black text-slate-400">AED {item.price}</span>
+                                                        <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                                                            <button onClick={() => toggleUom(item.id, 'Piece')} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
+                                                            <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="flex flex-col items-end gap-2">
-                                                <div className="so-bill-qty-control shadow-sm">
-                                                    <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
-                                                        {item.qty > 1 ? <Minus size={11} className="opacity-40" /> : <X size={11} className="text-rose-400" />}
-                                                    </button>
-                                                    <input
-                                                        id={`qty-input-${idx}`}
-                                                        className="so-bill-qty-input"
-                                                        value={item.qty}
-                                                        onChange={(e) => setQuantity(item.id, e.target.value)}
-                                                    />
-                                                    <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500"><Plus size={11} /></button>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <div className="so-bill-qty-control shadow-sm">
+                                                        <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
+                                                            {item.qty > 1 ? <Minus size={11} className="opacity-40" /> : <X size={11} className="text-rose-400" />}
+                                                        </button>
+                                                        <input
+                                                            id={`qty-input-${idx}`}
+                                                            className="so-bill-qty-input"
+                                                            value={item.qty}
+                                                            onChange={(e) => setQuantity(item.id, e.target.value)}
+                                                        />
+                                                        <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500"><Plus size={11} /></button>
+                                                    </div>
                                                 </div>
+                                                <button onClick={() => removeFromBill(item.id)} className="so-bill-remove">
+                                                    <X size={16} />
+                                                </button>
                                             </div>
-                                            <button onClick={() => removeFromBill(item.id)} className="so-bill-remove">
-                                                <X size={16} />
-                                            </button>
-                                        </div>
 
-                                        <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
-                                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
-                                            <span className="text-[13px] font-black text-slate-800">AED {(item.qty * (item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price)).toFixed(2)}</span>
+                                            <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
+                                                <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
+                                                <span className="text-[13px] font-black text-slate-800">AED {(item.qty * effectivePrice).toFixed(2)}</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
 
@@ -4462,7 +4557,11 @@ function Home() {
                         </button>
 
                         {/* User Info with Labels */}
-                        <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm ml-2">
+                        <div
+                            onClick={() => setShowThemeSidebar(true)}
+                            className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm ml-2 cursor-pointer hover:bg-slate-50 transition-colors"
+                            title="Open Theme Settings Sidebar"
+                        >
                             <div className="flex flex-col items-end text-right">
                                 <span className="text-[10px] font-black uppercase leading-tight">
                                     <span className="text-slate-400 mr-1">USER:</span>
@@ -4482,11 +4581,67 @@ function Home() {
                             </div>
                         </div>
 
-                        <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full ml-2">
+                        <button
+                            onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
+                            className={`transition-all p-1.5 hover:bg-slate-100 rounded-full ml-2 ${isGreen ? 'text-emerald-600 hover:text-emerald-800' : 'text-sky-600 hover:text-sky-800'}`}
+                            title="Open POS in New Tab"
+                        >
+                            <ExternalLink size={18} />
+                        </button>
+
+                        <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full ml-2" title="Logout">
                             <Power size={20} />
                         </button>
                     </div>
                 </nav>
+
+                {/* CLASSIC SHORTCUTS GUIDE - RELOCATED TO TOP */}
+                <div className="bg-slate-100/80 border-b border-slate-200 px-4 py-2 flex flex-wrap items-center gap-2 shadow-inner">
+                    {[
+                        { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
+                        { key: 'F3', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
+                        { key: 'F4', label: 'Price', color: '#0ea5e9', icon: <Tag size={12} /> },
+                        {
+                            key: 'F5', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
+                                if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
+                                else Swal.fire('Info', 'Select an item first', 'info');
+                            }
+                        },
+                        { key: 'F6', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} /> },
+                        { key: 'F7', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
+                        { key: 'F8', label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
+                            if (selectedBillIndex !== -1) {
+                                const item = billItems[selectedBillIndex];
+                                const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
+                                toggleUom(item.id, newUom);
+                            } else {
+                                Swal.fire('Info', 'Select an item in cart first', 'info');
+                            }
+                        } },
+                        { key: 'F9', label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
+                        { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
+                        { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
+                        { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
+                        { key: 'ESC', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
+                    ].map((s, idx) => (
+                        <div
+                            key={idx}
+                            className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                            onClick={s.action}
+                        >
+                            <span
+                                className="px-1.5 py-0.5 rounded text-[10px] font-black text-white shadow-sm"
+                                style={{ background: s.color }}
+                            >
+                                {s.key}
+                            </span>
+                            <div className="flex items-center gap-1 text-slate-500 group-hover:text-slate-800 transition-colors">
+                                {s.icon}
+                                <span className="text-[10px] font-black uppercase tracking-tight">{s.label}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
 
                 {/* CLASSIC HEADER FORM */}
                 <div className="classic-header-form">
@@ -4693,10 +4848,15 @@ function Home() {
                                                         onFocus={e => e.target.select()}
                                                     />
                                                     <div
-                                                        className={`absolute -top-1 -right-1 px-1 rounded-[4px] text-[8px] font-black tracking-tighter ${item.is_tax_inclusive ? 'bg-sky-500 text-white' : 'bg-amber-500 text-white'}`}
-                                                        style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                                                        onClick={() => {
+                                                            const newBill = [...billItems];
+                                                            newBill[idx].is_tax_inclusive = !newBill[idx].is_tax_inclusive;
+                                                            setBillItems(newBill);
+                                                        }}
+                                                        className={`absolute -top-0.5 -right-0.5 px-2 py-0.5 rounded-bl-lg text-[10px] font-extrabold tracking-tight cursor-pointer hover:scale-105 active:scale-95 transition-all select-none ${item.is_tax_inclusive ? 'bg-sky-600 hover:bg-sky-700 text-white' : 'bg-amber-600 hover:bg-amber-700 text-white'}`}
+                                                        style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.15)', zIndex: 10 }}
                                                     >
-                                                        {item.is_tax_inclusive ? 'INC' : 'EXC'}
+                                                        {item.is_tax_inclusive ? 'VAT INC' : 'VAT EXC'}
                                                     </div>
                                                 </td>
                                                 <td className="text-center px-2 font-bold text-slate-500 text-[10px] italic">
@@ -4813,45 +4973,8 @@ function Home() {
                             </table>
                         </div>
 
-                        {/* BOTTOM BAR: SHORTCUTS & TOTALS */}
+                        {/* BOTTOM BAR: TOTALS ONLY */}
                         <div className="classic-bottom-bar flex flex-col md:flex-row items-stretch md:items-center justify-between px-4 py-2 bg-slate-50 border-t border-slate-200 gap-4">
-                            {/* Shortcut Overview on the Left */}
-                            <div className="shortcut-guide flex flex-wrap items-center gap-2 flex-1">
-                                {[
-                                    { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
-                                    { key: 'F3', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
-                                    { key: 'F4', label: 'Price', color: '#0ea5e9', icon: <Tag size={12} /> },
-                                    {
-                                        key: 'F5', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
-                                            if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
-                                            else Swal.fire('Info', 'Select an item first', 'info');
-                                        }
-                                    },
-                                    { key: 'F6', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} /> },
-                                    { key: 'F7', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
-                                    { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
-                                    { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
-                                    { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
-                                    { key: 'ESC', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
-                                ].map((s, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                                        onClick={s.action}
-                                    >
-                                        <span
-                                            className="px-1.5 py-0.5 rounded text-[10px] font-black text-white shadow-sm"
-                                            style={{ background: s.color }}
-                                        >
-                                            {s.key}
-                                        </span>
-                                        <div className="flex items-center gap-1 text-slate-500 group-hover:text-slate-800 transition-colors">
-                                            {s.icon}
-                                            <span className="text-[10px] font-black uppercase tracking-tight">{s.label}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
 
                             {/* Totals Section */}
                             <div className="flex items-center gap-4 ml-auto py-1">
@@ -5104,6 +5227,11 @@ function Home() {
                                                     </div>
                                                     <div className="home-item-body">
                                                         <h4 className="home-item-title">{item.name}</h4>
+                                                        {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) && (
+                                                            <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px', marginBottom: '4px' }}>
+                                                                <Barcode size={10} style={{ opacity: 0.6 }} /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
+                                                            </span>
+                                                        )}
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                                             <p className="home-item-price" style={{ margin: 0 }}><strong>AED</strong> {item.price}</p>
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }} onClick={() => setLastInteractedItem(item)}>

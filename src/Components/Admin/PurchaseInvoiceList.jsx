@@ -533,7 +533,7 @@ function PurchaseInvoiceList() {
 
       // Auto-set default 5% tax for NEW documents if nothing selected
       if (!docName && !formData.taxes_and_charges && filteredTemplates.length > 0) {
-        const defaultTax = filteredTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'));
+        const defaultTax = filteredTemplates.find(t => t.name.includes('UAE VAT 5% - NS')) || filteredTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'));
         if (defaultTax) {
           setFormData(prev => ({ ...prev, taxes_and_charges: defaultTax.name }));
         }
@@ -595,12 +595,15 @@ function PurchaseInvoiceList() {
 
     const loadTaxTemplate = async () => {
       try {
-        const encodedName = encodeURIComponent(formData.taxes_and_charges);
         const res = await axios.get(
-          `/api/resource/Purchase Taxes and Charges Template/${encodedName}`,
-          { withCredentials: true }
+          '/api/method/kyle_retail.retail_api.api.get_tax_template_details',
+          {
+            params: { template_name: formData.taxes_and_charges },
+            withCredentials: true
+          }
         );
-        setTaxPreview(res.data.data.taxes || []);
+        // Frappe whitelisted endpoint returns result in 'message' field
+        setTaxPreview(res.data.message?.taxes || []);
       } catch (err) {
         console.warn("Tax template not found or invalid:", formData.taxes_and_charges);
         setTaxPreview([]);
@@ -611,7 +614,7 @@ function PurchaseInvoiceList() {
   }, [formData.taxes_and_charges]);
 
   const openCreateModal = useCallback(() => {
-    const defaultTax = taxTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name || '';
+    const defaultTax = taxTemplates.find(t => t.name.includes('UAE VAT 5% - NS')) || taxTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name || '';
     setFormData({
       name: '', supplier: '', supplier_name: '',
       posting_date: getLocalISODate(),
@@ -778,8 +781,9 @@ function PurchaseInvoiceList() {
         }
         
         setLastSavedData(JSON.stringify(mapped)); // Set base point for dirty check
-        setIsViewMode(true);
-        setIsEditMode(false);
+        const isDraft = (parseInt(d.docstatus) || 0) === 0;
+        setIsViewMode(!isDraft);
+        setIsEditMode(isDraft);
         setIsModalOpen(true);
         return mapped;
       }
@@ -1326,6 +1330,9 @@ function PurchaseInvoiceList() {
   };
 
   const handleSaveDraft = async () => {
+    if (formData.update_stock && !formData.accepted_warehouse) {
+      formData.accepted_warehouse = localStorage.getItem('warehouse') || warehouses[0]?.name || '';
+    }
     const errors = {};
     if (!formData.supplier) errors.supplier = 'Supplier is required';
     if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
@@ -1372,6 +1379,9 @@ function PurchaseInvoiceList() {
   };
 
   const handleSubmit = async () => {
+    if (formData.update_stock && !formData.accepted_warehouse) {
+      formData.accepted_warehouse = localStorage.getItem('warehouse') || warehouses[0]?.name || '';
+    }
     const errors = {};
     if (!formData.supplier) errors.supplier = 'Supplier is required';
     if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
@@ -1504,7 +1514,7 @@ function PurchaseInvoiceList() {
         setAllowedActions([]);
       }
     }
-  }, [searchParams, openCreateModal, createPIFromPR, fetchPurchaseInvoice]);
+  }, [searchParams, openCreateModal, createPIFromPR, fetchPurchaseInvoice, isModalOpen]);
 
   useEffect(() => {
     const supplierParam = searchParams.get('supplier');
@@ -1513,6 +1523,187 @@ function PurchaseInvoiceList() {
       setShowFilters(true);
     }
   }, [searchParams]);
+
+  // Global Keyboard Shortcuts hook for Edit Modal
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleGlobalShortcuts = (e) => {
+      // 1. Focus Supplier Search: F2
+      if (e.key === 'F2') {
+        e.preventDefault();
+        const supplierInput = document.querySelector('input[placeholder="Search and select supplier..."]') || document.querySelector('input[placeholder="Search supplier..."]');
+        if (supplierInput) {
+          supplierInput.focus();
+          supplierInput.select?.();
+        }
+      }
+
+      // 1.5 Focus Item Search of last row: F3
+      if (e.key === 'F3') {
+        e.preventDefault();
+        const itemInputs = document.querySelectorAll('input[placeholder="Search item..."]');
+        if (itemInputs.length > 0) {
+          const lastInput = itemInputs[itemInputs.length - 1];
+          lastInput.focus();
+          lastInput.select?.();
+        }
+      }
+
+      // 2. Focus Barcode/Scan input: F4
+      if (e.key === 'F4') {
+        e.preventDefault();
+        const scanInput = document.querySelector('input[placeholder="Place cursor here and scan barcode..."]') || document.querySelector('input[placeholder="Enter Barcode / Scan here..."]');
+        if (scanInput) {
+          scanInput.focus();
+          scanInput.select?.();
+        }
+      }
+
+      // F6: Toggle UOM of active row (or last row)
+      if (e.key === 'F6') {
+        e.preventDefault();
+        const activeEl = document.activeElement;
+        let rowIndex = formData.items.length - 1;
+        if (activeEl) {
+          const tr = activeEl.closest('tr');
+          if (tr && tr.parentNode) {
+            const index = Array.from(tr.parentNode.children).indexOf(tr);
+            if (index !== -1 && index < formData.items.length) {
+              rowIndex = index;
+            }
+          }
+        }
+
+        if (rowIndex >= 0 && rowIndex < formData.items.length) {
+          const item = formData.items[rowIndex];
+          if (item && item.item_code) {
+            let nextUom = '';
+            const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
+            const uomList = item.uom_list || [];
+            
+            if (uomList.length > 1) {
+              const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
+              const nextIndex = (currentIndex + 1) % uomList.length;
+              nextUom = uomList[nextIndex].uom;
+            } else {
+              nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
+            }
+
+            handleUOMChange(nextUom, rowIndex);
+            Swal.fire({
+              icon: 'info',
+              title: 'UOM Switched',
+              text: `Row ${rowIndex + 1}: Switched UOM to ${nextUom}`,
+              toast: true,
+              position: 'top-end',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          }
+        }
+      }
+
+      // F7: Auto-Apply VAT 5% Template
+      if (e.key === 'F7') {
+        e.preventDefault();
+        const defaultTax = taxTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name;
+        if (defaultTax) {
+          setFormData(prev => ({ ...prev, taxes_and_charges: defaultTax }));
+          Swal.fire({
+            icon: 'success',
+            title: 'Tax Applied',
+            text: `Applied Tax Template: ${defaultTax}`,
+            toast: true,
+            position: 'top-end',
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }
+      }
+
+      // 3. Add Item Row: F8
+      if (e.key === 'F8') {
+        e.preventDefault();
+        if (formData.docstatus === 0 && !isViewMode) {
+          addItemRow();
+        }
+      }
+
+      // 4. Focus Target Warehouse Select: F9
+      if (e.key === 'F9') {
+        e.preventDefault();
+        const warehouseSelect = document.querySelector('select[name="accepted_warehouse"]') || document.querySelector('select[name="set_warehouse"]') || document.querySelector('select');
+        if (warehouseSelect) {
+          warehouseSelect.focus();
+        }
+      }
+
+      // 5. Save Draft: Ctrl + S or F10
+      if ((e.ctrlKey && e.key.toLowerCase() === 's') || e.key === 'F10') {
+        e.preventDefault();
+        if (!saving && formData.docstatus === 0) {
+          handleDocAction('save');
+        }
+      }
+
+      // 6. Submit PI: Ctrl + Enter or F12
+      if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
+        e.preventDefault();
+        if (!saving && formData.docstatus === 0) {
+          handleDocAction('submit');
+        }
+      }
+
+      // Arrow Up/Down navigation inside table inputs
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr) {
+            e.preventDefault();
+            const colIndex = Array.from(tr.children).indexOf(td);
+            const targetTr = e.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling;
+            if (targetTr) {
+              const targetTd = targetTr.children[colIndex];
+              if (targetTd) {
+                const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                if (targetInput) {
+                  targetInput.focus();
+                  targetInput.select?.();
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // + / -: Increase / Decrease focused row quantity
+      if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+        const activeEl = document.activeElement;
+        if (activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
+          const td = activeEl.closest('td');
+          const isQtyField = activeEl.name?.toLowerCase().includes('qty') || 
+                             activeEl.placeholder?.toLowerCase().includes('qty') ||
+                             (activeEl.previousElementSibling && activeEl.previousElementSibling.innerText === '-') ||
+                             (activeEl.nextElementSibling && activeEl.nextElementSibling.innerText === '+') ||
+                             (td && (td.closest('table')?.querySelector(`thead th:nth-child(${Array.from(td.closest('tr').children).indexOf(td) + 1})`)?.innerText.toLowerCase().includes('qty') || activeEl.placeholder?.toLowerCase().includes('qty')));
+          if (isQtyField) {
+            e.preventDefault();
+            const currentVal = parseFloat(activeEl.value) || 0;
+            const diff = (e.key === '+' || e.key === '=') ? 1 : -1;
+            const newVal = Math.max(0, currentVal + diff);
+            activeEl.value = newVal;
+            const event = new Event('input', { bubbles: true });
+            activeEl.dispatchEvent(event);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxTemplates]);
 
   return (
     <>
@@ -1916,6 +2107,64 @@ function PurchaseInvoiceList() {
                   </button>
                 </div>
               </div>
+
+              {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
+              <div className="w-full bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-sky-50/50 backdrop-blur-md border-b border-emerald-100/60 px-8 py-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-[11px] font-medium text-slate-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
+                <div className="flex items-center gap-1.5 text-emerald-800 font-bold uppercase tracking-wider text-[10px]">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  Quick Shortcuts
+                </div>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F2</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Supplier</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F3</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
+                    <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
+                    <span className="text-[10px] font-semibold text-emerald-800">Apply VAT 5%</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+S / F10</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Save Draft</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Submit</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">↑ / ↓</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Navigate Grid</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Qty Adjust</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
                 {renderConnectionsDashboard()}
                 {/* Basic Details Card */}
@@ -2015,7 +2264,7 @@ function PurchaseInvoiceList() {
                   </div>
                 )}
                 {/* Stock Controls Card */}
-                <div className="so-card">
+                <div className="so-card" style={{ display: 'none' }}>
                   <div className="so-card-body">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: isViewMode ? 'not-allowed' : 'pointer', userSelect: 'none' }}>
@@ -2044,6 +2293,7 @@ function PurchaseInvoiceList() {
                           <div className="so-field">
                             <label className="so-label">Accepted Branch</label>
                             <select
+                              name="accepted_warehouse"
                               value={formData.accepted_warehouse}
                               onChange={e => setFormData(prev => ({ ...prev, accepted_warehouse: e.target.value }))}
                               className="so-select"
@@ -2176,26 +2426,52 @@ function PurchaseInvoiceList() {
                                                 {item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
                                               </div>
                                             ) : (
-                                              <input
-                                                type="number"
-                                                value={item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
-                                                onChange={e => updateItem(i, item.use_box_entry ? 'custom_box_qty' : 'qty', e.target.value)}
-                                                className="so-input text-left pl-3 font-bold"
-                                                style={{ border: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}
-                                              />
+                                              <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const fieldName = item.use_box_entry ? 'custom_box_qty' : 'qty';
+                                                    const currentVal = parseFloat(item.use_box_entry ? item.custom_box_qty : item.qty) || 0;
+                                                    updateItem(i, fieldName, Math.max(0, currentVal - 1));
+                                                  }}
+                                                  style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px 0 0 4px', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
+                                                >
+                                                  -
+                                                </button>
+                                                <input
+                                                  type="number"
+                                                  value={item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => updateItem(i, item.use_box_entry ? 'custom_box_qty' : 'qty', e.target.value)}
+                                                  className="so-input text-center font-bold"
+                                                  style={{ borderTop: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, borderBottom: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
+                                                />
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const fieldName = item.use_box_entry ? 'custom_box_qty' : 'qty';
+                                                    const currentVal = parseFloat(item.use_box_entry ? item.custom_box_qty : item.qty) || 0;
+                                                    updateItem(i, fieldName, currentVal + 1);
+                                                  }}
+                                                  style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '0 4px 4px 0', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
                                             )}
                                             {item.item_code && (
                                               <span 
-                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                                className="absolute text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
                                                 style={{
                                                   position: 'absolute',
-                                                  right: '8px',
+                                                  right: '34px',
                                                   top: '50%',
                                                   transform: 'translateY(-50%)',
                                                   color: item.use_box_entry ? themeColor : '#64748b',
                                                   backgroundColor: item.use_box_entry ? `${themeColor}12` : '#f8fafc',
                                                   borderColor: item.use_box_entry ? `${themeColor}25` : '#e2e8f0',
-                                                  lineHeight: 1
+                                                  lineHeight: 1,
+                                                  zIndex: 5
                                                 }}
                                               >
                                                 {item.use_box_entry ? 'BOXES' : 'NOS'}
@@ -2219,6 +2495,7 @@ function PurchaseInvoiceList() {
                                                 <input
                                                   type="number"
                                                   value={item.custom_pieces_per_box || 1}
+                                                  onFocus={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
                                                   className="so-input text-left pl-3 font-bold"
                                                 />
@@ -2280,6 +2557,7 @@ function PurchaseInvoiceList() {
                                               <input
                                                 type="text"
                                                 value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
+                                                onFocus={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
                                                 className="so-input text-center font-bold text-[10px]"
                                                 placeholder="REF / SL #"
@@ -2302,6 +2580,7 @@ function PurchaseInvoiceList() {
                                               <input
                                                 type="number"
                                                 value={item.qty}
+                                                onFocus={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'qty', e.target.value)}
                                                 className="so-input text-left pl-3 font-bold"
                                                 style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
@@ -2368,6 +2647,7 @@ function PurchaseInvoiceList() {
                                                 <input
                                                   type="number"
                                                   value={item.custom_box_price || 0}
+                                                  onFocus={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
                                                   className="so-input text-right pr-3 font-bold"
                                                   step="0.01"
@@ -2393,6 +2673,7 @@ function PurchaseInvoiceList() {
                                               <input
                                                 type="number"
                                                 value={item.rate}
+                                                onFocus={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'rate', e.target.value)}
                                                 className="so-input text-right pr-3 font-bold"
                                                 step="0.01"
@@ -2407,18 +2688,65 @@ function PurchaseInvoiceList() {
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
-                                            {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
-                                                {formatPrice(item.custom_selling_price)}
-                                              </div>
+                                            {item.use_box_entry ? (
+                                              isViewMode ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end', paddingRight: '0.75rem' }}>
+                                                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#6366f1' }}>
+                                                    <span style={{ fontSize: '8px', fontWeight: 800, color: '#94a3b8', marginRight: '4px' }}>NOS</span>
+                                                    {formatPrice(item.custom_selling_price)}
+                                                  </div>
+                                                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#10b981' }}>
+                                                    <span style={{ fontSize: '8px', fontWeight: 800, color: '#94a3b8', marginRight: '4px' }}>BOX</span>
+                                                    {formatPrice((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1))}
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px' }}>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', width: '24px', textAlign: 'left' }}>NOS</span>
+                                                    <input
+                                                      type="number"
+                                                      value={item.custom_selling_price || 0}
+                                                      onFocus={e => e.target.select()}
+                                                      onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                                      className="so-input text-right pr-2 font-bold text-[#6366f1]"
+                                                      style={{ fontSize: '11px', padding: '2px 4px', height: '24px', flex: 1, minWidth: '60px' }}
+                                                      placeholder="Nos Selling"
+                                                    />
+                                                  </div>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', width: '24px', textAlign: 'left' }}>BOX</span>
+                                                    <input
+                                                      type="number"
+                                                      value={((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2)}
+                                                      onFocus={e => e.target.select()}
+                                                      onChange={e => {
+                                                        const val = parseFloat(e.target.value) || 0;
+                                                        const pcs = parseFloat(item.custom_pieces_per_box) || 1;
+                                                        updateItem(i, 'custom_selling_price', pcs > 0 ? (val / pcs).toFixed(2) : 0);
+                                                      }}
+                                                      className="so-input text-right pr-2 font-bold text-[#10b981]"
+                                                      style={{ fontSize: '11px', padding: '2px 4px', height: '24px', flex: 1, minWidth: '60px' }}
+                                                      placeholder="Box Selling"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              )
                                             ) : (
-                                              <input
-                                                type="number"
-                                                value={item.custom_selling_price || 0}
-                                                onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                                className="so-input text-right pr-3 font-bold text-[#6366f1]"
-                                                placeholder="Selling"
-                                              />
+                                              isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
+                                                  {formatPrice(item.custom_selling_price)}
+                                                </div>
+                                              ) : (
+                                                <input
+                                                  type="number"
+                                                  value={item.custom_selling_price || 0}
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                                  className="so-input text-right pr-3 font-bold text-[#6366f1]"
+                                                  placeholder="Selling"
+                                                />
+                                              )
                                             )}
                                           </div>
                                         </div>
