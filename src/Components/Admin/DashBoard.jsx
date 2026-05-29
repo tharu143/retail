@@ -90,7 +90,7 @@ function Dashboard() {
       icon: TrendingUp,
       colorClass: 'icon-sales',
       cardClass: 'card-sales',
-      items: ['Customer', 'Sales Order', 'Sales Invoice', 'Delivery Note', 'Sales Return'],
+      items: ['Customer', 'Sales Order', 'Sales Invoice', 'Sync Manager', 'Delivery Note', 'Sales Return'],
     },
     {
       title: 'Stock Management',
@@ -104,7 +104,7 @@ function Dashboard() {
       icon: Monitor,
       colorClass: 'icon-pos',
       cardClass: 'card-pos',
-      items: ['POS Profile', 'Opening Entry', 'New Closing Entry', 'Closing Entry List', 'POS Invoices', 'Sync Manager'],
+      items: ['POS Profile'],
     },
     {
       title: 'Analytics',
@@ -135,7 +135,7 @@ function Dashboard() {
         
         <header className="dashboard-header">
           <div className="welcome-text">
-            <h1>Welcome back, {typeof user === 'object' ? (user?.full_name || user?.name) : 'Admin'}! 👋</h1>
+            <h1>Welcome back, {typeof user === 'string' && user ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase()) : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋</h1>
             <p>Your store command center is ready.</p>
           </div>
         </header>

@@ -11,7 +11,7 @@ import { useSelector } from 'react-redux';
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { company: loggedCompany, warehouse, user_roles } = useSelector(state => state.user || {});
+  const { company: loggedCompany, warehouse, user_roles, user } = useSelector(state => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
   const [invoices, setInvoices] = useState([]);
@@ -54,6 +54,8 @@ const SalesInvoiceList = () => {
     name: '',
     status: 'Draft',
     posting_date: new Date().toISOString().split('T')[0],
+    posting_time: '',
+    discount_amount: 0,
     customer: '',
     customer_name: '',
     due_date: '',
@@ -197,8 +199,10 @@ const SalesInvoiceList = () => {
     if (!company) return;
     const fetchDefaultIncomeAccount = async () => {
       try {
-        const res = await axios.get(`/api/resource/Company/${company}`);
-        setDefaultIncomeAccount(res.data.data.default_income_account || '');
+        const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_info_dn');
+        const companies = res.data.message || [];
+        const currentCompany = companies.find(c => c.name === company);
+        setDefaultIncomeAccount(currentCompany?.default_income_account || '');
       } catch (err) {
         setDefaultIncomeAccount('');
       }
@@ -290,9 +294,9 @@ const SalesInvoiceList = () => {
           axios.get('/api/resource/Sales Invoice', {
             params: {
               fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
-              filters: !isAdmin && warehouse ? JSON.stringify([['set_warehouse', '=', warehouse]]) : undefined,
+              filters: !isAdmin && warehouse ? JSON.stringify([['Sales Invoice Item', 'warehouse', '=', warehouse]]) : undefined,
               limit_page_length: 2000,
-              order_by: 'modified desc'
+              order_by: '`tabSales Invoice`.modified desc'
             }
           })
         ]);
@@ -470,6 +474,8 @@ const SalesInvoiceList = () => {
       name: '',
       status: 'Draft',
       posting_date: new Date().toISOString().split('T')[0],
+      posting_time: '',
+      discount_amount: 0,
       customer: '',
       customer_name: '',
       due_date: '',
@@ -577,9 +583,9 @@ const SalesInvoiceList = () => {
       const invRes = await axios.get('/api/resource/Sales Invoice', {
         params: {
           fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
-          filters: !isAdmin && warehouse ? JSON.stringify([['set_warehouse', '=', warehouse]]) : undefined,
+          filters: !isAdmin && warehouse ? JSON.stringify([['Sales Invoice Item', 'warehouse', '=', warehouse]]) : undefined,
           limit_page_length: 2000,
-          order_by: 'modified desc'
+          order_by: '`tabSales Invoice`.modified desc'
         }
       });
       setInvoices(invRes.data.data || []);
@@ -613,6 +619,8 @@ const SalesInvoiceList = () => {
         name: inv.name,
         status: inv.status || 'Draft',
         posting_date: inv.posting_date,
+        posting_time: inv.posting_time || '',
+        discount_amount: inv.discount_amount || 0,
         customer: inv.customer,
         customer_name: inv.customer_name,
         due_date: inv.due_date || '',
@@ -657,6 +665,146 @@ const SalesInvoiceList = () => {
       alert("Error loading invoice for edit");
       console.error(err);
     }
+  };
+
+  const handlePrint = (invoiceData) => {
+    const cashierName = (user || '').split('@')[0].toUpperCase() || 'CASHIER';
+    const companyName = company || loggedCompany || 'KYLE RETAIL';
+    const storeAddress = invoiceData.set_warehouse ? invoiceData.set_warehouse.split(" - ")[0] : (warehouse || 'Main Store Address');
+    const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoiceData.name}&scale=2&height=10`;
+
+    // Calculate total paid and change due
+    const totalPaidAmount = (invoiceData.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const changeDue = Math.max(0, totalPaidAmount - (parseFloat(invoiceData.grand_total) || 0));
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Please allow popups to print receipts.");
+      return;
+    }
+    printWindow.document.write(`
+    <html>
+        <head>
+            <title>Receipt - \${invoiceData.name}</title>
+            <style>
+                @page { size: 80mm auto; margin: 0; }
+                body { 
+                    width: 72mm; margin: 0 auto; padding: 10px 0; 
+                    font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.2; color: #000;
+                }
+                .center { text-align: center; }
+                .bold { font-weight: bold; }
+                .divider { border-top: 1px dashed #000; margin: 8px 0; }
+                .header h2 { margin: 0; font-size: 18px; text-transform: uppercase; }
+                .header p { margin: 2px 0; font-size: 11px; }
+                .info { margin: 10px 0; font-size: 11px; }
+                .info-row { display: flex; justify-content: space-between; }
+                .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; font-size: 11px; }
+                .items-table td { padding: 4px 0; vertical-align: top; font-size: 11px; }
+                .text-right { text-align: right; }
+                .totals { margin: 8px 0; }
+                .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 12px; }
+                .grand-total { font-size: 16px; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
+                .barcode { display: block; margin: 15px auto; width: 100%; max-height: 40px; }
+                .footer { font-size: 10px; margin-top: 15px; }
+                @media print { body { width: 72mm; margin: 0 auto; } }
+            </style>
+        </head>
+        <body>
+            <div class="header center">
+                <h2 class="bold">\${companyName}</h2>
+                <p>\${storeAddress}</p>
+                <p>Tel: +971 00 000 0000</p>
+            </div>
+            <div class="divider"></div>
+            <div class="info">
+                <div class="info-row"><span>CASHIER:</span> <span class="bold">#\${cashierName}</span></div>
+                <div class="info-row"><span>DATE:</span> <span>\${invoiceData.posting_date}</span></div>
+                <div class="info-row"><span>TIME:</span> <span>\${invoiceData.posting_time || 'N/A'}</span></div>
+                <div class="info-row"><span>INV NO:</span> <span class="bold">\${invoiceData.name}</span></div>
+            </div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 55%; text-align: left;">ITEM</th>
+                        <th class="text-right" style="width: 15%;">QTY</th>
+                        <th class="text-right" style="width: 30%;">PRICE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    \${(invoiceData.items || []).map(it => {
+                      const unitPrice = it.rate || 0;
+                      const lineTotal = it.amount || ((it.qty || 1) * unitPrice);
+                      return \`
+                        <tr>
+                            <td style="padding-right: 5px; word-break: break-word;">\${it.item_name || it.item_code || 'ITEM'}</td>
+                            <td class="text-right" style="padding-right: 5px;">\${it.qty || 1} <span style="font-size: 0.85em; opacity: 0.8;">\${it.uom || ''}</span></td>
+                            <td class="text-right">\${parseFloat(lineTotal).toFixed(2)}</td>
+                        </tr>
+                      \`;
+                    }).join('')}
+                </tbody>
+            </table>
+            <div class="divider"></div>
+            <div class="totals">
+                <div class="total-row">
+                    <span>SUB TOTAL</span>
+                    <span>AED \${parseFloat(invoiceData.base_total || invoiceData.subtotal || 0).toFixed(2)}</span>
+                </div>
+                \${parseFloat(invoiceData.discount_amount || 0) > 0 ? \`
+                    <div class="total-row">
+                        <span>DISCOUNT</span>
+                        <span>-AED \${parseFloat(invoiceData.discount_amount).toFixed(2)}</span>
+                    </div>
+                \` : ''}
+                \${parseFloat(invoiceData.total_taxes_and_charges || invoiceData.tax_amount || 0) > 0 ? \`
+                    <div class="total-row">
+                        <span>TAX</span>
+                        <span>AED \${parseFloat(invoiceData.total_taxes_and_charges || invoiceData.tax_amount || 0).toFixed(2)}</span>
+                    </div>
+                \` : ''}
+                <div class="total-row grand-total bold">
+                    <span>TOTAL</span>
+                    <span>AED \${parseFloat(invoiceData.grand_total || invoiceData.rounded_total || 0).toFixed(2)}</span>
+                </div>
+                <div style="margin-top: 10px;">
+                    \${(invoiceData.payments && invoiceData.payments.some(p => parseFloat(p.amount) > 0)) ? 
+                      invoiceData.payments.filter(p => parseFloat(p.amount) > 0).map(p => \`
+                        <div class="total-row">
+                            <span>\${(p.mode_of_payment || 'PAYMENT').toUpperCase()}</span>
+                            <span>AED \${parseFloat(p.amount || 0).toFixed(2)}</span>
+                        </div>
+                      \`).join('') : \`
+                        <div class="total-row">
+                            <span>\${invoiceData.outstanding_amount > 0 ? 'CREDIT' : 'PAID'}</span>
+                            <span>AED \${parseFloat(invoiceData.grand_total || invoiceData.rounded_total || 0).toFixed(2)}</span>
+                        </div>
+                      \`
+                    }
+                </div>
+                \${changeDue > 0 ? \`
+                  <div class="total-row" style="margin-top: 5px; opacity: 0.8;">
+                      <span>CHANGE</span>
+                      <span class="bold">AED \${changeDue.toFixed(2)}</span>
+                  </div>
+                \` : ''}
+            </div>
+            <div class="center">
+                <img class="barcode" src="\${barCodeUrl}" />
+                <div class="footer">
+                    <p class="bold" style="font-size: 12px;">THANK YOU!</p>
+                    <p>GLAD TO SEE YOU AGAIN!</p>
+                    <p style="margin-top: 5px; opacity: 0.7;">Powered by KYLE RETAIL</p>
+                </div>
+            </div>
+            <script>
+                window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+            </script>
+        </body>
+    </html>
+    `);
+    printWindow.document.close();
   };
 
   const loadForReturn = async (invoiceName) => {
@@ -1094,7 +1242,7 @@ const SalesInvoiceList = () => {
                           {form.taxes?.map((t, idx) => (
                             <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", borderTop: "1px dashed #f1f5f9", paddingTop: "0.5rem" }}>
                               <span style={{ color: "#64748b", fontWeight: 600 }}>{t.account_head || "Tax Account"} ({t.rate || 0}%)</span>
-                              <span style={{ color: "#1e293b", fontWeight: 700 }}>{getCurrencySymbol()}{t.tax_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                              <span style={{ color: "#1e293b", fontWeight: 700 }}>{getCurrencySymbol()}{(t.tax_amount || (form.base_total * (parseFloat(t.rate) || 0) / 100))?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                             </div>
                           ))}
                         </div>
@@ -1429,7 +1577,7 @@ const SalesInvoiceList = () => {
                     <>
                       <button
                         className="so-btn-secondary"
-                        onClick={() => window.print()}
+                        onClick={() => handlePrint(form)}
                         style={{ background: 'white', border: '1px solid #cbd5e1', color: '#475569', fontWeight: 600 }}
                       >
                         Print Invoice

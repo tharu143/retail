@@ -510,14 +510,25 @@ function SalesOrder() {
 
   const openNew = () => {
     setEditingDocName(null);
-    setForm(emptyForm());
+    const base = emptyForm();
+    // Derive selling price list from current user's branch warehouse
+    if (warehouse) {
+      const branchName = warehouse.split(' Warehouse')[0].split(' - ')[0];
+      const pl = `${branchName} Selling`;
+      base.selling_price_list = pl;
+    }
+    setForm(base);
     setSearchCustomer('');
     setItemSearches({});
     setShowItemDropdowns({});
     setBarcodeInput('');
     setIsViewMode(false);
     setShowModal(true);
-    setTimeout(() => barcodeRef.current?.focus(), 300);
+    // Auto-load UAE VAT 5% - NS as default tax template
+    setTimeout(() => {
+      loadTaxTemplate('UAE VAT 5% - NS');
+      barcodeRef.current?.focus();
+    }, 100);
   };
 
   const closeModal = () => { setShowModal(false); setEditingDocName(null); };
@@ -974,13 +985,32 @@ function SalesOrder() {
                                 <tr key={i}>
                                   <td className="so-relative">
                                     {item.item_code ? (
-                                      <div>
-                                        <div className="so-item-display-name">{item.item_name}</div>
-                                        <div className="so-item-display-code">{item.item_code}</div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <div className="so-item-display-name">{item.item_name}</div>
+                                          <div className="so-item-display-code">{item.item_code}</div>
+                                        </div>
+                                        <button
+                                          title="Change item"
+                                          onClick={() => {
+                                            setForm(prev => {
+                                              const items = [...prev.items];
+                                              items[i] = { item_code: '', item_name: '', qty: items[i].qty || 1, rate: 0, amount: 0, uom: 'Nos', delivery_date: items[i].delivery_date };
+                                              return recalcForm({ ...prev, items });
+                                            });
+                                            setItemSearches(p => ({ ...p, [i]: '' }));
+                                            setShowItemDropdowns(p => ({ ...p, [i]: false }));
+                                          }}
+                                          style={{ padding: '0.2rem', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', flexShrink: 0 }}
+                                          onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                                          onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                                        >
+                                          <X size={13} />
+                                        </button>
                                       </div>
                                     ) : (
                                       <div className="so-relative">
-                                        <input className="so-td-input" placeholder="Search item..."
+                                        <input className="so-td-input" placeholder="Search item..." autoFocus
                                           value={itemSearches[i] || ''}
                                           onChange={e => {
                                             const v = e.target.value;
@@ -1030,10 +1060,14 @@ function SalesOrder() {
                         <span className="so-card-title">Taxes & Charges</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <select className="so-select"
-                            style={{ width: 'auto', minWidth: '180px', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                            style={{ width: 'auto', minWidth: '220px', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
                             value={form.taxes_and_charges} onChange={e => loadTaxTemplate(e.target.value)}>
-                            <option value="">No Template</option>
-                            {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                            <option value="">No Tax Template</option>
+                            {taxTemplates.map(t => (
+                              <option key={t.name} value={t.name}>
+                                {t.name}{t.name === 'UAE VAT 5% - NS' ? ' ✓ Default' : ''}
+                              </option>
+                            ))}
                           </select>
                           <button className="so-btn-ghost" onClick={addTaxRow}><Plus size={14} /> Add Row</button>
                         </div>

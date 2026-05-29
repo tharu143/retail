@@ -338,6 +338,72 @@ function CustomerList() {
 
   const [saving, setSaving] = useState(false);
 
+  // Global Sync Modal States for Customers
+  const [showGlobalSyncModal, setShowGlobalSyncModal] = useState(false);
+  const [globalSyncSearch, setGlobalSyncSearch] = useState('');
+  const [globalCustomers, setGlobalCustomers] = useState([]);
+  const [selectedGlobalCustomers, setSelectedGlobalCustomers] = useState([]);
+  const [searchingGlobal, setSearchingGlobal] = useState(false);
+  const [syncingGlobal, setSyncingGlobal] = useState(false);
+
+  const openGlobalSyncModal = () => {
+    setGlobalSyncSearch(filterSearch || '');
+    setGlobalCustomers([]);
+    setSelectedGlobalCustomers([]);
+    setShowGlobalSyncModal(true);
+    if (filterSearch) {
+      setTimeout(() => {
+        runGlobalSearch(filterSearch);
+      }, 100);
+    }
+  };
+
+  const runGlobalSearch = async (searchTermOverride) => {
+    const q = searchTermOverride !== undefined ? searchTermOverride : globalSyncSearch;
+    if (!q.trim()) return Swal.fire('Search', 'Please enter a name or mobile to discover.', 'info');
+    
+    setSearchingGlobal(true);
+    try {
+      const res = await axios.get(`${API_BASE}.find_customer_globally_retail`, {
+        params: { search_term: q },
+        withCredentials: true
+      });
+      const results = res.data.message?.data || [];
+      setGlobalCustomers(results);
+      setSelectedGlobalCustomers([]);
+    } catch (err) {
+      console.error('Global search failed:', err);
+      Swal.fire('Search Failed', 'Unable to reach global registry.', 'error');
+    } finally {
+      setSearchingGlobal(false);
+    }
+  };
+
+  const handleBulkSync = async () => {
+    if (selectedGlobalCustomers.length === 0) return;
+    setSyncingGlobal(true);
+    try {
+      Swal.fire({ title: 'Synchronizing Members...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await axios.post(`${API_BASE}.bulk_enable_customers_for_branch`, {
+        customers: JSON.stringify(selectedGlobalCustomers),
+        warehouse: warehouse
+      }, { withCredentials: true });
+      
+      if (res.data.message?.success) {
+        Swal.fire({ icon: 'success', title: 'Sync Completed', text: 'All selected customers are now active for your branch.', timer: 2000 });
+        setShowGlobalSyncModal(false);
+        fetchCustomers();
+      } else {
+        Swal.fire('Error', res.data.message?.message || 'Sync failed.', 'error');
+      }
+    } catch (err) {
+      console.error('Bulk sync failed:', err);
+      Swal.fire('Sync Error', err.response?.data?.message || 'Connection failure.', 'error');
+    } finally {
+      setSyncingGlobal(false);
+    }
+  };
+
   /* ────────────────────── INITIALIZATION ────────────────────── */
   useEffect(() => {
     fetchCustomers();
@@ -731,15 +797,35 @@ function CustomerList() {
 
           {/* Filters Bar */}
           <div className="so-filter-bar">
-            <div style={{ flex: '1 1 200px' }}>
+            <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column' }}>
               <label className="so-filter-label">Search Customer</label>
-              <input
-                className="so-filter-input"
-                type="text"
-                placeholder="Name, ID or Contact..."
-                value={filterSearch}
-                onChange={e => setFilterSearch(e.target.value)}
-              />
+              <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                <input
+                  className="so-filter-input"
+                  type="text"
+                  placeholder="Name, ID or Contact..."
+                  value={filterSearch}
+                  onChange={e => setFilterSearch(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  onClick={openGlobalSyncModal}
+                  disabled={searchingGlobal}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    padding: '0 0.85rem', background: '#e0f2fe',
+                    border: '1px solid #bae6fd', borderRadius: '0.375rem',
+                    fontSize: '0.7rem', fontWeight: 800, color: '#0369a1',
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                    height: '38px', flexShrink: 0
+                  }}
+                  title="Search and enable customers from other branches"
+                >
+                  {searchingGlobal ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
+                  Global Search
+                </button>
+              </div>
             </div>
             <div style={{ flex: '1 1 150px' }}>
               <label className="so-filter-label">Group</label>
@@ -1673,6 +1759,152 @@ function CustomerList() {
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 {saving ? 'Saving...' : (modalMode === 'edit' ? 'Save Customer' : 'Create Customer')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showGlobalSyncModal && (
+        <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fadeIn p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[85vh] text-left">
+            {/* Header */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-sky-50 text-[#0369a1]">
+                  <Globe size={18} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight leading-none">Global Discovery Wizard</h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Sync Customers across branches</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowGlobalSyncModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 flex-1 overflow-y-auto space-y-4 flex flex-col">
+              {/* Search Bar inside Modal */}
+              <div className="flex gap-2 shrink-0">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search name, code, or mobile globally..."
+                    value={globalSyncSearch}
+                    onChange={e => setGlobalSyncSearch(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && runGlobalSearch()}
+                    className="w-full h-11 pl-10 pr-4 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-sky-500 transition-all bg-slate-50/50"
+                  />
+                </div>
+                <button
+                  onClick={() => runGlobalSearch()}
+                  disabled={searchingGlobal}
+                  className="px-5 h-11 text-xs font-bold uppercase tracking-wider text-white bg-sky-600 rounded-xl hover:bg-sky-700 transition-all flex items-center gap-2 shadow-md cursor-pointer"
+                >
+                  {searchingGlobal ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                  Discover
+                </button>
+              </div>
+
+              {/* List */}
+              <div className="border border-slate-100 rounded-xl overflow-hidden bg-slate-50/30 flex-1 min-h-[250px] flex flex-col">
+                {searchingGlobal ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-400 gap-2">
+                    <Loader2 size={24} className="animate-spin text-[#0369a1]" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Searching Global Registries...</span>
+                  </div>
+                ) : globalCustomers.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-12 text-center gap-3">
+                    <Users size={36} className="text-slate-300" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">No Discovered Records</p>
+                      <p className="text-[10px] text-slate-400 font-medium">Type a customer name above and click Discover</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-y-auto max-h-[350px] divide-y divide-slate-100 bg-white">
+                    {/* Select All row */}
+                    <div className="px-4 py-2.5 bg-slate-50/50 flex items-center justify-between">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedGlobalCustomers.length === globalCustomers.filter(c => !c.active_branches || !c.active_branches.includes(warehouse)).length && globalCustomers.filter(c => !c.active_branches || !c.active_branches.includes(warehouse)).length > 0}
+                          onChange={(e) => {
+                            const unlinked = globalCustomers.filter(c => !c.active_branches || !c.active_branches.includes(warehouse));
+                            if (e.target.checked) {
+                              setSelectedGlobalCustomers(unlinked.map(c => c.name));
+                            } else {
+                              setSelectedGlobalCustomers([]);
+                            }
+                          }}
+                          className="rounded border-slate-300 text-sky-600 focus:ring-0 w-4 h-4"
+                        />
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Select All Unlinked</span>
+                      </label>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">
+                        {selectedGlobalCustomers.length} Selected
+                      </span>
+                    </div>
+
+                    {/* Records rows */}
+                    {globalCustomers.map((c, i) => {
+                      const isLinked = c.active_branches && c.active_branches.includes(warehouse);
+                      return (
+                        <div key={i} className={`px-4 py-3 flex items-center justify-between hover:bg-slate-50/50 transition-colors ${isLinked ? 'opacity-60 bg-slate-50/20' : ''}`}>
+                          <label className="flex items-center gap-3 cursor-pointer flex-1">
+                            <input
+                              type="checkbox"
+                              disabled={isLinked}
+                              checked={selectedGlobalCustomers.includes(c.name)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedGlobalCustomers(prev => [...prev, c.name]);
+                                } else {
+                                  setSelectedGlobalCustomers(prev => prev.filter(name => name !== c.name));
+                                }
+                              }}
+                              className="rounded border-slate-300 text-sky-600 focus:ring-0 w-4 h-4 disabled:opacity-50"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-bold text-[13px] text-slate-700">{c.customer_name}</span>
+                              <span className="text-[10px] text-slate-400 font-medium font-mono">{c.name} • {c.customer_group}</span>
+                            </div>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            {isLinked ? (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-wider">Already Linked</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-sky-50 text-sky-600 border border-sky-100 uppercase tracking-wider">Ready to Sync</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between shrink-0">
+              <button
+                onClick={() => setShowGlobalSyncModal(false)}
+                className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-rose-500 transition-all rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkSync}
+                disabled={syncingGlobal || selectedGlobalCustomers.length === 0}
+                className="px-6 py-2.5 text-white bg-sky-600 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:scale-100 cursor-pointer"
+              >
+                {syncingGlobal ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {syncingGlobal ? 'Syncing...' : `Sync ${selectedGlobalCustomers.length} Selected`}
               </button>
             </div>
           </div>

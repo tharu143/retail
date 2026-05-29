@@ -992,13 +992,13 @@ function Home() {
         const fetchTaxTemplates = async () => {
             try {
                 const res = await POSService.getSalesTaxes({ company: company });
-                // Filter templates to only include those matching the current company's abbreviation (e.g., - NS)
-                const companyAbbr = warehouse && warehouse.includes(' - ') ? warehouse.split(' - ').pop() : 'NS';
-                const templates = (res || []).filter(t => t.name.includes(`- ${companyAbbr}`));
+                // Filter templates to only include those matching the current company
+                const templates = (res || []).filter(t => !t.company || t.company === company);
                 setTaxTemplates(templates);
                 if (templates.length) {
-                    const defaultTax = templates.find(t => t.name.includes("VAT 5%")) ||
-                        templates.find(t => t.name.includes("5%")) ||
+                    // Default to the requested template: VAT 5% - KSPL
+                    const defaultTax = templates.find(t => t.name.includes("VAT 5% - KSPL")) ||
+                        templates.find(t => t.name.includes("UAE VAT 5%")) ||
                         templates[0];
                     setSelectedTaxTemplate(defaultTax.name);
                 }
@@ -1015,8 +1015,8 @@ function Home() {
                     const cached = await db.tax_templates.toArray();
                     if (cached.length) {
                         setTaxTemplates(cached);
-                        const defaultTax = cached.find(t => t.name.includes("VAT 5%")) ||
-                            cached.find(t => t.name.includes("5%")) ||
+                        const defaultTax = cached.find(t => t.name.includes("VAT 5% - KSPL")) ||
+                            cached.find(t => t.name.includes("UAE VAT 5%")) ||
                             cached[0];
                         setSelectedTaxTemplate(defaultTax.name);
                     }
@@ -3699,14 +3699,14 @@ function Home() {
                 mobileInputRef.current?.focus();
             }
 
-            // F4: Focus Barcode/Search
-            if (e.key === 'F4') {
+            // F3: Focus Barcode/Search
+            if (e.key === 'F3') {
                 e.preventDefault();
                 barcodeInputRef.current?.focus();
             }
 
             // F8: Nearby Branch Stock Check
-            if (e.key === 'F8') {
+            if (e.key === 'F5') {
                 e.preventDefault();
                 if (lastInteractedItem) {
                     handleFindNearestStock(lastInteractedItem);
@@ -3789,7 +3789,7 @@ function Home() {
             }
 
             // F6: Quick Price Update
-            if (e.key === 'F6') {
+            if (e.key === 'F4') {
                 e.preventDefault();
                 if (selectedBillIndex !== -1) {
                     const item = billItems[selectedBillIndex];
@@ -3816,7 +3816,7 @@ function Home() {
             }
 
             // F10: Bulk Quantity Update
-            if (e.key === 'F10') {
+            if (e.key === 'F6') {
                 e.preventDefault();
                 if (selectedBillIndex !== -1) {
                     const item = billItems[selectedBillIndex];
@@ -3871,7 +3871,7 @@ function Home() {
 
             // Space or F12: Open Payment (Global focus handling)
             // F12 or Space: Open Payment
-            if (e.key === 'F12' || (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
+            if (e.key === 'F7' || (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
                 if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
                     e.preventDefault();
                     handleCheckout();
@@ -3980,8 +3980,8 @@ function Home() {
         return (
             <div className="so-page">
                 {/* MODERN TOOL STRIP */}
-                <div className="so-tool-strip" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '8px 16px', overflowX: 'auto', minHeight: 'fit-content' }}>
-                    <div className="flex items-center gap-2 mr-6 border-r border-slate-200 pr-6">
+                <div className="so-tool-strip" style={{ display: 'flex', flexWrap: 'nowrap', gap: '8px', padding: '8px 16px', overflowX: 'auto', minHeight: 'fit-content', alignItems: 'center' }}>
+                    <div className="flex items-center gap-2 mr-6 border-r border-slate-200 pr-6" style={{ flexShrink: 0 }}>
                         <h1 className="text-xl font-black tracking-tighter text-slate-800">
                             POS<span className="text-emerald-500">8</span>
                         </h1>
@@ -3992,7 +3992,7 @@ function Home() {
                         <span className="so-shortcut-label">Customer</span>
                     </div>
                     <div className="so-shortcut-badge" onClick={() => barcodeInputRef.current?.focus()}>
-                        <span className="so-shortcut-key">F4</span>
+                        <span className="so-shortcut-key">F3</span>
                         <span className="so-shortcut-label">Search</span>
                     </div>
                     <div className="so-shortcut-badge" onClick={handleCheckout}>
@@ -4004,11 +4004,11 @@ function Home() {
                         <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear Bill</span>
                     </div>
                     <div className="so-shortcut-badge">
-                        <span className="so-shortcut-key">F6</span>
+                        <span className="so-shortcut-key">F4</span>
                         <span className="so-shortcut-label">Price</span>
                     </div>
                     <div className="so-shortcut-badge">
-                        <span className="so-shortcut-key">F10</span>
+                        <span className="so-shortcut-key">F5</span>
                         <span className="so-shortcut-label">Bulk Qty</span>
                     </div>
                     <div className="so-shortcut-badge">
@@ -4024,7 +4024,7 @@ function Home() {
                         <span className="so-shortcut-label">Quantity</span>
                     </div>
 
-                    <div className="h-6 w-px bg-slate-200 mx-2"></div>
+                    <div className="h-6 w-px bg-slate-200 mx-2" style={{ flexShrink: 0 }}></div>
 
                     <button
                         onClick={() => setShowThemeSidebar(true)}
@@ -4035,7 +4035,8 @@ function Home() {
                             fontSize: '0.75rem', fontWeight: 900, color: '#334155',
                             cursor: 'pointer', transition: 'all 0.2s',
                             textTransform: 'uppercase',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            flexShrink: 0
                         }}
                         className="hover:bg-slate-100 hover:border-slate-400 active:scale-95 flex items-center gap-1.5"
                         title="Configure Themes & Layouts"
@@ -4043,17 +4044,17 @@ function Home() {
                         <Palette size={14} className="text-indigo-600" /> Theme Customizer
                     </button>
 
-                    <div className="h-6 w-px bg-slate-200 mx-2"></div>
+                    <div className="h-6 w-px bg-slate-200 mx-2" style={{ flexShrink: 0 }}></div>
 
                     <button
                         onClick={() => navigate('/dashboard')}
                         className="so-btn-primary hover:scale-[1.02] active:scale-95"
-                        style={{ padding: '0 1.25rem', height: '2.2rem', borderRadius: '0.5rem', background: '#0f172a', border: 'none' }}
+                        style={{ padding: '0 1.25rem', height: '2.2rem', borderRadius: '0.5rem', background: '#0f172a', border: 'none', flexShrink: 0 }}
                     >
                         <LayoutDashboard size={14} /> Dashboard
                     </button>
 
-                    <div className="flex-1"></div>
+                    <div className="flex-1" style={{ minWidth: '16px' }}></div>
 
                     <button
                         onClick={() => setShowDraftsModal(true)}
@@ -4063,14 +4064,15 @@ function Home() {
                             border: '1.5px solid #bae6fd', borderRadius: '0.375rem',
                             fontSize: '0.7rem', fontWeight: 850, color: '#0369a1',
                             cursor: 'pointer', transition: 'all 0.2s',
-                            textTransform: 'uppercase', marginRight: '0.5rem'
+                            textTransform: 'uppercase', marginRight: '0.5rem',
+                            flexShrink: 0
                         }}
                     >
                         <Package size={12} /> ACTIVE ORDERS
                     </button>
 
                     {/* Persistent Top-Right User Header */}
-                    <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm mr-2" style={{ height: '2.5rem' }}>
+                    <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm mr-2" style={{ height: '2.5rem', flexShrink: 0 }}>
                         <div className="flex flex-col items-end text-right">
                             <span className="text-[9px] font-black uppercase leading-tight">
                                 <span className="text-slate-400 mr-1">USER:</span>
@@ -4090,7 +4092,7 @@ function Home() {
                         </div>
                     </div>
 
-                    <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full mr-2" title="Logout">
+                    <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full mr-2" title="Logout" style={{ flexShrink: 0 }}>
                         <Power size={18} />
                     </button>
                 </div>
@@ -4817,16 +4819,16 @@ function Home() {
                             <div className="shortcut-guide flex flex-wrap items-center gap-2 flex-1">
                                 {[
                                     { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
-                                    { key: 'F4', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
-                                    { key: 'F6', label: 'Price', color: '#0ea5e9', icon: <Tag size={12} /> },
+                                    { key: 'F3', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
+                                    { key: 'F4', label: 'Price', color: '#0ea5e9', icon: <Tag size={12} /> },
                                     {
-                                        key: 'F8', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
+                                        key: 'F5', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
                                             if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
                                             else Swal.fire('Info', 'Select an item first', 'info');
                                         }
                                     },
-                                    { key: 'F10', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} /> },
-                                    { key: 'F12', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
+                                    { key: 'F6', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} /> },
+                                    { key: 'F7', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
                                     { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
                                     { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
                                     { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },

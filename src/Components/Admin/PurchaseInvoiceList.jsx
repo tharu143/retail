@@ -399,13 +399,16 @@ function PurchaseInvoiceList() {
         
         if (nextDoc) {
             setDocName(nextDoc);
-            // If the URL is still 'new', update it to the actual name
-            if (searchParams.get('name') === 'new' || searchParams.get('pr')) {
-                setSearchParams({ name: nextDoc });
-            } else if (nextDoc !== docName) {
-                fetchPurchaseInvoice(nextDoc);
+            // Always keep searchParams URL in sync with the current active document
+            setSearchParams({ name: nextDoc });
+            if (nextDoc !== docName) {
+                await fetchPurchaseInvoice(nextDoc);
             } else {
-                fetchPurchaseInvoice(docName);
+                await fetchPurchaseInvoice(docName);
+            }
+            if (action === 'amend') {
+                setIsEditMode(true);
+                setIsViewMode(false);
             }
         }
         fetchInvoices();
@@ -522,11 +525,15 @@ function PurchaseInvoiceList() {
     try {
       const res = await axios.get(`${LEGACY_API}.get_purchase_taxes_templates_pi`, { withCredentials: true });
       const templates = Array.isArray(res.data.message) ? res.data.message : [];
-      setTaxTemplates(templates);
+      
+      // Filter out templates not matching the active company's warehouse suffix
+      const companyAbbr = warehouse && warehouse.includes(' - ') ? warehouse.split(' - ').pop() : 'NS';
+      const filteredTemplates = templates.filter(t => t.name.includes(`- ${companyAbbr}`));
+      setTaxTemplates(filteredTemplates);
 
       // Auto-set default 5% tax for NEW documents if nothing selected
-      if (!docName && !formData.taxes_and_charges && templates.length > 0) {
-        const defaultTax = templates.find(t => t.name.toUpperCase() === 'UAE VAT 5%') || templates.find(t => t.name.includes('5%'));
+      if (!docName && !formData.taxes_and_charges && filteredTemplates.length > 0) {
+        const defaultTax = filteredTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'));
         if (defaultTax) {
           setFormData(prev => ({ ...prev, taxes_and_charges: defaultTax.name }));
         }
@@ -604,6 +611,7 @@ function PurchaseInvoiceList() {
   }, [formData.taxes_and_charges]);
 
   const openCreateModal = useCallback(() => {
+    const defaultTax = taxTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name || '';
     setFormData({
       name: '', supplier: '', supplier_name: '',
       posting_date: getLocalISODate(),
@@ -615,7 +623,7 @@ function PurchaseInvoiceList() {
       apply_discount_on: 'Grand Total',
       additional_discount_percentage: 0,
       discount_amount: 0,
-      taxes_and_charges: '',
+      taxes_and_charges: defaultTax,
       items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: '' }],
       docstatus: 0
     });
@@ -628,7 +636,7 @@ function PurchaseInvoiceList() {
     setIsEditMode(false);
     setIsViewMode(false);
     setIsModalOpen(true);
-  }, []);
+  }, [taxTemplates]);
 
   const fetchPurchaseInvoice = useCallback(async (name) => {
     try {
@@ -1230,7 +1238,10 @@ function PurchaseInvoiceList() {
 
     try {
       const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
-        params: { item_code: item.item_code },
+        params: { 
+          item_code: item.item_code,
+          warehouse: formData.accepted_warehouse || warehouse || undefined
+        },
         withCredentials: true
       });
       if (res.data.message?.rate) {
@@ -1507,7 +1518,7 @@ function PurchaseInvoiceList() {
     <>
       <div className="so-page">
         {/* Header */}
-        <div className="so-page-header">
+        <div className="so-page-header" style={{ display: isModalOpen ? 'none' : 'flex' }}>
           <div className="so-page-left">
             <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <Package size={20} style={{ color: themeColor }} /> 
@@ -1539,7 +1550,7 @@ function PurchaseInvoiceList() {
           </div>
         </div>
 
-        <div className="so-layout" style={{ flexDirection: 'column' }}>
+        <div className="so-layout" style={{ flexDirection: 'column', display: isModalOpen ? 'none' : 'flex' }}>
           {/* Top Filters Bar */}
           <div className="so-filter-bar" style={{
             background: 'white',
@@ -1873,6 +1884,16 @@ function PurchaseInvoiceList() {
                     {/* CANCELLED PHASE */}
                     {formData.docstatus === 2 && (
                       <>
+                        {docName && allowedActions.includes('delete') && (
+                          <button 
+                            onClick={() => handleDocAction('delete')} 
+                            className="so-btn-ghost" 
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                          >
+                            <Trash2 size={14} className="inline mr-1" /> DELETE
+                          </button>
+                        )}
+
                         <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
                           CANCELLED
                         </div>
