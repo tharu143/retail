@@ -173,6 +173,20 @@ function PurchaseOrder() {
 
   useEffect(() => {
     const handleGlobalShortcuts = (e) => {
+      const activeEl = document.activeElement;
+      const inItemsTable = activeEl?.closest('table.so-items-table');
+      
+      let activeRowIndex = -1;
+      if (inItemsTable) {
+        const tr = activeEl.closest('tr');
+        if (tr && tr.parentNode) {
+          const index = Array.from(tr.parentNode.children).indexOf(tr);
+          if (index !== -1 && index < formData.items.length) {
+            activeRowIndex = index;
+          }
+        }
+      }
+
       // 1. Focus Supplier Search: F2
       if (e.key === 'F2') {
         e.preventDefault();
@@ -183,14 +197,17 @@ function PurchaseOrder() {
         }
       }
 
-      // 1.5 Focus Item Search of last row: F3
+      // F3: Focus Item Search (first row if empty, else last row)
       if (e.key === 'F3') {
         e.preventDefault();
         const itemInputs = document.querySelectorAll('input[placeholder="Search item..."]');
         if (itemInputs.length > 0) {
-          const lastInput = itemInputs[itemInputs.length - 1];
-          lastInput.focus();
-          lastInput.select?.();
+          const firstInput = itemInputs[0];
+          const targetInput = (firstInput && !firstInput.value) ? firstInput : itemInputs[itemInputs.length - 1];
+          if (targetInput) {
+            targetInput.focus();
+            targetInput.select?.();
+          }
         }
       }
 
@@ -207,17 +224,7 @@ function PurchaseOrder() {
       // F6: Toggle UOM of active row (or last row)
       if (e.key === 'F6') {
         e.preventDefault();
-        const activeEl = document.activeElement;
-        let rowIndex = formData.items.length - 1;
-        if (activeEl) {
-          const tr = activeEl.closest('tr');
-          if (tr && tr.parentNode) {
-            const index = Array.from(tr.parentNode.children).indexOf(tr);
-            if (index !== -1 && index < formData.items.length) {
-              rowIndex = index;
-            }
-          }
-        }
+        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
 
         if (rowIndex >= 0 && rowIndex < formData.items.length) {
           const item = formData.items[rowIndex];
@@ -266,6 +273,37 @@ function PurchaseOrder() {
         }
       }
 
+      // F5: Bulk Quantity
+      if (e.key === 'F5') {
+        e.preventDefault();
+        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
+
+        if (rowIndex >= 0 && rowIndex < formData.items.length) {
+          const item = formData.items[rowIndex];
+          if (item && item.item_code) {
+            Swal.fire({
+              title: 'Bulk Quantity',
+              html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
+                ${item.item_name || item.item_code}
+              </div>`,
+              input: 'number',
+              inputPlaceholder: 'Enter quantity...',
+              inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || ''),
+              showCancelButton: true,
+              confirmButtonText: 'Update',
+              confirmButtonColor: '#10b981',
+              cancelButtonColor: '#64748b'
+            }).then(result => {
+              if (result.isConfirmed && result.value !== undefined) {
+                const newQty = result.value || '';
+                const name = item.use_box_entry ? 'custom_box_qty' : 'qty';
+                handleInputChange({ target: { name, value: newQty } }, rowIndex);
+              }
+            });
+          }
+        }
+      }
+
       // 3. Add Item Row: F8
       if (e.key === 'F8') {
         e.preventDefault();
@@ -299,10 +337,209 @@ function PurchaseOrder() {
         }
       }
 
+      // Tab Key Navigation Inside Table (Do not close or leave)
+      if (e.key === 'Tab') {
+        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr && tr.parentNode) {
+            const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+            const inputIndex = rowInputs.indexOf(activeEl);
+            
+            if (inputIndex === rowInputs.length - 1 && !e.shiftKey) {
+              e.preventDefault();
+              const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+              const isLastRow = rowIndex === formData.items.length - 1;
+              
+              if (isLastRow) {
+                if (formData.docstatus === 0 && !isViewOnly) {
+                  addItemRow();
+                  setTimeout(() => {
+                    const tableBody = tr.parentNode;
+                    const newTr = tableBody.lastElementChild;
+                    if (newTr) {
+                      const firstInput = newTr.querySelector('input:not([disabled]), select:not([disabled])');
+                      if (firstInput) {
+                        firstInput.focus();
+                        firstInput.select?.();
+                      }
+                    }
+                  }, 50);
+                }
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const firstInput = nextTr.querySelector('input:not([disabled]), select:not([disabled])');
+                  if (firstInput) {
+                    firstInput.focus();
+                    firstInput.select?.();
+                  }
+                }
+              }
+            } else if (inputIndex === 0 && e.shiftKey) {
+              const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+              if (rowIndex > 0) {
+                e.preventDefault();
+                const prevTr = tr.previousElementSibling;
+                if (prevTr) {
+                  const prevInputs = Array.from(prevTr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+                  if (prevInputs.length > 0) {
+                    const lastInput = prevInputs[prevInputs.length - 1];
+                    lastInput.focus();
+                    lastInput.select?.();
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Enter key inside table inputs: add row or navigate down
+      if (e.key === 'Enter') {
+        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const isSearchInput = activeEl.placeholder === 'Search item...';
+          const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
+          if (isSearchInput && isDropdownOpen) return; // Let search dropdown handle it
+          
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr && tr.parentNode) {
+            e.preventDefault();
+            const colIndex = Array.from(tr.children).indexOf(td);
+            const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+            const isLastRow = rowIndex === formData.items.length - 1;
+            const isSellingPriceField = activeEl.placeholder === 'Nos Price' || 
+                                       activeEl.placeholder === 'Box Price' || 
+                                       activeEl.name === 'custom_selling_price' ||
+                                       activeEl.name === 'custom_box_selling_price';
+
+            if (isSellingPriceField) {
+              if (isLastRow) {
+                if (formData.docstatus === 0 && !isViewOnly) {
+                  addItemRow();
+                  setTimeout(() => {
+                    const tableBody = tr.parentNode;
+                    const newTr = tableBody.lastElementChild;
+                    if (newTr) {
+                      const firstInput = newTr.querySelector('input[placeholder="Search item..."]');
+                      if (firstInput) {
+                        firstInput.focus();
+                        firstInput.select?.();
+                      }
+                    }
+                  }, 50);
+                }
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const firstInput = nextTr.querySelector('input[placeholder="Search item..."]');
+                  if (firstInput) {
+                    firstInput.focus();
+                    firstInput.select?.();
+                  }
+                }
+              }
+            } else {
+              if (isLastRow) {
+                if (formData.docstatus === 0 && !isViewOnly) {
+                  addItemRow();
+                  setTimeout(() => {
+                    const tableBody = tr.parentNode;
+                    const newTr = tableBody.lastElementChild;
+                    if (newTr) {
+                      const targetTd = newTr.children[colIndex];
+                      if (targetTd) {
+                        const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                        if (targetInput) {
+                          targetInput.focus();
+                          targetInput.select?.();
+                        }
+                      }
+                    }
+                  }, 50);
+                }
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const targetTd = nextTr.children[colIndex];
+                  if (targetTd) {
+                    const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                    if (targetInput) {
+                      targetInput.focus();
+                      targetInput.select?.();
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 1. Escape key inside table input to select/focus the parent row (TR) itself
+      if (e.key === 'Escape') {
+        if (inItemsTable && activeEl && activeEl.tagName !== 'TR') {
+          const tr = activeEl.closest('tr');
+          if (tr) {
+            e.preventDefault();
+            tr.focus();
+            return;
+          }
+        }
+      }
+
+      // 2. Keyboard actions when the row itself is focused
+      if (activeEl && activeEl.tagName === 'TR' && activeEl.closest('table.so-items-table')) {
+        const tr = activeEl;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          const targetTr = e.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling;
+          if (targetTr && targetTr.tagName === 'TR') {
+            targetTr.focus();
+          }
+        }
+
+        if (e.key === 'Enter' || e.key === 'F3' || e.key === ' ') {
+          e.preventDefault();
+          const firstInput = tr.querySelector('input:not([disabled]), select:not([disabled])');
+          if (firstInput) {
+            firstInput.focus();
+            firstInput.select?.();
+          }
+        }
+
+        if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+          const isPlus = e.key === '+' || e.key === '=';
+          const qtyBtn = isPlus 
+            ? tr.querySelector('button[style*="borderRadius: 0 4px 4px 0"]') || tr.querySelector('.quantity-plus')
+            : tr.querySelector('button[style*="borderRadius: 4px 0 0 4px"]') || tr.querySelector('.quantity-minus');
+          if (qtyBtn) {
+            e.preventDefault();
+            qtyBtn.click();
+          } else {
+            const numInput = tr.querySelector('input[type="number"]:not([disabled])');
+            if (numInput) {
+              e.preventDefault();
+              const currentVal = parseFloat(numInput.value) || 0;
+              const diff = isPlus ? 1 : -1;
+              const newVal = Math.max(0, currentVal + diff);
+              numInput.value = newVal;
+              const event = new Event('input', { bubbles: true });
+              numInput.dispatchEvent(event);
+            }
+          }
+        }
+      }
+
       // Arrow Up/Down navigation inside table inputs
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        const activeEl = document.activeElement;
-        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const isSearchInput = activeEl.placeholder === 'Search item...';
+          const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
+          // If search input and dropdown is open, only block if they do not hold Alt/Ctrl
+          if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+          
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
           if (td && tr) {
@@ -325,8 +562,7 @@ function PurchaseOrder() {
 
       // + / -: Increase / Decrease focused row quantity
       if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
-        const activeEl = document.activeElement;
-        if (activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
+        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
           const td = activeEl.closest('td');
           const isQtyField = activeEl.name?.toLowerCase().includes('qty') || 
                              activeEl.placeholder?.toLowerCase().includes('qty') ||
@@ -339,7 +575,6 @@ function PurchaseOrder() {
             const diff = (e.key === '+' || e.key === '=') ? 1 : -1;
             const newVal = Math.max(0, currentVal + diff);
             activeEl.value = newVal;
-            // Dispatch a change event so React registers the update
             const event = new Event('input', { bubbles: true });
             activeEl.dispatchEvent(event);
           }
@@ -1721,12 +1956,20 @@ function PurchaseOrder() {
       const rate = parseFloat(item.last_buying_rate || item.rate || 0);
 
       if (existingIdx !== -1) {
-        const newQty = items[existingIdx].qty + 1;
-        items[existingIdx] = {
-          ...items[existingIdx],
-          qty: newQty,
-          amount: newQty * items[existingIdx].rate
-        };
+        const existingItem = { ...items[existingIdx] };
+        if (existingItem.use_box_entry) {
+          existingItem.custom_box_qty = (parseFloat(existingItem.custom_box_qty) || 0) + 1;
+          existingItem.qty = existingItem.custom_box_qty * (parseFloat(existingItem.custom_pieces_per_box) || 1);
+        } else {
+          existingItem.qty = (parseFloat(existingItem.qty) || 0) + 1;
+          const pPerBox = parseFloat(existingItem.custom_pieces_per_box) || 1;
+          if (pPerBox > 0) {
+            existingItem.custom_box_qty = existingItem.qty / pPerBox;
+          }
+        }
+        existingItem.amount = existingItem.qty * (parseFloat(existingItem.rate) || 0);
+        items[existingIdx] = existingItem;
+        
         if (items.length > 1) {
           items.splice(rowIndex, 1);
         } else {
@@ -2004,6 +2247,10 @@ function PurchaseOrder() {
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
               <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F5</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
@@ -2399,7 +2646,7 @@ function PurchaseOrder() {
                       </thead>
                       <tbody>
                         {formData.items.map((item, idx) => (
-                          <tr key={idx} className="group hover:bg-slate-50 transition-colors">
+                          <tr key={idx} tabIndex={-1} className="group hover:bg-slate-50 transition-colors">
                             {(() => {
                               const hasAnyBox = formData.items.some(i => i.use_box_entry);
                               const activeCols = poColumns.filter(c => {
@@ -2641,14 +2888,38 @@ function PurchaseOrder() {
                                                 className="text-center text-[10px] font-bold text-slate-600 bg-white"
                                                 title="Select Unit of Measure"
                                               >
-                                                {(item.uom_list && item.uom_list.length > 0
-                                                  ? item.uom_list
-                                                  : [{ uom: item.stock_uom || item.uom || 'Nos' }]
-                                                ).map(u => (
-                                                  <option key={u.uom} value={u.uom}>{u.uom}</option>
-                                                ))}
-                                                {!item.uom_list?.some(u => u.uom === 'Box') && <option value="Box">Box</option>}
-                                                {!item.uom_list?.some(u => u.uom === (item.uom || item.stock_uom || 'Nos')) && <option value={item.uom || item.stock_uom || 'Nos'}>{item.uom || item.stock_uom || 'Nos'}</option>}
+                                                {(() => {
+                                                  const uniqueUoms = [];
+                                                  const seen = new Set();
+                                                  const candidates = [];
+                                                  
+                                                  if (item.uom_list && Array.isArray(item.uom_list)) {
+                                                    item.uom_list.forEach(u => {
+                                                      if (u && u.uom) candidates.push(u.uom);
+                                                    });
+                                                  }
+                                                  
+                                                  candidates.push(item.stock_uom || 'Nos');
+                                                  candidates.push(item.uom || 'Nos');
+                                                  candidates.push('Nos');
+                                                  candidates.push('Box');
+                                                  
+                                                  candidates.forEach(u => {
+                                                    const norm = u.trim().toLowerCase();
+                                                    let display = u.trim();
+                                                    if (norm === 'box') display = 'Box';
+                                                    else if (norm === 'nos') display = 'Nos';
+                                                    
+                                                    if (!seen.has(norm)) {
+                                                      seen.add(norm);
+                                                      uniqueUoms.push(display);
+                                                    }
+                                                  });
+                                                  
+                                                  return uniqueUoms.map(uomVal => (
+                                                    <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                                  ));
+                                                })()}
                                               </select>
                                             )}
                                           </div>

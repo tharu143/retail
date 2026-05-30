@@ -21,13 +21,15 @@ const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PI_COLUMNS = [
   { id: 'item_code',          label: 'Item Code',         visible: true,  width: 120 },
+  { id: 'item_name',          label: 'Item Name',         visible: true,  width: 150 },
   { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_box_qty',     label: 'Box Qty',           visible: true,  width: 90  },
   { id: 'uom',                label: 'UOM',               visible: true,  width: 90  },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box',        visible: true,  width: 90  },
   { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 90  },
   { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 90  },
-  { id: 'custom_selling_price', label: 'Selling Price',   visible: true,  width: 90  },
+  { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
+  { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
   { id: 'qty',                label: 'Total Qty',         visible: true,  width: 90  },
   { id: 'amount',             label: 'Subtotal',          visible: true,  width: 90  }
 ];
@@ -71,10 +73,18 @@ function PurchaseInvoiceList() {
       const saved = localStorage.getItem('pi_column_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const defaultIds = DEFAULT_PI_COLUMNS.map(c => c.id);
-        const savedIds   = parsed.map(c => c.id);
-        const missing    = DEFAULT_PI_COLUMNS.filter(c => !savedIds.includes(c.id));
-        return [...parsed, ...missing];
+        // Rebuild from DEFAULT_PI_COLUMNS so order in saved is respected,
+        // but any NEW columns added to DEFAULT that are missing from saved
+        // are always appended so they appear in Configure Columns panel.
+        const merged = DEFAULT_PI_COLUMNS.map(defCol => {
+          const savedCol = parsed.find(c => c.id === defCol.id);
+          if (savedCol) {
+            return { ...defCol, visible: savedCol.visible, width: savedCol.width };
+          }
+          // New column not in saved config → use default (visible)
+          return defCol;
+        });
+        return merged;
       }
     } catch (e) { /* ignore */ }
     return DEFAULT_PI_COLUMNS;
@@ -83,9 +93,31 @@ function PurchaseInvoiceList() {
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
-    setColumnConfig(newConfig);
-    localStorage.setItem('pi_column_config', JSON.stringify(newConfig));
+    if (newConfig === null) {
+      // Reset to defaults
+      setColumnConfig([...DEFAULT_PI_COLUMNS]);
+      localStorage.removeItem('pi_column_config');
+    } else {
+      setColumnConfig(newConfig);
+      localStorage.setItem('pi_column_config', JSON.stringify(newConfig));
+    }
   };
+
+  // One-time migration: if saved column config is missing new columns, clear it so defaults apply
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('pi_column_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const requiredCols = ['custom_selling_price', 'custom_box_selling_price'];
+        const hasAll = requiredCols.every(id => parsed.some(c => c.id === id));
+        if (!hasAll) {
+          localStorage.removeItem('pi_column_config');
+          setColumnConfig([...DEFAULT_PI_COLUMNS]);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('legacySubTheme', piTheme);
@@ -672,6 +704,7 @@ function PurchaseInvoiceList() {
             custom_box_qty: parseFloat(i.custom_box_qty || 0),
             custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
             default_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+            custom_box_price: parseFloat(i.custom_box_price || 0),
             custom_selling_price: parseFloat(i.custom_selling_price || 0),
             custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
@@ -1032,6 +1065,18 @@ function PurchaseInvoiceList() {
               <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>Submitted</span>
             </div>
           )}
+          {docStatus === 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase' }}>Draft</span>
+            </div>
+          )}
+          {docStatus === 2 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#64748b' }} />
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Cancelled</span>
+            </div>
+          )}
         </div>
         <div className="so-card-body" style={{ padding: '1rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1158,7 +1203,7 @@ function PurchaseInvoiceList() {
           items[index].amount = (qty * newRate).toFixed(2);
         } else if (field === 'rate') {
           items[index].amount = (qty * rate).toFixed(2);
-          if (items[index].use_box_entry) items[index].custom_box_price = (rate * pPerBox).toFixed(2);
+          items[index].custom_box_price = (rate * pPerBox).toFixed(2);
         } else {
           items[index].amount = (qty * rate).toFixed(2);
         }
@@ -1216,29 +1261,71 @@ function PurchaseInvoiceList() {
   };
 
   const selectItem = async (rowIndex, item) => {
+    let existingIdx = -1;
     setFormData(prev => {
       const items = [...prev.items];
-      const isBoxUom = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box';
-      items[rowIndex] = {
-        item_code: item.item_code,
-        item_name: item.item_name,
-        uom: item.stock_uom || 'Nos',
-        qty: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
-        rate: 0,
-        amount: 0,
-        custom_box_qty: 1,
-        custom_pieces_per_box: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
-        default_pieces_per_box: parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1),
-        custom_selling_price: parseFloat(item.custom_selling_price || 0),
-        custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
-        custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
-        use_box_entry: isBoxUom
-      };
+      existingIdx = items.findIndex((i, idx) => i.item_code === item.item_code && idx !== rowIndex);
+      
+      if (existingIdx !== -1) {
+        // Merge with existing item!
+        const existingItem = { ...items[existingIdx] };
+        if (existingItem.use_box_entry) {
+          existingItem.custom_box_qty = (parseFloat(existingItem.custom_box_qty) || 0) + 1;
+          existingItem.qty = existingItem.custom_box_qty * (parseFloat(existingItem.custom_pieces_per_box) || 1);
+        } else {
+          existingItem.qty = (parseFloat(existingItem.qty) || 0) + 1;
+          const pPerBox = parseFloat(existingItem.custom_pieces_per_box) || 1;
+          if (pPerBox > 0) {
+            existingItem.custom_box_qty = existingItem.qty / pPerBox;
+          }
+        }
+        existingItem.amount = (existingItem.qty * (parseFloat(existingItem.rate) || 0)).toFixed(2);
+        items[existingIdx] = existingItem;
+
+        // Reset current row to empty
+        items[rowIndex] = {
+          item_code: '',
+          item_name: '',
+          qty: 1,
+          uom: '',
+          rate: 0,
+          amount: 0,
+          custom_box_qty: 0,
+          custom_pieces_per_box: 1,
+          custom_selling_price: 0,
+          custom_supplier_sl_num: '',
+          custom_ref_sl_no: '',
+          use_box_entry: false
+        };
+      } else {
+        // Normal item selection
+        const isBoxUom = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box';
+        items[rowIndex] = {
+          item_code: item.item_code,
+          item_name: item.item_name,
+          uom: item.stock_uom || 'Nos',
+          qty: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
+          rate: 0,
+          amount: 0,
+          custom_box_qty: 1,
+          custom_pieces_per_box: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
+          default_pieces_per_box: parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1),
+          custom_selling_price: parseFloat(item.custom_selling_price || 0),
+          custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
+          custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
+          use_box_entry: isBoxUom
+        };
+      }
       return { ...prev, items };
     });
 
     setItemSearches(prev => ({ ...prev, [rowIndex]: '' }));
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
+
+    if (existingIdx !== -1) {
+      // Already merged, buying rate exists
+      return;
+    }
 
     try {
       const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
@@ -1528,6 +1615,20 @@ function PurchaseInvoiceList() {
   useEffect(() => {
     if (!isModalOpen) return;
     const handleGlobalShortcuts = (e) => {
+      const activeEl = document.activeElement;
+      const inItemsTable = activeEl?.closest('table.so-items-table');
+      
+      let activeRowIndex = -1;
+      if (inItemsTable) {
+        const tr = activeEl.closest('tr');
+        if (tr && tr.parentNode) {
+          const index = Array.from(tr.parentNode.children).indexOf(tr);
+          if (index !== -1 && index < formData.items.length) {
+            activeRowIndex = index;
+          }
+        }
+      }
+
       // 1. Focus Supplier Search: F2
       if (e.key === 'F2') {
         e.preventDefault();
@@ -1538,14 +1639,17 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // 1.5 Focus Item Search of last row: F3
+      // F3: Focus Item Search (first row if empty, else last row)
       if (e.key === 'F3') {
         e.preventDefault();
         const itemInputs = document.querySelectorAll('input[placeholder="Search item..."]');
         if (itemInputs.length > 0) {
-          const lastInput = itemInputs[itemInputs.length - 1];
-          lastInput.focus();
-          lastInput.select?.();
+          const firstInput = itemInputs[0];
+          const targetInput = (firstInput && !firstInput.value) ? firstInput : itemInputs[itemInputs.length - 1];
+          if (targetInput) {
+            targetInput.focus();
+            targetInput.select?.();
+          }
         }
       }
 
@@ -1562,17 +1666,7 @@ function PurchaseInvoiceList() {
       // F6: Toggle UOM of active row (or last row)
       if (e.key === 'F6') {
         e.preventDefault();
-        const activeEl = document.activeElement;
-        let rowIndex = formData.items.length - 1;
-        if (activeEl) {
-          const tr = activeEl.closest('tr');
-          if (tr && tr.parentNode) {
-            const index = Array.from(tr.parentNode.children).indexOf(tr);
-            if (index !== -1 && index < formData.items.length) {
-              rowIndex = index;
-            }
-          }
-        }
+        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
 
         if (rowIndex >= 0 && rowIndex < formData.items.length) {
           const item = formData.items[rowIndex];
@@ -1621,6 +1715,40 @@ function PurchaseInvoiceList() {
         }
       }
 
+      // F5: Bulk Quantity
+      if (e.key === 'F5') {
+        e.preventDefault();
+        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
+
+        if (rowIndex >= 0 && rowIndex < formData.items.length) {
+          const item = formData.items[rowIndex];
+          if (item && item.item_code) {
+            Swal.fire({
+              title: 'Bulk Quantity',
+              html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
+                ${item.item_name || item.item_code}
+              </div>`,
+              input: 'number',
+              inputPlaceholder: 'Enter quantity...',
+              inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || ''),
+              showCancelButton: true,
+              confirmButtonText: 'Update',
+              confirmButtonColor: '#10b981',
+              cancelButtonColor: '#64748b'
+            }).then(result => {
+              if (result.isConfirmed && result.value !== undefined) {
+                const newQty = parseFloat(result.value) || 0;
+                if (item.use_box_entry) {
+                  updateItem(rowIndex, 'custom_box_qty', newQty);
+                } else {
+                  updateItem(rowIndex, 'qty', newQty);
+                }
+              }
+            });
+          }
+        }
+      }
+
       // 3. Add Item Row: F8
       if (e.key === 'F8') {
         e.preventDefault();
@@ -1638,11 +1766,16 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // 5. Save Draft: Ctrl + S or F10
-      if ((e.ctrlKey && e.key.toLowerCase() === 's') || e.key === 'F10') {
+      // 5. Save/Submit: Ctrl + S or F10
+      if ((e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) || e.key === 'F10') {
         e.preventDefault();
+        e.stopPropagation();
         if (!saving && formData.docstatus === 0) {
-          handleDocAction('save');
+          if (docName && !isDirty) {
+            handleDocAction('submit');
+          } else {
+            handleDocAction('save');
+          }
         }
       }
 
@@ -1654,10 +1787,209 @@ function PurchaseInvoiceList() {
         }
       }
 
+      // Tab Key Navigation Inside Table (Do not close or leave)
+      if (e.key === 'Tab') {
+        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr && tr.parentNode) {
+            const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+            const inputIndex = rowInputs.indexOf(activeEl);
+            
+            if (inputIndex === rowInputs.length - 1 && !e.shiftKey) {
+              e.preventDefault();
+              const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+              const isLastRow = rowIndex === formData.items.length - 1;
+              
+              if (isLastRow) {
+                if (formData.docstatus === 0 && !isViewMode) {
+                  addItemRow();
+                  setTimeout(() => {
+                    const tableBody = tr.parentNode;
+                    const newTr = tableBody.lastElementChild;
+                    if (newTr) {
+                      const firstInput = newTr.querySelector('input:not([disabled]), select:not([disabled])');
+                      if (firstInput) {
+                        firstInput.focus();
+                        firstInput.select?.();
+                      }
+                    }
+                  }, 50);
+                }
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const firstInput = nextTr.querySelector('input:not([disabled]), select:not([disabled])');
+                  if (firstInput) {
+                    firstInput.focus();
+                    firstInput.select?.();
+                  }
+                }
+              }
+            } else if (inputIndex === 0 && e.shiftKey) {
+              const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+              if (rowIndex > 0) {
+                e.preventDefault();
+                const prevTr = tr.previousElementSibling;
+                if (prevTr) {
+                  const prevInputs = Array.from(prevTr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+                  if (prevInputs.length > 0) {
+                    const lastInput = prevInputs[prevInputs.length - 1];
+                    lastInput.focus();
+                    lastInput.select?.();
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Enter key inside table inputs: add row or navigate down
+      if (e.key === 'Enter') {
+        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const isSearchInput = activeEl.placeholder === 'Search item...';
+          const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
+          if (isSearchInput && isDropdownOpen) return; // Let search dropdown handle it
+          
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr && tr.parentNode) {
+            e.preventDefault();
+            const colIndex = Array.from(tr.children).indexOf(td);
+            const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+            const isLastRow = rowIndex === formData.items.length - 1;
+            const isSellingPriceField = activeEl.placeholder === 'Nos Price' || 
+                                       activeEl.placeholder === 'Box Price' || 
+                                       activeEl.name === 'custom_selling_price' ||
+                                       activeEl.name === 'custom_box_selling_price';
+
+            if (isSellingPriceField) {
+              if (isLastRow) {
+                if (formData.docstatus === 0 && !isViewMode) {
+                  addItemRow();
+                  setTimeout(() => {
+                    const tableBody = tr.parentNode;
+                    const newTr = tableBody.lastElementChild;
+                    if (newTr) {
+                      const firstInput = newTr.querySelector('input[placeholder="Search item..."]');
+                      if (firstInput) {
+                        firstInput.focus();
+                        firstInput.select?.();
+                      }
+                    }
+                  }, 50);
+                }
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const firstInput = nextTr.querySelector('input[placeholder="Search item..."]');
+                  if (firstInput) {
+                    firstInput.focus();
+                    firstInput.select?.();
+                  }
+                }
+              }
+            } else {
+              if (isLastRow) {
+                if (formData.docstatus === 0 && !isViewMode) {
+                  addItemRow();
+                  setTimeout(() => {
+                    const tableBody = tr.parentNode;
+                    const newTr = tableBody.lastElementChild;
+                    if (newTr) {
+                      const targetTd = newTr.children[colIndex];
+                      if (targetTd) {
+                        const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                        if (targetInput) {
+                          targetInput.focus();
+                          targetInput.select?.();
+                        }
+                      }
+                    }
+                  }, 50);
+                }
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const targetTd = nextTr.children[colIndex];
+                  if (targetTd) {
+                    const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                    if (targetInput) {
+                      targetInput.focus();
+                      targetInput.select?.();
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 1. Escape key inside table input to select/focus the parent row (TR) itself
+      if (e.key === 'Escape') {
+        if (inItemsTable && activeEl && activeEl.tagName !== 'TR') {
+          const tr = activeEl.closest('tr');
+          if (tr) {
+            e.preventDefault();
+            tr.focus();
+            return;
+          }
+        }
+      }
+
+      // 2. Keyboard actions when the row itself is focused
+      if (activeEl && activeEl.tagName === 'TR' && activeEl.closest('table.so-items-table')) {
+        const tr = activeEl;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          const targetTr = e.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling;
+          if (targetTr && targetTr.tagName === 'TR') {
+            targetTr.focus();
+          }
+        }
+
+        if (e.key === 'Enter' || e.key === 'F3' || e.key === ' ') {
+          e.preventDefault();
+          const firstInput = tr.querySelector('input:not([disabled]), select:not([disabled])');
+          if (firstInput) {
+            firstInput.focus();
+            firstInput.select?.();
+          }
+        }
+
+        if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+          const isPlus = e.key === '+' || e.key === '=';
+          const qtyBtn = isPlus 
+            ? tr.querySelector('button[style*="borderRadius: 0 4px 4px 0"]') || tr.querySelector('.quantity-plus')
+            : tr.querySelector('button[style*="borderRadius: 4px 0 0 4px"]') || tr.querySelector('.quantity-minus');
+          if (qtyBtn) {
+            e.preventDefault();
+            qtyBtn.click();
+          } else {
+            const numInput = tr.querySelector('input[type="number"]:not([disabled])');
+            if (numInput) {
+              e.preventDefault();
+              const currentVal = parseFloat(numInput.value) || 0;
+              const diff = isPlus ? 1 : -1;
+              const newVal = Math.max(0, currentVal + diff);
+              numInput.value = newVal;
+              const event = new Event('input', { bubbles: true });
+              numInput.dispatchEvent(event);
+            }
+          }
+        }
+      }
+
       // Arrow Up/Down navigation inside table inputs
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        const activeEl = document.activeElement;
-        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const isSearchInput = activeEl.placeholder === 'Search item...';
+          const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
+          // If search input and dropdown is open, only block if they do not hold Alt/Ctrl
+          if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+          
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
           if (td && tr) {
@@ -1680,8 +2012,7 @@ function PurchaseInvoiceList() {
 
       // + / -: Increase / Decrease focused row quantity
       if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
-        const activeEl = document.activeElement;
-        if (activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
+        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
           const td = activeEl.closest('td');
           const isQtyField = activeEl.name?.toLowerCase().includes('qty') || 
                              activeEl.placeholder?.toLowerCase().includes('qty') ||
@@ -1703,7 +2034,7 @@ function PurchaseInvoiceList() {
 
     window.addEventListener('keydown', handleGlobalShortcuts);
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
-  }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxTemplates]);
+  }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxTemplates, isDirty, docName]);
 
   return (
     <>
@@ -1984,7 +2315,20 @@ function PurchaseInvoiceList() {
                     <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} {formData.is_return === 1 ? 'Debit Note' : 'Purchase Invoice'}
                     </h2>
-                    {formData.name && <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formData.name} • Accounts</p>}
+                    {formData.name && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formData.name} • Accounts</p>
+                        <a 
+                          href={`/app/purchase-invoice/${encodeURIComponent(formData.name)}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase ml-2 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
+                          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                        >
+                          <ExternalLink size={10} className="mr-1" /> Open in ERPNext
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1994,7 +2338,7 @@ function PurchaseInvoiceList() {
                     {formData.docstatus === 0 && (
                       <>
                         {/* 1. DELETE button (if allowed) */}
-                        {docName && allowedActions.includes('delete') && (
+                        {docName && (allowedActions.includes('delete') || allowedActions.length === 0) && (
                           <button 
                             onClick={() => handleDocAction('delete')} 
                             className="so-btn-ghost" 
@@ -2015,7 +2359,7 @@ function PurchaseInvoiceList() {
                           </button>
                         )}
 
-                        {/* 3. The SINGLE PRIMARY action button */}
+                        {/* 3. Primary action button(s) */}
                         {!docName ? (
                           // New Document -> SAVE DRAFT
                           <button 
@@ -2026,28 +2370,30 @@ function PurchaseInvoiceList() {
                           >
                             {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                           </button>
-                        ) : !isViewMode ? (
-                          // Edit / Update -> UPDATE DRAFT
-                          <button 
-                            onClick={() => handleDocAction('save')} 
-                            disabled={saving} 
-                            className="so-btn-primary" 
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                          >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
-                          </button>
                         ) : (
-                          // View / Draft Saved -> SUBMIT (only if in allowedActions)
-                          allowedActions.includes('submit') && (
-                            <button 
-                              onClick={() => handleDocAction('submit')} 
-                              disabled={saving} 
-                              className="so-btn-primary" 
-                              style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                            >
-                              {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
-                            </button>
-                          )
+                          // Saved Document -> Show BOTH Update and Submit (if allowed)
+                          <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            {!isViewMode && (
+                              <button 
+                                onClick={() => handleDocAction('save')} 
+                                disabled={saving} 
+                                className="so-btn-secondary" 
+                                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                              >
+                                {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
+                              </button>
+                            )}
+                            {(allowedActions.includes('submit') || allowedActions.length === 0) && (
+                              <button 
+                                onClick={() => handleDocAction('submit')} 
+                                disabled={saving} 
+                                className="so-btn-primary" 
+                                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                              >
+                                {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </>
                     )}
@@ -2129,6 +2475,10 @@ function PurchaseInvoiceList() {
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F5</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
@@ -2364,30 +2714,23 @@ function PurchaseInvoiceList() {
                           <tr>
                             <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
                             {(() => {
-                              const hasAnyBox = formData.items.some(i => i.use_box_entry);
-                              const activeCols = columnConfig.filter(c => {
-                                if (!c.visible) return false;
-                                if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
-                                return true;
-                              });
+                              const activeCols = columnConfig.filter(c => c.visible);
+                              const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
                               
                               return activeCols.map(col => {
-                                let finalLabel = col.label;
-                                if (!hasAnyBox) {
-                                  if (col.id === 'custom_box_qty') finalLabel = 'Qty';
-                                }
-
+                                // Hide Selling Price (Box) header column when no items have UOM=Box
+                                if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
                                 return (
                                   <th
                                     key={col.id}
                                     style={{ 
                                       width: col.width, 
                                       minWidth: col.id === 'item_code' ? 120 : undefined,
-                                      textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
+                                      textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
                                                  ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
                                     }}
                                   >
-                                    {finalLabel}
+                                    {col.label}
                                   </th>
                                 );
                               });
@@ -2403,18 +2746,16 @@ function PurchaseInvoiceList() {
                         </thead>
                         <tbody>
                           {formData.items.map((item, i) => (
-                            <tr key={i}>
+                            <tr key={i} tabIndex={-1}>
                               <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>{i + 1}</td>
                               
                               {(() => {
-                                const hasAnyBox = formData.items.some(i => i.use_box_entry);
-                                const activeCols = columnConfig.filter(c => {
-                                  if (!c.visible) return false;
-                                  if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
-                                  return true;
-                                });
+                                const activeCols = columnConfig.filter(c => c.visible);
+                                const isNosUom = (item.uom || '').toLowerCase() !== 'box';
                                 
                                 return activeCols.map(col => {
+                                  // Skip Selling Price (Box) cell entirely when UOM is Nos
+                                  if (col.id === 'custom_box_selling_price' && isNosUom) return null;
                                   switch (col.id) {
                                   case 'custom_box_qty':
                                     return (
@@ -2422,17 +2763,16 @@ function PurchaseInvoiceList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box" style={{ position: 'relative' }}>
                                             {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3" style={{ color: item.use_box_entry ? themeColor : undefined, paddingRight: item.item_code ? '48px' : '0.5rem' }}>
-                                                {item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800" style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}>
+                                                {item.custom_box_qty || 0}
                                               </div>
                                             ) : (
                                               <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                                 <button
                                                   type="button"
                                                   onClick={() => {
-                                                    const fieldName = item.use_box_entry ? 'custom_box_qty' : 'qty';
-                                                    const currentVal = parseFloat(item.use_box_entry ? item.custom_box_qty : item.qty) || 0;
-                                                    updateItem(i, fieldName, Math.max(0, currentVal - 1));
+                                                    const currentVal = parseFloat(item.custom_box_qty) || 0;
+                                                    updateItem(i, 'custom_box_qty', Math.max(0, currentVal - 1));
                                                   }}
                                                   style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px 0 0 4px', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
                                                 >
@@ -2440,42 +2780,23 @@ function PurchaseInvoiceList() {
                                                 </button>
                                                 <input
                                                   type="number"
-                                                  value={item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
+                                                  value={item.custom_box_qty !== undefined ? item.custom_box_qty : ''}
                                                   onFocus={e => e.target.select()}
-                                                  onChange={e => updateItem(i, item.use_box_entry ? 'custom_box_qty' : 'qty', e.target.value)}
+                                                  onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
                                                   className="so-input text-center font-bold"
-                                                  style={{ borderTop: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, borderBottom: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
+                                                  style={{ borderTop: `1px solid ${themeColor}40`, borderBottom: `1px solid ${themeColor}40`, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
                                                 />
                                                 <button
                                                   type="button"
                                                   onClick={() => {
-                                                    const fieldName = item.use_box_entry ? 'custom_box_qty' : 'qty';
-                                                    const currentVal = parseFloat(item.use_box_entry ? item.custom_box_qty : item.qty) || 0;
-                                                    updateItem(i, fieldName, currentVal + 1);
+                                                    const currentVal = parseFloat(item.custom_box_qty) || 0;
+                                                    updateItem(i, 'custom_box_qty', currentVal + 1);
                                                   }}
                                                   style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '0 4px 4px 0', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
                                                 >
                                                   +
                                                 </button>
                                               </div>
-                                            )}
-                                            {item.item_code && (
-                                              <span 
-                                                className="absolute text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
-                                                style={{
-                                                  position: 'absolute',
-                                                  right: '34px',
-                                                  top: '50%',
-                                                  transform: 'translateY(-50%)',
-                                                  color: item.use_box_entry ? themeColor : '#64748b',
-                                                  backgroundColor: item.use_box_entry ? `${themeColor}12` : '#f8fafc',
-                                                  borderColor: item.use_box_entry ? `${themeColor}25` : '#e2e8f0',
-                                                  lineHeight: 1,
-                                                  zIndex: 5
-                                                }}
-                                              >
-                                                {item.use_box_entry ? 'BOXES' : 'NOS'}
-                                              </span>
                                             )}
                                           </div>
                                         </div>
@@ -2486,22 +2807,18 @@ function PurchaseInvoiceList() {
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
-                                            {item.use_box_entry ? (
-                                              isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3">
-                                                  {(item.custom_pieces_per_box || 1)}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="number"
-                                                  value={item.custom_pieces_per_box || 1}
-                                                  onFocus={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
-                                                  className="so-input text-left pl-3 font-bold"
-                                                />
-                                              )
+                                            {isViewMode ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800">
+                                                {(item.custom_pieces_per_box || 1)}
+                                              </div>
                                             ) : (
-                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3">—</div>
+                                              <input
+                                                type="number"
+                                                value={item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : ''}
+                                                onFocus={e => e.target.select()}
+                                                onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                                className="so-input text-left pl-3 font-bold"
+                                              />
                                             )}
                                           </div>
                                         </div>
@@ -2523,23 +2840,27 @@ function PurchaseInvoiceList() {
                                               />
                                             ) : (
                                               item.item_code && (
-                                                <div style={{ 
-                                                  padding: '4px 10px', 
-                                                  background: 'white',
-                                                  border: '1px solid #e2e8f0',
-                                                  borderLeft: `4px solid ${themeColor}`,
-                                                  borderRadius: '0.375rem',
-                                                  boxSizing: 'border-box',
-                                                  display: 'flex',
-                                                  alignItems: 'center',
-                                                  height: '36px'
-                                                }}>
-                                                  <div style={{ color: '#1e293b', fontWeight: 800, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'center' }}>
-                                                    {item.item_name || 'Unnamed Item'}
-                                                  </div>
+                                                <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-[#1e293b]">
+                                                  {item.item_code}
                                                 </div>
                                               )
                                             )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'item_name':
+                                    return (
+                                      <td key={col.id}>
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <div 
+                                              className="premium-cell-readonly premium-cell-readonly-left pl-3 text-slate-500 font-bold truncate" 
+                                              style={{ maxWidth: '140px', fontSize: '11px' }}
+                                              title={item.item_name || '—'}
+                                            >
+                                              {item.item_name || '—'}
+                                            </div>
                                           </div>
                                         </div>
                                       </td>
@@ -2622,11 +2943,38 @@ function PurchaseInvoiceList() {
                                                 onChange={(e) => handleUOMChange(e.target.value, i)}
                                                 className="text-center text-[10px] font-bold text-slate-600 bg-white"
                                               >
-                                                {(item.uom_list && item.uom_list.length > 0 ? item.uom_list : [{ uom: item.uom || 'Nos' }]).map(u => (
-                                                  <option key={u.uom} value={u.uom}>{u.uom}</option>
-                                                ))}
-                                                {!item.uom_list?.some(u => u.uom === 'Box') && <option value="Box">Box</option>}
-                                                {!item.uom_list?.some(u => u.uom === (item.uom || 'Nos')) && <option value={item.uom || 'Nos'}>{item.uom || 'Nos'}</option>}
+                                                {(() => {
+                                                  const uniqueUoms = [];
+                                                  const seen = new Set();
+                                                  const candidates = [];
+                                                  
+                                                  if (item.uom_list && Array.isArray(item.uom_list)) {
+                                                    item.uom_list.forEach(u => {
+                                                      if (u && u.uom) candidates.push(u.uom);
+                                                    });
+                                                  }
+                                                  
+                                                  candidates.push(item.stock_uom || 'Nos');
+                                                  candidates.push(item.uom || 'Nos');
+                                                  candidates.push('Nos');
+                                                  candidates.push('Box');
+                                                  
+                                                  candidates.forEach(u => {
+                                                    const norm = u.trim().toLowerCase();
+                                                    let display = u.trim();
+                                                    if (norm === 'box') display = 'Box';
+                                                    else if (norm === 'nos') display = 'Nos';
+                                                    
+                                                    if (!seen.has(norm)) {
+                                                      seen.add(norm);
+                                                      uniqueUoms.push(display);
+                                                    }
+                                                  });
+                                                  
+                                                  return uniqueUoms.map(uomVal => (
+                                                    <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                                  ));
+                                                })()}
                                               </select>
                                             )}
                                           </div>
@@ -2638,23 +2986,22 @@ function PurchaseInvoiceList() {
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
-                                            {item.use_box_entry ? (
-                                              isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold">
-                                                  {formatPrice(item.custom_box_price)}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="number"
-                                                  value={item.custom_box_price || 0}
-                                                  onFocus={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
-                                                  className="so-input text-right pr-3 font-bold"
-                                                  step="0.01"
-                                                />
-                                              )
-                                            ) : (
+                                            {!item.use_box_entry ? (
                                               <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                            ) : isViewMode ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
+                                                {formatPrice(item.custom_box_price)}
+                                              </div>
+                                            ) : (
+                                              <input
+                                                type="number"
+                                                value={item.custom_box_price !== undefined ? item.custom_box_price : ''}
+                                                onFocus={e => e.target.select()}
+                                                onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
+                                                className="so-input text-right pr-3 font-bold"
+                                                step="0.01"
+                                                placeholder="Box Price"
+                                              />
                                             )}
                                           </div>
                                         </div>
@@ -2688,70 +3035,80 @@ function PurchaseInvoiceList() {
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
-                                            {item.use_box_entry ? (
-                                              isViewMode ? (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end', paddingRight: '0.75rem' }}>
-                                                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#6366f1' }}>
-                                                    <span style={{ fontSize: '8px', fontWeight: 800, color: '#94a3b8', marginRight: '4px' }}>NOS</span>
-                                                    {formatPrice(item.custom_selling_price)}
-                                                  </div>
-                                                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#10b981' }}>
-                                                    <span style={{ fontSize: '8px', fontWeight: 800, color: '#94a3b8', marginRight: '4px' }}>BOX</span>
-                                                    {formatPrice((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1))}
-                                                  </div>
-                                                </div>
-                                              ) : (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px' }}>
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <span style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', width: '24px', textAlign: 'left' }}>NOS</span>
-                                                    <input
-                                                      type="number"
-                                                      value={item.custom_selling_price || 0}
-                                                      onFocus={e => e.target.select()}
-                                                      onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                                      className="so-input text-right pr-2 font-bold text-[#6366f1]"
-                                                      style={{ fontSize: '11px', padding: '2px 4px', height: '24px', flex: 1, minWidth: '60px' }}
-                                                      placeholder="Nos Selling"
-                                                    />
-                                                  </div>
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <span style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', width: '24px', textAlign: 'left' }}>BOX</span>
-                                                    <input
-                                                      type="number"
-                                                      value={((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2)}
-                                                      onFocus={e => e.target.select()}
-                                                      onChange={e => {
-                                                        const val = parseFloat(e.target.value) || 0;
-                                                        const pcs = parseFloat(item.custom_pieces_per_box) || 1;
-                                                        updateItem(i, 'custom_selling_price', pcs > 0 ? (val / pcs).toFixed(2) : 0);
-                                                      }}
-                                                      className="so-input text-right pr-2 font-bold text-[#10b981]"
-                                                      style={{ fontSize: '11px', padding: '2px 4px', height: '24px', flex: 1, minWidth: '60px' }}
-                                                      placeholder="Box Selling"
-                                                    />
-                                                  </div>
-                                                </div>
-                                              )
+                                            {isViewMode ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
+                                                {formatPrice(item.custom_selling_price)}
+                                              </div>
                                             ) : (
-                                              isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
-                                                  {formatPrice(item.custom_selling_price)}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="number"
-                                                  value={item.custom_selling_price || 0}
-                                                  onFocus={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                                  className="so-input text-right pr-3 font-bold text-[#6366f1]"
-                                                  placeholder="Selling"
-                                                />
-                                              )
+                                              <input
+                                                type="number"
+                                                value={item.custom_selling_price || ''}
+                                                onFocus={e => e.target.select()}
+                                                onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                                className="so-input text-right pr-3 font-bold text-[#6366f1]"
+                                                step="0.01"
+                                                placeholder="Nos Price"
+                                              />
                                             )}
                                           </div>
                                         </div>
                                       </td>
                                     );
+                                  case 'custom_box_selling_price':
+                                    {
+                                      const isBoxUom = (item.uom || '').toLowerCase() === 'box';
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box">
+                                              {!isBoxUom ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                              ) : isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#10b981]">
+                                                  {formatPrice((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1))}
+                                                </div>
+                                              ) : (
+                                                <input
+                                                  type="number"
+                                                  value={item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? ((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2) : '')}
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => {
+                                                    const typedVal = e.target.value;
+                                                    const val = parseFloat(typedVal) || 0;
+                                                    const pcs = parseFloat(item.custom_pieces_per_box) || 1;
+                                                    const nosPrice = pcs > 0 ? (val / pcs).toFixed(4) : 0;
+                                                    
+                                                    setFormData(prev => {
+                                                      const newItems = [...prev.items];
+                                                      newItems[i] = {
+                                                        ...newItems[i],
+                                                        custom_selling_price: parseFloat(nosPrice),
+                                                        _temp_box_selling_price: typedVal
+                                                      };
+                                                      return { ...prev, items: newItems };
+                                                    });
+                                                  }}
+                                                  onBlur={() => {
+                                                    setFormData(prev => {
+                                                      const newItems = [...prev.items];
+                                                      newItems[i] = {
+                                                        ...newItems[i],
+                                                        custom_selling_price: parseFloat(newItems[i].custom_selling_price).toFixed(2),
+                                                        _temp_box_selling_price: undefined
+                                                      };
+                                                      return { ...prev, items: newItems };
+                                                    });
+                                                  }}
+                                                  className="so-input text-right pr-3 font-bold text-[#10b981]"
+                                                  step="0.01"
+                                                  placeholder="Box Price"
+                                                />
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    }
                                   case 'amount':
                                     return (
                                       <td key={col.id}>

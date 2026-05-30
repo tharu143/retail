@@ -972,3 +972,29 @@ input[type=number].so-td-input::-webkit-outer-spin-button {
   display: block !important;
   width: 100% !important;
 }
+
+/* Custom Row Keyboard Selection Styling */
+.so-items-table tbody tr[tabindex="-1"] {
+  outline: none;
+}
+.so-items-table tbody tr[tabindex="-1"]:focus-within {
+  background-color: rgba(99, 102, 241, 0.02);
+}
+.so-items-table tbody tr[tabindex="-1"]:focus {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+.so-items-table tbody tr[tabindex="-1"]:focus td {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  border-top: 2px solid var(--so-primary, #10b981) !important;
+  border-bottom: 2px solid var(--so-primary, #10b981) !important;
+}
+.so-items-table tbody tr[tabindex="-1"]:focus td:first-child {
+  border-left: 2px solid var(--so-primary, #10b981) !important;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.so-items-table tbody tr[tabindex="-1"]:focus td:last-child {
+  border-right: 2px solid var(--so-primary, #10b981) !important;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}

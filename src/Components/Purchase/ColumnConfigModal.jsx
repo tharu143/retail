@@ -226,7 +226,7 @@ const ColumnConfigModal = ({ isOpen, onClose, config, onUpdate, doctype, themeCo
               Discard
             </button>
             <button 
-              onClick={() => onUpdate(localConfig)}
+              onClick={() => { onUpdate(localConfig); onClose(); }}
               style={{ background: themeColor || '#4f46e5' }}
               className="flex items-center gap-2 px-8 py-3 text-sm font-black text-white rounded-xl shadow-lg shadow-indigo-200 hover:opacity-90 transition-all active:scale-95"
             >
