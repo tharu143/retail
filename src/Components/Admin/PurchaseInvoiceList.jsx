@@ -20,18 +20,18 @@ const RESOURCE_API = '/api/resource/Purchase Invoice';
 const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PI_COLUMNS = [
-  { id: 'item_code',          label: 'Item Code',         visible: true,  width: 120 },
-  { id: 'item_name',          label: 'Item Name',         visible: true,  width: 150 },
-  { id: 'custom_ref_sl_no',   label: 'Ref / Supplier SL #', visible: true, width: 120 },
-  { id: 'custom_box_qty',     label: 'Box Qty',           visible: true,  width: 90  },
-  { id: 'uom',                label: 'UOM',               visible: true,  width: 90  },
-  { id: 'custom_pieces_per_box', label: 'Pcs/Box',        visible: true,  width: 90  },
-  { id: 'custom_box_price',   label: 'Box Price',         visible: true,  width: 90  },
-  { id: 'rate',               label: 'Rate (Nos)',        visible: true,  width: 90  },
+  { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
+  { id: 'item_name', label: 'Item Name', visible: true, width: 150 },
+  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
+  { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+  { id: 'uom', label: 'UOM', visible: true, width: 90 },
+  { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
+  { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
+  { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
   { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
   { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
-  { id: 'qty',                label: 'Total Qty',         visible: true,  width: 90  },
-  { id: 'amount',             label: 'Subtotal',          visible: true,  width: 90  }
+  { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
+  { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
 ];
 
 const getLocalISODate = () => {
@@ -89,7 +89,7 @@ function PurchaseInvoiceList() {
     } catch (e) { /* ignore */ }
     return DEFAULT_PI_COLUMNS;
   };
-  const [columnConfig, setColumnConfig]   = useState(loadColumnConfig);
+  const [columnConfig, setColumnConfig] = useState(loadColumnConfig);
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
@@ -253,7 +253,7 @@ function PurchaseInvoiceList() {
 
       const mappedItems = (pr.items || []).map(i => {
         const isBoxUom = (i.uom || '').toLowerCase() === 'box';
-        const boxQty   = parseFloat(i.custom_box_qty || 0);
+        const boxQty = parseFloat(i.custom_box_qty || 0);
         const pcsPerBox = parseFloat(i.custom_pieces_per_box || 1);
         const invoiceQty = parseFloat(i.qty) || 0;
 
@@ -296,7 +296,7 @@ function PurchaseInvoiceList() {
         additional_discount_percentage: parseFloat(pr.additional_discount_percentage || 0),
         discount_amount: parseFloat(pr.discount_amount || 0),
         taxes_and_charges: pr.taxes_and_charges || '',
-        items: mappedItems.length > 0 ? mappedItems : [{ item_code:'', item_name:'', qty:1, uom:'', rate:0, amount:0, custom_box_qty:0, custom_pieces_per_box:1, custom_selling_price:0, custom_supplier_sl_num:'', custom_ref_sl_no:'' }],
+        items: mappedItems.length > 0 ? mappedItems : [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: '' }],
         taxes: (pr.taxes || []).map(t => ({
           add_row: t.add_deduct_tax === 'Add',
           charge_type: t.charge_type || 'On Net Total',
@@ -348,7 +348,7 @@ function PurchaseInvoiceList() {
       });
       const details = res.data.message?.data || res.data.message || {};
       setAllowedActions(details.allowed_actions || []);
-      
+
       // Update metrics in formData for UI logic
       if (details.per_received !== undefined || details.per_billed !== undefined) {
         setFormData(prev => ({
@@ -363,14 +363,14 @@ function PurchaseInvoiceList() {
 
   const handleDocAction = async (action) => {
     if (action === 'save' || action === 'submit') {
-        const errors = {};
-        if (!formData.supplier) errors.supplier = 'Supplier is required';
-        if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
-        if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
-        if (Object.keys(errors).length > 0) {
-          setFormErrors(errors);
-          return;
-        }
+      const errors = {};
+      if (!formData.supplier) errors.supplier = 'Supplier is required';
+      if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
+      if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        return;
+      }
     }
 
     const confirmMap = {
@@ -381,37 +381,37 @@ function PurchaseInvoiceList() {
     };
 
     if (confirmMap[action]) {
-        const result = await Swal.fire({
-            title: action.toUpperCase(),
-            text: confirmMap[action],
-            icon: action === 'delete' ? 'error' : 'warning',
-            showCancelButton: true,
-            confirmButtonColor: action === 'cancel' || action === 'delete' ? '#ef4444' : '#0ea5e9'
-        });
-        if (!result.isConfirmed) return;
+      const result = await Swal.fire({
+        title: action.toUpperCase(),
+        text: confirmMap[action],
+        icon: action === 'delete' ? 'error' : 'warning',
+        showCancelButton: true,
+        confirmButtonColor: action === 'cancel' || action === 'delete' ? '#ef4444' : '#0ea5e9'
+      });
+      if (!result.isConfirmed) return;
     }
 
     setSaving(true);
     try {
       let payload = null;
       if (action === 'save' || action === 'submit') {
-          payload = await getPayload();
+        payload = await getPayload();
       }
 
       let res;
       if (action === 'save' || action === 'submit') {
-          res = await axios.post(`${API_PATH}.save_transaction_document`, {
-            doctype: 'Purchase Invoice',
-            doc_data: payload,
-            action: action
-          }, { withCredentials: true });
+        res = await axios.post(`${API_PATH}.save_transaction_document`, {
+          doctype: 'Purchase Invoice',
+          doc_data: payload,
+          action: action
+        }, { withCredentials: true });
       } else {
-          res = await axios.post(`${API_PATH}.handle_document_action`, {
-            doctype: 'Purchase Invoice',
-            docname: docName || undefined,
-            action: action,
-            doc_data: undefined
-          }, { withCredentials: true });
+        res = await axios.post(`${API_PATH}.handle_document_action`, {
+          doctype: 'Purchase Invoice',
+          docname: docName || undefined,
+          action: action,
+          doc_data: undefined
+        }, { withCredentials: true });
       }
 
       const rawMsg = res.data.message || {};
@@ -420,32 +420,32 @@ function PurchaseInvoiceList() {
       if (success) {
         setLastSavedData(JSON.stringify(payload)); // Update base for dirty check after save
         Swal.fire('Success', `${action.toUpperCase()} operation completed successfully.`, 'success');
-        
+
         if (action === 'delete') {
-            closeModal();
-            fetchInvoices();
-            return;
+          closeModal();
+          fetchInvoices();
+          return;
         }
 
         const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || rawMsg.name || docName;
-        
+
         if (nextDoc) {
-            setDocName(nextDoc);
-            // Always keep searchParams URL in sync with the current active document
-            setSearchParams({ name: nextDoc });
-            if (nextDoc !== docName) {
-                await fetchPurchaseInvoice(nextDoc);
-            } else {
-                await fetchPurchaseInvoice(docName);
-            }
-            if (action === 'amend') {
-                setIsEditMode(true);
-                setIsViewMode(false);
-            }
+          setDocName(nextDoc);
+          // Always keep searchParams URL in sync with the current active document
+          setSearchParams({ name: nextDoc });
+          if (nextDoc !== docName) {
+            await fetchPurchaseInvoice(nextDoc);
+          } else {
+            await fetchPurchaseInvoice(docName);
+          }
+          if (action === 'amend') {
+            setIsEditMode(true);
+            setIsViewMode(false);
+          }
         }
         fetchInvoices();
       } else {
-          throw new Error(rawMsg.message || "Operation failed");
+        throw new Error(rawMsg.message || "Operation failed");
       }
     } catch (err) {
       Swal.fire('Matrix Error', err.response?.data?.message || err.message, 'error');
@@ -538,14 +538,14 @@ function PurchaseInvoiceList() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${LEGACY_API}.get_purchase_invoices`, { 
-        params: { 
-          limit: 2000, 
-          limit_page_length: 2000, 
+      const res = await axios.get(`${LEGACY_API}.get_purchase_invoices`, {
+        params: {
+          limit: 2000,
+          limit_page_length: 2000,
           order_by: 'modified desc',
           warehouse: !isAdmin ? warehouse : undefined
-        }, 
-        withCredentials: true 
+        },
+        withCredentials: true
       });
       if (res.data.message?.success) setInvoices(res.data.message.data || []);
     } catch (err) { console.error(err); }
@@ -557,7 +557,7 @@ function PurchaseInvoiceList() {
     try {
       const res = await axios.get(`${LEGACY_API}.get_purchase_taxes_templates_pi`, { withCredentials: true });
       const templates = Array.isArray(res.data.message) ? res.data.message : [];
-      
+
       // Filter out templates not matching the active company's warehouse suffix
       const companyAbbr = warehouse && warehouse.includes(' - ') ? warehouse.split(' - ').pop() : 'NS';
       const filteredTemplates = templates.filter(t => t.name.includes(`- ${companyAbbr}`));
@@ -723,7 +723,7 @@ function PurchaseInvoiceList() {
           outstanding_amount: d.outstanding_amount !== undefined ? d.outstanding_amount : (d.grand_total || 0),
           docstatus: parseInt(d.docstatus) || 0
         };
-        
+
         // Populate tax preview for UI/Calculations
         if (d.taxes && d.taxes.length > 0) {
           setTaxPreview(d.taxes.map(t => ({
@@ -738,9 +738,9 @@ function PurchaseInvoiceList() {
           try {
             const sourcePRName = d.items?.find(i => i.purchase_receipt)?.purchase_receipt;
             const sourcePOName = d.items?.find(i => i.purchase_order)?.purchase_order;
-            
+
             let enrichedItems = [...mapped.items];
-            
+
             // 1. Sync from PR if available
             if (sourcePRName) {
               const prRes = await axios.get(`${RESOURCE_BASE}/Purchase Receipt/${sourcePRName}`, { withCredentials: true });
@@ -748,7 +748,7 @@ function PurchaseInvoiceList() {
               if (prDoc) {
                 // Sync date if it's the default today's date
                 if (mapped.posting_date === new Date().toISOString().split('T')[0]) {
-                   mapped.posting_date = prDoc.posting_date;
+                  mapped.posting_date = prDoc.posting_date;
                 }
                 if (prDoc.items) {
                   enrichedItems = enrichedItems.map(item => {
@@ -772,7 +772,7 @@ function PurchaseInvoiceList() {
                 }
               }
             }
-            
+
             // 2. Further sync from PO if PR was missing fields or no PR
             if (sourcePOName) {
               const poRes = await axios.get(`${RESOURCE_BASE}/Purchase Order/${sourcePOName}`, { withCredentials: true });
@@ -781,18 +781,18 @@ function PurchaseInvoiceList() {
                 enrichedItems = enrichedItems.map(item => {
                   const poItem = poDoc.items.find(pi => pi.item_code === item.item_code);
                   if (poItem) {
-                     return {
-                       ...item,
-                       uom: poItem.uom || item.uom,
-                       use_box_entry: (poItem.uom || item.uom || '').toLowerCase() === 'box',
-                       custom_selling_price: item.custom_selling_price || parseFloat(poItem.custom_selling_price || 0),
-                       custom_box_qty: parseFloat(poItem.custom_box_qty || 0),
-                       custom_pieces_per_box: parseFloat(poItem.custom_pieces_per_box || 1),
-                       custom_box_price: parseFloat(poItem.custom_box_price || 0),
-                       custom_supplier_sl_num: poItem.custom_supplier_sl_num || poItem.custom_ref_sl_no || item.custom_supplier_sl_num || '',
-                       custom_ref_sl_no: poItem.custom_ref_sl_no || poItem.custom_supplier_sl_num || item.custom_ref_sl_no || '',
-                       qty: parseFloat(poItem.qty || 0)
-                     };
+                    return {
+                      ...item,
+                      uom: poItem.uom || item.uom,
+                      use_box_entry: (poItem.uom || item.uom || '').toLowerCase() === 'box',
+                      custom_selling_price: item.custom_selling_price || parseFloat(poItem.custom_selling_price || 0),
+                      custom_box_qty: parseFloat(poItem.custom_box_qty || 0),
+                      custom_pieces_per_box: parseFloat(poItem.custom_pieces_per_box || 1),
+                      custom_box_price: parseFloat(poItem.custom_box_price || 0),
+                      custom_supplier_sl_num: poItem.custom_supplier_sl_num || poItem.custom_ref_sl_no || item.custom_supplier_sl_num || '',
+                      custom_ref_sl_no: poItem.custom_ref_sl_no || poItem.custom_supplier_sl_num || item.custom_ref_sl_no || '',
+                      qty: parseFloat(poItem.qty || 0)
+                    };
                   }
                   return item;
                 });
@@ -806,13 +806,13 @@ function PurchaseInvoiceList() {
         setSearchSupplier(d.supplier_name || d.supplier);
         setDocName(d.name);
         setDocStatus(parseInt(d.docstatus) || 0); // Store docstatus
-        
+
         // Fetch linked documents if it's already created
         if (d.name) {
-            fetchLinkedDocuments(d.name);
-            fetchWorkflowActions(d.name); // Explicitly fetch workflow actions with the name
+          fetchLinkedDocuments(d.name);
+          fetchWorkflowActions(d.name); // Explicitly fetch workflow actions with the name
         }
-        
+
         setLastSavedData(JSON.stringify(mapped)); // Set base point for dirty check
         const isDraft = (parseInt(d.docstatus) || 0) === 0;
         setIsViewMode(!isDraft);
@@ -838,7 +838,7 @@ function PurchaseInvoiceList() {
       if (res.data.message?.success || res.data.message?.status === 'success') {
         const payload = res.data.message.data || res.data.message;
         const categories = payload.categories || {};
-        
+
         // Flatten the categorized structure for easier UI rendering
         const flatDocs = {};
         Object.values(categories).forEach(cat => {
@@ -848,7 +848,7 @@ function PurchaseInvoiceList() {
             }
           });
         });
-        
+
         setLinkedDocs(flatDocs);
       }
     } catch (err) {
@@ -917,38 +917,38 @@ function PurchaseInvoiceList() {
         title: 'Make Payment',
         html:
           '<div style="text-align: left; padding: 10px; background: #f8fafc; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">' +
-            '<p style="margin: 0; font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Invoice: ' + docName + '</p>' +
-            '<p style="margin: 5px 0 0; font-size: 0.9rem; font-weight: 900; color: #1e293b;">' + (formData.supplier_name || formData.supplier) + '</p>' +
-            '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">' +
-              '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Outstanding:</span>' +
-              '<span style="font-size: 1rem; font-weight: 900; color: #10b981;">AED ' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + '</span>' +
-            '</div>' +
+          '<p style="margin: 0; font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Invoice: ' + docName + '</p>' +
+          '<p style="margin: 5px 0 0; font-size: 0.9rem; font-weight: 900; color: #1e293b;">' + (formData.supplier_name || formData.supplier) + '</p>' +
+          '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">' +
+          '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Outstanding:</span>' +
+          '<span style="font-size: 1rem; font-weight: 900; color: #10b981;">AED ' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + '</span>' +
+          '</div>' +
           '</div>' +
           '<div style="text-align: left; margin-bottom: 20px;">' +
-            '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Mode of Payment</label>' +
-            '<select id="swal-mode" class="swal2-select" style="margin: 0; width: 100%;">' +
-              '<option value="Cash">Cash</option>' +
-              '<option value="Bank">Bank Transfer</option>' +
-              '<option value="Cheque">Cheque</option>' +
-            '</select>' +
+          '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Mode of Payment</label>' +
+          '<select id="swal-mode" class="swal2-select" style="margin: 0; width: 100%;">' +
+          '<option value="Cash">Cash</option>' +
+          '<option value="Bank">Bank Transfer</option>' +
+          '<option value="Cheque">Cheque</option>' +
+          '</select>' +
           '</div>' +
           '<div style="text-align: left; margin-bottom: 20px;">' +
-            '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Payment Date</label>' +
-            '<input id="swal-post-date" type="date" class="swal2-input" style="margin: 0; width: 100%;" value="' + new Date().toISOString().split('T')[0] + '">' +
+          '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Payment Date</label>' +
+          '<input id="swal-post-date" type="date" class="swal2-input" style="margin: 0; width: 100%;" value="' + new Date().toISOString().split('T')[0] + '">' +
           '</div>' +
           '<div style="text-align: left; margin-bottom: 20px;">' +
-            '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Amount to Pay (AED)</label>' +
-            '<input id="swal-amount" type="number" class="swal2-input" style="margin: 0; width: 100%;" value="' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toFixed(2) + '">' +
+          '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Amount to Pay (AED)</label>' +
+          '<input id="swal-amount" type="number" class="swal2-input" style="margin: 0; width: 100%;" value="' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toFixed(2) + '">' +
           '</div>' +
           '<div id="ref-fields-container" style="display: none;">' +
-            '<div style="text-align: left; margin-bottom: 20px;">' +
-              '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Reference Number (Chq/Trans ID)</label>' +
-              '<input id="swal-ref-no" class="swal2-input" style="margin: 0; width: 100%;" placeholder="e.g. TXN-123456">' +
-            '</div>' +
-            '<div style="text-align: left; margin-bottom: 20px;">' +
-              '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Reference Date</label>' +
-              '<input id="swal-ref-date" type="date" class="swal2-input" style="margin: 0; width: 100%;" value="' + new Date().toISOString().split('T')[0] + '">' +
-            '</div>' +
+          '<div style="text-align: left; margin-bottom: 20px;">' +
+          '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Reference Number (Chq/Trans ID)</label>' +
+          '<input id="swal-ref-no" class="swal2-input" style="margin: 0; width: 100%;" placeholder="e.g. TXN-123456">' +
+          '</div>' +
+          '<div style="text-align: left; margin-bottom: 20px;">' +
+          '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Reference Date</label>' +
+          '<input id="swal-ref-date" type="date" class="swal2-input" style="margin: 0; width: 100%;" value="' + new Date().toISOString().split('T')[0] + '">' +
+          '</div>' +
           '</div>',
         didOpen: () => {
           const modeSelect = document.getElementById('swal-mode');
@@ -984,7 +984,7 @@ function PurchaseInvoiceList() {
       if (!formValues) return;
 
       setSaving(true);
-      
+
       const payload = {
         purchase_invoice: docName,
         mode_of_payment: formValues.mode,
@@ -998,7 +998,7 @@ function PurchaseInvoiceList() {
       }
 
       const res = await axios.post(`${API_PATH}.create_payment_entry_from_pi`, payload, { withCredentials: true });
-      
+
       const msg = res.data.message || res.data;
       if ((msg.success || msg.status === 'success') && msg.name) {
         Swal.fire({
@@ -1085,18 +1085,18 @@ function PurchaseInvoiceList() {
               <div style={{ padding: '0.75rem', background: 'white', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
                 <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Actions</p>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button 
+                  <button
                     onClick={handleCreatePayment}
                     disabled={saving}
-                    className="so-btn-primary" 
+                    className="so-btn-primary"
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem', background: '#eab308', borderColor: '#eab308' }}
                   >
                     <Plus size={14} /> Create Payment Entry
                   </button>
-                  <button 
+                  <button
                     onClick={handleCreateReturn}
                     disabled={saving}
-                    className="so-btn-secondary" 
+                    className="so-btn-secondary"
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem', color: '#ef4444', borderColor: '#ef4444' }}
                   >
                     <Link size={14} /> Create Debit Note
@@ -1104,7 +1104,7 @@ function PurchaseInvoiceList() {
                 </div>
               </div>
             )}
-            
+
             {/* Links Section */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
               {[...new Set(Object.values(categories).flat())].map(dt => {
@@ -1116,13 +1116,13 @@ function PurchaseInvoiceList() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', marginBottom: '0.2rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: `${themeColor}10`, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                           <Link size={10} strokeWidth={2.5} />
+                          <Link size={10} strokeWidth={2.5} />
                         </div>
                         <span style={{ fontSize: '0.65rem', fontWeight: 900, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{dt}</span>
                       </div>
                       <span style={{ padding: '0.1rem 0.4rem', background: `${themeColor}15`, color: themeColor, borderRadius: '0.5rem', fontSize: '0.6rem', fontWeight: 900 }}>{links.length}</span>
                     </div>
-                    
+
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                       {links.map(link => (
                         <button
@@ -1207,7 +1207,7 @@ function PurchaseInvoiceList() {
         } else {
           items[index].amount = (qty * rate).toFixed(2);
         }
-        
+
         items[index][field] = value;
         // Back-calculate Box Qty if needed
         if (field === 'qty' && pPerBox > 0) items[index].custom_box_qty = qty / pPerBox;
@@ -1254,7 +1254,7 @@ function PurchaseInvoiceList() {
         item.qty = parseFloat(item.custom_box_qty) || 0;
       }
       item.amount = (parseFloat(item.qty) * (parseFloat(item.rate) || 0)).toFixed(2);
-      
+
       items[rowIndex] = item;
       return { ...prev, items };
     });
@@ -1265,7 +1265,7 @@ function PurchaseInvoiceList() {
     setFormData(prev => {
       const items = [...prev.items];
       existingIdx = items.findIndex((i, idx) => i.item_code === item.item_code && idx !== rowIndex);
-      
+
       if (existingIdx !== -1) {
         // Merge with existing item!
         const existingItem = { ...items[existingIdx] };
@@ -1329,7 +1329,7 @@ function PurchaseInvoiceList() {
 
     try {
       const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
-        params: { 
+        params: {
           item_code: item.item_code,
           warehouse: formData.accepted_warehouse || warehouse || undefined
         },
@@ -1515,7 +1515,7 @@ function PurchaseInvoiceList() {
   };
 
   const handleCancel = async (name) => {
-     handleDocAction('cancel');
+    handleDocAction('cancel');
   };
 
   const closeModal = () => {
@@ -1567,12 +1567,12 @@ function PurchaseInvoiceList() {
   useEffect(() => {
     fetchInvoices();
     fetchTaxTemplates();
-    fetchWarehouses(); 
+    fetchWarehouses();
   }, []);
 
   useEffect(() => {
     const nameParam = searchParams.get('name');
-    const prParam   = searchParams.get('pr');
+    const prParam = searchParams.get('pr');
 
     if (nameParam === 'new') {
       if (!isModalOpen) {
@@ -1617,7 +1617,7 @@ function PurchaseInvoiceList() {
     const handleGlobalShortcuts = (e) => {
       const activeEl = document.activeElement;
       const inItemsTable = activeEl?.closest('table.so-items-table');
-      
+
       let activeRowIndex = -1;
       if (inItemsTable) {
         const tr = activeEl.closest('tr');
@@ -1625,6 +1625,19 @@ function PurchaseInvoiceList() {
           const index = Array.from(tr.parentNode.children).indexOf(tr);
           if (index !== -1 && index < formData.items.length) {
             activeRowIndex = index;
+          }
+        }
+      }
+
+      // Ctrl+ArrowDown, Ctrl+ArrowUp, or Shift+F3: Jump focus into items table rows
+      if ((e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) || (e.shiftKey && e.key === 'F3')) {
+        const rows = document.querySelectorAll('table.so-items-table tbody tr');
+        if (rows.length > 0) {
+          e.preventDefault();
+          const targetRow = (e.key === 'ArrowUp') ? rows[rows.length - 1] : rows[0];
+          if (targetRow) {
+            targetRow.focus();
+            return;
           }
         }
       }
@@ -1663,6 +1676,7 @@ function PurchaseInvoiceList() {
         }
       }
 
+
       // F6: Toggle UOM of active row (or last row)
       if (e.key === 'F6') {
         e.preventDefault();
@@ -1674,7 +1688,7 @@ function PurchaseInvoiceList() {
             let nextUom = '';
             const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
             const uomList = item.uom_list || [];
-            
+
             if (uomList.length > 1) {
               const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
               const nextIndex = (currentIndex + 1) % uomList.length;
@@ -1795,12 +1809,12 @@ function PurchaseInvoiceList() {
           if (td && tr && tr.parentNode) {
             const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
             const inputIndex = rowInputs.indexOf(activeEl);
-            
+
             if (inputIndex === rowInputs.length - 1 && !e.shiftKey) {
               e.preventDefault();
               const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
               const isLastRow = rowIndex === formData.items.length - 1;
-              
+
               if (isLastRow) {
                 if (formData.docstatus === 0 && !isViewMode) {
                   addItemRow();
@@ -1851,7 +1865,7 @@ function PurchaseInvoiceList() {
           const isSearchInput = activeEl.placeholder === 'Search item...';
           const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
           if (isSearchInput && isDropdownOpen) return; // Let search dropdown handle it
-          
+
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
           if (td && tr && tr.parentNode) {
@@ -1859,10 +1873,10 @@ function PurchaseInvoiceList() {
             const colIndex = Array.from(tr.children).indexOf(td);
             const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
             const isLastRow = rowIndex === formData.items.length - 1;
-            const isSellingPriceField = activeEl.placeholder === 'Nos Price' || 
-                                       activeEl.placeholder === 'Box Price' || 
-                                       activeEl.name === 'custom_selling_price' ||
-                                       activeEl.name === 'custom_box_selling_price';
+            const isSellingPriceField = activeEl.placeholder === 'Nos Price' ||
+              activeEl.placeholder === 'Box Price' ||
+              activeEl.name === 'custom_selling_price' ||
+              activeEl.name === 'custom_box_selling_price';
 
             if (isSellingPriceField) {
               if (isLastRow) {
@@ -1961,7 +1975,7 @@ function PurchaseInvoiceList() {
 
         if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
           const isPlus = e.key === '+' || e.key === '=';
-          const qtyBtn = isPlus 
+          const qtyBtn = isPlus
             ? tr.querySelector('button[style*="borderRadius: 0 4px 4px 0"]') || tr.querySelector('.quantity-plus')
             : tr.querySelector('button[style*="borderRadius: 4px 0 0 4px"]') || tr.querySelector('.quantity-minus');
           if (qtyBtn) {
@@ -1989,7 +2003,7 @@ function PurchaseInvoiceList() {
           const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
           // If search input and dropdown is open, only block if they do not hold Alt/Ctrl
           if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
-          
+
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
           if (td && tr) {
@@ -2014,11 +2028,11 @@ function PurchaseInvoiceList() {
       if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
         if (inItemsTable && activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
           const td = activeEl.closest('td');
-          const isQtyField = activeEl.name?.toLowerCase().includes('qty') || 
-                             activeEl.placeholder?.toLowerCase().includes('qty') ||
-                             (activeEl.previousElementSibling && activeEl.previousElementSibling.innerText === '-') ||
-                             (activeEl.nextElementSibling && activeEl.nextElementSibling.innerText === '+') ||
-                             (td && (td.closest('table')?.querySelector(`thead th:nth-child(${Array.from(td.closest('tr').children).indexOf(td) + 1})`)?.innerText.toLowerCase().includes('qty') || activeEl.placeholder?.toLowerCase().includes('qty')));
+          const isQtyField = activeEl.name?.toLowerCase().includes('qty') ||
+            activeEl.placeholder?.toLowerCase().includes('qty') ||
+            (activeEl.previousElementSibling && activeEl.previousElementSibling.innerText === '-') ||
+            (activeEl.nextElementSibling && activeEl.nextElementSibling.innerText === '+') ||
+            (td && (td.closest('table')?.querySelector(`thead th:nth-child(${Array.from(td.closest('tr').children).indexOf(td) + 1})`)?.innerText.toLowerCase().includes('qty') || activeEl.placeholder?.toLowerCase().includes('qty')));
           if (isQtyField) {
             e.preventDefault();
             const currentVal = parseFloat(activeEl.value) || 0;
@@ -2043,7 +2057,7 @@ function PurchaseInvoiceList() {
         <div className="so-page-header" style={{ display: isModalOpen ? 'none' : 'flex' }}>
           <div className="so-page-left">
             <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Package size={20} style={{ color: themeColor }} /> 
+              <Package size={20} style={{ color: themeColor }} />
               Purchase Invoices
             </h1>
             <p className="so-page-subtitle">{total} total record(s) found</p>
@@ -2187,9 +2201,9 @@ function PurchaseInvoiceList() {
                             <tr key={inv.name} onClick={() => setSearchParams({ name: inv.name })} style={{ cursor: 'pointer' }}>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  <a 
-                                    href={`/#/purchaseinvoicelist?name=${inv.name}`} 
-                                    target="_blank" 
+                                  <a
+                                    href={`/#/purchaseinvoicelist?name=${inv.name}`}
+                                    target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
                                     title="Open in new tab"
@@ -2199,11 +2213,11 @@ function PurchaseInvoiceList() {
                                   </a>
                                   <span style={{ fontWeight: 700, color: themeColor }}>{inv.name}</span>
                                   {inv.is_return === 1 && (
-                                    <span style={{ 
-                                      fontSize: '0.65rem', 
-                                      backgroundColor: '#fee2e2', 
-                                      color: '#ef4444', 
-                                      padding: '0.1rem 0.4rem', 
+                                    <span style={{
+                                      fontSize: '0.65rem',
+                                      backgroundColor: '#fee2e2',
+                                      color: '#ef4444',
+                                      padding: '0.1rem 0.4rem',
                                       borderRadius: '0.25rem',
                                       fontWeight: 700,
                                       marginLeft: '0.4rem'
@@ -2318,9 +2332,9 @@ function PurchaseInvoiceList() {
                     {formData.name && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formData.name} • Accounts</p>
-                        <a 
-                          href={`/app/purchase-invoice/${encodeURIComponent(formData.name)}`} 
-                          target="_blank" 
+                        <a
+                          href={`/app/purchase-invoice/${encodeURIComponent(formData.name)}`}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase ml-2 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
                           style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
@@ -2339,9 +2353,9 @@ function PurchaseInvoiceList() {
                       <>
                         {/* 1. DELETE button (if allowed) */}
                         {docName && (allowedActions.includes('delete') || allowedActions.length === 0) && (
-                          <button 
-                            onClick={() => handleDocAction('delete')} 
-                            className="so-btn-ghost" 
+                          <button
+                            onClick={() => handleDocAction('delete')}
+                            className="so-btn-ghost"
                             style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
                           >
                             <Trash2 size={14} className="inline mr-1" /> DELETE
@@ -2350,9 +2364,9 @@ function PurchaseInvoiceList() {
 
                         {/* 2. EDIT DRAFT button (only if in view mode) */}
                         {docName && isViewMode && (
-                          <button 
-                            onClick={() => setIsViewMode(false)} 
-                            className="so-btn-secondary" 
+                          <button
+                            onClick={() => setIsViewMode(false)}
+                            className="so-btn-secondary"
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                           >
                             <Edit2 size={14} /> EDIT DRAFT
@@ -2362,10 +2376,10 @@ function PurchaseInvoiceList() {
                         {/* 3. Primary action button(s) */}
                         {!docName ? (
                           // New Document -> SAVE DRAFT
-                          <button 
-                            onClick={() => handleDocAction('save')} 
-                            disabled={saving} 
-                            className="so-btn-primary" 
+                          <button
+                            onClick={() => handleDocAction('save')}
+                            disabled={saving}
+                            className="so-btn-primary"
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                           >
                             {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
@@ -2374,20 +2388,20 @@ function PurchaseInvoiceList() {
                           // Saved Document -> Show BOTH Update and Submit (if allowed)
                           <div style={{ display: 'flex', gap: '0.75rem' }}>
                             {!isViewMode && (
-                              <button 
-                                onClick={() => handleDocAction('save')} 
-                                disabled={saving} 
-                                className="so-btn-secondary" 
+                              <button
+                                onClick={() => handleDocAction('save')}
+                                disabled={saving}
+                                className="so-btn-secondary"
                                 style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
                               >
                                 {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
                               </button>
                             )}
                             {(allowedActions.includes('submit') || allowedActions.length === 0) && (
-                              <button 
-                                onClick={() => handleDocAction('submit')} 
-                                disabled={saving} 
-                                className="so-btn-primary" 
+                              <button
+                                onClick={() => handleDocAction('submit')}
+                                disabled={saving}
+                                className="so-btn-primary"
                                 style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                               >
                                 {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
@@ -2406,10 +2420,10 @@ function PurchaseInvoiceList() {
                         </div>
 
                         {allowedActions.includes('cancel') && (
-                          <button 
-                            onClick={() => handleDocAction('cancel')} 
+                          <button
+                            onClick={() => handleDocAction('cancel')}
                             disabled={saving}
-                            className="so-btn-primary" 
+                            className="so-btn-primary"
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
                           >
                             {saving ? <Loader2 size={14} className="so-spinner" /> : 'CANCEL'}
@@ -2422,9 +2436,9 @@ function PurchaseInvoiceList() {
                     {formData.docstatus === 2 && (
                       <>
                         {docName && allowedActions.includes('delete') && (
-                          <button 
-                            onClick={() => handleDocAction('delete')} 
-                            className="so-btn-ghost" 
+                          <button
+                            onClick={() => handleDocAction('delete')}
+                            className="so-btn-ghost"
                             style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
                           >
                             <Trash2 size={14} className="inline mr-1" /> DELETE
@@ -2434,12 +2448,12 @@ function PurchaseInvoiceList() {
                         <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
                           CANCELLED
                         </div>
-                        
+
                         {allowedActions.includes('amend') && (
-                          <button 
-                            onClick={() => handleDocAction('amend')} 
+                          <button
+                            onClick={() => handleDocAction('amend')}
                             disabled={saving}
-                            className="so-btn-primary" 
+                            className="so-btn-primary"
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
                           >
                             {saving ? <Loader2 size={14} className="so-spinner" /> : 'AMEND'}
@@ -2505,8 +2519,8 @@ function PurchaseInvoiceList() {
                     <span className="text-[10px] font-semibold text-slate-600">Submit</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">↑ / ↓</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Navigate Grid</span>
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
@@ -2716,18 +2730,18 @@ function PurchaseInvoiceList() {
                             {(() => {
                               const activeCols = columnConfig.filter(c => c.visible);
                               const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
-                              
+
                               return activeCols.map(col => {
                                 // Hide Selling Price (Box) header column when no items have UOM=Box
                                 if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
                                 return (
                                   <th
                                     key={col.id}
-                                    style={{ 
-                                      width: col.width, 
+                                    style={{
+                                      width: col.width,
                                       minWidth: col.id === 'item_code' ? 120 : undefined,
-                                      textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price'].includes(col.id) ? 'right' : 
-                                                 ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
+                                      textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price'].includes(col.id) ? 'right' :
+                                        ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
                                     }}
                                   >
                                     {col.label}
@@ -2748,358 +2762,257 @@ function PurchaseInvoiceList() {
                           {formData.items.map((item, i) => (
                             <tr key={i} tabIndex={-1}>
                               <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>{i + 1}</td>
-                              
+
                               {(() => {
                                 const activeCols = columnConfig.filter(c => c.visible);
                                 const isNosUom = (item.uom || '').toLowerCase() !== 'box';
-                                
+
                                 return activeCols.map(col => {
                                   // Skip Selling Price (Box) cell entirely when UOM is Nos
                                   if (col.id === 'custom_box_selling_price' && isNosUom) return null;
                                   switch (col.id) {
-                                  case 'custom_box_qty':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
-                                            {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800" style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}>
-                                                {item.custom_box_qty || 0}
-                                              </div>
-                                            ) : (
-                                              <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const currentVal = parseFloat(item.custom_box_qty) || 0;
-                                                    updateItem(i, 'custom_box_qty', Math.max(0, currentVal - 1));
-                                                  }}
-                                                  style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px 0 0 4px', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
-                                                >
-                                                  -
-                                                </button>
-                                                <input
-                                                  type="number"
-                                                  value={item.custom_box_qty !== undefined ? item.custom_box_qty : ''}
-                                                  onFocus={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
-                                                  className="so-input text-center font-bold"
-                                                  style={{ borderTop: `1px solid ${themeColor}40`, borderBottom: `1px solid ${themeColor}40`, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
-                                                />
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const currentVal = parseFloat(item.custom_box_qty) || 0;
-                                                    updateItem(i, 'custom_box_qty', currentVal + 1);
-                                                  }}
-                                                  style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '0 4px 4px 0', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
-                                                >
-                                                  +
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'custom_pieces_per_box':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800">
-                                                {(item.custom_pieces_per_box || 1)}
-                                              </div>
-                                            ) : (
-                                              <input
-                                                type="number"
-                                                value={item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : ''}
-                                                onFocus={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
-                                                className="so-input text-left pl-3 font-bold"
-                                              />
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'item_code':
-                                    return (
-                                      <td key={col.id} ref={el => itemRefs.current[i] = el} style={{ verticalAlign: 'middle' }}>
-                                        <div className="premium-cell-container" style={{ minHeight: '36px', justifyContent: 'center' }}>
-                                          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-                                            {!isViewMode ? (
-                                              <CustomSearchDropdown
-                                                value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
-                                                placeholder="Search item..."
-                                                onSelect={(val) => selectItem(i, val)}
-                                                fetchData={fetchItemsAPI}
-                                                themeColor={themeColor}
-                                                optionsLabel="name"
-                                              />
-                                            ) : (
-                                              item.item_code && (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-[#1e293b]">
-                                                  {item.item_code}
+                                    case 'custom_box_qty':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box" style={{ position: 'relative' }}>
+                                              {isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800" style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}>
+                                                  {item.custom_box_qty || 0}
                                                 </div>
-                                              )
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'item_name':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            <div 
-                                              className="premium-cell-readonly premium-cell-readonly-left pl-3 text-slate-500 font-bold truncate" 
-                                              style={{ maxWidth: '140px', fontSize: '11px' }}
-                                              title={item.item_name || '—'}
-                                            >
-                                              {item.item_name || '—'}
+                                              ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const currentVal = parseFloat(item.custom_box_qty) || 0;
+                                                      updateItem(i, 'custom_box_qty', Math.max(0, currentVal - 1));
+                                                    }}
+                                                    style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px 0 0 4px', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
+                                                  >
+                                                    -
+                                                  </button>
+                                                  <input
+                                                    type="number"
+                                                    value={item.custom_box_qty !== undefined ? item.custom_box_qty : ''}
+                                                    onFocus={e => e.target.select()}
+                                                    onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
+                                                    className="so-input text-center font-bold"
+                                                    style={{ borderTop: `1px solid ${themeColor}40`, borderBottom: `1px solid ${themeColor}40`, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
+                                                  />
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const currentVal = parseFloat(item.custom_box_qty) || 0;
+                                                      updateItem(i, 'custom_box_qty', currentVal + 1);
+                                                    }}
+                                                    style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '0 4px 4px 0', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
+                                                  >
+                                                    +
+                                                  </button>
+                                                </div>
+                                              )}
                                             </div>
                                           </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'custom_ref_sl_no':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center">
-                                                {item.custom_ref_sl_no || item.custom_supplier_sl_num || '—'}
-                                              </div>
-                                            ) : (
-                                              <input
-                                                type="text"
-                                                value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
-                                                onFocus={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
-                                                className="so-input text-center font-bold text-[10px]"
-                                                placeholder="REF / SL #"
-                                              />
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'qty':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
-                                            {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-[var(--so-primary)]" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>
-                                                {item.qty}
-                                              </div>
-                                            ) : (
-                                              <input
-                                                type="number"
-                                                value={item.qty}
-                                                onFocus={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'qty', e.target.value)}
-                                                className="so-input text-left pl-3 font-bold"
-                                                style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
-                                              />
-                                            )}
-                                            {item.use_box_entry && (
-                                              <span 
-                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
-                                                style={{
-                                                  position: 'absolute',
-                                                  right: '8px',
-                                                  top: '50%',
-                                                  transform: 'translateY(-50%)',
-                                                  color: '#64748b',
-                                                  backgroundColor: '#f8fafc',
-                                                  borderColor: '#e2e8f0',
-                                                  lineHeight: 1
-                                                }}
-                                              >
-                                                NOS
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'uom':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            {!item.item_code || isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center text-[10px] uppercase text-slate-500 font-bold">
-                                                {item.use_box_entry ? 'BOX' : (item.uom || 'NOS')}
-                                              </div>
-                                            ) : (
-                                              <select
-                                                value={item.uom || ''}
-                                                onChange={(e) => handleUOMChange(e.target.value, i)}
-                                                className="text-center text-[10px] font-bold text-slate-600 bg-white"
-                                              >
-                                                {(() => {
-                                                  const uniqueUoms = [];
-                                                  const seen = new Set();
-                                                  const candidates = [];
-                                                  
-                                                  if (item.uom_list && Array.isArray(item.uom_list)) {
-                                                    item.uom_list.forEach(u => {
-                                                      if (u && u.uom) candidates.push(u.uom);
-                                                    });
-                                                  }
-                                                  
-                                                  candidates.push(item.stock_uom || 'Nos');
-                                                  candidates.push(item.uom || 'Nos');
-                                                  candidates.push('Nos');
-                                                  candidates.push('Box');
-                                                  
-                                                  candidates.forEach(u => {
-                                                    const norm = u.trim().toLowerCase();
-                                                    let display = u.trim();
-                                                    if (norm === 'box') display = 'Box';
-                                                    else if (norm === 'nos') display = 'Nos';
-                                                    
-                                                    if (!seen.has(norm)) {
-                                                      seen.add(norm);
-                                                      uniqueUoms.push(display);
-                                                    }
-                                                  });
-                                                  
-                                                  return uniqueUoms.map(uomVal => (
-                                                    <option key={uomVal} value={uomVal}>{uomVal}</option>
-                                                  ));
-                                                })()}
-                                              </select>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'custom_box_price':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            {!item.use_box_entry ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
-                                            ) : isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
-                                                {formatPrice(item.custom_box_price)}
-                                              </div>
-                                            ) : (
-                                              <input
-                                                type="number"
-                                                value={item.custom_box_price !== undefined ? item.custom_box_price : ''}
-                                                onFocus={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
-                                                className="so-input text-right pr-3 font-bold"
-                                                step="0.01"
-                                                placeholder="Box Price"
-                                              />
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'rate':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[var(--so-primary)]">
-                                                {formatPrice(item.rate)}
-                                              </div>
-                                            ) : (
-                                              <input
-                                                type="number"
-                                                value={item.rate}
-                                                onFocus={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'rate', e.target.value)}
-                                                className="so-input text-right pr-3 font-bold"
-                                                step="0.01"
-                                              />
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'custom_selling_price':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            {isViewMode ? (
-                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
-                                                {formatPrice(item.custom_selling_price)}
-                                              </div>
-                                            ) : (
-                                              <input
-                                                type="number"
-                                                value={item.custom_selling_price || ''}
-                                                onFocus={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                                className="so-input text-right pr-3 font-bold text-[#6366f1]"
-                                                step="0.01"
-                                                placeholder="Nos Price"
-                                              />
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  case 'custom_box_selling_price':
-                                    {
-                                      const isBoxUom = (item.uom || '').toLowerCase() === 'box';
+                                        </td>
+                                      );
+                                    case 'custom_pieces_per_box':
                                       return (
                                         <td key={col.id}>
                                           <div className="premium-cell-container">
                                             <div className="premium-cell-box">
-                                              {!isBoxUom ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
-                                              ) : isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#10b981]">
-                                                  {formatPrice((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1))}
+                                              {isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800">
+                                                  {(item.custom_pieces_per_box || 1)}
                                                 </div>
                                               ) : (
                                                 <input
                                                   type="number"
-                                                  value={item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? ((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2) : '')}
+                                                  value={item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : ''}
                                                   onFocus={e => e.target.select()}
-                                                  onChange={e => {
-                                                    const typedVal = e.target.value;
-                                                    const val = parseFloat(typedVal) || 0;
-                                                    const pcs = parseFloat(item.custom_pieces_per_box) || 1;
-                                                    const nosPrice = pcs > 0 ? (val / pcs).toFixed(4) : 0;
-                                                    
-                                                    setFormData(prev => {
-                                                      const newItems = [...prev.items];
-                                                      newItems[i] = {
-                                                        ...newItems[i],
-                                                        custom_selling_price: parseFloat(nosPrice),
-                                                        _temp_box_selling_price: typedVal
-                                                      };
-                                                      return { ...prev, items: newItems };
-                                                    });
+                                                  onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                                  className="so-input text-left pl-3 font-bold"
+                                                />
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    case 'item_code':
+                                      return (
+                                        <td key={col.id} ref={el => itemRefs.current[i] = el} style={{ verticalAlign: 'middle' }}>
+                                          <div className="premium-cell-container" style={{ minHeight: '36px', justifyContent: 'center' }}>
+                                            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                                              {!isViewMode ? (
+                                                <CustomSearchDropdown
+                                                  value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                  placeholder="Search item..."
+                                                  onSelect={(val) => selectItem(i, val)}
+                                                  fetchData={fetchItemsAPI}
+                                                  themeColor={themeColor}
+                                                  optionsLabel="name"
+                                                />
+                                              ) : (
+                                                item.item_code && (
+                                                  <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-[#1e293b]">
+                                                    {item.item_code}
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    case 'item_name':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box">
+                                              <div
+                                                className="premium-cell-readonly premium-cell-readonly-left pl-3 text-slate-500 font-bold truncate"
+                                                style={{ maxWidth: '140px', fontSize: '11px' }}
+                                                title={item.item_name || '—'}
+                                              >
+                                                {item.item_name || '—'}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    case 'custom_ref_sl_no':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box">
+                                              {isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-center">
+                                                  {item.custom_ref_sl_no || item.custom_supplier_sl_num || '—'}
+                                                </div>
+                                              ) : (
+                                                <input
+                                                  type="text"
+                                                  value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
+                                                  className="so-input text-center font-bold text-[10px]"
+                                                  placeholder="REF / SL #"
+                                                />
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    case 'qty':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box" style={{ position: 'relative' }}>
+                                              {isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-[var(--so-primary)]" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>
+                                                  {item.qty}
+                                                </div>
+                                              ) : (
+                                                <input
+                                                  type="number"
+                                                  value={item.qty}
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => updateItem(i, 'qty', e.target.value)}
+                                                  className="so-input text-left pl-3 font-bold"
+                                                  style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
+                                                />
+                                              )}
+                                              {item.use_box_entry && (
+                                                <span
+                                                  className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                                  style={{
+                                                    position: 'absolute',
+                                                    right: '8px',
+                                                    top: '50%',
+                                                    transform: 'translateY(-50%)',
+                                                    color: '#64748b',
+                                                    backgroundColor: '#f8fafc',
+                                                    borderColor: '#e2e8f0',
+                                                    lineHeight: 1
                                                   }}
-                                                  onBlur={() => {
-                                                    setFormData(prev => {
-                                                      const newItems = [...prev.items];
-                                                      newItems[i] = {
-                                                        ...newItems[i],
-                                                        custom_selling_price: parseFloat(newItems[i].custom_selling_price).toFixed(2),
-                                                        _temp_box_selling_price: undefined
-                                                      };
-                                                      return { ...prev, items: newItems };
+                                                >
+                                                  NOS
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    case 'uom':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box">
+                                              {!item.item_code || isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-center text-[10px] uppercase text-slate-500 font-bold">
+                                                  {item.use_box_entry ? 'BOX' : (item.uom || 'NOS')}
+                                                </div>
+                                              ) : (
+                                                <select
+                                                  value={item.uom || ''}
+                                                  onChange={(e) => handleUOMChange(e.target.value, i)}
+                                                  className="text-center text-[10px] font-bold text-slate-600 bg-white"
+                                                >
+                                                  {(() => {
+                                                    const uniqueUoms = [];
+                                                    const seen = new Set();
+                                                    const candidates = [];
+
+                                                    if (item.uom_list && Array.isArray(item.uom_list)) {
+                                                      item.uom_list.forEach(u => {
+                                                        if (u && u.uom) candidates.push(u.uom);
+                                                      });
+                                                    }
+
+                                                    candidates.push(item.stock_uom || 'Nos');
+                                                    candidates.push(item.uom || 'Nos');
+                                                    candidates.push('Nos');
+                                                    candidates.push('Box');
+
+                                                    candidates.forEach(u => {
+                                                      const norm = u.trim().toLowerCase();
+                                                      let display = u.trim();
+                                                      if (norm === 'box') display = 'Box';
+                                                      else if (norm === 'nos') display = 'Nos';
+
+                                                      if (!seen.has(norm)) {
+                                                        seen.add(norm);
+                                                        uniqueUoms.push(display);
+                                                      }
                                                     });
-                                                  }}
-                                                  className="so-input text-right pr-3 font-bold text-[#10b981]"
+
+                                                    return uniqueUoms.map(uomVal => (
+                                                      <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                                    ));
+                                                  })()}
+                                                </select>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    case 'custom_box_price':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box">
+                                              {!item.use_box_entry ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                              ) : isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
+                                                  {formatPrice(item.custom_box_price)}
+                                                </div>
+                                              ) : (
+                                                <input
+                                                  type="number"
+                                                  value={item.custom_box_price !== undefined ? item.custom_box_price : ''}
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
+                                                  className="so-input text-right pr-3 font-bold"
                                                   step="0.01"
                                                   placeholder="Box Price"
                                                 />
@@ -3108,23 +3021,124 @@ function PurchaseInvoiceList() {
                                           </div>
                                         </td>
                                       );
-                                    }
-                                  case 'amount':
-                                    return (
-                                      <td key={col.id}>
-                                        <div className="premium-cell-container">
-                                          <div className="premium-cell-box">
-                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
-                                              {formatPrice(item.amount)}
+                                    case 'rate':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box">
+                                              {isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[var(--so-primary)]">
+                                                  {formatPrice(item.rate)}
+                                                </div>
+                                              ) : (
+                                                <input
+                                                  type="number"
+                                                  value={item.rate}
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => updateItem(i, 'rate', e.target.value)}
+                                                  className="so-input text-right pr-3 font-bold"
+                                                  step="0.01"
+                                                />
+                                              )}
                                             </div>
                                           </div>
-                                        </div>
-                                      </td>
-                                    );
+                                        </td>
+                                      );
+                                    case 'custom_selling_price':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box">
+                                              {isViewMode ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
+                                                  {formatPrice(item.custom_selling_price)}
+                                                </div>
+                                              ) : (
+                                                <input
+                                                  type="number"
+                                                  value={item.custom_selling_price || ''}
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                                  className="so-input text-right pr-3 font-bold text-[#6366f1]"
+                                                  step="0.01"
+                                                  placeholder="Nos Price"
+                                                />
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    case 'custom_box_selling_price':
+                                      {
+                                        const isBoxUom = (item.uom || '').toLowerCase() === 'box';
+                                        return (
+                                          <td key={col.id}>
+                                            <div className="premium-cell-container">
+                                              <div className="premium-cell-box">
+                                                {!isBoxUom ? (
+                                                  <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                                ) : isViewMode ? (
+                                                  <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#10b981]">
+                                                    {formatPrice((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1))}
+                                                  </div>
+                                                ) : (
+                                                  <input
+                                                    type="number"
+                                                    value={item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? ((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2) : '')}
+                                                    onFocus={e => e.target.select()}
+                                                    onChange={e => {
+                                                      const typedVal = e.target.value;
+                                                      const val = parseFloat(typedVal) || 0;
+                                                      const pcs = parseFloat(item.custom_pieces_per_box) || 1;
+                                                      const nosPrice = pcs > 0 ? (val / pcs).toFixed(4) : 0;
+
+                                                      setFormData(prev => {
+                                                        const newItems = [...prev.items];
+                                                        newItems[i] = {
+                                                          ...newItems[i],
+                                                          custom_selling_price: parseFloat(nosPrice),
+                                                          _temp_box_selling_price: typedVal
+                                                        };
+                                                        return { ...prev, items: newItems };
+                                                      });
+                                                    }}
+                                                    onBlur={() => {
+                                                      setFormData(prev => {
+                                                        const newItems = [...prev.items];
+                                                        newItems[i] = {
+                                                          ...newItems[i],
+                                                          custom_selling_price: parseFloat(newItems[i].custom_selling_price).toFixed(2),
+                                                          _temp_box_selling_price: undefined
+                                                        };
+                                                        return { ...prev, items: newItems };
+                                                      });
+                                                    }}
+                                                    className="so-input text-right pr-3 font-bold text-[#10b981]"
+                                                    step="0.01"
+                                                    placeholder="Box Price"
+                                                  />
+                                                )}
+                                              </div>
+                                            </div>
+                                          </td>
+                                        );
+                                      }
+                                    case 'amount':
+                                      return (
+                                        <td key={col.id}>
+                                          <div className="premium-cell-container">
+                                            <div className="premium-cell-box">
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
+                                                {formatPrice(item.amount)}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
                                   }
                                 });
                               })()}
-                              
+
                               <td style={{ textAlign: 'center' }}>
                                 {!isViewMode && (
                                   <button onClick={() => removeItemRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}>
@@ -3226,7 +3240,7 @@ function PurchaseInvoiceList() {
                                     <td style={{ fontSize: '0.75rem', fontWeight: 600 }}>{tax.account_head?.split(' - ')[0]}</td>
                                     <td style={{ textAlign: 'center', fontWeight: 700 }}>{tax.rate}%</td>
                                     <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                                                            {formatPrice(netTotal * (parseFloat(tax.rate || 0) / 100))}
+                                      {formatPrice(netTotal * (parseFloat(tax.rate || 0) / 100))}
                                     </td>
                                   </tr>
                                 ))}

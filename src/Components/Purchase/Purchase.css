@@ -194,6 +194,12 @@ input[type=number] {
   text-align: left;
 }
 
+.purchase-table tbody tr:focus {
+  outline: 2px solid var(--po-primary) !important;
+  outline-offset: -2px;
+  background-color: var(--po-primary-light) !important;
+}
+
 .purchase-td {
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid var(--po-border);

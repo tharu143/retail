@@ -174,8 +174,8 @@ function PurchaseOrder() {
   useEffect(() => {
     const handleGlobalShortcuts = (e) => {
       const activeEl = document.activeElement;
-      const inItemsTable = activeEl?.closest('table.so-items-table');
-      
+      const inItemsTable = activeEl?.closest('table.so-items-table, table.purchase-table');
+
       let activeRowIndex = -1;
       if (inItemsTable) {
         const tr = activeEl.closest('tr');
@@ -183,6 +183,19 @@ function PurchaseOrder() {
           const index = Array.from(tr.parentNode.children).indexOf(tr);
           if (index !== -1 && index < formData.items.length) {
             activeRowIndex = index;
+          }
+        }
+      }
+
+      // Ctrl+ArrowDown, Ctrl+ArrowUp, or Shift+F3: Jump focus into items table rows
+      if ((e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) || (e.shiftKey && e.key === 'F3')) {
+        const rows = document.querySelectorAll('table.so-items-table tbody tr, table.purchase-table tbody tr');
+        if (rows.length > 0) {
+          e.preventDefault();
+          const targetRow = (e.key === 'ArrowUp') ? rows[rows.length - 1] : rows[0];
+          if (targetRow) {
+            targetRow.focus();
+            return;
           }
         }
       }
@@ -232,7 +245,7 @@ function PurchaseOrder() {
             let nextUom = '';
             const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
             const uomList = item.uom_list || [];
-            
+
             if (uomList.length > 1) {
               const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
               const nextIndex = (currentIndex + 1) % uomList.length;
@@ -307,8 +320,30 @@ function PurchaseOrder() {
       // 3. Add Item Row: F8
       if (e.key === 'F8') {
         e.preventDefault();
-        if (formData.docstatus === 0 && !isViewOnly) {
-          addItemRow();
+        if (formData.docstatus === 0) {
+          if (isViewOnly) {
+            Swal.fire({
+              icon: 'warning',
+              title: 'View Only Mode',
+              text: 'Click "EDIT DRAFT" at the top right to modify this document.',
+              toast: true,
+              position: 'top-end',
+              timer: 3000,
+              showConfirmButton: false
+            });
+          } else {
+            addItemRow();
+            setTimeout(() => {
+              const itemInputs = document.querySelectorAll('table.purchase-table tbody tr input[placeholder="Search item..."]');
+              if (itemInputs.length > 0) {
+                const lastInput = itemInputs[itemInputs.length - 1];
+                if (lastInput) {
+                  lastInput.focus();
+                  lastInput.select?.();
+                }
+              }
+            }, 100);
+          }
         }
       }
 
@@ -345,12 +380,12 @@ function PurchaseOrder() {
           if (td && tr && tr.parentNode) {
             const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
             const inputIndex = rowInputs.indexOf(activeEl);
-            
+
             if (inputIndex === rowInputs.length - 1 && !e.shiftKey) {
               e.preventDefault();
               const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
               const isLastRow = rowIndex === formData.items.length - 1;
-              
+
               if (isLastRow) {
                 if (formData.docstatus === 0 && !isViewOnly) {
                   addItemRow();
@@ -401,7 +436,7 @@ function PurchaseOrder() {
           const isSearchInput = activeEl.placeholder === 'Search item...';
           const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
           if (isSearchInput && isDropdownOpen) return; // Let search dropdown handle it
-          
+
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
           if (td && tr && tr.parentNode) {
@@ -409,10 +444,10 @@ function PurchaseOrder() {
             const colIndex = Array.from(tr.children).indexOf(td);
             const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
             const isLastRow = rowIndex === formData.items.length - 1;
-            const isSellingPriceField = activeEl.placeholder === 'Nos Price' || 
-                                       activeEl.placeholder === 'Box Price' || 
-                                       activeEl.name === 'custom_selling_price' ||
-                                       activeEl.name === 'custom_box_selling_price';
+            const isSellingPriceField = activeEl.placeholder === 'Nos Price' ||
+              activeEl.placeholder === 'Box Price' ||
+              activeEl.name === 'custom_selling_price' ||
+              activeEl.name === 'custom_box_selling_price';
 
             if (isSellingPriceField) {
               if (isLastRow) {
@@ -490,7 +525,7 @@ function PurchaseOrder() {
       }
 
       // 2. Keyboard actions when the row itself is focused
-      if (activeEl && activeEl.tagName === 'TR' && activeEl.closest('table.so-items-table')) {
+      if (activeEl && activeEl.tagName === 'TR' && activeEl.closest('table.so-items-table, table.purchase-table')) {
         const tr = activeEl;
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
@@ -511,7 +546,7 @@ function PurchaseOrder() {
 
         if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
           const isPlus = e.key === '+' || e.key === '=';
-          const qtyBtn = isPlus 
+          const qtyBtn = isPlus
             ? tr.querySelector('button[style*="borderRadius: 0 4px 4px 0"]') || tr.querySelector('.quantity-plus')
             : tr.querySelector('button[style*="borderRadius: 4px 0 0 4px"]') || tr.querySelector('.quantity-minus');
           if (qtyBtn) {
@@ -539,7 +574,7 @@ function PurchaseOrder() {
           const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
           // If search input and dropdown is open, only block if they do not hold Alt/Ctrl
           if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
-          
+
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
           if (td && tr) {
@@ -564,11 +599,11 @@ function PurchaseOrder() {
       if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
         if (inItemsTable && activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
           const td = activeEl.closest('td');
-          const isQtyField = activeEl.name?.toLowerCase().includes('qty') || 
-                             activeEl.placeholder?.toLowerCase().includes('qty') ||
-                             (activeEl.previousElementSibling && activeEl.previousElementSibling.innerText === '-') ||
-                             (activeEl.nextElementSibling && activeEl.nextElementSibling.innerText === '+') ||
-                             (td && (td.closest('table')?.querySelector(`thead th:nth-child(${Array.from(td.closest('tr').children).indexOf(td) + 1})`)?.innerText.toLowerCase().includes('qty') || activeEl.placeholder?.toLowerCase().includes('qty')));
+          const isQtyField = activeEl.name?.toLowerCase().includes('qty') ||
+            activeEl.placeholder?.toLowerCase().includes('qty') ||
+            (activeEl.previousElementSibling && activeEl.previousElementSibling.innerText === '-') ||
+            (activeEl.nextElementSibling && activeEl.nextElementSibling.innerText === '+') ||
+            (td && (td.closest('table')?.querySelector(`thead th:nth-child(${Array.from(td.closest('tr').children).indexOf(td) + 1})`)?.innerText.toLowerCase().includes('qty') || activeEl.placeholder?.toLowerCase().includes('qty')));
           if (isQtyField) {
             e.preventDefault();
             const currentVal = parseFloat(activeEl.value) || 0;
@@ -662,6 +697,7 @@ function PurchaseOrder() {
               qty: parseFloat(item.qty),
               uom: item.uom,
               rate: parseFloat(item.rate),
+              warehouse: formData.set_warehouse || undefined,
               schedule_date: item.schedule_date || formData.transaction_date,
               custom_pieces_per_box: isBox ? parseFloat(item.custom_pieces_per_box || 1) : 1,
               custom_box_qty: isBox ? parseFloat(item.custom_box_qty || 0) : parseFloat(item.qty),
@@ -1969,7 +2005,7 @@ function PurchaseOrder() {
         }
         existingItem.amount = existingItem.qty * (parseFloat(existingItem.rate) || 0);
         items[existingIdx] = existingItem;
-        
+
         if (items.length > 1) {
           items.splice(rowIndex, 1);
         } else {
@@ -2090,41 +2126,7 @@ function PurchaseOrder() {
               </p>
             </div>
 
-            {/* Premium Symmetrical Keyboard Shortcut Strip */}
-            <div className="hidden xl:flex items-center gap-3.5 border-l border-slate-100 pl-6 py-1">
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">F2</kbd>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Supplier</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">F3</kbd>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Item Search</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">F4</kbd>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Barcode</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-500 shadow-sm" style={{ borderColor: 'var(--po-primary)', color: 'var(--po-primary)', background: 'var(--po-primary-light)' }}>F8</kbd>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Add Row</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">F9</kbd>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Warehouse</span>
-              </div>
-              {formData.docstatus === 0 && (
-                <div className="flex items-center gap-1.5">
-                  <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">Ctrl+S</kbd>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Save</span>
-                </div>
-              )}
-              {formData.docstatus === 0 && allowedActions.includes('submit') && (
-                <div className="flex items-center gap-1.5">
-                  <kbd className="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 shadow-sm">Ctrl+Enter</kbd>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Submit</span>
-                </div>
-              )}
-            </div>
+
           </div>
 
           <div className="flex items-center gap-3">
@@ -2277,8 +2279,8 @@ function PurchaseOrder() {
               <span className="text-[10px] font-semibold text-slate-600">Submit</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">↑ / ↓</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Navigate Grid</span>
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
@@ -2892,30 +2894,30 @@ function PurchaseOrder() {
                                                   const uniqueUoms = [];
                                                   const seen = new Set();
                                                   const candidates = [];
-                                                  
+
                                                   if (item.uom_list && Array.isArray(item.uom_list)) {
                                                     item.uom_list.forEach(u => {
                                                       if (u && u.uom) candidates.push(u.uom);
                                                     });
                                                   }
-                                                  
+
                                                   candidates.push(item.stock_uom || 'Nos');
                                                   candidates.push(item.uom || 'Nos');
                                                   candidates.push('Nos');
                                                   candidates.push('Box');
-                                                  
+
                                                   candidates.forEach(u => {
                                                     const norm = u.trim().toLowerCase();
                                                     let display = u.trim();
                                                     if (norm === 'box') display = 'Box';
                                                     else if (norm === 'nos') display = 'Nos';
-                                                    
+
                                                     if (!seen.has(norm)) {
                                                       seen.add(norm);
                                                       uniqueUoms.push(display);
                                                     }
                                                   });
-                                                  
+
                                                   return uniqueUoms.map(uomVal => (
                                                     <option key={uomVal} value={uomVal}>{uomVal}</option>
                                                   ));

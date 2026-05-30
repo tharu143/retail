@@ -28,6 +28,12 @@ const CustomSearchDropdown = ({
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const ref = useRef(null);
   const inputRef = useRef(null);
+  const fetchDataRef = useRef(fetchData);
+
+  // Keep ref in sync
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
 
   // Sync with external value
   useEffect(() => {
@@ -86,7 +92,7 @@ const CustomSearchDropdown = ({
       }
       setLoading(true);
       try {
-        const data = await fetchData(query || '');
+        const data = await fetchDataRef.current(query || '');
         setResults(data || []);
       } catch (err) {
         console.error(err);
@@ -96,7 +102,7 @@ const CustomSearchDropdown = ({
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [query, fetchData, justCreated, isGlobalView]);
+  }, [query, justCreated, isGlobalView]);
 
   const handleGlobalSearch = async () => {
     if (!onGlobalSearch) return;
