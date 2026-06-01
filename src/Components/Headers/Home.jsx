@@ -379,8 +379,10 @@ function Home() {
     // Speed Checkout
     const [customerMobile, setCustomerMobile] = useState('');
     const [customerLoading, setCustomerLoading] = useState(false);
+    const [countryCodePrefix, setCountryCodePrefix] = useState(() => localStorage.getItem('pos_country_code') || '+971');
     const mobileInputRef = useRef(null);
     const [lastInteractedItem, setLastInteractedItem] = useState(null);
+
 
     // Camera states
     const [showCamera, setShowCamera] = useState(false);
@@ -1482,14 +1484,22 @@ function Home() {
                 }
                 return {
                     id: item.id || item.name,
+                    item_code: item.item_code || item.id || item.name,
                     name: item.item_name || item.name,
                     image: finalImage,
                     group: (item.group || item.item_group || "others").toLowerCase(),
+                    // Base price (Nos/Piece price) – branch-specific from API
                     price: item.price || item.price_list_rate || 0,
+                    // UOM-keyed price map (e.g. { Nos: 10, Box: 120 }) – branch selling prices
+                    prices: item.prices || {},
+                    // UOM conversion factors (e.g. { Box: 12, Nos: 1 })
+                    uom_conversions: item.uom_conversions || {},
+                    stock_uom: item.stock_uom || 'Nos',
                     actual_qty: item.actual_qty || 0,
                     local_qty: item.local_qty !== undefined ? item.local_qty : (item.actual_qty || 0),
                     total_qty: item.total_qty || item.actual_qty || 0,
                     warehouse_details: item.warehouse_details || [],
+                    branch_availability: item.branch_availability || [],
                     barcodes: item.barcodes || [],
                     custom_pieces_per_box: item.custom_pieces_per_box || 1
                 };
@@ -1809,15 +1819,21 @@ function Home() {
         if (showCamera && homeVideoRef.current) {
             const startScanner = async () => {
                 try {
-                    const constraints = {
-                        video: {
-                            facingMode: 'environment',
-                            width: { ideal: 640 },
-                            height: { ideal: 480 },
-                            aspectRatio: { ideal: 1.3333333333 }
-                        }
-                    };
-                    await homeCodeReader.current.decodeFromVideoDevice(constraints, homeVideoRef.current, (result, err) => {
+                    // Try to list video devices and find the back/rear camera
+                    const videoInputDevices = await homeCodeReader.current.listVideoInputDevices();
+                    let selectedDeviceId = undefined;
+                    
+                    if (videoInputDevices && videoInputDevices.length > 0) {
+                        const backCamera = videoInputDevices.find(device => 
+                            device.label.toLowerCase().includes('back') || 
+                            device.label.toLowerCase().includes('rear') || 
+                            device.label.toLowerCase().includes('environment')
+                        );
+                        // Default to back camera, else last device (usually back on mobiles), else first device
+                        selectedDeviceId = backCamera ? backCamera.deviceId : (videoInputDevices[videoInputDevices.length - 1].deviceId || videoInputDevices[0].deviceId);
+                    }
+                    
+                    await homeCodeReader.current.decodeFromVideoDevice(selectedDeviceId, homeVideoRef.current, (result, err) => {
                         if (result && showCamera) {
                             const scannedText = result.text.trim();
                             handleBarcodeScan(scannedText);
@@ -1826,8 +1842,12 @@ function Home() {
                         }
                     });
                 } catch (error) {
+                    console.error("Camera scanner error, attempting constraints fallback:", error);
                     try {
-                        await homeCodeReader.current.decodeFromVideoDevice(null, homeVideoRef.current, (result, err) => {
+                        const constraints = {
+                            video: { facingMode: 'environment' }
+                        };
+                        await homeCodeReader.current.decodeFromConstraints(constraints, homeVideoRef.current, (result, err) => {
                             if (result && showCamera) {
                                 handleBarcodeScan(result.text.trim());
                                 setShowCamera(false);
@@ -1835,8 +1855,20 @@ function Home() {
                             }
                         });
                     } catch (fallbackError) {
-                        Swal.fire('Camera Error', 'Could not open scanner.', 'error');
-                        setShowCamera(false);
+                        console.error("Camera scanner constraints fallback error, attempting default device:", fallbackError);
+                        try {
+                            await homeCodeReader.current.decodeFromVideoDevice(undefined, homeVideoRef.current, (result, err) => {
+                                if (result && showCamera) {
+                                    handleBarcodeScan(result.text.trim());
+                                    setShowCamera(false);
+                                    homeCodeReader.current.reset();
+                                }
+                            });
+                        } catch (finalError) {
+                            console.error("All camera scanner fallbacks failed:", finalError);
+                            Swal.fire('Camera Error', 'Could not open scanner.', 'error');
+                            setShowCamera(false);
+                        }
                     }
                 }
             };
@@ -2000,42 +2032,103 @@ function Home() {
         }
     };
 
-    const handleRequestStock = async (item) => {
-        const { value: quantity } = await Swal.fire({
-            title: 'Request Stock',
-            html: `<div style="font-size: 14px; font-weight: 600; color: #64748b; text-align: left; margin-bottom: 8px;">
-                Enter quantity you need for <span style="font-weight: 800; color: #0f172a;">${warehouse}</span>:
-            </div>
-            <div style="font-size: 15px; font-weight: 700; color: #475569; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #f59e0b; text-align: left; line-height: 1.4; margin-bottom: 8px;">
-                ${item.name || item.item_name}
+    const handleRequestStock = async (item, fromWarehouse = null) => {
+        const hasBox = (item.custom_pieces_per_box || 0) > 1;
+        const uomOptions = hasBox
+            ? `<option value="Nos">Nos (Each)</option><option value="Box">Box (${item.custom_pieces_per_box} pcs)</option>`
+            : `<option value="Nos">Nos (Each)</option>`;
+
+        const { value: formValues } = await Swal.fire({
+            title: 'Material Request',
+            html: `
+            <div style="font-family:'Inter',sans-serif;text-align:left;">
+                <div style="font-size:13px;font-weight:600;color:#64748b;margin-bottom:6px;">
+                    Requesting stock for <span style="font-weight:800;color:#0f172a;">${warehouse}</span>:
+                </div>
+                <div style="font-size:14px;font-weight:700;color:#1e293b;padding:8px 12px;background:#f8fafc;border-radius:8px;border-left:4px solid #f59e0b;margin-bottom:14px;line-height:1.4;">
+                    ${item.name || item.item_name}
+                </div>
+                ${fromWarehouse ? `<div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:10px;padding:4px 10px;background:#fffbeb;border-radius:6px;">From: ${fromWarehouse}</div>` : ''}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+                    <div>
+                        <label style="display:block;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">QTY</label>
+                        <input
+                            id="swal-mr-qty"
+                            type="number"
+                            value="1"
+                            min="1"
+                            style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:16px;font-weight:900;color:#0f172a;outline:none;box-sizing:border-box;transition:border-color 0.15s;"
+                            onfocus="this.select();this.style.borderColor='#f59e0b';"
+                            onblur="this.style.borderColor='#e2e8f0';"
+                        />
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">UOM</label>
+                        <select
+                            id="swal-mr-uom"
+                            style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:800;color:#0f172a;outline:none;background:#fff;cursor:pointer;box-sizing:border-box;"
+                            onfocus="this.style.borderColor='#f59e0b';"
+                            onblur="this.style.borderColor='#e2e8f0';"
+                        >
+                            ${uomOptions}
+                        </select>
+                    </div>
+                </div>
             </div>`,
-            input: 'number',
-            inputValue: 1,
             showCancelButton: true,
-            confirmButtonText: 'Submit Request',
+            confirmButtonText: '📦 Submit Request',
             confirmButtonColor: '#f59e0b',
             cancelButtonColor: '#64748b',
-            inputValidator: (value) => {
-                if (!value || parseInt(value) <= 0) {
-                    return 'Please enter a valid quantity'
+            focusConfirm: false,
+            didOpen: () => {
+                const qtyInput = document.getElementById('swal-mr-qty');
+                if (qtyInput) { qtyInput.focus(); qtyInput.select(); }
+                // Tab from qty → uom → confirm button
+                document.getElementById('swal-mr-qty')?.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Tab') { ev.preventDefault(); document.getElementById('swal-mr-uom')?.focus(); }
+                    if (ev.key === 'Enter') { ev.preventDefault(); Swal.clickConfirm(); }
+                });
+                document.getElementById('swal-mr-uom')?.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') { ev.preventDefault(); Swal.clickConfirm(); }
+                });
+            },
+            preConfirm: () => {
+                const qty = parseInt(document.getElementById('swal-mr-qty')?.value);
+                const uom = document.getElementById('swal-mr-uom')?.value;
+                if (!qty || qty <= 0) {
+                    Swal.showValidationMessage('Please enter a valid quantity (minimum 1)');
+                    return false;
                 }
+                return { qty, uom };
             }
         });
 
-        if (quantity) {
+        if (formValues) {
             try {
-                Swal.showLoading();
+                Swal.fire({ title: 'Submitting Request...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 const res = await frappeCall({
                     method: 'kyle_retail.retail_api.api.create_draft_material_request',
                     args: {
-                        item_code: item.id,
-                        qty: parseInt(quantity), // Renamed from quantity
+                        item_code: item.id || item.item_code,
+                        qty: formValues.qty,
+                        uom: formValues.uom,
+                        ...(fromWarehouse ? { from_branch: fromWarehouse } : {}),
                         to_branch: warehouse
                     }
                 });
 
                 if (res && (res.name || res.status === 'success')) {
-                    Swal.fire('Success', 'Stock Request created successfully!', 'success');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Request Submitted!',
+                        html: `<div style="font-family:'Inter',sans-serif;text-align:center;">
+                            <span style="font-size:13px;color:#64748b;">Material Request created for<br/>
+                            <strong style="color:#0f172a;">${formValues.qty} ${formValues.uom}</strong> of <strong style="color:#f59e0b;">${item.name || item.item_name}</strong>
+                            ${fromWarehouse ? `<br/><span style="color:#10b981;">from ${fromWarehouse}</span>` : ''}
+                            </span></div>`,
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
                 } else {
                     throw new Error('Failed to generate request');
                 }
@@ -2044,6 +2137,7 @@ function Home() {
             }
         }
     };
+
 
     const showStockBreakdown = (item) => {
         const details = item.warehouse_details || [];
@@ -2096,31 +2190,13 @@ function Home() {
         </div>
     `;
 
-        // Expose requestStock to window for the onclick handler
+        // Expose requestStock to window for the onclick handler inside the Swal HTML
         window.requestStock = async (itemCode, fromWarehouse) => {
-            try {
-                Swal.fire({
-                    title: 'Requesting Stock...',
-                    text: `Requesting "${item.name}" from ${fromWarehouse}`,
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
-
-                await frappeCall({
-                    method: 'kyle_retail.retail_api.api.create_draft_material_request',
-                    args: {
-                        item_code: itemCode,
-                        from_branch: fromWarehouse, // Renamed from from_warehouse
-                        to_branch: warehouse,       // Renamed from to_warehouse
-                        qty: 1                      // Renamed from quantity
-                    }
-                });
-
-                Swal.fire('Success', `Stock request draft created for ${fromWarehouse}.`, 'success');
-            } catch (err) {
-                Swal.fire('Failure', `Could not create material request: ${err.message || err}`, 'error');
-            }
+            // Close the current breakdown popup first, then show enhanced MR dialog
+            Swal.close();
+            await handleRequestStock(item, fromWarehouse);
         };
+
 
         Swal.fire({
             title: 'Stock Breakdown',
@@ -2149,12 +2225,30 @@ function Home() {
                 }
 
                 // Standard UOM toggle logic - set price based on UOM or keep base price
-                const newPrice = item.prices?.[newUom] || item.price || 0;
+                const originalSinglePrice = item.prices?.Piece || item.prices?.Nos || item.price || 0;
+                const newPrice = newUom === 'Box'
+                    ? (item.prices?.Box || (originalSinglePrice * (item.custom_pieces_per_box || 1)))
+                    : (item.prices?.[newUom] || originalSinglePrice);
                 return { ...item, uom: newUom, price: newPrice };
             }
             return item;
         }));
     };
+
+    const handleUomBtnKeyDown = (e, itemId) => {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            const activeItem = billItems.find(it => it.id === itemId);
+            if (activeItem) {
+                const nextUom = (activeItem.uom === 'Box' || activeItem.uom === 'BOX') 
+                    ? (activeItem.stock_uom || (activeItem.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece') 
+                    : 'Box';
+                if (nextUom === 'Box' && !activeItem.custom_pieces_per_box) return;
+                toggleUom(itemId, nextUom);
+            }
+        }
+    };
+
     const removeFromBill = (id) => {
         setBillItems(prev => {
             const next = prev.filter(i => i.id !== id);
@@ -2900,8 +2994,16 @@ function Home() {
     // ---------- SPEED CHECKOUT & KEYBOARD SHORTCUTS ----------
     const handleMobileEnter = async (e) => {
         if (e.key === 'Enter') {
-            const searchTerm = (customerMobile || customerName).trim();
-            if (!searchTerm || searchTerm === 'Cash') return;
+            const rawTerm = (customerMobile || customerName).trim();
+            if (!rawTerm || rawTerm === 'Cash') return;
+
+            // Strip country code prefix (+971, +91, 971, 91) to get bare local number
+            const strippedNumber = rawTerm
+                .replace(/^\+?(971|91)/, '')   // remove UAE (+971) or India (+91) prefix
+                .replace(/\D/g, '');            // remove any remaining non-digits
+
+            // The lookup term: use stripped if it's a valid number, otherwise use raw
+            const searchTerm = /^\d{7,}$/.test(strippedNumber) ? strippedNumber : rawTerm;
 
             // 1. If we have active suggestions, pick the first one
             if (searchResults.length > 0) {
@@ -2914,13 +3016,16 @@ function Home() {
             }
 
             // 2. If it looks like a mobile number, use speed checkout logic
-            if (/^\d{7,}$/.test(searchTerm)) {
+            if (/^\d{7,}$/.test(strippedNumber) || /^\d{7,}$/.test(rawTerm)) {
                 setCustomerLoading(true);
+                // Build the full mobile number with country code for storage/display
+                const fullMobile = strippedNumber || rawTerm.replace(/\D/g, '');
+                const mobileWithCode = `${countryCodePrefix}${fullMobile}`;
                 try {
                     const res = await frappeCall({
                         method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
                         args: {
-                            mobile_no: searchTerm,
+                            mobile_no: mobileWithCode,
                             warehouse: warehouse,
                             customer_group: 'Retail Customer'
                         }
@@ -2932,16 +3037,17 @@ function Home() {
                             toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
                         });
                         Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name || res.name}` });
+                        setCustomerMobile('');
+                        barcodeInputRef.current?.focus();
                         return;
                     }
                 } catch (err) {
                     if (err.message && err.message.includes("409")) {
-                        // 409 means conflict - usually customer already exists
+                        // 409 means conflict - usually customer already exists; search by mobile
                         try {
-                            // Try searching for the exact customer by mobile number
                             const listRes = await frappeCall({
                                 method: 'frappe.client.get_list',
-                                args: { doctype: 'Customer', filters: [['mobile_no', '=', searchTerm]], fields: ['name', 'customer_name', 'mobile_no'] }
+                                args: { doctype: 'Customer', filters: [['mobile_no', '=', mobileWithCode]], fields: ['name', 'customer_name', 'mobile_no'] }
                             });
                             if (listRes && listRes.length > 0) {
                                 pickCustomer(listRes[0]);
@@ -2949,12 +3055,14 @@ function Home() {
                                     toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
                                 });
                                 Toast.fire({ icon: 'success', title: `Customer: ${listRes[0].customer_name || listRes[0].name}` });
+                                setCustomerMobile('');
+                                barcodeInputRef.current?.focus();
                                 return;
                             }
                         } catch (e2) { }
                     }
                     console.error("Customer lookup failed", err);
-                    // If auto-create and fetch fails completely, open the Create Custom Modal automatically
+                    // If auto-create and fetch fails completely, open the Create Customer Modal
                     openCreate();
                 } finally {
                     setCustomerLoading(false);
@@ -2962,6 +3070,7 @@ function Home() {
             }
         }
     };
+
 
     // ---------- MODAL RENDERERS (REUSABLE) ----------
     const renderDiscountModal = () => (
@@ -3292,7 +3401,7 @@ function Home() {
             }}
         >
             <div
-                className="home-modal"
+                className="home-modal payment-process-modal"
                 onClick={e => e.stopPropagation()}
                 style={{
                     width: '100%',
@@ -3304,7 +3413,7 @@ function Home() {
                     display: 'flex',
                     flexDirection: 'column',
                     margin: '20px',
-                    maxHeight: '90vh'
+                    maxHeight: '95vh'
                 }}
             >
                 <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-5 flex justify-between items-center">
@@ -3323,24 +3432,37 @@ function Home() {
                 </div>
 
                 <div className="home-modal-body p-5 flex flex-col gap-4 overflow-y-auto">
-                    {/* Summary Card */}
-                    <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                        <div className="flex justify-between items-center mb-4 relative z-10">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Bill</span>
-                                <span className="text-2xl font-black">AED {grandTotal.toFixed(2)}</span>
-                            </div>
-                            <div className="flex flex-col items-end">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Paid Amount</span>
-                                <span className="text-2xl font-black text-emerald-400">AED {totalPaid.toFixed(2)}</span>
-                            </div>
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-3 gap-2.5 sm:gap-3 payment-status-blocks">
+                        {/* Total Bill Card */}
+                        <div className="payment-status-card bg-gradient-to-br from-slate-800 to-slate-950 text-white p-3 rounded-2xl flex flex-col justify-between shadow-md border border-slate-900 relative overflow-hidden min-h-[76px]">
+                            <div className="absolute -top-4 -right-4 w-12 h-12 bg-white/5 rounded-full blur-xl"></div>
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Total Bill</span>
+                            <span className="text-base sm:text-lg font-black tracking-tight mt-1">AED {grandTotal.toFixed(2)}</span>
                         </div>
-                        <div className="pt-3 border-t border-white/10 flex justify-between items-center relative z-10">
-                            <span className="text-xs font-black uppercase tracking-widest text-slate-400">
-                                {balanceRemaining > 0 ? 'Remaining Balance' : 'Change to Return'}
+
+                        {/* Paid Amount Card */}
+                        <div className="payment-status-card bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 text-emerald-950 p-3 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[76px]">
+                            <div className="absolute -top-4 -right-4 w-12 h-12 bg-emerald-500/5 rounded-full blur-xl"></div>
+                            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">Paid Amount</span>
+                            <span className="text-base sm:text-lg font-black tracking-tight text-emerald-700 mt-1">AED {totalPaid.toFixed(2)}</span>
+                        </div>
+
+                        {/* Balance / Change Card */}
+                        <div className={`payment-status-card bg-gradient-to-br ${
+                            balanceRemaining > 0
+                                ? 'from-rose-500/10 to-red-500/10 border-rose-500/20 text-rose-950'
+                                : 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-950'
+                        } border p-3 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[76px]`}>
+                            <div className="absolute -top-4 -right-4 w-12 h-12 bg-current opacity-[0.03] rounded-full blur-xl"></div>
+                            <span className={`text-[9px] font-black uppercase tracking-wider ${
+                                balanceRemaining > 0 ? 'text-rose-600' : 'text-emerald-600'
+                            }`}>
+                                {balanceRemaining > 0 ? 'Remaining' : 'Change Due'}
                             </span>
-                            <span className={`text-2xl font-black ${balanceRemaining > 0 ? 'text-sky-400' : 'text-amber-400'}`}>
+                            <span className={`text-base sm:text-lg font-black tracking-tight mt-1 ${
+                                balanceRemaining > 0 ? 'text-rose-700' : 'text-emerald-700'
+                            }`}>
                                 AED {Math.abs(balanceRemaining).toFixed(2)}
                             </span>
                         </div>
@@ -3350,7 +3472,7 @@ function Home() {
                     {payments.length > 0 && (
                         <div className="flex flex-col gap-2">
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Payment Ledger</h4>
-                            <div className="flex flex-col gap-1.5 max-h-[100px] overflow-y-auto pr-1">
+                            <div className="flex flex-col gap-1.5 max-h-[100px] overflow-y-auto pr-1 payment-ledger-list">
                                 {payments.map((p, idx) => (
                                     <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 px-3 rounded-2xl border border-slate-100 group">
                                         <div className="flex items-center gap-3">
@@ -3377,50 +3499,50 @@ function Home() {
                             {!selectedPaymentMode ? (
                                 <>
                                     <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Select Payment Method</h5>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-3 gap-2.5 payment-methods-grid">
                                         <button
-                                            className="group p-3.5 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-3 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Cash')}
                                         >
-                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-black rounded shadow-sm">1</div>
-                                            <div className="w-10 h-10 bg-white text-emerald-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <DollarSign size={20} />
+                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-black rounded shadow-sm">1</div>
+                                            <div className="w-9 h-9 bg-white text-emerald-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <DollarSign size={18} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white text-[10px]">Cash</span>
+                                            <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white text-[9px]">Cash</span>
                                         </button>
                                         <button
-                                            className="group p-3.5 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-3 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Credit Card')}
                                         >
-                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-sky-600 text-white text-[9px] font-black rounded shadow-sm">2</div>
-                                            <div className="w-10 h-10 bg-white text-sky-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <CreditCard size={20} />
+                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-sky-600 text-white text-[9px] font-black rounded shadow-sm">2</div>
+                                            <div className="w-9 h-9 bg-white text-sky-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <CreditCard size={18} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white text-[10px]">Card</span>
+                                            <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white text-[9px]">Card</span>
                                         </button>
                                         <button
-                                            className="group p-3.5 bg-purple-50 border-2 border-purple-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-3 bg-purple-50 border-2 border-purple-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('InstaPay Cash')}
                                         >
-                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-purple-600 text-white text-[9px] font-black rounded shadow-sm">3</div>
-                                            <div className="w-10 h-10 bg-white text-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <Banknote size={20} />
+                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-purple-600 text-white text-[9px] font-black rounded shadow-sm">3</div>
+                                            <div className="w-9 h-9 bg-white text-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <Banknote size={18} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-purple-700 group-hover:text-white text-[10px] text-center">Insta Cash</span>
+                                            <span className="font-black uppercase tracking-widest text-purple-700 group-hover:text-white text-[9px] text-center">Insta Cash</span>
                                         </button>
                                         <button
-                                            className="group p-3.5 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-3 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('InstaPay Bank')}
                                         >
-                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-indigo-600 text-white text-[9px] font-black rounded shadow-sm">4</div>
-                                            <div className="w-10 h-10 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <Building2 size={20} />
+                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-indigo-600 text-white text-[9px] font-black rounded shadow-sm">4</div>
+                                            <div className="w-9 h-9 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <Building2 size={18} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[10px] text-center">Insta Bank</span>
+                                            <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[9px] text-center">Insta Bank</span>
                                         </button>
                                         {selectedCustomer && selectedCustomer.name !== 'Cash' && (
                                             <button
-                                                className="group p-3.5 bg-amber-50 border-2 border-amber-100 rounded-2xl flex flex-col items-center gap-1.5 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative col-span-2"
+                                                className="payment-method-btn group p-3 bg-amber-50 border-2 border-amber-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative"
                                                 onClick={async () => {
                                                     if (selectedCustomer.customer_group !== 'Credit Customer') {
                                                         const result = await Swal.fire({
@@ -3435,11 +3557,11 @@ function Home() {
                                                             Swal.showLoading();
                                                             const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
                                                             if (updated) {
-                                                                setSelectedPaymentMode('Credit');
-                                                                Swal.fire({
-                                                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                                                    icon: 'success', title: 'Customer group updated to Credit Customer'
-                                                                });
+                                                                 setSelectedPaymentMode('Credit');
+                                                                 Swal.fire({
+                                                                     toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                                                                     icon: 'success', title: 'Customer group updated to Credit Customer'
+                                                                 });
                                                             }
                                                         }
                                                     } else {
@@ -3447,17 +3569,18 @@ function Home() {
                                                     }
                                                 }}
                                             >
-                                                <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-amber-600 text-white text-[9px] font-black rounded shadow-sm">5</div>
-                                                <div className="w-10 h-10 bg-white text-amber-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                    <Coins size={20} />
+                                                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-amber-600 text-white text-[9px] font-black rounded shadow-sm">5</div>
+                                                <div className="w-9 h-9 bg-white text-amber-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                    <Coins size={18} />
                                                 </div>
-                                                <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-[10px]">Credit Checkout</span>
+                                                <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-[9px]">Credit</span>
                                             </button>
                                         )}
                                     </div>
+
                                 </>
                             ) : (
-                                <div className="bg-slate-50 p-4 rounded-2xl border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2">
+                                <div className="bg-slate-50 p-4 rounded-2xl border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2 payment-mode-input-container">
                                     <div className="flex justify-between items-center mb-3 px-2">
                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedPaymentMode} Amount</span>
                                         <button onClick={() => setSelectedPaymentMode('')} className="text-[10px] font-black text-sky-600 hover:underline uppercase">Change Mode</button>
@@ -3468,6 +3591,8 @@ function Home() {
                                             type="number"
                                             value={tenderedAmount}
                                             onChange={e => setTenderedAmount(e.target.value)}
+                                            onFocus={(e) => e.target.select()}
+                                            onClick={(e) => e.target.select()}
                                             className="w-full pr-4 py-3 bg-transparent text-2xl font-black text-slate-900 outline-none"
                                             autoFocus
                                             onKeyDown={(e) => e.key === 'Enter' && addPayment()}
@@ -3689,9 +3814,9 @@ function Home() {
             }
             lastKeyTime.current = now;
 
-            if (e.key.length === 1 && /^[0-9]$/.test(e.key)) {
+            if (e.key.length === 1 && /^[0-9]$/.test(e.key) && !isInputFocused) {
                 scannerBuffer.current += e.key;
-            } else if (e.key === 'Enter' && scannerBuffer.current.length >= 6) {
+            } else if (e.key === 'Enter' && scannerBuffer.current.length >= 6 && !isInputFocused) {
                 // Hardware Scanner finished sequence (min 6 chars for retail codes)
                 e.preventDefault();
                 const scanValue = scannerBuffer.current;
@@ -3713,11 +3838,27 @@ function Home() {
                 barcodeInputRef.current?.focus();
             }
 
-            // F8: Nearby Branch Stock Check
+            // F4: Toggle Country Code Prefix (+971 <-> +91)
+            if (e.key === 'F4') {
+                e.preventDefault();
+                setCountryCodePrefix(prev => {
+                    const next = prev === '+971' ? '+91' : '+971';
+                    localStorage.setItem('pos_country_code', next);
+                    const Toast = Swal.mixin({
+                        toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                    });
+                    Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
+                    return next;
+                });
+            }
+
+            // F5: Full Stock Breakdown (all branches with REQUEST button)
             if (e.key === 'F5') {
                 e.preventDefault();
                 if (lastInteractedItem) {
-                    handleFindNearestStock(lastInteractedItem);
+                    showStockBreakdown(lastInteractedItem);
+                } else {
+                    Swal.fire('Info', 'Select or scan an item first to check stock.', 'info');
                 }
             }
 
@@ -4032,156 +4173,190 @@ function Home() {
     // ---------- LIGHT THEME RENDERER (Emerald & Slate) ----------
     const renderLightTheme = () => {
         return (
-            <div className="so-page">
-                {/* MODERN TOOL STRIP */}
-                <div className="so-tool-strip" style={{ display: 'flex', flexWrap: 'nowrap', gap: '8px', padding: '8px 16px', overflowX: 'auto', minHeight: 'fit-content', alignItems: 'center', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-                    <div className="flex items-center gap-2 mr-6 border-r border-slate-200 pr-6" style={{ flexShrink: 0 }}>
-                        <h1 className="text-xl font-black tracking-tighter text-slate-800">
-                            POS<span className="text-emerald-500">8</span>
-                        </h1>
-                    </div>
-
-                    <div className="so-shortcut-badge" onClick={() => nameInputRef.current?.focus()}>
-                        <span className="so-shortcut-key">F2</span>
-                        <span className="so-shortcut-label">Customer</span>
-                    </div>
-                    <div className="so-shortcut-badge" onClick={() => barcodeInputRef.current?.focus()}>
-                        <span className="so-shortcut-key">F3</span>
-                        <span className="so-shortcut-label">Search</span>
-                    </div>
-                    <div className="so-shortcut-badge" onClick={handleCheckout}>
-                        <span className="so-shortcut-key">SPACE / F12</span>
-                        <span className="so-shortcut-label">Process Payment</span>
-                    </div>
-                    <div className="so-shortcut-badge" style={{ background: '#fef2f2', borderColor: '#fee2e2' }} onClick={clearBillHandler}>
-                        <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
-                        <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear Bill</span>
-                    </div>
-                    <div className="so-shortcut-badge">
-                        <span className="so-shortcut-key">F4</span>
-                        <span className="so-shortcut-label">Price</span>
-                    </div>
-                    <div className="so-shortcut-badge">
-                        <span className="so-shortcut-key">F5</span>
-                        <span className="so-shortcut-label">Stock Check</span>
-                    </div>
-                    <div className="so-shortcut-badge">
-                        <span className="so-shortcut-key">F6</span>
-                        <span className="so-shortcut-label">Bulk Qty</span>
-                    </div>
-                    <div className="so-shortcut-badge" onClick={() => {
-                        if (selectedBillIndex !== -1) {
-                            const item = billItems[selectedBillIndex];
-                            const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
-                            toggleUom(item.id, newUom);
-                        }
-                    }} style={{ cursor: 'pointer' }}>
-                        <span className="so-shortcut-key">F8</span>
-                        <span className="so-shortcut-label">Toggle UOM</span>
-                    </div>
-                    <div className="so-shortcut-badge" onClick={() => setShowDraftsModal(prev => !prev)} style={{ cursor: 'pointer' }}>
-                        <span className="so-shortcut-key">F9</span>
-                        <span className="so-shortcut-label">Active Orders</span>
-                    </div>
-                    <div className="so-shortcut-badge">
-                        <span className="so-shortcut-key">← →</span>
-                        <span className="so-shortcut-label">Tax Incl/Excl</span>
-                    </div>
-                    <div className="so-shortcut-badge">
-                        <span className="so-shortcut-key">↑ ↓</span>
-                        <span className="so-shortcut-label">Navigate</span>
-                    </div>
-                    <div className="so-shortcut-badge">
-                        <span className="so-shortcut-key">+ / -</span>
-                        <span className="so-shortcut-label">Quantity</span>
-                    </div>
-
-                    <div className="h-6 w-px bg-slate-200 mx-2" style={{ flexShrink: 0 }}></div>
-
-                    <button
-                        onClick={() => setShowThemeSidebar(true)}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '0.4rem',
-                            padding: '0 0.85rem', height: '2.2rem', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                            border: '1.5px solid #cbd5e1', borderRadius: '0.5rem',
-                            fontSize: '0.75rem', fontWeight: 900, color: '#334155',
-                            cursor: 'pointer', transition: 'all 0.2s',
-                            textTransform: 'uppercase',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                            flexShrink: 0
-                        }}
-                        className="hover:bg-slate-100 hover:border-slate-400 active:scale-95 flex items-center gap-1.5"
-                        title="Configure Themes & Layouts"
-                    >
-                        <Palette size={14} className="text-indigo-600" /> Theme Customizer
-                    </button>
-
-                    <div className="h-6 w-px bg-slate-200 mx-2" style={{ flexShrink: 0 }}></div>
-
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="so-btn-primary hover:scale-[1.02] active:scale-95"
-                        style={{ padding: '0 1.25rem', height: '2.2rem', borderRadius: '0.5rem', background: '#0f172a', border: 'none', flexShrink: 0 }}
-                    >
-                        <LayoutDashboard size={14} /> Dashboard
-                    </button>
-
-                    <div className="flex-1" style={{ minWidth: '16px' }}></div>
-
-                    <button
-                        onClick={() => setShowDraftsModal(true)}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '0.4rem',
-                            padding: '0 0.75rem', height: '2rem', background: '#f0f9ff',
-                            border: '1.5px solid #bae6fd', borderRadius: '0.375rem',
-                            fontSize: '0.7rem', fontWeight: 850, color: '#0369a1',
-                            cursor: 'pointer', transition: 'all 0.2s',
-                            textTransform: 'uppercase', marginRight: '0.5rem',
-                            flexShrink: 0
-                        }}
-                    >
-                        <Package size={12} /> ACTIVE ORDERS
-                    </button>
-
-                    {/* Persistent Top-Right User Header */}
-                    <div
-                        onClick={() => setShowThemeSidebar(true)}
-                        className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm mr-2 cursor-pointer hover:bg-slate-50 transition-colors"
-                        style={{ height: '2.5rem', flexShrink: 0 }}
-                        title="Open Theme Settings Sidebar"
-                    >
-                        <div className="flex flex-col items-end text-right">
-                            <span className="text-[9px] font-black uppercase leading-tight">
-                                <span className="text-slate-400 mr-1">USER:</span>
-                                <span className="text-slate-800">{user?.full_name || user || 'CASHIER'}</span>
-                            </span>
-                            <span className="text-[9px] font-black uppercase leading-tight mt-0.5">
-                                <span className="text-slate-400 mr-1">BRANCH:</span>
-                                <span className="text-emerald-600">{warehouse}</span>
-                            </span>
-                            <span className="text-[8px] font-bold uppercase mt-0.5 tracking-tighter">
-                                <span className="text-slate-400 mr-1">DATE:</span>
-                                <span className="text-slate-500">{format(currentTime, 'MMM dd, yyyy | HH:mm:ss')}</span>
-                            </span>
+            <div className="so-page" style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {/* MODERN TOOL STRIP — Two-Zone Layout */}
+                <div className="so-tool-strip" style={{
+                    display: 'flex', alignItems: 'center', width: '100%',
+                    maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden',
+                    minHeight: 'fit-content', padding: '0', gap: '0',
+                    borderBottom: '1px solid #e2e8f0', background: '#ffffff'
+                }}>
+                    {/* ── LEFT: Logo + scrollable shortcuts ── */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '6px 10px 6px 14px', overflowX: 'auto', overflowY: 'hidden',
+                        flexShrink: 1, minWidth: 0,
+                        scrollbarWidth: 'none', msOverflowStyle: 'none'
+                    }} className="so-tool-left">
+                        {/* POS8 Logo */}
+                        <div style={{ flexShrink: 0, marginRight: '10px', paddingRight: '10px', borderRight: '1px solid #e2e8f0' }}>
+                            <h1 className="text-xl font-black tracking-tighter text-slate-800">
+                                POS<span className="text-emerald-500">8</span>
+                            </h1>
                         </div>
-                        <div className="w-8 h-8 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400">
-                            <UserIcon size={14} />
+
+                        {/* Shortcut Badges */}
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => mobileInputRef.current?.focus()}>
+                            <span className="so-shortcut-key">F2</span>
+                            <span className="so-shortcut-label">Customer</span>
                         </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => barcodeInputRef.current?.focus()}>
+                            <span className="so-shortcut-key">F3</span>
+                            <span className="so-shortcut-label">Search</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                            setCountryCodePrefix(prev => {
+                                const next = prev === '+971' ? '+91' : '+971';
+                                localStorage.setItem('pos_country_code', next);
+                                const Toast = Swal.mixin({
+                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                                });
+                                Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
+                                return next;
+                            });
+                        }}>
+                            <span className="so-shortcut-key">F4</span>
+                            <span className="so-shortcut-label">CC ({countryCodePrefix})</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleCheckout}>
+                            <span className="so-shortcut-key">SPACE</span>
+                            <span className="so-shortcut-label">Pay</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0, background: '#fef2f2', borderColor: '#fee2e2', cursor: 'pointer' }} onClick={clearBillHandler}>
+                            <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
+                            <span className="so-shortcut-label" style={{ color: '#991b1b' }}>Clear</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                            if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
+                            else Swal.fire('Info', 'Select or scan an item first.', 'info');
+                        }}>
+                            <span className="so-shortcut-key">F5</span>
+                            <span className="so-shortcut-label">Stock</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                            if (selectedBillIndex !== -1) {
+                                const item = billItems[selectedBillIndex];
+                                const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
+                                toggleUom(item.id, newUom);
+                            }
+                        }}>
+                            <span className="so-shortcut-key">F8</span>
+                            <span className="so-shortcut-label">UOM</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => setShowDraftsModal(prev => !prev)}>
+                            <span className="so-shortcut-key">F9</span>
+                            <span className="so-shortcut-label">Orders</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0 }}>
+                            <span className="so-shortcut-key">↑ ↓</span>
+                            <span className="so-shortcut-label">Navigate</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ flexShrink: 0 }}>
+                            <span className="so-shortcut-key">+ / -</span>
+                            <span className="so-shortcut-label">Qty</span>
+                        </div>
+
+                        {/* Separator */}
+                        <div style={{ width: '1px', height: '24px', background: '#e2e8f0', flexShrink: 0, margin: '0 4px' }} />
+
+                        {/* Theme Customizer */}
+                        <button
+                            onClick={() => setShowThemeSidebar(true)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                padding: '0 0.75rem', height: '2rem',
+                                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                                border: '1.5px solid #cbd5e1', borderRadius: '0.5rem',
+                                fontSize: '0.7rem', fontWeight: 900, color: '#334155',
+                                cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
+                                whiteSpace: 'nowrap'
+                            }}
+                            title="Configure Themes & Layouts"
+                        >
+                            <Palette size={13} className="text-indigo-600" /> Theme
+                        </button>
+
+                        {/* Dashboard */}
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="so-btn-primary active:scale-95"
+                            style={{ padding: '0 1rem', height: '2rem', borderRadius: '0.5rem', background: '#0f172a', border: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}
+                        >
+                            <LayoutDashboard size={13} /> Dashboard
+                        </button>
                     </div>
 
-                    <button
-                        onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
-                        className="text-slate-500 hover:text-slate-800 transition-all p-1 hover:bg-slate-50 rounded-full mr-2"
-                        title="Open POS in New Tab"
-                        style={{ flexShrink: 0 }}
-                    >
-                        <ExternalLink size={18} />
-                    </button>
+                    {/* ── RIGHT: Fixed user info + actions (never overflow) ── */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                        padding: '4px 10px 4px 8px', flexShrink: 0,
+                        borderLeft: '1px solid #e2e8f0', marginLeft: 'auto',
+                        background: '#ffffff'
+                    }}>
+                        {/* Active Orders */}
+                        <button
+                            onClick={() => setShowDraftsModal(true)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                padding: '0 0.65rem', height: '1.85rem', background: '#f0f9ff',
+                                border: '1.5px solid #bae6fd', borderRadius: '0.375rem',
+                                fontSize: '0.65rem', fontWeight: 850, color: '#0369a1',
+                                cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            <Package size={11} /> Orders
+                        </button>
 
-                    <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full mr-2" title="Logout" style={{ flexShrink: 0 }}>
-                        <Power size={18} />
-                    </button>
+                        {/* User Info Card */}
+                        <div
+                            onClick={() => setShowThemeSidebar(true)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                padding: '4px 10px', background: '#f8fafc',
+                                border: '1px solid #e2e8f0', borderRadius: '8px',
+                                cursor: 'pointer', flexShrink: 0
+                            }}
+                            title="Open Theme Settings Sidebar"
+                        >
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.2, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                                    <span style={{ color: '#94a3b8', marginRight: '3px' }}>USER:</span>
+                                    {user?.full_name || user || 'CASHIER'}
+                                </span>
+                                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.2, marginTop: '1px', color: '#10b981', whiteSpace: 'nowrap' }}>
+                                    <span style={{ color: '#94a3b8', marginRight: '3px' }}>BR:</span>
+                                    {warehouse}
+                                </span>
+                                <span style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', marginTop: '1px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                    {format(currentTime, 'MMM dd | HH:mm:ss')}
+                                </span>
+                            </div>
+                            <div style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '50%', color: '#94a3b8', flexShrink: 0 }}>
+                                <UserIcon size={13} />
+                            </div>
+                        </div>
+
+                        {/* New Tab */}
+                        <button
+                            onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
+                            style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', borderRadius: '50%', flexShrink: 0 }}
+                            title="Open POS in New Tab"
+                        >
+                            <ExternalLink size={16} />
+                        </button>
+
+                        {/* Logout */}
+                        <button
+                            onClick={handleLogout}
+                            style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#f43f5e', borderRadius: '50%', flexShrink: 0 }}
+                            title="Logout"
+                        >
+                            <Power size={16} />
+                        </button>
+                    </div>
                 </div>
+
 
                 <main className="so-main-layout">
                     <div className="so-item-side">
@@ -4349,8 +4524,11 @@ function Home() {
                                                     <div className="flex items-center gap-4">
                                                         <span className="text-[11px] font-black text-slate-400">AED {item.price}</span>
                                                         <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-                                                            <button onClick={() => toggleUom(item.id, 'Piece')} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
-                                                            <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
+                                                            <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => {
+                                                                const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
+                                                                toggleUom(item.id, targetUom);
+                                                            }} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
+                                                            <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -4365,6 +4543,8 @@ function Home() {
                                                             className="so-bill-qty-input"
                                                             value={item.qty}
                                                             onChange={(e) => setQuantity(item.id, e.target.value)}
+                                                            onFocus={(e) => e.target.select()}
+                                                            onClick={(e) => e.target.select()}
                                                         />
                                                         <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500"><Plus size={11} /></button>
                                                     </div>
@@ -4600,7 +4780,17 @@ function Home() {
                     {[
                         { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
                         { key: 'F3', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
-                        { key: 'F4', label: 'Price', color: '#0ea5e9', icon: <Tag size={12} /> },
+                        { key: 'F4', label: `CC (${countryCodePrefix})`, color: '#0ea5e9', icon: <Phone size={12} />, action: () => {
+                            setCountryCodePrefix(prev => {
+                                const next = prev === '+971' ? '+91' : '+971';
+                                localStorage.setItem('pos_country_code', next);
+                                const Toast = Swal.mixin({
+                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                                });
+                                Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
+                                return next;
+                            });
+                        } },
                         {
                             key: 'F5', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
                                 if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
@@ -4648,21 +4838,40 @@ function Home() {
                     <div className="classic-field flex items-center gap-3 relative">
                         <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
                         <div className="relative group" ref={dropdownRef}>
-                            <input
-                                ref={mobileInputRef}
-                                value={customerMobile || customerName}
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    if (/^\d*$/.test(val)) { setCustomerMobile(val); setCustomerName(''); }
-                                    else { setCustomerName(val); setCustomerMobile(''); }
-                                }}
-                                onFocus={() => { setSearchContext('customer'); setShowDropdown(true); }}
-                                onClick={() => { setSearchContext('customer'); setShowDropdown(true); }}
-                                onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
-                                onKeyDown={handleMobileEnter}
-                                className="w-48 h-8 px-3 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-900 outline-none focus:border-sky-500 transition-all bg-slate-50/50"
-                                placeholder="Mobile or Name..."
-                            />
+                            {/* Country code + mobile input wrapper */}
+                            <div className="flex items-center h-8 border border-slate-200 rounded-lg overflow-hidden bg-slate-50/50 focus-within:border-sky-500 transition-all">
+                                <select
+                                    value={countryCodePrefix}
+                                    onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
+                                    className="h-full px-1.5 bg-slate-100 border-r border-slate-200 text-[11px] font-black text-slate-700 outline-none cursor-pointer"
+                                    style={{ minWidth: '52px' }}
+                                    title="Country Code (Press F4 to toggle)"
+                                >
+                                    <option value="+971">🇦🇪 +971</option>
+                                    <option value="+91">🇮🇳 +91</option>
+                                </select>
+                                <input
+                                    ref={mobileInputRef}
+                                    value={customerMobile || customerName}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (/^[\d+]*$/.test(val)) { setCustomerMobile(val); setCustomerName(''); }
+                                        else { setCustomerName(val); setCustomerMobile(''); }
+                                    }}
+                                    onFocus={() => { setSearchContext('customer'); setShowDropdown(true); }}
+                                    onClick={() => { setSearchContext('customer'); setShowDropdown(true); }}
+                                    onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
+                                    onKeyDown={handleMobileEnter}
+                                    className="flex-1 h-full px-2 text-[13px] font-bold text-slate-900 outline-none bg-transparent"
+                                    placeholder="Mobile or Name..."
+                                    style={{ minWidth: '110px' }}
+                                />
+                                {customerLoading && (
+                                    <div className="pr-2 flex items-center">
+                                        <div className="w-3 h-3 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                                    </div>
+                                )}
+                            </div>
                             {showDropdown && searchResults.length > 0 && (
                                 <div className="absolute top-full left-0 w-64 bg-white border-2 border-slate-900 shadow-[4px_4px_0_rgba(0,0,0,0.1)] z-[9999] max-h-48 overflow-y-auto mt-1">
                                     {searchResults.map(c => (
@@ -4674,6 +4883,7 @@ function Home() {
                             )}
                         </div>
                     </div>
+
 
                     <div className="classic-field flex items-center gap-3 relative">
                         <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">BARCODE</label>
@@ -4815,6 +5025,7 @@ function Home() {
                                                         value={item.qty === 0 ? '' : item.qty}
                                                         onChange={e => setExactQuantity(item.id, e.target.value)}
                                                         onFocus={e => e.target.select()}
+                                                        onClick={e => e.target.select()}
                                                         onKeyDown={e => {
                                                             if (e.key === 'Enter') {
                                                                 e.preventDefault();
@@ -4846,6 +5057,7 @@ function Home() {
                                                         onChange={e => setExactPrice(item.id, e.target.value)}
                                                         className="w-full h-full text-center px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none"
                                                         onFocus={e => e.target.select()}
+                                                        onClick={e => e.target.select()}
                                                     />
                                                     <div
                                                         onClick={() => {
@@ -5293,27 +5505,49 @@ function Home() {
                             <div className="home-bill-section">
                                 {/* SPEED CHECKOUT - MOBILE NUMBER */}
                                 <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
-                                    <input
-                                        ref={mobileInputRef}
-                                        type="tel"
-                                        placeholder="Mobile Number + Enter (Speed Checkout)"
-                                        value={customerMobile}
-                                        onChange={(e) => setCustomerMobile(e.target.value)}
-                                        onKeyDown={handleMobileEnter}
-                                        className="home-customer-input"
-                                        style={{
-                                            background: 'linear-gradient(to right, #e1f4ff, #ffffff)',
-                                            border: '2px solid #3b82f6',
-                                            fontWeight: 700,
-                                            fontSize: '0.9rem'
-                                        }}
-                                    />
-                                    {customerLoading ? (
-                                        <Loader2 size={16} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#3b82f6' }} />
-                                    ) : (
-                                        <Phone size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#3b82f6' }} />
-                                    )}
+                                    {/* Country code + mobile wrapper */}
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', overflow: 'hidden',
+                                        background: 'linear-gradient(to right, #e1f4ff, #ffffff)',
+                                        border: '2px solid #3b82f6', borderRadius: '12px',
+                                    }}>
+                                        <select
+                                            value={countryCodePrefix}
+                                            onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
+                                            style={{
+                                                height: '100%', padding: '0 8px',
+                                                background: '#dbeafe', border: 'none', borderRight: '2px solid #93c5fd',
+                                                fontSize: '12px', fontWeight: 900, color: '#1e40af',
+                                                outline: 'none', cursor: 'pointer', flexShrink: 0
+                                            }}
+                                            title="Country Code (Press F4 to toggle)"
+                                        >
+                                            <option value="+971">🇦🇪 +971</option>
+                                            <option value="+91">🇮🇳 +91</option>
+                                        </select>
+                                        <input
+                                            ref={mobileInputRef}
+                                            type="tel"
+                                            placeholder="Mobile + Enter (Speed Checkout)"
+                                            value={customerMobile}
+                                            onChange={(e) => setCustomerMobile(e.target.value)}
+                                            onKeyDown={handleMobileEnter}
+                                            style={{
+                                                flex: 1, padding: '10px 40px 10px 12px',
+                                                background: 'transparent', border: 'none',
+                                                fontWeight: 700, fontSize: '0.88rem', outline: 'none',
+                                                color: '#1e3a8a'
+                                            }}
+                                        />
+                                        <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                                            {customerLoading
+                                                ? <Loader2 size={16} className="animate-spin" style={{ color: '#3b82f6' }} />
+                                                : <Phone size={16} style={{ color: '#3b82f6' }} />
+                                            }
+                                        </div>
+                                    </div>
                                 </div>
+
 
                                 {/* BARCODE SCANNER INPUT - PROMINENT STYLE */}
                                 <div className="relative mb-3 group">
@@ -5433,8 +5667,8 @@ function Home() {
                                                     </div>
                                                     {/* PIECE VS BOX TOGGLE */}
                                                     <div style={{ display: 'flex', gap: '4px' }}>
-                                                        <button onClick={() => toggleUom(item.id, item.uom_conversions?.Nos ? 'Nos' : 'Piece')} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #3b82f6', background: (item.uom === 'Piece' || item.uom === 'Nos') ? '#3b82f6' : '#fff', color: (item.uom === 'Piece' || item.uom === 'Nos') ? '#fff' : '#3b82f6' }}>Piece</button>
-                                                        <button onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #8b5cf6', background: item.uom === 'Box' ? '#8b5cf6' : '#fff', color: item.uom === 'Box' ? '#fff' : '#8b5cf6', opacity: (!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1) ? 0.5 : 1 }}>Box ({item.custom_pieces_per_box || 1})</button>
+                                                        <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, item.uom_conversions?.Nos ? 'Nos' : 'Piece')} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #3b82f6', background: (item.uom === 'Piece' || item.uom === 'Nos') ? '#3b82f6' : '#fff', color: (item.uom === 'Piece' || item.uom === 'Nos') ? '#fff' : '#3b82f6' }}>Piece</button>
+                                                        <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #8b5cf6', background: item.uom === 'Box' ? '#8b5cf6' : '#fff', color: item.uom === 'Box' ? '#fff' : '#8b5cf6', opacity: (!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1) ? 0.5 : 1 }}>Box ({item.custom_pieces_per_box || 1})</button>
                                                     </div>
                                                 </li>
                                             ))}

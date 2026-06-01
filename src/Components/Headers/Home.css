@@ -1,4 +1,4 @@
-﻿/* ============================================================ 
+/* ============================================================ 
    Home.css — Emerald & Slate Theme (Modern POS Refinement)
    Optimized for High Density & Premium Aesthetics
    ============================================================ */
@@ -39,6 +39,15 @@
   flex-direction: column;
   font-family: 'Inter', 'Segoe UI', sans-serif;
   overflow: hidden;
+}
+
+/* Hide scrollbar on the tool-strip left (shortcuts) section */
+.so-tool-left::-webkit-scrollbar {
+  display: none;
+}
+.so-tool-left {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 /* Standard Header (Mirrors Directory Pages) */
@@ -136,31 +145,44 @@
 .so-shortcut-badge {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.5rem;
-  background: var(--so-bg);
-  border: 1px solid var(--so-border);
-  border-radius: 0.375rem;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--so-white, #ffffff);
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.5rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.so-shortcut-badge:hover {
+  border-color: #3b82f6;
+  background: #f0f7ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1), 0 2px 4px -1px rgba(59, 130, 246, 0.06);
 }
 
 .so-shortcut-key {
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 900;
-  color: var(--so-primary);
-  padding: 1px 3px;
-  background: var(--so-white);
-  border: 1px solid var(--so-primary);
-  border-radius: 3px;
+  color: #0284c7;
+  padding: 2px 5px;
+  background: #e0f2fe;
+  border: 1.5px solid #0284c7;
+  border-radius: 4px;
+  text-shadow: 0 0 1px rgba(2, 132, 199, 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .so-shortcut-label {
-  font-size: 8px;
-  font-weight: 800;
-  color: var(--so-text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  color: #334155;
   text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 /* Category Bar */
@@ -650,3 +672,225 @@
     opacity: 1;
   }
 }
+
+/* Payment Modal Short Screen Responsiveness */
+@media (max-height: 760px) {
+  .payment-process-modal {
+    max-height: 98vh !important;
+    margin: 8px !important;
+  }
+  
+  .payment-process-modal .home-modal-header {
+    padding: 8px 16px !important;
+  }
+  
+  .payment-process-modal .home-modal-header h3 {
+    font-size: 0.9rem !important;
+  }
+
+  .payment-process-modal .home-modal-header .w-10 {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+  }
+  
+  .payment-process-modal .home-modal-body {
+    padding: 10px 16px !important;
+    gap: 8px !important;
+  }
+
+  /* Grid status blocks */
+  .payment-status-blocks {
+    gap: 8px !important;
+  }
+
+  .payment-status-card {
+    padding: 8px 10px !important;
+    min-height: 62px !important;
+    border-radius: 12px !important;
+  }
+
+  .payment-status-card span.text-\[9px\] {
+    font-size: 8px !important;
+  }
+
+  .payment-status-card span.text-base,
+  .payment-status-card span.text-lg {
+    font-size: 0.95rem !important;
+    margin-top: 1px !important;
+    line-height: 1.25rem !important;
+  }
+
+  /* Payment Selection Buttons */
+  .payment-methods-grid {
+    gap: 8px !important;
+  }
+
+  .payment-method-btn {
+    padding: 8px !important;
+    border-radius: 12px !important;
+    gap: 4px !important;
+  }
+
+  .payment-method-btn .w-10 {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+  }
+
+  .payment-method-btn .w-10 svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .payment-method-btn span {
+    font-size: 8px !important;
+  }
+
+  .payment-method-btn .absolute.top-2.right-2 {
+    top: 4px !important;
+    right: 4px !important;
+    font-size: 8px !important;
+    padding: 1px 4px !important;
+  }
+
+  /* Payment ledger */
+  .payment-ledger-list {
+    max-height: 60px !important;
+    gap: 4px !important;
+  }
+
+  .payment-ledger-list > div {
+    padding: 6px 10px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Tender input area */
+  .payment-mode-input-container {
+    padding: 8px 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .payment-mode-input-container input {
+    padding: 6px 12px !important;
+    font-size: 1.15rem !important;
+  }
+
+  .payment-mode-input-container button {
+    padding: 8px !important;
+    font-size: 10px !important;
+    border-radius: 8px !important;
+  }
+
+  .payment-process-modal .home-modal-footer button {
+    padding: 8px !important;
+    border-radius: 8px !important;
+  }
+}
+
+/* ============================================================
+   MODERN UI RESPONSIVENESS — Tablet & Mobile Fixes
+   ============================================================ */
+
+/* Tablet: <= 1024px */
+@media (max-width: 1024px) {
+  /* Bill sidebar becomes narrower */
+  .home-bill-section {
+    --so-bill-width: 340px !important;
+    min-width: 320px !important;
+    max-width: 380px !important;
+  }
+
+  /* Tool strip wraps gracefully */
+  .so-tool-strip {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    padding: 6px 12px !important;
+  }
+
+  .so-shortcut-badge {
+    padding: 4px 8px !important;
+    font-size: 9px !important;
+  }
+
+  /* Item card grid adapts */
+  .home-item-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+  }
+
+  /* Payment methods grid stays 3-col but smaller */
+  .payment-methods-grid {
+    gap: 6px !important;
+  }
+}
+
+/* Mobile: <= 768px */
+@media (max-width: 768px) {
+  /* Stack main layout vertically */
+  .home-layout {
+    flex-direction: column !important;
+  }
+
+  .home-main-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 55vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Bill section goes full width below items */
+  .home-bill-section {
+    width: 100% !important;
+    min-width: unset !important;
+    max-width: 100% !important;
+    --so-bill-width: 100% !important;
+    border-left: none !important;
+    border-top: 2px solid var(--so-border) !important;
+    height: 45vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Item grid: 2 columns on mobile */
+  .home-item-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Tool strip: scrollable, no wrap */
+  .so-tool-strip {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    padding: 6px 10px !important;
+    gap: 4px !important;
+  }
+
+  /* Bill items more compact */
+  .so-bill-item {
+    padding: 8px 10px !important;
+  }
+
+  .so-bill-item-name {
+    font-size: 11px !important;
+  }
+
+  .so-grand-total {
+    font-size: 1.15rem !important;
+  }
+
+  /* Payment modal full-width on mobile */
+  .payment-process-modal {
+    max-width: 98vw !important;
+    margin: 4px !important;
+  }
+
+  /* Payment grid: 2 cols on mobile */
+  .payment-methods-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Category chips: scrollable row */
+  .home-cat-bar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+  }
+}

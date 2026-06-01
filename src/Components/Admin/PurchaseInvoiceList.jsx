@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Edit2, Settings
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Edit2, Settings, Copy
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
@@ -673,6 +673,34 @@ function PurchaseInvoiceList() {
     setIsModalOpen(true);
   }, [taxTemplates]);
 
+  const handleDuplicate = () => {
+    setDocName('');
+    setFormData(prev => {
+      const cleanedItems = (prev.items || []).map(item => {
+        const {
+          name, parent, parenttype, parentfield, creation, modified, modified_by, owner, docstatus,
+          ...rest
+        } = item;
+        return rest;
+      });
+      return {
+        ...prev,
+        name: '',
+        docstatus: 0,
+        posting_date: getLocalISODate(),
+        items: cleanedItems
+      };
+    });
+    setIsViewMode(false);
+    navigate('/purchaseinvoicelist');
+    Swal.fire({
+      icon: 'success',
+      title: 'Duplicated!',
+      text: 'You are now editing a new Draft copy of this document.',
+      timer: 2000
+    });
+  };
+
   const fetchPurchaseInvoice = useCallback(async (name) => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_purchase_invoice`, { params: { name }, withCredentials: true });
@@ -721,7 +749,8 @@ function PurchaseInvoiceList() {
           grand_total: d.grand_total || 0,
           rounded_total: d.rounded_total || 0,
           outstanding_amount: d.outstanding_amount !== undefined ? d.outstanding_amount : (d.grand_total || 0),
-          docstatus: parseInt(d.docstatus) || 0
+          docstatus: parseInt(d.docstatus) || 0,
+          payment_schedule: d.payment_schedule || []
         };
 
         // Populate tax preview for UI/Calculations
@@ -1389,6 +1418,13 @@ function PurchaseInvoiceList() {
       discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
       taxes_and_charges: formData.taxes_and_charges || null,
       taxes: taxes.length > 0 ? taxes : null,
+      payment_schedule: formData.payment_schedule && formData.payment_schedule.length > 0
+        ? formData.payment_schedule.map(row => ({
+          due_date: row.due_date || formData.due_date,
+          payment_amount: parseFloat(row.payment_amount) || 0,
+          description: row.description || undefined
+        }))
+        : null,
       items: formData.items
         .filter(i => i.item_code && i.qty > 0)
         .map(i => {
@@ -1677,60 +1713,8 @@ function PurchaseInvoiceList() {
       }
 
 
-      // F6: Toggle UOM of active row (or last row)
+      // F6: Bulk Quantity Update popup
       if (e.key === 'F6') {
-        e.preventDefault();
-        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
-
-        if (rowIndex >= 0 && rowIndex < formData.items.length) {
-          const item = formData.items[rowIndex];
-          if (item && item.item_code) {
-            let nextUom = '';
-            const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
-            const uomList = item.uom_list || [];
-
-            if (uomList.length > 1) {
-              const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
-              const nextIndex = (currentIndex + 1) % uomList.length;
-              nextUom = uomList[nextIndex].uom;
-            } else {
-              nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
-            }
-
-            handleUOMChange(nextUom, rowIndex);
-            Swal.fire({
-              icon: 'info',
-              title: 'UOM Switched',
-              text: `Row ${rowIndex + 1}: Switched UOM to ${nextUom}`,
-              toast: true,
-              position: 'top-end',
-              timer: 2000,
-              showConfirmButton: false
-            });
-          }
-        }
-      }
-
-      // F7: Auto-Apply VAT 5% Template
-      if (e.key === 'F7') {
-        e.preventDefault();
-        const defaultTax = taxTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name;
-        if (defaultTax) {
-          setFormData(prev => ({ ...prev, taxes_and_charges: defaultTax }));
-          Swal.fire({
-            icon: 'success',
-            title: 'Tax Applied',
-            text: `Applied Tax Template: ${defaultTax}`,
-            toast: true,
-            position: 'top-end',
-            timer: 2000,
-            showConfirmButton: false
-          });
-        }
-      }
-
-      // F5: Bulk Quantity
-      if (e.key === 'F5') {
         e.preventDefault();
         let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
 
@@ -1763,28 +1747,44 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // 3. Add Item Row: F8
+      // F8: Toggle UOM of active row (or last row)
       if (e.key === 'F8') {
         e.preventDefault();
-        if (formData.docstatus === 0 && !isViewMode) {
-          addItemRow();
+        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
+
+        if (rowIndex >= 0 && rowIndex < formData.items.length) {
+          const item = formData.items[rowIndex];
+          if (item && item.item_code) {
+            let nextUom = '';
+            const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
+            const uomList = item.uom_list || [];
+
+            if (uomList.length > 1) {
+              const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
+              const nextIndex = (currentIndex + 1) % uomList.length;
+              nextUom = uomList[nextIndex].uom;
+            } else {
+              nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
+            }
+
+            handleUOMChange(nextUom, rowIndex);
+            Swal.fire({
+              icon: 'info',
+              title: 'UOM Switched',
+              text: `Row ${rowIndex + 1}: Switched UOM to ${nextUom}`,
+              toast: true,
+              position: 'top-end',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          }
         }
       }
 
-      // 4. Focus Target Warehouse Select: F9
-      if (e.key === 'F9') {
+      // F7: Save Draft / Update Draft
+      if (e.key === 'F7' || (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS'))) {
         e.preventDefault();
-        const warehouseSelect = document.querySelector('select[name="accepted_warehouse"]') || document.querySelector('select[name="set_warehouse"]') || document.querySelector('select');
-        if (warehouseSelect) {
-          warehouseSelect.focus();
-        }
-      }
-
-      // 5. Save/Submit: Ctrl + S or F10
-      if ((e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) || e.key === 'F10') {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!saving && formData.docstatus === 0) {
+        if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
           if (docName && !isDirty) {
             handleDocAction('submit');
           } else {
@@ -1793,11 +1793,39 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // 6. Submit PI: Ctrl + Enter or F12
+      // F10 or Alt+A / Alt+a: Add Item Row
+      if (e.key === 'F10' || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
+        e.preventDefault();
+        if (formData.docstatus === 0 && !isViewMode) {
+          addItemRow();
+        }
+      }
+
+      // F9: Focus Target Warehouse Select
+      if (e.key === 'F9') {
+        e.preventDefault();
+        const warehouseSelect = document.querySelector('select[name="accepted_warehouse"]') || document.querySelector('select[name="set_warehouse"]') || document.querySelector('select');
+        if (warehouseSelect) {
+          warehouseSelect.focus();
+        }
+      }
+
+      // F12 / Ctrl+Enter: Submit document
       if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
         e.preventDefault();
-        if (!saving && formData.docstatus === 0) {
+        if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
           handleDocAction('submit');
+        }
+      }
+
+      // Escape: Close configuration modals, reset selection
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showColConfig) setShowColConfig(false);
+        else if (isModalOpen) {
+          setDocName('');
+        } else if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          activeEl.blur();
         }
       }
 
@@ -1998,7 +2026,7 @@ function PurchaseInvoiceList() {
 
       // Arrow Up/Down navigation inside table inputs
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
           const isSearchInput = activeEl.placeholder === 'Search item...';
           const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
           // If search input and dropdown is open, only block if they do not hold Alt/Ctrl
@@ -2144,6 +2172,8 @@ function PurchaseInvoiceList() {
                 value={filterDateFrom}
                 onChange={e => setFilterDateFrom(e.target.value)}
                 className="so-filter-input"
+                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
               />
             </div>
 
@@ -2154,6 +2184,8 @@ function PurchaseInvoiceList() {
                 value={filterDateTo}
                 onChange={e => setFilterDateTo(e.target.value)}
                 className="so-filter-input"
+                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
               />
             </div>
 
@@ -2232,7 +2264,7 @@ function PurchaseInvoiceList() {
                                 <div style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)' }}>{inv.supplier}</div>
                               </td>
                               <td>
-                                <span style={{ color: '#475569', fontSize: '0.85rem' }}>{format(new Date(inv.posting_date), 'dd MMM yyyy')}</span>
+                                <span style={{ color: '#475569', fontSize: '0.85rem' }}>{format(new Date(inv.posting_date), 'dd-MM-yyyy')}</span>
                               </td>
                               <td>
                                 <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
@@ -2348,8 +2380,19 @@ function PurchaseInvoiceList() {
 
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    {/* Always show DUPLICATE if docName exists */}
+                    {docName && (
+                      <button
+                        onClick={handleDuplicate}
+                        className="so-btn-secondary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                      >
+                        <Copy size={14} /> DUPLICATE
+                      </button>
+                    )}
+
                     {/* DRAFT PHASE */}
-                    {formData.docstatus === 0 && (
+                    {(formData.docstatus === 0 || formData.docstatus === undefined) && (
                       <>
                         {/* 1. DELETE button (if allowed) */}
                         {docName && (allowedActions.includes('delete') || allowedActions.length === 0) && (
@@ -2491,28 +2534,24 @@ function PurchaseInvoiceList() {
                     <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F5</kbd>
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
                     <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
-                    <span className="text-[10px] font-semibold text-emerald-800">Apply VAT 5%</span>
+                    <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F10 / Alt+A</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+S / F10</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Save Draft</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
@@ -2521,6 +2560,10 @@ function PurchaseInvoiceList() {
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
@@ -2562,6 +2605,8 @@ function PurchaseInvoiceList() {
                             className="so-input"
                             style={{ paddingLeft: '2.5rem' }}
                             disabled={isViewMode}
+                            onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                            onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
                           />
                         </div>
                       </div>
@@ -2573,10 +2618,21 @@ function PurchaseInvoiceList() {
                           <input
                             type="date"
                             value={formData.due_date}
-                            onChange={e => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                            onChange={e => {
+                              const newDueDate = e.target.value;
+                              setFormData(prev => {
+                                const schedule = (prev.payment_schedule || []).map(row => ({
+                                  ...row,
+                                  due_date: newDueDate
+                                }));
+                                return { ...prev, due_date: newDueDate, payment_schedule: schedule };
+                              });
+                            }}
                             className="so-input"
                             style={{ paddingLeft: '2.5rem' }}
                             disabled={isViewMode}
+                            onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                            onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
                           />
                         </div>
                       </div>
@@ -2796,6 +2852,7 @@ function PurchaseInvoiceList() {
                                                     type="number"
                                                     value={item.custom_box_qty !== undefined ? item.custom_box_qty : ''}
                                                     onFocus={e => e.target.select()}
+                                                    onClick={e => e.target.select()}
                                                     onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
                                                     className="so-input text-center font-bold"
                                                     style={{ borderTop: `1px solid ${themeColor}40`, borderBottom: `1px solid ${themeColor}40`, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
@@ -2830,6 +2887,7 @@ function PurchaseInvoiceList() {
                                                   type="number"
                                                   value={item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : ''}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
                                                   className="so-input text-left pl-3 font-bold"
                                                 />
@@ -2893,6 +2951,7 @@ function PurchaseInvoiceList() {
                                                   type="text"
                                                   value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
                                                   className="so-input text-center font-bold text-[10px]"
                                                   placeholder="REF / SL #"
@@ -2916,6 +2975,7 @@ function PurchaseInvoiceList() {
                                                   type="number"
                                                   value={item.qty}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'qty', e.target.value)}
                                                   className="so-input text-left pl-3 font-bold"
                                                   style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
@@ -3011,6 +3071,7 @@ function PurchaseInvoiceList() {
                                                   type="number"
                                                   value={item.custom_box_price !== undefined ? item.custom_box_price : ''}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
                                                   className="so-input text-right pr-3 font-bold"
                                                   step="0.01"
@@ -3035,6 +3096,7 @@ function PurchaseInvoiceList() {
                                                   type="number"
                                                   value={item.rate}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'rate', e.target.value)}
                                                   className="so-input text-right pr-3 font-bold"
                                                   step="0.01"
@@ -3058,6 +3120,7 @@ function PurchaseInvoiceList() {
                                                   type="number"
                                                   value={item.custom_selling_price || ''}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
                                                   className="so-input text-right pr-3 font-bold text-[#6366f1]"
                                                   step="0.01"
@@ -3086,6 +3149,7 @@ function PurchaseInvoiceList() {
                                                     type="number"
                                                     value={item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? ((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2) : '')}
                                                     onFocus={e => e.target.select()}
+                                                    onClick={e => e.target.select()}
                                                     onChange={e => {
                                                       const typedVal = e.target.value;
                                                       const val = parseFloat(typedVal) || 0;

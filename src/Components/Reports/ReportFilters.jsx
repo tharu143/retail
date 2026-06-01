@@ -55,6 +55,8 @@ function ReportFilters({
             onChange={(e) => handleChange('from_date', e.target.value)}
             max={today}
             className="px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
+            onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+            onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
           />
         </div>
 
@@ -69,6 +71,8 @@ function ReportFilters({
             onChange={(e) => handleChange('to_date', e.target.value)}
             max={today}
             className="px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
+            onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+            onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
           />
         </div>
 

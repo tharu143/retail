@@ -10,6 +10,15 @@ import { db } from '../../db';
 import "../Admin/SalesOrder.css";
 import { useLegacyTheme } from "../../hooks/useLegacyTheme";
 
+const formatDateToDMY = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+};
+
 function InvoiceList() {
     const navigate = useNavigate();
     const [invoices, setInvoices] = useState([]);
@@ -205,7 +214,7 @@ function InvoiceList() {
                     <div class="divider"></div>
                     <div class="info">
                         <div class="info-row"><span>CASHIER:</span> <span class="bold">${cashier}</span></div>
-                        <div class="info-row"><span>DATE/TIME:</span> <span>${invoice.posting_date} ${invoice.posting_time?.split('.')[0] || ''}</span></div>
+                        <div class="info-row"><span>DATE/TIME:</span> <span>${formatDateToDMY(invoice.posting_date)} ${invoice.posting_time?.split('.')[0] || ''}</span></div>
                         <div class="info-row"><span>INV NO:</span> <span class="bold">${invoice.name}</span></div>
                         ${invoice.offline_id ? `<div class="info-row"><span>OFFLINE ID:</span> <span>${invoice.offline_id}</span></div>` : ''}
                         <div class="info-row"><span>CUSTOMER:</span> <span>${invoice.customer_name}</span></div>
@@ -343,7 +352,14 @@ function InvoiceList() {
 
                     <div style={{ flex: '1 1 150px' }}>
                         <label className="so-filter-label">Date</label>
-                        <input type="date" className="so-filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+                        <input
+                            type="date"
+                            className="so-filter-input"
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                            onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                            onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                        />
                     </div>
 
                     <div style={{ flex: '1 1 150px' }}>
@@ -407,7 +423,7 @@ function InvoiceList() {
                                                 </td>
                                                 <td>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
-                                                        <Calendar size={12} style={{ color: '#64748b' }} /> {inv.posting_date}
+                                                        <Calendar size={12} style={{ color: '#64748b' }} /> {formatDateToDMY(inv.posting_date)}
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#94a3b8', fontSize: '0.7rem', marginTop: '4px' }}>
                                                         <Clock size={12} /> {inv.posting_time || '--:--'}
@@ -494,7 +510,7 @@ function InvoiceList() {
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-[11px] font-black text-slate-400 uppercase italic">Date & Time</span>
-                                            <span className="text-sm font-black text-slate-800">{selectedInvoice.posting_date} · {selectedInvoice.posting_time?.split('.')[0] || '00:00'}</span>
+                                            <span className="text-sm font-black text-slate-800">{formatDateToDMY(selectedInvoice.posting_date)} · {selectedInvoice.posting_time?.split('.')[0] || '00:00'}</span>
                                         </div>
                                         <div className="flex justify-between items-start">
                                             <span className="text-[11px] font-black text-slate-400 uppercase italic">Offline Ref</span>

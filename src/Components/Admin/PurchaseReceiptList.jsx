@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, X, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
-  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText
+  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -701,7 +701,8 @@ function PurchaseReceiptList() {
       taxes_deducted: '0.00',
       total_taxes_and_charges: '0.00',
       discounted_amount: '0.00',
-      grand_total: '0.00'
+      grand_total: '0.00',
+      docstatus: 0
     };
 
     setFormData(initialFormData);
@@ -1131,6 +1132,34 @@ function PurchaseReceiptList() {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
+  const handleDuplicate = () => {
+    setDocName('');
+    setFormData(prev => {
+      const cleanedItems = (prev.items || []).map(item => {
+        const {
+          name, parent, parenttype, parentfield, creation, modified, modified_by, owner, docstatus,
+          ...rest
+        } = item;
+        return rest;
+      });
+      return {
+        ...prev,
+        name: '',
+        docstatus: 0,
+        posting_date: getLocalISODate(),
+        items: cleanedItems
+      };
+    });
+    setIsViewMode(false);
+    navigate('/purchasereceiptlist');
+    Swal.fire({
+      icon: 'success',
+      title: 'Duplicated!',
+      text: 'You are now editing a new Draft copy of this document.',
+      timer: 2000
+    });
+  };
+
   const fetchReceiptForEdit = async (docName) => {
     try {
       setLoading(true);
@@ -1710,60 +1739,8 @@ function PurchaseReceiptList() {
         }
       }
 
-      // F6: Toggle UOM of active row (or last row)
+      // F6: Bulk Quantity Update popup
       if (e.key === 'F6') {
-        e.preventDefault();
-        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
-
-        if (rowIndex >= 0 && rowIndex < formData.items.length) {
-          const item = formData.items[rowIndex];
-          if (item && item.item_code) {
-            let nextUom = '';
-            const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
-            const uomList = item.uom_list || [];
-
-            if (uomList.length > 1) {
-              const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
-              const nextIndex = (currentIndex + 1) % uomList.length;
-              nextUom = uomList[nextIndex].uom;
-            } else {
-              nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
-            }
-
-            handleUOMChange(nextUom, rowIndex);
-            Swal.fire({
-              icon: 'info',
-              title: 'UOM Switched',
-              text: `Row ${rowIndex + 1}: Switched UOM to ${nextUom}`,
-              toast: true,
-              position: 'top-end',
-              timer: 2000,
-              showConfirmButton: false
-            });
-          }
-        }
-      }
-
-      // F7: Auto-Apply VAT 5% Template
-      if (e.key === 'F7') {
-        e.preventDefault();
-        const defaultTax = taxesTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name;
-        if (defaultTax) {
-          setFormData(prev => ({ ...prev, taxes_and_charges: defaultTax }));
-          Swal.fire({
-            icon: 'success',
-            title: 'Tax Applied',
-            text: `Applied Tax Template: ${defaultTax}`,
-            toast: true,
-            position: 'top-end',
-            timer: 2000,
-            showConfirmButton: false
-          });
-        }
-      }
-
-      // F5: Bulk Quantity
-      if (e.key === 'F5') {
         e.preventDefault();
         let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
 
@@ -1796,8 +1773,54 @@ function PurchaseReceiptList() {
         }
       }
 
-      // 3. Add Item Row: F8
+      // F8: Toggle UOM of active row (or last row)
       if (e.key === 'F8') {
+        e.preventDefault();
+        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
+
+        if (rowIndex >= 0 && rowIndex < formData.items.length) {
+          const item = formData.items[rowIndex];
+          if (item && item.item_code) {
+            let nextUom = '';
+            const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
+            const uomList = item.uom_list || [];
+
+            if (uomList.length > 1) {
+              const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
+              const nextIndex = (currentIndex + 1) % uomList.length;
+              nextUom = uomList[nextIndex].uom;
+            } else {
+              nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
+            }
+
+            handleUOMChange(nextUom, rowIndex);
+            Swal.fire({
+              icon: 'info',
+              title: 'UOM Switched',
+              text: `Row ${rowIndex + 1}: Switched UOM to ${nextUom}`,
+              toast: true,
+              position: 'top-end',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          }
+        }
+      }
+
+      // F7: Save Draft / Update Draft
+      if (e.key === 'F7' || (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS'))) {
+        e.preventDefault();
+        if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
+          if (docName && !isDirty) {
+            handleDocAction('submit');
+          } else {
+            handleDocAction('save');
+          }
+        }
+      }
+
+      // F10 or Alt+A / Alt+a: Add Item Row
+      if (e.key === 'F10' || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
         e.preventDefault();
         const isDraft = formData.docstatus === 0 || !docName || formData.docstatus === undefined || formData.docstatus === null;
         if (isDraft) {
@@ -1827,7 +1850,7 @@ function PurchaseReceiptList() {
         }
       }
 
-      // 4. Focus Target Warehouse Select: F9
+      // F9: Focus Target Warehouse Select
       if (e.key === 'F9') {
         e.preventDefault();
         const warehouseSelect = document.querySelector('select[name="accepted_warehouse"]') || document.querySelector('select[name="set_warehouse"]') || document.querySelector('select');
@@ -1836,24 +1859,22 @@ function PurchaseReceiptList() {
         }
       }
 
-      // 5. Save/Submit: Ctrl + S or F10
-      if ((e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) || e.key === 'F10') {
+      // F12 / Ctrl+Enter: Submit document
+      if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
         e.preventDefault();
-        e.stopPropagation();
-        if (!saving && formData.docstatus === 0) {
-          if (docName && !isDirty) {
-            handleDocAction('submit');
-          } else {
-            handleDocAction('save');
-          }
+        if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
+          handleDocAction('submit');
         }
       }
 
-      // 6. Submit PR: Ctrl + Enter or F12
-      if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
+      // Escape: Close configuration modals, reset selection
+      if (e.key === 'Escape') {
         e.preventDefault();
-        if (!saving && formData.docstatus === 0) {
-          handleDocAction('submit');
+        if (showColConfig) setShowColConfig(false);
+        else if (isModalOpen) {
+          setDocName('');
+        } else if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          activeEl.blur();
         }
       }
 
@@ -2054,7 +2075,7 @@ function PurchaseReceiptList() {
 
       // Arrow Up/Down navigation inside table inputs
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
           const isSearchInput = activeEl.placeholder === 'Search item...';
           const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
           // If search input and dropdown is open, only block if they do not hold Alt/Ctrl
@@ -2198,6 +2219,8 @@ function PurchaseReceiptList() {
                 value={filterDateFrom}
                 onChange={e => setFilterDateFrom(e.target.value)}
                 className="so-filter-input"
+                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
               />
             </div>
 
@@ -2208,6 +2231,8 @@ function PurchaseReceiptList() {
                 value={filterDateTo}
                 onChange={e => setFilterDateTo(e.target.value)}
                 className="so-filter-input"
+                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
               />
             </div>
 
@@ -2286,7 +2311,7 @@ function PurchaseReceiptList() {
                                 <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{rec.supplier}</div>
                               </td>
                               <td>
-                                <span style={{ color: '#475569' }}>{format(new Date(rec.posting_date), 'dd MMM yyyy')}</span>
+                                <span style={{ color: '#475569' }}>{format(new Date(rec.posting_date), 'dd-MM-yyyy')}</span>
                               </td>
                               <td>
                                 <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
@@ -2371,8 +2396,19 @@ function PurchaseReceiptList() {
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                   {/* ACTIONS CONTAINER */}
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    {/* Always show DUPLICATE if docName exists */}
+                    {docName && (
+                      <button
+                        onClick={handleDuplicate}
+                        className="so-btn-secondary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                      >
+                        <Copy size={14} /> DUPLICATE
+                      </button>
+                    )}
+
                     {/* DRAFT PHASE */}
-                    {formData.docstatus === 0 && (
+                    {(formData.docstatus === 0 || formData.docstatus === undefined) && (
                       <>
                         {/* 1. DELETE button (if allowed) */}
                         {docName && allowedActions.includes('delete') && (
@@ -2512,28 +2548,24 @@ function PurchaseReceiptList() {
                     <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F5</kbd>
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
                     <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
-                    <span className="text-[10px] font-semibold text-emerald-800">Apply VAT 5%</span>
+                    <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F10 / Alt+A</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+S / F10</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Save Draft</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
@@ -2542,6 +2574,10 @@ function PurchaseReceiptList() {
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
                     <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                     <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
@@ -2595,6 +2631,8 @@ function PurchaseReceiptList() {
                             value={formData.posting_date}
                             onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
                             className="so-input"
+                            onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                            onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
                           />
                         )}
                       </div>
@@ -2797,6 +2835,7 @@ function PurchaseReceiptList() {
                                                     type="number"
                                                     value={item.use_box_entry ? (item.custom_box_qty || 0) : (item.accepted_qty || 0)}
                                                     onFocus={e => e.target.select()}
+                                                    onClick={e => e.target.select()}
                                                     onChange={e => updateItem(i, item.use_box_entry ? "custom_box_qty" : "accepted_qty", e.target.value)}
                                                     className="so-input text-center font-bold"
                                                     style={{ borderTop: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, borderBottom: item.use_box_entry ? `1px solid ${themeColor}40` : undefined, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
@@ -2850,6 +2889,7 @@ function PurchaseReceiptList() {
                                                   type="text"
                                                   value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
                                                   className="so-input text-center font-bold text-[10px]"
                                                   placeholder="REF / SL #"
@@ -2910,6 +2950,7 @@ function PurchaseReceiptList() {
                                                   type="text"
                                                   value={item.custom_supplier_sl_num || ''}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_supplier_sl_num', e.target.value)}
                                                   className="so-input text-center font-bold"
                                                   placeholder="SL #"
@@ -2934,6 +2975,7 @@ function PurchaseReceiptList() {
                                                     type="number"
                                                     value={item.custom_pieces_per_box || 1}
                                                     onFocus={e => e.target.select()}
+                                                    onClick={e => e.target.select()}
                                                     onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
                                                     className="so-input text-left pl-3 font-bold"
                                                   />
@@ -3012,6 +3054,7 @@ function PurchaseReceiptList() {
                                                   type="number"
                                                   value={item.accepted_qty}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'accepted_qty', e.target.value)}
                                                   className="so-input text-left pl-3 font-bold"
                                                   style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
@@ -3052,6 +3095,7 @@ function PurchaseReceiptList() {
                                                   type="number"
                                                   value={item.rejected_qty}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'rejected_qty', e.target.value)}
                                                   className="so-input text-left pl-3 font-bold text-red-500"
                                                 />
@@ -3074,6 +3118,7 @@ function PurchaseReceiptList() {
                                                   type="number"
                                                   value={item.custom_selling_price || ''}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
                                                   className="so-input text-right pr-3 font-bold text-[#6366f1]"
                                                   step="0.01"
@@ -3102,6 +3147,7 @@ function PurchaseReceiptList() {
                                                     type="number"
                                                     value={item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? ((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2) : '')}
                                                     onFocus={e => e.target.select()}
+                                                    onClick={e => e.target.select()}
                                                     onChange={e => {
                                                       const typedVal = e.target.value;
                                                       const val = parseFloat(typedVal) || 0;
@@ -3154,6 +3200,7 @@ function PurchaseReceiptList() {
                                                     type="number"
                                                     value={item.custom_box_price || 0}
                                                     onFocus={e => e.target.select()}
+                                                    onClick={e => e.target.select()}
                                                     onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
                                                     className="so-input text-right pr-3 font-bold"
                                                     step="0.01"
@@ -3180,6 +3227,7 @@ function PurchaseReceiptList() {
                                                   type="number"
                                                   value={item.rate}
                                                   onFocus={e => e.target.select()}
+                                                  onClick={e => e.target.select()}
                                                   onChange={e => updateItem(i, 'rate', e.target.value)}
                                                   className="so-input text-right pr-3 font-bold"
                                                   step="0.01"

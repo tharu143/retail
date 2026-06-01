@@ -6,7 +6,7 @@ import Swal from 'sweetalert2';
 import {
   AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, Users,
   DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
-  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Edit3, Settings, Link
+  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Edit3, Settings, Link, Copy
 } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { useNavigate } from 'react-router-dom';
@@ -177,12 +177,12 @@ function PurchaseOrder() {
       const inItemsTable = activeEl?.closest('table.so-items-table, table.purchase-table');
 
       let activeRowIndex = -1;
-      if (inItemsTable) {
+      if (inItemsTable && activeEl) {
         const tr = activeEl.closest('tr');
-        if (tr && tr.parentNode) {
-          const index = Array.from(tr.parentNode.children).indexOf(tr);
-          if (index !== -1 && index < formData.items.length) {
-            activeRowIndex = index;
+        if (tr) {
+          const rowIndexAttr = tr.getAttribute('data-row-index');
+          if (rowIndexAttr !== null) {
+            activeRowIndex = parseInt(rowIndexAttr, 10);
           }
         }
       }
@@ -234,8 +234,39 @@ function PurchaseOrder() {
         }
       }
 
-      // F6: Toggle UOM of active row (or last row)
+      // F6: Bulk Quantity Update popup
       if (e.key === 'F6') {
+        e.preventDefault();
+        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
+
+        if (rowIndex >= 0 && rowIndex < formData.items.length) {
+          const item = formData.items[rowIndex];
+          if (item && item.item_code) {
+            Swal.fire({
+              title: 'Bulk Quantity',
+              html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
+                ${item.item_name || item.item_code}
+              </div>`,
+              input: 'number',
+              inputPlaceholder: 'Enter quantity...',
+              inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || ''),
+              showCancelButton: true,
+              confirmButtonText: 'Update',
+              confirmButtonColor: '#10b981',
+              cancelButtonColor: '#64748b'
+            }).then(result => {
+              if (result.isConfirmed && result.value !== undefined) {
+                const newQty = result.value || '';
+                const name = item.use_box_entry ? 'custom_box_qty' : 'qty';
+                handleInputChange({ target: { name, value: newQty } }, rowIndex);
+              }
+            });
+          }
+        }
+      }
+
+      // F8: Toggle UOM of active row (or last row)
+      if (e.key === 'F8') {
         e.preventDefault();
         let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
 
@@ -268,57 +299,16 @@ function PurchaseOrder() {
         }
       }
 
-      // F7: Auto-Apply VAT 5% Template
-      if (e.key === 'F7') {
+      // F7: Save Draft / Update Draft (Primary action)
+      if (e.key === 'F7' || (e.ctrlKey && e.key.toLowerCase() === 's')) {
         e.preventDefault();
-        const defaultTax = taxTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name;
-        if (defaultTax) {
-          onTaxChange(defaultTax);
-          Swal.fire({
-            icon: 'success',
-            title: 'Tax Applied',
-            text: `Applied Tax Template: ${defaultTax}`,
-            toast: true,
-            position: 'top-end',
-            timer: 2000,
-            showConfirmButton: false
-          });
+        if (!saving && formData.docstatus === 0) {
+          handleDocAction('save');
         }
       }
 
-      // F5: Bulk Quantity
-      if (e.key === 'F5') {
-        e.preventDefault();
-        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
-
-        if (rowIndex >= 0 && rowIndex < formData.items.length) {
-          const item = formData.items[rowIndex];
-          if (item && item.item_code) {
-            Swal.fire({
-              title: 'Bulk Quantity',
-              html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
-                ${item.item_name || item.item_code}
-              </div>`,
-              input: 'number',
-              inputPlaceholder: 'Enter quantity...',
-              inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || ''),
-              showCancelButton: true,
-              confirmButtonText: 'Update',
-              confirmButtonColor: '#10b981',
-              cancelButtonColor: '#64748b'
-            }).then(result => {
-              if (result.isConfirmed && result.value !== undefined) {
-                const newQty = result.value || '';
-                const name = item.use_box_entry ? 'custom_box_qty' : 'qty';
-                handleInputChange({ target: { name, value: newQty } }, rowIndex);
-              }
-            });
-          }
-        }
-      }
-
-      // 3. Add Item Row: F8
-      if (e.key === 'F8') {
+      // F10 or Alt+A / Alt+a: Add Item Row
+      if (e.key === 'F10' || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
         e.preventDefault();
         if (formData.docstatus === 0) {
           if (isViewOnly) {
@@ -347,7 +337,7 @@ function PurchaseOrder() {
         }
       }
 
-      // 4. Focus Target Warehouse Select: F9
+      // F9: Focus Target Warehouse Select
       if (e.key === 'F9') {
         e.preventDefault();
         const warehouseSelect = document.querySelector('select[name="set_warehouse"]');
@@ -356,19 +346,22 @@ function PurchaseOrder() {
         }
       }
 
-      // 5. Save Draft: Ctrl + S or F10
-      if ((e.ctrlKey && e.key.toLowerCase() === 's') || e.key === 'F10') {
-        e.preventDefault();
-        if (!saving && formData.docstatus === 0) {
-          handleDocAction('save');
-        }
-      }
-
-      // 6. Submit PO: Ctrl + Enter or F12
+      // F12 / Ctrl+Enter: Submit document
       if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
         e.preventDefault();
         if (!loading && formData.docstatus === 0 && allowedActions.includes('submit')) {
           handleDocAction('submit');
+        }
+      }
+
+      // Escape: Close configuration modals, reset selection
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showColConfig) setShowColConfig(false);
+        else if (showDraftsList) setShowDraftsList(false);
+        else if (showHistoryOverlay !== null) setShowHistoryOverlay(null);
+        else if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          activeEl.blur();
         }
       }
 
@@ -553,15 +546,13 @@ function PurchaseOrder() {
             e.preventDefault();
             qtyBtn.click();
           } else {
-            const numInput = tr.querySelector('input[type="number"]:not([disabled])');
-            if (numInput) {
+            const qtyInput = tr.querySelector('input[name="qty"]:not([disabled])') || tr.querySelector('input[name="custom_box_qty"]:not([disabled])');
+            if (qtyInput && activeRowIndex !== -1) {
               e.preventDefault();
-              const currentVal = parseFloat(numInput.value) || 0;
+              const currentVal = parseFloat(qtyInput.value) || 0;
               const diff = isPlus ? 1 : -1;
               const newVal = Math.max(0, currentVal + diff);
-              numInput.value = newVal;
-              const event = new Event('input', { bubbles: true });
-              numInput.dispatchEvent(event);
+              handleInputChange({ target: { name: qtyInput.name, value: newVal.toString() } }, activeRowIndex);
             }
           }
         }
@@ -569,7 +560,7 @@ function PurchaseOrder() {
 
       // Arrow Up/Down navigation inside table inputs
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
           const isSearchInput = activeEl.placeholder === 'Search item...';
           const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
           // If search input and dropdown is open, only block if they do not hold Alt/Ctrl
@@ -597,21 +588,14 @@ function PurchaseOrder() {
 
       // + / -: Increase / Decrease focused row quantity
       if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
-        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'number') {
-          const td = activeEl.closest('td');
-          const isQtyField = activeEl.name?.toLowerCase().includes('qty') ||
-            activeEl.placeholder?.toLowerCase().includes('qty') ||
-            (activeEl.previousElementSibling && activeEl.previousElementSibling.innerText === '-') ||
-            (activeEl.nextElementSibling && activeEl.nextElementSibling.innerText === '+') ||
-            (td && (td.closest('table')?.querySelector(`thead th:nth-child(${Array.from(td.closest('tr').children).indexOf(td) + 1})`)?.innerText.toLowerCase().includes('qty') || activeEl.placeholder?.toLowerCase().includes('qty')));
-          if (isQtyField) {
+        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
+          const isQtyField = activeEl.name === 'qty' || activeEl.name === 'custom_box_qty';
+          if (isQtyField && activeRowIndex !== -1) {
             e.preventDefault();
             const currentVal = parseFloat(activeEl.value) || 0;
             const diff = (e.key === '+' || e.key === '=') ? 1 : -1;
             const newVal = Math.max(0, currentVal + diff);
-            activeEl.value = newVal;
-            const event = new Event('input', { bubbles: true });
-            activeEl.dispatchEvent(event);
+            handleInputChange({ target: { name: activeEl.name, value: newVal.toString() } }, activeRowIndex);
           }
         }
       }
@@ -1649,6 +1633,39 @@ function PurchaseOrder() {
     return true;
   };
 
+  const handleDuplicate = () => {
+    setFormData(prev => {
+      const cleanedItems = (prev.items || []).map(item => {
+        const {
+          name, parent, parenttype, parentfield, creation, modified, modified_by, owner, docstatus,
+          ...rest
+        } = item;
+        return {
+          ...POItemModel,
+          ...rest,
+          schedule_date: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0, 16)
+        };
+      });
+      return {
+        ...prev,
+        name: '',
+        docstatus: 0,
+        transaction_date: getLocalISOString(),
+        items: cleanedItems
+      };
+    });
+    setIsEditMode(true);
+    setIsViewOnly(false);
+    setCreatedDocName(null);
+    navigate('/purchaseorder');
+    Swal.fire({
+      icon: 'success',
+      title: 'Duplicated!',
+      text: 'You are now editing a new Draft copy of this document.',
+      timer: 2000
+    });
+  };
+
   const handleSaveDraft = async (e) => {
     if (e) e.preventDefault();
     if (!validateForm(false)) return;
@@ -2141,6 +2158,17 @@ function PurchaseOrder() {
               </button>
             )}
 
+            {/* Always show DUPLICATE if name exists */}
+            {formData.name && (
+              <button
+                onClick={handleDuplicate}
+                className="so-btn-secondary"
+                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+              >
+                <Copy size={14} /> DUPLICATE
+              </button>
+            )}
+
             {/* Always show EDIT DRAFT as secondary action on the left of primary when in view mode */}
             {formData.name && formData.docstatus === 0 && isViewOnly && (
               <button
@@ -2251,28 +2279,24 @@ function PurchaseOrder() {
               <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F5</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
               <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
               <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
             </div>
             <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
               <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
-              <span className="text-[10px] font-semibold text-emerald-800">Apply VAT 5%</span>
+              <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F10 / Alt+A</kbd>
               <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
               <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+S / F10</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Save Draft</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
@@ -2281,6 +2305,10 @@ function PurchaseOrder() {
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
               <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
+              <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
@@ -2648,7 +2676,7 @@ function PurchaseOrder() {
                       </thead>
                       <tbody>
                         {formData.items.map((item, idx) => (
-                          <tr key={idx} tabIndex={-1} className="group hover:bg-slate-50 transition-colors">
+                          <tr key={idx} tabIndex={-1} data-row-index={idx} className="group hover:bg-slate-50 transition-colors">
                             {(() => {
                               const hasAnyBox = formData.items.some(i => i.use_box_entry);
                               const activeCols = poColumns.filter(c => {
@@ -2670,6 +2698,8 @@ function PurchaseOrder() {
                                               placeholder={isViewOnly ? '' : 'Barcode'}
                                               readOnly={isViewOnly || formData.docstatus !== 0}
                                               onChange={(e) => handleBarcodeScan(e, idx)}
+                                              onFocus={(e) => e.target.select()}
+                                              onClick={(e) => e.target.select()}
                                               onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && e.target.value) handleBarcodeEnter(e, idx);
                                                 else handleNextFocus(e);
@@ -2733,6 +2763,7 @@ function PurchaseOrder() {
                                               readOnly={isViewOnly || formData.docstatus !== 0}
                                               onChange={(e) => handleInputChange(e, idx)}
                                               onFocus={(e) => e.target.select()}
+                                              onClick={(e) => e.target.select()}
                                               onKeyDown={handleNextFocus}
                                               className={`text-left pl-3 font-bold outline-none ${item.use_box_entry ? 'text-sky-600' : 'text-slate-800'}`}
                                               style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}
@@ -2769,6 +2800,7 @@ function PurchaseOrder() {
                                                 readOnly={isViewOnly || formData.docstatus !== 0}
                                                 onChange={(e) => handleInputChange(e, idx)}
                                                 onFocus={(e) => e.target.select()}
+                                                onClick={(e) => e.target.select()}
                                                 onKeyDown={handleNextFocus}
                                                 className="text-left pl-3"
                                                 title="Pieces per Box"
@@ -2797,6 +2829,7 @@ function PurchaseOrder() {
                                                   readOnly={formData.docstatus !== 0}
                                                   onChange={(e) => handleInputChange(e, idx)}
                                                   onFocus={(e) => e.target.select()}
+                                                  onClick={(e) => e.target.select()}
                                                   onKeyDown={handleNextFocus}
                                                   className="text-right pr-3 font-bold"
                                                 />
@@ -2824,6 +2857,7 @@ function PurchaseOrder() {
                                                 readOnly={formData.docstatus !== 0}
                                                 onChange={(e) => handleInputChange(e, idx)}
                                                 onFocus={(e) => e.target.select()}
+                                                onClick={(e) => e.target.select()}
                                                 onKeyDown={handleNextFocus}
                                                 className="text-right pr-3 font-bold !text-[var(--po-primary)]"
                                               />
@@ -2843,6 +2877,8 @@ function PurchaseOrder() {
                                               value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
                                               readOnly={isViewOnly || formData.docstatus !== 0}
                                               onChange={(e) => handleInputChange(e, idx)}
+                                              onFocus={(e) => e.target.select()}
+                                              onClick={(e) => e.target.select()}
                                               onKeyDown={handleNextFocus}
                                               placeholder={isViewOnly ? '' : 'Serial...'}
                                               className="text-center text-[10px] font-bold"
@@ -2944,6 +2980,7 @@ function PurchaseOrder() {
                                                 readOnly={!isUpdateMode && formData.docstatus !== 0}
                                                 onChange={(e) => handleInputChange(e, idx)}
                                                 onFocus={(e) => e.target.select()}
+                                                onClick={(e) => e.target.select()}
                                                 onKeyDown={handleNextFocus}
                                                 className={`text-right pr-3 font-bold outline-none ${isUpdateMode ? 'bg-amber-50 ring-1 ring-amber-200 rounded px-1' : ''}`}
                                               />

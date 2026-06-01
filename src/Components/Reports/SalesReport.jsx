@@ -139,6 +139,8 @@ function SalesReport() {
                  style={{ paddingLeft: '2.5rem' }}
                  value={filters.from_date}
                  onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
+                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
                />
             </div>
           </div>
@@ -153,6 +155,8 @@ function SalesReport() {
                  style={{ paddingLeft: '2.5rem' }}
                  value={filters.to_date}
                  onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
+                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
                />
             </div>
           </div>

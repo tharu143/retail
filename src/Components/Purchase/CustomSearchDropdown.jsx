@@ -29,11 +29,26 @@ const CustomSearchDropdown = ({
   const ref = useRef(null);
   const inputRef = useRef(null);
   const fetchDataRef = useRef(fetchData);
+  const dropdownContainerRef = useRef(null);
 
   // Keep ref in sync
   useEffect(() => {
     fetchDataRef.current = fetchData;
   }, [fetchData]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    if (show && selectedIndex >= 0 && dropdownContainerRef.current) {
+      const container = dropdownContainerRef.current;
+      const activeEl = container.querySelectorAll('.custom-dropdown-item')[selectedIndex];
+      if (activeEl) {
+        activeEl.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }
+    }
+  }, [selectedIndex, show]);
 
   // Sync with external value
   useEffect(() => {
@@ -208,7 +223,9 @@ const CustomSearchDropdown = ({
       ref={ref}
       style={{
         '--po-primary': themeColor,
-        '--po-primary-light': `${themeColor}15`
+        '--po-primary-light': themeColor && themeColor.startsWith('var(')
+          ? `${themeColor.slice(0, -1)}-light)`
+          : (themeColor ? `${themeColor}15` : '#6366f115')
       }}
     >
       <div className="flex gap-2">
@@ -250,6 +267,7 @@ const CustomSearchDropdown = ({
 
       {show && createPortal(
         <div
+          ref={dropdownContainerRef}
           className="custom-dropdown-portal fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] max-h-72 overflow-auto animate-fadeIn py-1"
           style={{
             top: position.top + 8,
@@ -257,7 +275,9 @@ const CustomSearchDropdown = ({
             width: position.width,
             zIndex: 20000, // CRITICAL: Focus above modal overlay (10500 z-index)
             '--po-primary': themeColor || '#6366f1',
-            '--po-primary-light': themeColor ? `${themeColor}15` : '#6366f115'
+            '--po-primary-light': themeColor && themeColor.startsWith('var(')
+              ? `${themeColor.slice(0, -1)}-light)`
+              : (themeColor ? `${themeColor}15` : '#6366f115')
           }}
         >
           {results.length > 0 && (
@@ -267,7 +287,7 @@ const CustomSearchDropdown = ({
                   key={i}
                   onClick={() => handleItemClick(item)}
                   onMouseEnter={() => setSelectedIndex(i)}
-                  className={`px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
+                  className={`custom-dropdown-item px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
                 >
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2">

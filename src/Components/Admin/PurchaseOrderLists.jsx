@@ -235,6 +235,8 @@ function PurchaseOrderLists() {
               type="date"
               value={filterDateFrom}
               onChange={e => setFilterDateFrom(e.target.value)}
+              onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+              onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
             />
           </div>
           <div style={{ flex: '1 1 150px' }}>
@@ -244,6 +246,8 @@ function PurchaseOrderLists() {
               type="date"
               value={filterDateTo}
               onChange={e => setFilterDateTo(e.target.value)}
+              onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+              onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
             />
           </div>
           <div>
