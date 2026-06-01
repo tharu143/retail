@@ -2148,8 +2148,8 @@ function Home() {
                         item_code: item.id || item.item_code,
                         qty: formValues.qty,
                         uom: formValues.uom,
-                        ...(fromWarehouse ? { from_branch: fromWarehouse } : {}),
-                        to_branch: warehouse
+                        from_warehouse: fromWarehouse || '',
+                        to_warehouse: warehouse || ''
                     }
                 });
 
