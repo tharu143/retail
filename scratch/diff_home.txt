@@ -1,0 +1,945 @@
+diff --git a/src/Components/Headers/Home.jsx b/old_home.jsx
+index 8d9fa56..7d4a2fc 100644
+--- a/src/Components/Headers/Home.jsx
++++ b/old_home.jsx
+@@ -7,7 +7,15 @@ import {
+     RefreshCw, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
+     Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
+     DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan,
+-  ShoppingCart, Minus, Plus, Upload, Percent
++    ShoppingCart, Minus, Plus, Upload, Percent,
++    User,
++    Tag,
++    ArrowLeftRight,
++    Move,
++    QrCode,
++    Smartphone,
++    Banknote,
++    Building2
+ } from 'lucide-react';
+ import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
+ import { logout, toggleTheme } from '../../Redux/Slices/userSlice';
+@@ -407,13 +415,21 @@ function Home() {
+             {showPaymentModal && renderPaymentModal()}
+             {showOpeningModal && (
+                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
+-          <div className="home-modal" style={{ maxWidth: '1100px', maxHeight: '95vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+-            <div className="home-modal-header">
+-              <h3>Open POS Shift</h3>
++                    <div className="home-modal" style={{ maxWidth: '900px', maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
++                        <div className="home-modal-header bg-slate-900 border-b border-slate-800 p-5 flex justify-between items-center">
++                            <div className="flex items-center gap-3">
++                                <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl shadow-inner">
++                                    <DollarSign size={20} />
++                                </div>
++                                <div>
++                                    <h3 className="text-sm font-black uppercase tracking-wider text-white m-0">Open POS Session</h3>
++                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Initialize your cash register to begin</p>
++                                </div>
++                            </div>
+                             <button className="home-modal-close" onClick={handleLogout}>X</button>
+                         </div>
+-            <div className="home-modal-body" style={{ padding: 0 }}>
+-              <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} />
++                        <div className="home-modal-body" style={{ padding: 0, flex: 1, overflowY: 'auto', background: '#f8fafc' }}>
++                            <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} isModal={true} onCancel={handleLogout} />
+                         </div>
+                     </div>
+                 </div>
+@@ -846,6 +862,26 @@ function Home() {
+     const nameInputRef = useRef(null);
+ 
+     // ---------- CALCULATIONS (Defined before handlers) ----------
++    const subtotal = useMemo(() =>
++        billItems.reduce((sum, item) => {
++            // Calculate effective price for the selected UOM
++            // If Box is selected and a specific Box price exists, use it. Otherwise, use piece price * factor.
++            const factor = (item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1);
++            const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
++            return sum + flt(effectivePrice * item.qty);
++        }, 0)
++        , [billItems]);
++
++    const discountAmount = useMemo(() => {
++        if (discount.value <= 0) return 0;
++        const amt = (discount.type === 'percentage' || discount.type === 'percent')
++            ? (subtotal * discount.value) / 100
++            : discount.value;
++        return flt(amt);
++    }, [subtotal, discount]);
++
++    const netTotal = useMemo(() => flt(subtotal - discountAmount), [subtotal, discountAmount]);
++
+     const taxRate = useMemo(() => {
+         // 1. GLOBAL FALLBACK: If company is KSPL, we default to 5% if API fails
+         if (taxTemplates.length === 0) return 5.0;
+@@ -880,33 +916,6 @@ function Home() {
+         return flt(rate || 5.0);
+     }, [selectedTaxTemplate, taxTemplates]);
+ 
+-  const subtotal = useMemo(() =>
+-    billItems.reduce((sum, item) => {
+-      // Calculate effective price for the selected UOM
+-      const factor = (item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1);
+-      const price = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
+-      const lineTotal = price * item.qty;
+-
+-      // If inclusive, we extract the base price from the total
+-      // If exclusive, the price is the base
+-      let netItem = lineTotal;
+-      if (item.is_tax_inclusive) {
+-        netItem = lineTotal / (1 + (taxRate / 100));
+-      }
+-      return sum + flt(netItem);
+-    }, 0)
+-    , [billItems, taxRate]);
+-
+-  const discountAmount = useMemo(() => {
+-    if (discount.value <= 0) return 0;
+-    const amt = (discount.type === 'percentage' || discount.type === 'percent')
+-      ? (subtotal * discount.value) / 100
+-      : discount.value;
+-    return flt(amt);
+-  }, [subtotal, discount]);
+-
+-  const netTotal = useMemo(() => flt(subtotal - discountAmount), [subtotal, discountAmount]);
+-
+     const taxAmount = useMemo(() => flt(netTotal * (taxRate / 100)), [netTotal, taxRate]);
+ 
+     const grandTotal = useMemo(() => round2(netTotal + taxAmount), [netTotal, taxAmount]);
+@@ -1449,8 +1458,7 @@ function Home() {
+                     ...item,
+                     qty: 1,
+                     uom: baseUom,
+-          price: initialPrice,
+-          is_tax_inclusive: true // Default to inclusive for retail
++                    price: initialPrice
+                 };
+                 setSelectedBillIndex(prev.length);
+                 return [...prev, newItem];
+@@ -1733,6 +1741,20 @@ function Home() {
+                 e.preventDefault();
+                 setSelectedBillIndex(prev => Math.max(prev - 1, 0));
+             }
++        } else if (e.key === 'ArrowLeft') {
++            if (selectedBillIndex !== -1) {
++                e.preventDefault();
++                const newBill = [...billItems];
++                newBill[selectedBillIndex].is_tax_inclusive = false;
++                setBillItems(newBill);
++            }
++        } else if (e.key === 'ArrowRight') {
++            if (selectedBillIndex !== -1) {
++                e.preventDefault();
++                const newBill = [...billItems];
++                newBill[selectedBillIndex].is_tax_inclusive = true;
++                setBillItems(newBill);
++            }
+         } else if (e.key === 'Enter') {
+             if (activeItemIndex >= 0 && itemSearchResults[activeItemIndex]) {
+                 handleAddToBill(itemSearchResults[activeItemIndex]);
+@@ -2621,78 +2643,111 @@ function Home() {
+ 
+     // ---------- MODAL RENDERERS (REUSABLE) ----------
+     const renderDiscountModal = () => (
+-    <div className="home-modal-overlay" onClick={() => setShowDiscountModal(false)}>
+-      <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+-        <div className="home-modal-header">
+-          <h3>Apply Discount</h3>
+-          <button className="home-modal-close" onClick={() => setShowDiscountModal(false)}><X size={20} /></button>
++        <div
++            className="home-modal-overlay"
++            onClick={() => setShowDiscountModal(false)}
++            style={{
++                position: 'fixed',
++                inset: 0,
++                backgroundColor: 'rgba(15, 23, 42, 0.75)',
++                backdropFilter: 'blur(8px)',
++                display: 'flex',
++                justifyContent: 'center',
++                alignItems: 'center',
++                zIndex: 10000
++            }}
++        >
++            <div
++                className="home-modal"
++                onClick={e => e.stopPropagation()}
++                style={{
++                    width: '100%',
++                    maxWidth: '420px',
++                    backgroundColor: '#ffffff',
++                    borderRadius: '32px',
++                    overflow: 'hidden',
++                    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
++                    display: 'flex',
++                    flexDirection: 'column',
++                    margin: '20px'
++                }}
++            >
++                <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-6 flex justify-between items-center">
++                    <div className="flex items-center gap-3">
++                        <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
++                            <Percent size={20} />
++                        </div>
++                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Apply Discount</h3>
+                     </div>
+-        <div className="home-modal-body">
+-          <div className="home-discount-toggle">
+                     <button
+-              className={`home-discount-type-btn ${discount.type === 'amount' ? 'active' : ''}`}
++                        className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
++                        onClick={() => setShowDiscountModal(false)}
++                    >
++                        <X size={20} />
++                    </button>
++                </div>
++
++                <div className="home-modal-body p-8 flex flex-col gap-6">
++                    {/* Discount Type Toggle */}
++                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
++                        <button
++                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${discount.type === 'amount' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                             onClick={() => setDiscount({ ...discount, type: 'amount' })}
+                         >
+-              <DollarSign size={16} /> AED (Fixed)
++                            <DollarSign size={14} /> AED
+                         </button>
+                         <button
+-              className={`home-discount-type-btn ${discount.type === 'percentage' ? 'active' : ''}`}
++                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${discount.type === 'percentage' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                             onClick={() => setDiscount({ ...discount, type: 'percentage' })}
+                         >
+-              <Layers size={16} /> % (Percent)
++                            <Percent size={14} /> Percent
+                         </button>
+                     </div>
+-          <div style={{ position: 'relative' }}>
+-            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, color: '#2563eb', fontSize: '1.2rem' }}>
+-              {discount.type === 'amount' ? 'AED' : '%'}
+-            </span>
++
++                    {/* Input Area */}
++                    <div className="relative group">
++                        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
++                            <span className="text-2xl font-black text-blue-500">{discount.type === 'amount' ? 'AED' : '%'}</span>
++                        </div>
+                         <input
+                             type="number"
+                             placeholder="0.00"
+-              className="home-customer-input"
+-              style={{ paddingLeft: '3.5rem', fontSize: '1.5rem', fontWeight: 900, textAlign: 'right' }}
++                            className="w-full pl-20 pr-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-4xl font-black text-slate-900 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-200"
+                             value={discountInput}
+                             onChange={e => setDiscountInput(e.target.value)}
+                             onKeyDown={(e) => e.key === 'Enter' && (setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }), setShowDiscountModal(false))}
+                             autoFocus
+                         />
+                     </div>
++
++                    {/* Impact Summary */}
++                    <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl relative overflow-hidden">
++                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full -mr-12 -mt-12 blur-xl"></div>
++                        <div className="flex justify-between items-center relative z-10">
++                            <div className="flex flex-col">
++                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Total</span>
++                                <span className="text-lg font-black">AED {subtotal.toFixed(2)}</span>
++                            </div>
++                            <div className="flex flex-col items-end">
++                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Final Price</span>
++                                <span className="text-2xl font-black text-blue-400">
++                                    AED {flt(subtotal - ((discount.type === 'percentage' ? subtotal * (parseFloat(discountInput) || 0) / 100 : (parseFloat(discountInput) || 0)))).toFixed(2)}
++                                </span>
++                            </div>
+                         </div>
+-        <div className="home-modal-footer" style={{ gap: '12px', padding: '20px' }}>
++                    </div>
++                </div>
++
++                <div className="home-modal-footer p-8 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
+                     <button
+-            className="home-modal-cancel"
++                        className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
+                         onClick={clearDiscount}
+-            style={{
+-              flex: 1,
+-              padding: '12px',
+-              borderRadius: '12px',
+-              background: '#f1f5f9',
+-              color: '#64748b',
+-              fontWeight: 800,
+-              fontSize: '13px',
+-              textTransform: 'uppercase',
+-              letterSpacing: '0.05em',
+-              transition: 'all 0.2s'
+-            }}
+                     >
+-            Clear
++                        Reset
+                     </button>
+                     <button
+-            className="home-modal-apply"
+                         onClick={() => { setDiscount({ ...discount, value: parseFloat(discountInput) || 0 }); setShowDiscountModal(false); }}
+-            style={{
+-              flex: 2,
+-              padding: '12px',
+-              borderRadius: '12px',
+-              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+-              color: '#ffffff',
+-              fontWeight: 800,
+-              fontSize: '13px',
+-              textTransform: 'uppercase',
+-              letterSpacing: '0.05em',
+-              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+-              transition: 'all 0.2s'
+-            }}
++                        className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all text-sm"
+                     >
+                         Apply Discount
+                     </button>
+@@ -2701,30 +2756,72 @@ function Home() {
+         </div>
+     );
+ 
++
+     const renderPaymentModal = () => (
+-    <div className="home-modal-overlay" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }} style={{ zIndex: 9999 }}>
+-      <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+-        <div className="home-modal-header bg-slate-50 border-b border-slate-100 p-6 flex justify-between items-center">
+-          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Add Payment</h3>
+-          <button className="text-slate-400 hover:text-slate-600 transition-colors" onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}><X size={24} /></button>
++        <div
++            className="home-modal-overlay"
++            onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}
++            style={{
++                position: 'fixed',
++                inset: 0,
++                backgroundColor: 'rgba(15, 23, 42, 0.75)',
++                backdropFilter: 'blur(8px)',
++                display: 'flex',
++                justifyContent: 'center',
++                alignItems: 'center',
++                zIndex: 10000
++            }}
++        >
++            <div
++                className="home-modal"
++                onClick={e => e.stopPropagation()}
++                style={{
++                    width: '100%',
++                    maxWidth: '540px',
++                    backgroundColor: '#ffffff',
++                    borderRadius: '32px',
++                    overflow: 'hidden',
++                    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
++                    display: 'flex',
++                    flexDirection: 'column',
++                    margin: '20px',
++                    maxHeight: '90vh'
++                }}
++            >
++                <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-6 flex justify-between items-center">
++                    <div className="flex items-center gap-3">
++                        <div className="w-10 h-10 bg-sky-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-sky-200">
++                            <CreditCard size={20} />
++                        </div>
++                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Process Payment</h3>
++                    </div>
++                    <button
++                        className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
++                        onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}
++                    >
++                        <X size={20} />
++                    </button>
+                 </div>
+ 
+-        <div className="home-modal-body p-8 flex flex-col gap-6">
++                <div className="home-modal-body p-8 flex flex-col gap-6 overflow-y-auto">
+                     {/* Summary Card */}
+-          <div className="bg-sky-50 border-2 border-sky-100 p-6 rounded-2xl shadow-sm">
+-            <div className="flex justify-between items-center mb-4">
+-              <span className="text-xs font-black uppercase tracking-widest text-sky-600/70">Total Amount</span>
+-              <span className="text-xs font-black uppercase tracking-widest text-sky-600/70">Paid So Far</span>
+-            </div>
+-            <div className="flex justify-between items-center mb-6">
+-              <span className="text-2xl font-black text-slate-800">AED {grandTotal.toFixed(2)}</span>
+-              <span className="text-2xl font-black text-emerald-600">AED {totalPaid.toFixed(2)}</span>
+-            </div>
+-            <div className="pt-4 border-t border-sky-200/50 flex justify-between items-center">
+-              <span className="text-sm font-black uppercase tracking-wide text-slate-500">
+-                {balanceRemaining > 0 ? 'Balance to Pay' : 'Change Due'}
++                    <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
++                        <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
++                        <div className="flex justify-between items-center mb-6 relative z-10">
++                            <div className="flex flex-col">
++                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Bill</span>
++                                <span className="text-2xl font-black">AED {grandTotal.toFixed(2)}</span>
++                            </div>
++                            <div className="flex flex-col items-end">
++                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Paid Amount</span>
++                                <span className="text-2xl font-black text-emerald-400">AED {totalPaid.toFixed(2)}</span>
++                            </div>
++                        </div>
++                        <div className="pt-4 border-t border-white/10 flex justify-between items-center relative z-10">
++                            <span className="text-xs font-black uppercase tracking-widest text-slate-400">
++                                {balanceRemaining > 0 ? 'Remaining Balance' : 'Change to Return'}
+                             </span>
+-              <span className={`text-3xl font-black ${balanceRemaining > 0 ? 'text-rose-600' : 'text-amber-600'}`}>
++                            <span className={`text-3xl font-black ${balanceRemaining > 0 ? 'text-sky-400' : 'text-amber-400'}`}>
+                                 AED {Math.abs(balanceRemaining).toFixed(2)}
+                             </span>
+                         </div>
+@@ -2733,20 +2830,20 @@ function Home() {
+                     {/* Added Payments List */}
+                     {payments.length > 0 && (
+                         <div className="flex flex-col gap-3">
+-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Current Ledger</h4>
+-              <div className="flex flex-col gap-2">
++                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Payment Ledger</h4>
++                            <div className="flex flex-col gap-2 max-h-[100px] overflow-y-auto pr-1">
+                                 {payments.map((p, idx) => (
+-                  <div key={idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md">
++                                    <div key={idx} className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100 group">
+                                         <div className="flex items-center gap-3">
+-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${p.mode_of_payment === 'Cash' ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
+-                        {p.mode_of_payment === 'Cash' ? <DollarSign size={20} /> : <CreditCard size={20} />}
++                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.mode_of_payment.includes('Cash') ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
++                                                {p.mode_of_payment.includes('Cash') ? <Banknote size={16} /> : <CreditCard size={16} />}
+                                             </div>
+-                      <span className="font-bold text-slate-700">{p.mode_of_payment}</span>
++                                            <span className="text-sm font-bold text-slate-700">{p.mode_of_payment}</span>
+                                         </div>
+                                         <div className="flex items-center gap-4">
+-                      <span className="font-black text-slate-900">AED {p.amount.toFixed(2)}</span>
+-                      <button onClick={() => removePayment(idx)} className="text-rose-400 hover:text-rose-600 p-2 opacity-0 group-hover:opacity-100 transition-all">
+-                        <Trash2 size={18} />
++                                            <span className="text-sm font-black text-slate-900">AED {p.amount.toFixed(2)}</span>
++                                            <button onClick={() => removePayment(idx)} className="text-rose-400 hover:text-rose-600 p-1">
++                                                <Trash2 size={14} />
+                                             </button>
+                                         </div>
+                                     </div>
+@@ -2760,50 +2857,72 @@ function Home() {
+                         <div className="flex flex-col gap-4">
+                             {!selectedPaymentMode ? (
+                                 <>
+-                  <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Select Method</h5>
++                                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Select Payment Method</h5>
+                                     <div className="grid grid-cols-2 gap-4">
+                                         <button
+-                      className="group p-6 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95"
++                                            className="group p-5 bg-emerald-50 border-2 border-emerald-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                             onClick={() => setSelectedPaymentMode('Cash')}
+                                         >
+-                      <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center group-hover:bg-white/20 group-hover:text-white transition-all">
++                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded shadow-sm">1</div>
++                                            <div className="w-12 h-12 bg-white text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                 <DollarSign size={28} />
+                                             </div>
+-                      <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white">Cash Payment</span>
++                                            <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white text-xs">Cash</span>
+                                         </button>
+                                         <button
+-                      className="group p-6 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-3 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95"
++                                            className="group p-5 bg-sky-50 border-2 border-sky-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                             onClick={() => setSelectedPaymentMode('Credit Card')}
+                                         >
+-                      <div className="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center group-hover:bg-white/20 group-hover:text-white transition-all">
++                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-sky-600 text-white text-[10px] font-black rounded shadow-sm">2</div>
++                                            <div className="w-12 h-12 bg-white text-sky-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                 <CreditCard size={28} />
+                                             </div>
+-                      <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white">Card Payment</span>
++                                            <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white text-xs">Card</span>
++                                        </button>
++                                        <button
++                                            className="group p-5 bg-purple-50 border-2 border-purple-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
++                                            onClick={() => setSelectedPaymentMode('InstaPay Cash')}
++                                        >
++                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-purple-600 text-white text-[10px] font-black rounded shadow-sm">3</div>
++                                            <div className="w-12 h-12 bg-white text-purple-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
++                                                <Banknote size={28} />
++                                            </div>
++                                            <span className="font-black uppercase tracking-widest text-purple-700 group-hover:text-white text-[10px] text-center">Insta Cash</span>
++                                        </button>
++                                        <button
++                                            className="group p-5 bg-indigo-50 border-2 border-indigo-100 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
++                                            onClick={() => setSelectedPaymentMode('InstaPay Bank')}
++                                        >
++                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black rounded shadow-sm">4</div>
++                                            <div className="w-12 h-12 bg-white text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
++                                                <Building2 size={28} />
++                                            </div>
++                                            <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[10px] text-center">Insta Bank</span>
+                                         </button>
+                                     </div>
+                                 </>
+                             ) : (
+-                <div className="bg-slate-50 p-6 rounded-2xl border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2">
+-                  <div className="flex justify-between items-center mb-4">
+-                    <span className="text-sm font-black text-slate-500 uppercase tracking-widest">{selectedPaymentMode} Amount</span>
+-                    <button onClick={() => setSelectedPaymentMode('')} className="text-xs font-bold text-sky-600 hover:underline">Change Mode</button>
++                                <div className="bg-slate-50 p-6 rounded-[2.5rem] border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2">
++                                    <div className="flex justify-between items-center mb-4 px-2">
++                                        <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{selectedPaymentMode} Amount</span>
++                                        <button onClick={() => setSelectedPaymentMode('')} className="text-[10px] font-black text-sky-600 hover:underline uppercase">Change Mode</button>
+                                     </div>
+-                  <div className="mb-4 flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-sky-100 transition-all">
++                                    <div className="mb-4 flex items-center bg-white border-2 border-sky-500 rounded-2xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
+                                         <span className="pl-6 pr-3 text-xl font-black text-slate-400">AED</span>
+                                         <input
+                                             type="number"
+                                             value={tenderedAmount}
+                                             onChange={e => setTenderedAmount(e.target.value)}
+-                      className="w-full pr-6 py-4 bg-transparent text-3xl font-black text-slate-900 outline-none"
++                                            className="w-full pr-6 py-5 bg-transparent text-4xl font-black text-slate-900 outline-none"
+                                             autoFocus
+                                             onKeyDown={(e) => e.key === 'Enter' && addPayment()}
+                                         />
+                                     </div>
+                                     <button
+                                         onClick={addPayment}
+-                    className="w-full py-4 bg-sky-600 text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all"
++                                        className="w-full py-5 bg-sky-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all text-sm"
+                                     >
+-                    Confirm AED {(parseFloat(tenderedAmount) || 0).toFixed(2)}
++                                        Add {selectedPaymentMode} AED {(parseFloat(tenderedAmount) || 0).toFixed(2)}
+                                     </button>
+                                 </div>
+                             )}
+@@ -2811,23 +2930,23 @@ function Home() {
+                     )}
+                 </div>
+ 
+-        <div className="home-modal-footer p-6 bg-slate-50 flex justify-between items-center border-t border-slate-100">
++                <div className="home-modal-footer p-8 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
+                     <button
+-            className="px-8 py-3 text-slate-500 font-black uppercase tracking-widest hover:text-slate-700 transition-all"
++                        className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
+                         onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}
+                     >
+-            Cancel
++                        Cancel Order
+                     </button>
+                     <button
+                         onClick={completePayment}
+                         disabled={paymentLoading || balanceRemaining > 0}
+-            className={`px-10 py-3 rounded-xl font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-3 ${balanceRemaining <= 0
++                        className={`flex-[2] py-4 rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 text-sm ${balanceRemaining <= 0
+                             ? 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'
+                             : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                             }`}
+                     >
+                         {paymentLoading ? <Loader2 size={20} className="animate-spin" /> : <Package size={20} />}
+-            {paymentLoading ? 'Processing...' : 'Complete Payment'}
++                        {paymentLoading ? 'Finalizing...' : 'Complete Payment'}
+                     </button>
+                 </div>
+             </div>
+@@ -3059,6 +3178,35 @@ function Home() {
+                 }
+             }
+ 
++            // Payment Modal Shortcuts
++            if (showPaymentModal) {
++                if (!selectedPaymentMode) {
++                    if (e.key === '1') {
++                        e.preventDefault();
++                        setSelectedPaymentMode('Cash');
++                    } else if (e.key === '2') {
++                        e.preventDefault();
++                        setSelectedPaymentMode('Credit Card');
++                    } else if (e.key === '3') {
++                        e.preventDefault();
++                        setSelectedPaymentMode('InstaPay Cash');
++                    } else if (e.key === '4') {
++                        e.preventDefault();
++                        setSelectedPaymentMode('InstaPay Bank');
++                    }
++                }
++                if (e.key === 'Escape') {
++                    e.preventDefault();
++                    if (selectedPaymentMode) setSelectedPaymentMode('');
++                    else {
++                        setShowPaymentModal(false);
++                        setPayments([]);
++                    }
++                }
++                // Enter is already handled by the input field in the modal
++                return; // Prioritize payment modal keys
++            }
++
+             // F6: Quick Price Update
+             if (e.key === 'F6') {
+                 e.preventDefault();
+@@ -3108,36 +3256,31 @@ function Home() {
+                 }
+             }
+ 
+-      // Arrow Keys for Bill Navigation
++            // Arrow Keys for Bill Navigation & Tax Toggle
+             const isSearchDropdownOpen = showItemDropdown || showDropdown;
+             if (billItems.length > 0 && !isSearchDropdownOpen) {
+                 if (e.key === 'ArrowDown') {
+                     e.preventDefault();
+-          setSelectedBillIndex(prev => Math.min(prev + 1, billItems.length - 1));
++                    setSelectedBillIndex(prev => prev === -1 ? 0 : Math.min(prev + 1, billItems.length - 1));
+                 } else if (e.key === 'ArrowUp') {
+                     e.preventDefault();
+-          setSelectedBillIndex(prev => Math.max(prev - 1, 0));
+-        } else if (e.key === 'ArrowRight') {
+-          // Toggle Inclusive Tax
++                    setSelectedBillIndex(prev => prev === -1 ? billItems.length - 1 : Math.max(prev - 1, 0));
++                } else if (e.key === 'ArrowLeft' && selectedBillIndex !== -1) {
+                     e.preventDefault();
+-          if (selectedBillIndex !== -1) {
+-            const nextBill = [...billItems];
+-            nextBill[selectedBillIndex].is_tax_inclusive = true;
+-            setBillItems(nextBill);
+-          }
+-        } else if (e.key === 'ArrowLeft') {
+-          // Toggle Exclusive Tax
++                    const newBill = [...billItems];
++                    newBill[selectedBillIndex].is_tax_inclusive = false;
++                    setBillItems(newBill);
++                } else if (e.key === 'ArrowRight' && selectedBillIndex !== -1) {
+                     e.preventDefault();
+-          if (selectedBillIndex !== -1) {
+-            const nextBill = [...billItems];
+-            nextBill[selectedBillIndex].is_tax_inclusive = false;
+-            setBillItems(nextBill);
+-          }
++                    const newBill = [...billItems];
++                    newBill[selectedBillIndex].is_tax_inclusive = true;
++                    setBillItems(newBill);
+                 }
+             }
+ 
+             // Space or F12: Open Payment (Global focus handling)
+-      if ((e.key === ' ' || e.key === 'F12') && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
++            // F12 or Space: Open Payment
++            if (e.key === 'F12' || (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
+                 if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                     e.preventDefault();
+                     handleCheckout();
+@@ -3245,7 +3388,7 @@ function Home() {
+         return (
+             <div className="so-page">
+                 {/* MODERN TOOL STRIP */}
+-        <div className="so-tool-strip">
++                <div className="so-tool-strip" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '8px 16px', overflowX: 'auto', minHeight: 'fit-content' }}>
+                     <div className="flex items-center gap-2 mr-6 border-r border-slate-200 pr-6">
+                         <h1 className="text-xl font-black tracking-tighter text-slate-800">
+                             POS<span className="text-emerald-500">8</span>
+@@ -3261,8 +3404,8 @@ function Home() {
+                         <span className="so-shortcut-label">Search</span>
+                     </div>
+                     <div className="so-shortcut-badge" onClick={handleCheckout}>
+-            <span className="so-shortcut-key">SPACE</span>
+-            <span className="so-shortcut-label">Pay Now</span>
++                        <span className="so-shortcut-key">SPACE / F12</span>
++                        <span className="so-shortcut-label">Process Payment</span>
+                     </div>
+                     <div className="so-shortcut-badge" style={{ background: '#fef2f2', borderColor: '#fee2e2' }} onClick={() => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); }}>
+                         <span className="so-shortcut-key" style={{ color: '#ef4444', borderColor: '#fca5a5' }}>ESC</span>
+@@ -3276,6 +3419,10 @@ function Home() {
+                         <span className="so-shortcut-key">F10</span>
+                         <span className="so-shortcut-label">Bulk Qty</span>
+                     </div>
++                    <div className="so-shortcut-badge">
++                        <span className="so-shortcut-key">← →</span>
++                        <span className="so-shortcut-label">Tax Incl/Excl</span>
++                    </div>
+                     <div className="so-shortcut-badge">
+                         <span className="so-shortcut-key">↑ ↓</span>
+                         <span className="so-shortcut-label">Navigate</span>
+@@ -3284,10 +3431,6 @@ function Home() {
+                         <span className="so-shortcut-key">+ / -</span>
+                         <span className="so-shortcut-label">Quantity</span>
+                     </div>
+-          <div className="so-shortcut-badge">
+-            <span className="so-shortcut-key">← / →</span>
+-            <span className="so-shortcut-label">Tax Mode</span>
+-          </div>
+ 
+                     <div className="h-6 w-px bg-slate-200 mx-2"></div>
+ 
+@@ -3930,7 +4073,7 @@ function Home() {
+                                                 <td className="text-center px-2 font-black text-amber-600 bg-amber-50">
+                                                     {item.qty * factor}
+                                                 </td>
+-                        <td className="p-0 relative">
++                                                <td className="p-0">
+                                                     <input
+                                                         type="number"
+                                                         step="0.01"
+@@ -3939,23 +4082,11 @@ function Home() {
+                                                         className="w-full h-full text-center px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none"
+                                                         onFocus={e => e.target.select()}
+                                                     />
+-                          <div 
+-                            className={`absolute -top-1 -right-1 px-1 rounded-[4px] text-[8px] font-black tracking-tighter ${item.is_tax_inclusive ? 'bg-sky-500 text-white' : 'bg-amber-500 text-white'}`}
+-                            style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+-                          >
+-                            {item.is_tax_inclusive ? 'INC' : 'EXC'}
+-                          </div>
+                                                 </td>
+                                                 <td className="text-center px-2 font-bold text-slate-500 text-[10px] italic">
+-                          {item.is_tax_inclusive 
+-                            ? (lineTotal - (lineTotal / (1 + (taxRate / 100)))).toFixed(2)
+-                            : (lineTotal * (taxRate / 100)).toFixed(2)}
+-                        </td>
+-                        <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50">
+-                          AED {item.is_tax_inclusive 
+-                            ? (parseFloat(lineTotal) || 0).toFixed(2)
+-                            : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
++                                                    {(lineTotal * 0.05).toFixed(2)}
+                                                 </td>
++                                                <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50">AED {(parseFloat(lineTotal) || 0).toFixed(2)}</td>
+                                                 <td className="text-center">
+                                                     <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
+                                                 </td>
+@@ -4061,193 +4192,86 @@ function Home() {
+                         </div>
+ 
+                         {/* BOTTOM BAR: SHORTCUTS & TOTALS */}
+-            <div className="classic-bottom-bar flex items-center justify-between px-6 py-3">
++                        <div className="classic-bottom-bar flex flex-col md:flex-row items-stretch md:items-center justify-between px-4 py-2 bg-slate-50 border-t border-slate-200 gap-4">
+                             {/* Shortcut Overview on the Left */}
+-              <div className="shortcut-guide flex gap-3 flex-none">
+-                <button
+-                  onClick={() => mobileInputRef.current?.focus()}
+-                  className="shortcut-item flex items-center gap-2 bg-white/40 hover:bg-slate-50 border border-slate-200/60 p-1.5 rounded-lg transition-all active:scale-95 group cursor-pointer"
+-                  style={{ background: 'none', border: 'none' }}
+-                  title="Click to search customer (F2)"
+-                >
+-                  <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
+-                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+-                  >
+-                    F2
+-                  </span>
+-                  <span className="shortcut-label text-[11px] font-black text-slate-500 uppercase tracking-wider group-hover:text-blue-600 transition-colors">Customer</span>
+-                </button>
+-
+-                <button
+-                  onClick={() => barcodeInputRef.current?.focus()}
+-                  className="shortcut-item flex items-center gap-2 bg-white/40 hover:bg-slate-50 border border-slate-200/60 p-1.5 rounded-lg transition-all active:scale-95 group cursor-pointer"
+-                  style={{ background: 'none', border: 'none' }}
+-                  title="Click to search items (F4)"
+-                >
+-                  <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
+-                    style={{ background: 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+-                  >
+-                    F4
+-                  </span>
+-                  <span className="shortcut-label text-[11px] font-black text-slate-500 uppercase tracking-wider group-hover:text-purple-600 transition-colors">Search</span>
+-                </button>
+-
+-                <button
+-                  onClick={() => {
+-                    if (lastInteractedItem) {
+-                      handleFindNearestStock(lastInteractedItem);
+-                    } else {
+-                      alert('Please select or search for an item first to check warehouse stock!');
+-                    }
+-                  }}
+-                  className="shortcut-item flex items-center gap-2 bg-white/40 hover:bg-slate-50 border border-slate-200/60 p-1.5 rounded-lg transition-all active:scale-95 group cursor-pointer"
+-                  style={{ background: 'none', border: 'none' }}
+-                  title="Click to check warehouse stock (F8)"
+-                >
+-                  <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
+-                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+-                  >
+-                    F8
+-                  </span>
+-                  <span className="shortcut-label text-[11px] font-black text-slate-500 uppercase tracking-wider group-hover:text-amber-600 transition-colors">Stock</span>
+-                </button>
+-
+-                <button
+-                  onClick={() => { if (billItems.length > 0) handleCheckout(); }}
+-                  className="shortcut-item flex items-center gap-2 bg-white/40 hover:bg-emerald-50 border border-emerald-200/60 p-1.5 rounded-lg transition-all active:scale-95 group cursor-pointer"
+-                  style={{ background: 'none', border: 'none' }}
+-                  disabled={billItems.length === 0}
+-                  title="Click to checkout & pay (F12)"
+-                >
+-                  <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md transition-transform group-hover:-translate-y-0.5"
+-                    style={{
+-                      background: billItems.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)' : '#94a3b8',
+-                      textShadow: '0 1px 1px rgba(0,0,0,0.2)',
+-                      opacity: billItems.length > 0 ? 1 : 0.6
+-                    }}
+-                  >
+-                    F12
+-                  </span>
+-                  <span className="shortcut-label text-[11px] font-black text-emerald-600 uppercase tracking-wider group-hover:text-emerald-700 transition-colors">Pay</span>
+-                </button>
+-
+-                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+-                  <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+-                    style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+-                  >
+-                    F6
+-                  </span>
+-                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Price</span>
+-                </div>
+-
+-                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+-                  <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+-                    style={{ background: 'linear-gradient(135deg, #d946ef 0%, #a21caf 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
++                            <div className="shortcut-guide flex flex-wrap items-center gap-2 flex-1">
++                                {[
++                                    { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
++                                    { key: 'F4', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
++                                    { key: 'F6', label: 'Price', color: '#0ea5e9', icon: <Tag size={12} /> },
++                                    {
++                                        key: 'F8', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
++                                            if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
++                                            else Swal.fire('Info', 'Select an item first', 'info');
++                                        }
++                                    },
++                                    { key: 'F10', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} /> },
++                                    { key: 'F12', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
++                                    { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
++                                    { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
++                                    { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
++                                    { key: 'ESC', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: () => { setBillItems([]); setSelectedBillIndex(-1); setDiscount({ type: 'amount', value: 0 }); } },
++                                ].map((s, idx) => (
++                                    <div
++                                        key={idx}
++                                        className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded shadow-sm hover:shadow-md transition-all cursor-pointer group"
++                                        onClick={s.action}
+                                     >
+-                    F10
+-                  </span>
+-                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Bulk Qty</span>
+-                </div>
+-
+-                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+                                         <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+-                    style={{ background: 'linear-gradient(135deg, #64748b 0%, #334155 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
++                                            className="px-1.5 py-0.5 rounded text-[10px] font-black text-white shadow-sm"
++                                            style={{ background: s.color }}
+                                         >
+-                    ↑↓
++                                            {s.key}
+                                         </span>
+-                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Navigate</span>
++                                        <div className="flex items-center gap-1 text-slate-500 group-hover:text-slate-800 transition-colors">
++                                            {s.icon}
++                                            <span className="text-[10px] font-black uppercase tracking-tight">{s.label}</span>
+                                         </div>
+-
+-                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+-                  <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+-                    style={{ background: 'linear-gradient(135deg, #64748b 0%, #334155 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+-                  >
+-                    +/-
+-                  </span>
+-                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Qty</span>
+-                </div>
+-
+-                <div className="shortcut-item flex items-center gap-2 p-1.5 rounded-lg opacity-80">
+-                  <span
+-                    className="shortcut-key px-2.5 py-1 rounded font-black text-xs text-white shadow-md"
+-                    style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)', textShadow: '0 1px 1px rgba(0,0,0,0.2)' }}
+-                  >
+-                    ← / →
+-                  </span>
+-                  <span className="shortcut-label text-[10px] font-black text-slate-400 uppercase tracking-wider">Tax Mode</span>
+                                     </div>
++                                ))}
+                             </div>
+ 
+-              {/* Totals Section grouped together on the Right with clean divider columns */}
+-              <div className="flex items-center gap-6 ml-auto flex-none">
+-                {/* Tax Template Selector */}
+-                <div className="flex flex-col items-start gap-1">
+-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">TAX TEMPLATE:</span>
++                            {/* Totals Section */}
++                            <div className="flex items-center gap-4 ml-auto py-1">
++                                <div className="flex flex-col items-start px-3 border-r border-slate-200">
++                                    <span className="text-[9px] font-black text-slate-400 uppercase">Tax Template</span>
+                                     <select
+                                         value={selectedTaxTemplate}
+                                         onChange={(e) => setSelectedTaxTemplate(e.target.value)}
+-                    className={`bg-slate-100 border border-slate-200 text-[11px] font-black rounded px-3 py-1 cursor-pointer focus:outline-none transition-all ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
++                                        className="bg-transparent text-[10px] font-black text-slate-700 outline-none cursor-pointer"
+                                     >
+-                    {taxTemplates.length === 0 ? (
+-                      <option value="">No Tax Templates</option>
+-                    ) : (
+-                      taxTemplates.map(t => (
+-                        <option key={t.name} value={t.name}>
+-                          {t.name}
+-                        </option>
+-                      ))
+-                    )}
++                                        {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                     </select>
+                                 </div>
+ 
+-                <div className="h-8 w-[1.5px] bg-slate-200" />
+-
+-                {/* Subtotal */}
+-                <div className="flex flex-col items-end">
+-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">SUBTOTAL</label>
+-                  <span className="text-slate-900 font-black text-xl leading-none">AED {displaySubtotal.toFixed(2)}</span>
++                                <div className="flex flex-col items-end px-3 border-r border-slate-200">
++                                    <span className="text-[9px] font-black text-slate-400 uppercase">Subtotal</span>
++                                    <span className="text-slate-800 font-black text-base leading-none">AED {displaySubtotal.toFixed(2)}</span>
+                                 </div>
+ 
+                                 {displayDiscount > 0 && (
+-                  <>
+-                    <div className="h-8 w-[1.5px] bg-slate-200" />
+-                    <div className="flex flex-col items-end">
+-                      <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">
+-                        DISCOUNT {(discount.type === 'percentage' || discount.type === 'percent') ? `(${discount.value}%)` : ''}
+-                      </label>
+-                      <span className="text-rose-500 font-black text-xl leading-none">-AED {displayDiscount.toFixed(2)}</span>
++                                    <div className="flex flex-col items-end px-3 border-r border-slate-200">
++                                        <span className="text-[9px] font-black text-rose-400 uppercase">Disc.</span>
++                                        <span className="text-rose-500 font-black text-base leading-none">-AED {displayDiscount.toFixed(2)}</span>
+                                     </div>
+-                  </>
+                                 )}
+ 
+-                <div className="h-8 w-[1.5px] bg-slate-200" />
+-
+-                {/* VAT */}
+-                <div className="flex flex-col items-end">
+-                  <label className={`text-[10px] font-black ${isGreen ? 'text-emerald-500' : 'text-sky-500'} uppercase tracking-widest mb-0.5`}>VAT ({taxRate}%)</label>
+-                  <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-xl leading-none`}>AED {displayTax.toFixed(2)}</span>
++                                <div className="flex flex-col items-end px-3 border-r border-slate-200">
++                                    <span className={`text-[9px] font-black ${isGreen ? 'text-emerald-500' : 'text-sky-500'} uppercase`}>VAT ({taxRate}%)</span>
++                                    <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-base leading-none`}>AED {displayTax.toFixed(2)}</span>
+                                 </div>
+ 
+-                <div className="h-10 w-[2px] bg-slate-300 mx-2" />
+-
+-                {/* Grand Total */}
+-                <div className="flex flex-col items-end min-w-[180px]">
+-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">TOTAL AMOUNT</label>
+-                  <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-[36px] tracking-tighter leading-none`}>AED {grandTotal.toFixed(2)}</span>
++                                <div className="flex flex-col items-end pl-3">
++                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grand Total</span>
++                                    <span className={`text-2xl font-black ${isGreen ? 'text-emerald-600' : 'text-sky-600'} leading-none`}>
++                                        AED {grandTotal.toFixed(2)}
++                                    </span>
+                                 </div>
+                             </div>
+                         </div>
+ 
+                         {/* ACTION BAR */}
+-            <div className="classic-action-bar flex items-center justify-end gap-4 p-3 bg-slate-50 border-t border-slate-200 shadow-inner">
++                        <div className="flex flex-wrap items-center justify-end gap-3 px-4 py-2 bg-white border-t border-slate-100">
+                             <div className="flex-1" />
+                             <button
+                                 className={`px-6 py-2.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
