@@ -25,12 +25,18 @@ function SalesReport() {
   const { warehouse, user_roles } = useSelector((state) => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
+  const getPaymentModeFromUrl = () => {
+    const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const searchParams = new URLSearchParams(window.location.search);
+    return hashParams.get('payment_mode') || searchParams.get('payment_mode') || '';
+  };
+
   const [filters, setFilters] = useState({ 
     from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0], // 1st of current month
     to_date: new Date().toISOString().split('T')[0],
     customer: '',
     warehouse: '',
-    payment_mode: new URLSearchParams(window.location.search).get('payment_mode') || ''
+    payment_mode: getPaymentModeFromUrl()
   });
   
   const [customers, setCustomers] = useState([]);
@@ -328,7 +334,7 @@ function SalesReport() {
                  warehouse: isAdmin ? '' : (warehouse || ''),
                  payment_mode: ''
                };
-               window.history.replaceState({}, document.title, window.location.pathname);
+               window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
                setFilters(reset);
                fetchReport(reset);
              }}
@@ -336,7 +342,7 @@ function SalesReport() {
             Reset
           </button>
         </div>
-
+ 
         {/* 3. MAIN CONTENT AREA */}
         <main className="so-content" style={{ padding: '1.5rem 2rem' }}>
           {error && (
@@ -348,7 +354,7 @@ function SalesReport() {
                <AlertCircle size={18} /> {error}
             </div>
           )}
-
+ 
           {/* PREMIUM METRIC DASHBOARD CARDS */}
           <div style={{ 
             display: 'grid', 
@@ -359,7 +365,7 @@ function SalesReport() {
             {/* Card 1: Grand Total */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/salesreport', '_blank')}
+              onClick={() => window.open('/#/salesreport', '_blank')}
               style={{ borderLeft: `4px solid ${themeColor}`, padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: themeColor }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -371,11 +377,11 @@ function SalesReport() {
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', display: 'block', marginTop: '0.25rem' }}>Net Total: AED {breakdown.net_total.toFixed(2)}</span>
             </div>
-
+ 
             {/* Card 2: Cash Payments */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/salesreport?payment_mode=Cash', '_blank')}
+              onClick={() => window.open('/#/salesreport?payment_mode=Cash', '_blank')}
               style={{ borderLeft: '4px solid #10b981', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#10b981' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -387,11 +393,11 @@ function SalesReport() {
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#10b981', display: 'block', marginTop: '0.25rem' }}>Physical Cash Sales</span>
             </div>
-
+ 
             {/* Card 3: Card Payments */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/salesreport?payment_mode=Card', '_blank')}
+              onClick={() => window.open('/#/salesreport?payment_mode=Card', '_blank')}
               style={{ borderLeft: '4px solid #3b82f6', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#3b82f6' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -403,11 +409,11 @@ function SalesReport() {
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#3b82f6', display: 'block', marginTop: '0.25rem' }}>Credit & Debit Cards</span>
             </div>
-
+ 
             {/* Card 4: InstaPay Payments */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/salesreport?payment_mode=InstaPay', '_blank')}
+              onClick={() => window.open('/#/salesreport?payment_mode=InstaPay', '_blank')}
               style={{ borderLeft: '4px solid #06b6d4', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#06b6d4' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -419,11 +425,11 @@ function SalesReport() {
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#06b6d4', display: 'block', marginTop: '0.25rem' }}>InstaPay Transactions</span>
             </div>
-
+ 
             {/* Card 5: Credit Customer Payments */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/salesreport?payment_mode=Credit', '_blank')}
+              onClick={() => window.open('/#/salesreport?payment_mode=Credit', '_blank')}
               style={{ borderLeft: '4px solid #f59e0b', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#f59e0b' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
