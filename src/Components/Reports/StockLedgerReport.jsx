@@ -1,68 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
     Loader2, FileText, AlertCircle, Calendar, Search, 
     Filter, Palette, RefreshCw, Download, Printer, 
     ChevronDown, Boxes, Layers, Package, TrendingUp, TrendingDown, DollarSign,
-    Settings
+    Settings, Activity
 } from 'lucide-react';
 import { db } from '../../db';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
-import './StockBalanceReport.css';
+import './StockLedgerReport.css';
 
-const DEFAULT_STOCK_COLUMNS = [
-  { id: 'item_code', label: 'Item Code', visible: true, width: 140 },
-  { id: 'item_name', label: 'Item Name', visible: true, width: 180 },
-  { id: 'item_group', label: 'Item Group', visible: true, width: 120 },
+const DEFAULT_LEDGER_COLUMNS = [
+  { id: 'date', label: 'Date', visible: true, width: 160 },
+  { id: 'item_code', label: 'Item Code', visible: true, width: 130 },
+  { id: 'item_name', label: 'Item Name', visible: true, width: 170 },
   { id: 'warehouse', label: 'Warehouse', visible: true, width: 160 },
-  { id: 'stock_uom', label: 'UOM', visible: true, width: 90 },
-  { id: 'opening_qty', label: 'Opening Qty', visible: true, width: 110 },
-  { id: 'opening_val', label: 'Opening Value', visible: true, width: 130 },
-  { id: 'in_qty', label: 'In Qty', visible: true, width: 110 },
-  { id: 'in_val', label: 'In Value', visible: true, width: 130 },
-  { id: 'out_qty', label: 'Out Qty', visible: true, width: 110 },
-  { id: 'out_val', label: 'Out Value', visible: true, width: 130 },
-  { id: 'bal_qty', label: 'Closing Qty', visible: true, width: 110 },
-  { id: 'val_rate', label: 'Valuation Rate', visible: true, width: 120 },
-  { id: 'bal_val', label: 'Closing Value', visible: true, width: 140 }
+  { id: 'voucher_type', label: 'Voucher Type', visible: true, width: 130 },
+  { id: 'voucher_no', label: 'Voucher No', visible: true, width: 140 },
+  { id: 'in_qty', label: 'In Qty', visible: true, width: 100 },
+  { id: 'out_qty', label: 'Out Qty', visible: true, width: 100 },
+  { id: 'qty_after_transaction', label: 'Balance Qty', visible: true, width: 110 },
+  { id: 'valuation_rate', label: 'Avg Rate', visible: true, width: 120 },
+  { id: 'stock_value', label: 'Balance Value', visible: true, width: 130 },
+  { id: 'stock_value_difference', label: 'Value Change', visible: true, width: 130 }
 ];
 
-function StockBalanceReport() {
+function StockLedgerReport() {
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState([]);
-  const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // ----- Column Config -----
-  const loadStockColumnConfig = () => {
-    try {
-      const saved = localStorage.getItem('stock_balance_report_columns');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const defaultIds = DEFAULT_STOCK_COLUMNS.map(c => c.id);
-        const savedIds = parsed.map(c => c.id);
-        const existing = parsed.filter(c => defaultIds.includes(c.id));
-        const missing = DEFAULT_STOCK_COLUMNS.filter(c => !savedIds.includes(c.id));
-        return [...existing, ...missing];
-      }
-    } catch (e) {
-      console.error("Stock Column Config Error:", e);
-    }
-    return DEFAULT_STOCK_COLUMNS;
-  };
+  // Role Validation (Critical Access Control)
+  const user_roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
+  const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
 
-  const [stockColumns, setStockColumns] = useState(loadStockColumnConfig());
-  const [showColConfig, setShowColConfig] = useState(false);
-
-  const handleColConfigUpdate = (updated) => {
-    setStockColumns(updated);
-    localStorage.setItem('stock_balance_report_columns', JSON.stringify(updated));
-  };
-  
   // Theme Hook
-  const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, themeHeaderBg, themeHeaderText, toggleTheme } = useLegacyTheme();
+  const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
 
   // Date helpers
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -74,30 +51,112 @@ function StockBalanceReport() {
 
   const defaultUserWh = localStorage.getItem('warehouse') || '';
 
-  // Role Validation (Critical Access Control)
-  const user_roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
-  const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
+  // ----- URL Query & Filter Initialization -----
+  const getInitialFilters = () => {
+    const from_date = searchParams.get('from_date') || getDate30DaysAgo();
+    const to_date = searchParams.get('to_date') || getTodayDate();
+    const valuation_field_type = searchParams.get('valuation_field_type') || 'Currency';
+    
+    let item_code = '';
+    const itemCodeParam = searchParams.get('item_code');
+    if (itemCodeParam) {
+      try {
+        if (itemCodeParam.startsWith('[') && itemCodeParam.endsWith(']')) {
+          const parsed = JSON.parse(itemCodeParam);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            item_code = parsed[0];
+          }
+        } else {
+          item_code = itemCodeParam;
+        }
+      } catch (e) {
+        item_code = itemCodeParam;
+      }
+    }
 
-  const [filters, setFilters] = useState({ 
-    from_date: getDate30DaysAgo(),
-    to_date: getTodayDate(),
-    warehouse: defaultUserWh,
-    all_warehouses: isAdmin ? !defaultUserWh : false, // If no default and admin, show all
-    item_code: '',
-    item_group: ''
-  });
+    // Role-based warehouse fallback
+    let warehouse = searchParams.get('warehouse') || defaultUserWh;
+    let all_warehouses = false;
+    
+    if (isAdmin) {
+      // Admins default to all warehouses if no warehouse specified
+      all_warehouses = !searchParams.get('warehouse');
+      if (all_warehouses) warehouse = '';
+    } else {
+      // Cashiers MUST use their assigned warehouse, no exceptions!
+      all_warehouses = false;
+      warehouse = defaultUserWh;
+    }
 
+    return {
+      from_date,
+      to_date,
+      warehouse,
+      all_warehouses,
+      item_code,
+      item_group: searchParams.get('item_group') || '',
+      valuation_field_type
+    };
+  };
+
+  const [filters, setFilters] = useState(getInitialFilters());
   const [warehouses, setWarehouses] = useState([]);
   const [itemGroups, setItemGroups] = useState([]);
   const [selectedItemObj, setSelectedItemObj] = useState(null);
 
+  // ----- Column Config -----
+  const loadLedgerColumnConfig = () => {
+    try {
+      const saved = localStorage.getItem('stock_ledger_report_columns');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const defaultIds = DEFAULT_LEDGER_COLUMNS.map(c => c.id);
+        const savedIds = parsed.map(c => c.id);
+        const existing = parsed.filter(c => defaultIds.includes(c.id));
+        const missing = DEFAULT_LEDGER_COLUMNS.filter(c => !savedIds.includes(c.id));
+        return [...existing, ...missing];
+      }
+    } catch (e) {
+      console.error("Ledger Column Config Error:", e);
+    }
+    return DEFAULT_LEDGER_COLUMNS;
+  };
+
+  const [ledgerColumns, setLedgerColumns] = useState(loadLedgerColumnConfig());
+  const [showColConfig, setShowColConfig] = useState(false);
+
+  const handleColConfigUpdate = (updated) => {
+    setLedgerColumns(updated);
+    localStorage.setItem('stock_ledger_report_columns', JSON.stringify(updated));
+  };
+
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
+  // Fetch initial dropdown items, resolve pre-selected item, and fetch report
   useEffect(() => {
     fetchWarehousesAndGroups();
+    
+    // Resolve item details if item_code is passed via URL query
+    if (filters.item_code) {
+      resolveInitialItem(filters.item_code);
+    }
+
     fetchReport(filters);
   }, []);
+
+  const resolveInitialItem = async (code) => {
+    try {
+      const dbItem = await db.items.get(code);
+      if (dbItem) {
+        setSelectedItemObj({ name: dbItem.id, item_name: dbItem.name || dbItem.id });
+      } else {
+        setSelectedItemObj({ name: code, item_name: code });
+      }
+    } catch (e) {
+      setSelectedItemObj({ name: code, item_name: code });
+    }
+  };
 
   const fetchWarehousesAndGroups = async () => {
     try {
@@ -109,6 +168,7 @@ function StockBalanceReport() {
       if (whRes.ok) {
         const json = await whRes.json();
         const allWhs = json.message || [];
+        
         if (!isAdmin) {
           // Cashier: restrict list to only their login warehouse
           const cashierWh = (defaultUserWh || '').toLowerCase();
@@ -157,6 +217,7 @@ function StockBalanceReport() {
       const payload = {
         from_date: activeFilters.from_date,
         to_date: activeFilters.to_date,
+        valuation_field_type: activeFilters.valuation_field_type || 'Currency'
       };
 
       // Strict Access Enforcement: Overrule anything if not admin
@@ -177,7 +238,7 @@ function StockBalanceReport() {
       }
 
       const params = new URLSearchParams(payload);
-      const res = await fetch(`${API_PATH}.get_stock_balance_report?${params.toString()}`, {
+      const res = await fetch(`${API_PATH}.get_stock_ledger_report?${params.toString()}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include',
       });
@@ -188,27 +249,6 @@ function StockBalanceReport() {
 
       if (payloadData.status === 'success' || (payloadData.columns && payloadData.data)) {
         setData(payloadData.data || []);
-        // Set columns dynamically if present, otherwise set our standard columns
-        if (payloadData.columns && payloadData.columns.length > 0) {
-          setColumns(payloadData.columns);
-        } else {
-          setColumns([
-            { label: 'Item', fieldname: 'item_code' },
-            { label: 'Item Name', fieldname: 'item_name' },
-            { label: 'Item Group', fieldname: 'item_group' },
-            { label: 'Warehouse', fieldname: 'warehouse' },
-            { label: 'Stock UOM', fieldname: 'stock_uom' },
-            { label: 'Balance Qty', fieldname: 'bal_qty' },
-            { label: 'Balance Value', fieldname: 'bal_val' },
-            { label: 'Opening Qty', fieldname: 'opening_qty' },
-            { label: 'Opening Value', fieldname: 'opening_val' },
-            { label: 'In Qty', fieldname: 'in_qty' },
-            { label: 'In Value', fieldname: 'in_val' },
-            { label: 'Out Qty', fieldname: 'out_qty' },
-            { label: 'Out Value', fieldname: 'out_val' },
-            { label: 'Valuation Rate', fieldname: 'val_rate' }
-          ]);
-        }
         setSuccess('Report generated successfully');
       } else {
         setError(payloadData.message || payloadData.error || 'Failed to fetch report data');
@@ -227,7 +267,7 @@ function StockBalanceReport() {
   };
 
   const handleAllWarehousesToggle = (checked) => {
-    if (!isAdmin) return; // Non-admins cannot toggle all warehouses
+    if (!isAdmin) return; // Cashiers cannot toggle all warehouses
     const next = { 
       ...filters, 
       all_warehouses: checked,
@@ -241,7 +281,6 @@ function StockBalanceReport() {
   const fetchItemsAPI = async (query) => {
     try {
       const term = query.toLowerCase();
-      // First, query offline Dexie store
       let results = await db.items
         .filter(it =>
           (it.name || '').toLowerCase().includes(term) ||
@@ -250,14 +289,12 @@ function StockBalanceReport() {
         .limit(15)
         .toArray();
 
-      // Convert format for dropdown
       let formatted = results.map(it => ({
         name: it.id,
         item_name: it.name || it.id
       }));
 
       if (formatted.length < 5 && query.length >= 2) {
-        // Query server
         const res = await fetch(`${API_PATH}.get_items`, {
           headers: { 'X-Frappe-SID': getSession() },
           credentials: 'include'
@@ -286,35 +323,32 @@ function StockBalanceReport() {
   };
 
   // Metric Calculation Helpers
-  const totalClosingQty = data.reduce((sum, row) => sum + (parseFloat(row.bal_qty) || 0), 0);
-  const totalClosingValue = data.reduce((sum, row) => sum + (parseFloat(row.bal_val) || 0), 0);
   const totalInQty = data.reduce((sum, row) => sum + (parseFloat(row.in_qty) || 0), 0);
-  const totalInValue = data.reduce((sum, row) => sum + (parseFloat(row.in_val) || 0), 0);
   const totalOutQty = data.reduce((sum, row) => sum + (parseFloat(row.out_qty) || 0), 0);
-  const totalOutValue = data.reduce((sum, row) => sum + (parseFloat(row.out_val) || 0), 0);
+  const totalValChange = data.reduce((sum, row) => sum + (parseFloat(row.stock_value_difference) || 0), 0);
+  const finalBalQty = data.length > 0 ? parseFloat(data[data.length - 1].qty_after_transaction) || 0 : 0;
+  const finalBalVal = data.length > 0 ? parseFloat(data[data.length - 1].stock_value) || 0 : 0;
 
   // CSV Export
   const exportCSV = () => {
     if (data.length === 0) return;
-    const activeCols = stockColumns.filter(c => c.visible);
+    const activeCols = ledgerColumns.filter(c => c.visible);
     const headers = activeCols.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
     const rows = data.map(row => {
       return activeCols.map(col => {
         let val = '';
-        if (col.id === 'item_code') val = row.item_code;
+        if (col.id === 'date') val = row.date;
+        else if (col.id === 'item_code') val = row.item_code;
         else if (col.id === 'item_name') val = row.item_name;
-        else if (col.id === 'item_group') val = row.item_group;
         else if (col.id === 'warehouse') val = row.warehouse;
-        else if (col.id === 'stock_uom') val = row.stock_uom;
-        else if (col.id === 'opening_qty') val = row.opening_qty;
-        else if (col.id === 'opening_val') val = row.opening_val;
+        else if (col.id === 'voucher_type') val = row.voucher_type;
+        else if (col.id === 'voucher_no') val = row.voucher_no;
         else if (col.id === 'in_qty') val = row.in_qty;
-        else if (col.id === 'in_val') val = row.in_val;
         else if (col.id === 'out_qty') val = row.out_qty;
-        else if (col.id === 'out_val') val = row.out_val;
-        else if (col.id === 'bal_qty') val = row.bal_qty;
-        else if (col.id === 'val_rate') val = row.val_rate;
-        else if (col.id === 'bal_val') val = row.bal_val;
+        else if (col.id === 'qty_after_transaction') val = row.qty_after_transaction;
+        else if (col.id === 'valuation_rate') val = row.valuation_rate;
+        else if (col.id === 'stock_value') val = row.stock_value;
+        else if (col.id === 'stock_value_difference') val = row.stock_value_difference;
 
         const stringVal = val !== null && val !== undefined ? String(val) : '';
         return `"${stringVal.replace(/"/g, '""')}"`;
@@ -324,28 +358,23 @@ function StockBalanceReport() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Stock_Balance_Report_${filters.from_date}_to_${filters.to_date}.csv`);
+    link.setAttribute("download", `Stock_Ledger_${filters.from_date}_to_${filters.to_date}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Print Report
-  const printReport = () => {
-    window.print();
-  };
-
   return (
-    <div className="so-page stock-balance-report-container">
+    <div className="so-page stock-ledger-report-container">
       
       {/* 1. PREMIUM HEADER */}
       <div className="so-page-header">
         <div>
           <h1 className="so-page-title">
-            <Boxes size={22} />
-            Stock Balance Report
+            <Activity size={22} />
+            Stock Ledger Report
           </h1>
-          <p className="so-page-subtitle">Real-time valuation, inventory levels, inward/outward logs and ledger balances</p>
+          <p className="so-page-subtitle">Chronological ledger of inventory logs, rates, incoming receipts and valuations</p>
         </div>
         
         <div className="header-actions">
@@ -356,7 +385,7 @@ function StockBalanceReport() {
           <button className="so-btn-secondary" onClick={() => setShowColConfig(true)}>
              <Settings size={16} /> Customize Columns
           </button>
-          <button className="so-btn-secondary" onClick={printReport}>
+          <button className="so-btn-secondary" onClick={() => window.print()}>
              <Printer size={16} /> Print
           </button>
           <button className="so-btn-primary" onClick={exportCSV} style={{ background: themeColor, borderColor: themeColor }}>
@@ -375,8 +404,8 @@ function StockBalanceReport() {
             </div>
             <div className="metric-info">
               <h3>Closing Qty</h3>
-              <p className="metric-value">{totalClosingQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</p>
-              <span className="metric-sub">Total Units on Hand</span>
+              <p className="metric-value">{finalBalQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</p>
+              <span className="metric-sub">Latest Ledger Units</span>
             </div>
           </div>
 
@@ -386,8 +415,8 @@ function StockBalanceReport() {
             </div>
             <div className="metric-info">
               <h3>Closing Value (AED)</h3>
-              <p className="metric-value">AED {totalClosingValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <span className="metric-sub">Total Capital Investment</span>
+              <p className="metric-value">AED {finalBalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <span className="metric-sub">Latest Valuation Balance</span>
             </div>
           </div>
 
@@ -396,9 +425,9 @@ function StockBalanceReport() {
               <TrendingUp size={22} />
             </div>
             <div className="metric-info">
-              <h3>Inward Movement</h3>
-              <p className="metric-value">{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-              <span className="metric-sub">Value: AED {totalInValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              <h3>Total Inward</h3>
+              <p className="metric-value">+{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
+              <span className="metric-sub">Sum of incoming transactions</span>
             </div>
           </div>
 
@@ -407,9 +436,9 @@ function StockBalanceReport() {
               <TrendingDown size={22} />
             </div>
             <div className="metric-info">
-              <h3>Outward Movement</h3>
-              <p className="metric-value">{totalOutQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-              <span className="metric-sub">Value: AED {totalOutValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              <h3>Total Outward</h3>
+              <p className="metric-value">-{Math.abs(totalOutQty).toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
+              <span className="metric-sub">Sum of outgoing transactions</span>
             </div>
           </div>
         </div>
@@ -450,7 +479,7 @@ function StockBalanceReport() {
             <label className="so-filter-label">Filter by Product</label>
             <div className="so-relative dropdown-search-container">
               <CustomSearchDropdown
-                placeholder="All Products (Search or type...)"
+                placeholder="Search Product..."
                 value={selectedItemObj}
                 onSelect={(item) => {
                   setSelectedItemObj(item);
@@ -521,7 +550,8 @@ function StockBalanceReport() {
                  warehouse: defaultUserWh,
                  all_warehouses: isAdmin ? !defaultUserWh : false,
                  item_code: '',
-                 item_group: ''
+                 item_group: '',
+                 valuation_field_type: 'Currency'
                };
                setSelectedItemObj(null);
                setFilters(reset);
@@ -541,10 +571,10 @@ function StockBalanceReport() {
           )}
 
           <div className="results-header">
-            <p className="so-list-meta">Found <b>{data.length}</b> rows matching criteria</p>
+            <p className="so-list-meta">Found <b>{data.length}</b> ledger rows</p>
             {loading && (
               <div className="loading-indicator" style={{ color: themeColor }}>
-                <Loader2 size={16} className="animate-spin" /> RUNNING STOCK CALCULATION...
+                <Loader2 size={16} className="animate-spin" /> RUNNING LEDGER CALCULATION...
               </div>
             )}
           </div>
@@ -554,13 +584,13 @@ function StockBalanceReport() {
               <table className="so-table premium-stock-table">
                 <thead>
                   <tr>
-                    {stockColumns.filter(c => c.visible).map(col => (
+                    {ledgerColumns.filter(c => c.visible).map(col => (
                       <th 
                         key={col.id} 
                         style={{ 
                           width: col.width, 
                           minWidth: col.width,
-                          textAlign: ['opening_qty', 'opening_val', 'in_qty', 'in_val', 'out_qty', 'out_val', 'bal_qty', 'val_rate', 'bal_val'].includes(col.id) ? 'right' : 'left'
+                          textAlign: ['in_qty', 'out_qty', 'qty_after_transaction', 'valuation_rate', 'stock_value', 'stock_value_difference'].includes(col.id) ? 'right' : 'left'
                         }}
                       >
                         {col.label}
@@ -571,31 +601,40 @@ function StockBalanceReport() {
                 <tbody>
                   {loading && data.length === 0 ? (
                     <tr>
-                      <td colSpan={stockColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
+                      <td colSpan={ledgerColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
                         <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                         <p className="loading-text">Rebuilding Stock Ledger...</p>
                       </td>
                     </tr>
                   ) : data.length === 0 ? (
                     <tr>
-                      <td colSpan={stockColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
+                      <td colSpan={ledgerColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
                         <div className="empty-state-icon">
                            <FileText size={48} />
                         </div>
-                        <p className="empty-state-text">No inventory ledger transactions match the filters.</p>
+                        <p className="empty-state-text">No ledger entries match the criteria.</p>
                       </td>
                     </tr>
                   ) : (
                     data.map((row, idx) => {
-                      const openingQty = parseFloat(row.opening_qty) || 0;
                       const inQty = parseFloat(row.in_qty) || 0;
                       const outQty = parseFloat(row.out_qty) || 0;
-                      const balQty = parseFloat(row.bal_qty) || 0;
+                      const balQty = parseFloat(row.qty_after_transaction) || 0;
+                      const valRate = parseFloat(row.valuation_rate) || 0;
+                      const stockVal = parseFloat(row.stock_value) || 0;
+                      const valDiff = parseFloat(row.stock_value_difference) || 0;
 
+                      // Display customized special columns
                       return (
                         <tr key={idx} className="table-row-hover">
-                          {stockColumns.filter(c => c.visible).map(col => {
+                          {ledgerColumns.filter(c => c.visible).map(col => {
                             switch (col.id) {
+                              case 'date':
+                                return (
+                                  <td key={col.id} style={{ fontWeight: 500 }}>
+                                    {row.date ? row.date.replace('T', ' ').substring(0, 19) : ''}
+                                  </td>
+                                );
                               case 'item_code':
                                 return (
                                   <td key={col.id} className="item-code-cell">
@@ -606,10 +645,6 @@ function StockBalanceReport() {
                                 return (
                                   <td key={col.id} className="item-name-cell">{row.item_name}</td>
                                 );
-                              case 'item_group':
-                                return (
-                                  <td key={col.id}><span className="badge-item-group">{row.item_group}</span></td>
-                                );
                               case 'warehouse':
                                 return (
                                   <td key={col.id} className="warehouse-cell">
@@ -617,20 +652,14 @@ function StockBalanceReport() {
                                     <span className="warehouse-sub">KSPL</span>
                                   </td>
                                 );
-                              case 'stock_uom':
+                              case 'voucher_type':
                                 return (
-                                  <td key={col.id}><span className="badge-uom">{row.stock_uom}</span></td>
+                                  <td key={col.id}><span className="badge-item-group">{row.voucher_type}</span></td>
                                 );
-                              case 'opening_qty':
+                              case 'voucher_no':
                                 return (
-                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
-                                    {openingQty === 0 ? <span className="text-muted-zero">0</span> : openingQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                  </td>
-                                );
-                              case 'opening_val':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{(parseFloat(row.opening_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  <td key={col.id} style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>
+                                    {row.voucher_no}
                                   </td>
                                 );
                               case 'in_qty':
@@ -645,46 +674,43 @@ function StockBalanceReport() {
                                     )}
                                   </td>
                                 );
-                              case 'in_val':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{(parseFloat(row.in_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
                               case 'out_qty':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right' }}>
-                                    {outQty > 0 ? (
+                                    {outQty < 0 || outQty > 0 ? (
                                       <span className="qty-badge-pill outgoing">
-                                        -{outQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                        -{Math.abs(outQty).toLocaleString(undefined, { maximumFractionDigits: 3 })}
                                       </span>
                                     ) : (
                                       <span className="text-muted-zero">-</span>
                                     )}
                                   </td>
                                 );
-                              case 'out_val':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{(parseFloat(row.out_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
-                              case 'bal_qty':
+                              case 'qty_after_transaction':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>
                                     {balQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
                                   </td>
                                 );
-                              case 'val_rate':
+                              case 'valuation_rate':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{(parseFloat(row.val_rate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="curr-sym">AED</span> <span className="curr-val">{valRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </td>
                                 );
-                              case 'bal_val':
+                              case 'stock_value':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
-                                    <span className="curr-sym" style={{ color: themeColor, opacity: 0.7 }}>AED</span> <span className="curr-val">{(parseFloat(row.bal_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="curr-sym" style={{ color: themeColor, opacity: 0.7 }}>AED</span> <span className="curr-val">{stockVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  </td>
+                                );
+                              case 'stock_value_difference':
+                                return (
+                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
+                                    <span className="curr-sym">AED</span> 
+                                    <span className="curr-val" style={{ color: valDiff > 0 ? '#047857' : valDiff < 0 ? '#b91c1c' : '#334155' }}>
+                                      {valDiff > 0 ? '+' : ''}{valDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
                                   </td>
                                 );
                               default:
@@ -706,15 +732,15 @@ function StockBalanceReport() {
       <ColumnConfigModal
         isOpen={showColConfig}
         onClose={() => setShowColConfig(false)}
-        config={stockColumns}
+        config={ledgerColumns}
         onUpdate={handleColConfigUpdate}
-        doctype="Stock Balance"
+        doctype="Stock Ledger"
         themeColor={themeColor}
       />
 
       <style dangerouslySetInnerHTML={{
         __html: `
-        .stock-balance-report-container {
+        .stock-ledger-report-container {
           --primary-color: ${themeColor};
           --primary-color-hover: ${themeColorHover};
           --primary-light: ${themeLight};
@@ -724,4 +750,4 @@ function StockBalanceReport() {
   );
 }
 
-export default StockBalanceReport;
+export default StockLedgerReport;

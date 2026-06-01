@@ -52,6 +52,7 @@ const routeMap = {
   'Item Group': { path: '/itemgrouplist', icon: Layers },
   'Quick Stock-In': { path: '/quickstockin', icon: PlusCircle },
   'Stock Balance Report': { path: '/stockbalancereport', icon: FileText },
+  'Stock Ledger Report': { path: '/stockledgerreport', icon: FileText },
 
   // POS
   'POS Profile': { path: '/posprofilelist', icon: LayoutDashboard },
@@ -97,7 +98,7 @@ function Dashboard() {
       icon: Boxes,
       colorClass: 'icon-items',
       cardClass: 'card-items',
-      items: ['Item List', 'Item Group', 'Price List', 'Quick Stock-In', 'Stock Balance Report'],
+      items: ['Item List', 'Item Group', 'Price List', 'Quick Stock-In', 'Stock Balance Report', 'Stock Ledger Report'],
     },
     {
       title: 'POS Operations',

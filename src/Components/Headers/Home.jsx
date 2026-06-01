@@ -118,6 +118,10 @@ function Home() {
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [currentTime, setCurrentTime] = useState(new Date());
 
+    // Classic Theme Settings menu dropdown states
+    const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+    const settingsDropdownRef = useRef(null);
+
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
@@ -163,7 +167,7 @@ function Home() {
         padding: 0 1.25rem !important;
         flex-shrink: 0 !important;
         position: relative !important;
-        z-index: 100 !important;
+        z-index: 200 !important;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
       }
       .classic-header-form {
@@ -288,6 +292,13 @@ function Home() {
       .home-discount-type-btn:hover:not(.active) {
         background: rgba(0,0,0,0.05);
       }
+      @keyframes spinSlow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin-slow {
+        animation: spinSlow 3s linear infinite;
+      }
     `;
     }, [legacySubTheme]);
 
@@ -301,6 +312,17 @@ function Home() {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
+    }, []);
+
+    // Close classic settings menu on click outside
+    useEffect(() => {
+        const handleOutsideClick = (e) => {
+            if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(e.target)) {
+                setShowSettingsMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, []);
 
     // Sync & Order Count effect
@@ -1140,7 +1162,13 @@ function Home() {
 
     // ---------- CUSTOMER HANDLERS ----------
     const openCreate = () => {
-        setCreateForm({ name: customerName.trim(), phone: phoneNumber, address: '', email: '' });
+        let cleanPhone = phoneNumber || "";
+        if (phoneNumber) {
+            cleanPhone = phoneNumber
+                .replace(/^\+?(971|91)/, '')   // remove UAE (+971) or India (+91) prefix
+                .replace(/\D/g, '');            // remove any remaining non-digits
+        }
+        setCreateForm({ name: customerName.trim(), phone: cleanPhone, address: '', email: '' });
         setShowCreateModal(true); setShowDropdown(false);
     };
 
@@ -1215,10 +1243,18 @@ function Home() {
         setCreatingCustomer(true);  // ← Loading starts
 
         try {
+            let formattedPhone = "";
+            if (createForm.phone.trim()) {
+                const strippedNumber = createForm.phone.trim()
+                    .replace(/^\+?(971|91)/, '')   // remove UAE (+971) or India (+91) prefix
+                    .replace(/\D/g, '');            // remove any remaining non-digits
+                formattedPhone = `${countryCodePrefix}${strippedNumber}`;
+            }
+
             const formData = new FormData();
             formData.append("customer_name", createForm.name.trim());
             formData.append("customer_group", "Retail Customer");
-            if (createForm.phone) formData.append("phone", createForm.phone);
+            if (formattedPhone) formData.append("phone", formattedPhone);
             if (createForm.address) formData.append("address", createForm.address);
             if (createForm.email) formData.append("email", createForm.email);
             if (warehouse) formData.append("warehouse", warehouse);
@@ -1242,7 +1278,7 @@ function Home() {
                 const newCust = {
                     name: inner.customer_id || inner.name,
                     customer_name: createForm.name.trim(),
-                    mobile_no: createForm.phone || "",
+                    mobile_no: formattedPhone || "",
                     primary_address: createForm.address || "",
                     email_id: createForm.email || "",
                     is_synced: 1
@@ -1261,7 +1297,7 @@ function Home() {
                 const offlineCustomer = {
                     name: `OFFLINE-CUST-${Date.now()}`,
                     customer_name: createForm.name.trim(),
-                    mobile_no: createForm.phone || "",
+                    mobile_no: formattedPhone || "",
                     primary_address: createForm.address || "",
                     email_id: createForm.email || "",
                     is_synced: 0,
@@ -1822,17 +1858,17 @@ function Home() {
                     // Try to list video devices and find the back/rear camera
                     const videoInputDevices = await homeCodeReader.current.listVideoInputDevices();
                     let selectedDeviceId = undefined;
-                    
+
                     if (videoInputDevices && videoInputDevices.length > 0) {
-                        const backCamera = videoInputDevices.find(device => 
-                            device.label.toLowerCase().includes('back') || 
-                            device.label.toLowerCase().includes('rear') || 
+                        const backCamera = videoInputDevices.find(device =>
+                            device.label.toLowerCase().includes('back') ||
+                            device.label.toLowerCase().includes('rear') ||
                             device.label.toLowerCase().includes('environment')
                         );
                         // Default to back camera, else last device (usually back on mobiles), else first device
                         selectedDeviceId = backCamera ? backCamera.deviceId : (videoInputDevices[videoInputDevices.length - 1].deviceId || videoInputDevices[0].deviceId);
                     }
-                    
+
                     await homeCodeReader.current.decodeFromVideoDevice(selectedDeviceId, homeVideoRef.current, (result, err) => {
                         if (result && showCamera) {
                             const scannedText = result.text.trim();
@@ -2240,8 +2276,8 @@ function Home() {
             e.preventDefault();
             const activeItem = billItems.find(it => it.id === itemId);
             if (activeItem) {
-                const nextUom = (activeItem.uom === 'Box' || activeItem.uom === 'BOX') 
-                    ? (activeItem.stock_uom || (activeItem.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece') 
+                const nextUom = (activeItem.uom === 'Box' || activeItem.uom === 'BOX')
+                    ? (activeItem.stock_uom || (activeItem.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece')
                     : 'Box';
                 if (nextUom === 'Box' && !activeItem.custom_pieces_per_box) return;
                 toggleUom(itemId, nextUom);
@@ -3449,20 +3485,17 @@ function Home() {
                         </div>
 
                         {/* Balance / Change Card */}
-                        <div className={`payment-status-card bg-gradient-to-br ${
-                            balanceRemaining > 0
-                                ? 'from-rose-500/10 to-red-500/10 border-rose-500/20 text-rose-950'
-                                : 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-950'
-                        } border p-3 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[76px]`}>
+                        <div className={`payment-status-card bg-gradient-to-br ${balanceRemaining > 0
+                            ? 'from-rose-500/10 to-red-500/10 border-rose-500/20 text-rose-950'
+                            : 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-950'
+                            } border p-3 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[76px]`}>
                             <div className="absolute -top-4 -right-4 w-12 h-12 bg-current opacity-[0.03] rounded-full blur-xl"></div>
-                            <span className={`text-[9px] font-black uppercase tracking-wider ${
-                                balanceRemaining > 0 ? 'text-rose-600' : 'text-emerald-600'
-                            }`}>
+                            <span className={`text-[9px] font-black uppercase tracking-wider ${balanceRemaining > 0 ? 'text-rose-600' : 'text-emerald-600'
+                                }`}>
                                 {balanceRemaining > 0 ? 'Remaining' : 'Change Due'}
                             </span>
-                            <span className={`text-base sm:text-lg font-black tracking-tight mt-1 ${
-                                balanceRemaining > 0 ? 'text-rose-700' : 'text-emerald-700'
-                            }`}>
+                            <span className={`text-base sm:text-lg font-black tracking-tight mt-1 ${balanceRemaining > 0 ? 'text-rose-700' : 'text-emerald-700'
+                                }`}>
                                 AED {Math.abs(balanceRemaining).toFixed(2)}
                             </span>
                         </div>
@@ -3557,11 +3590,11 @@ function Home() {
                                                             Swal.showLoading();
                                                             const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
                                                             if (updated) {
-                                                                 setSelectedPaymentMode('Credit');
-                                                                 Swal.fire({
-                                                                     toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                                                     icon: 'success', title: 'Customer group updated to Credit Customer'
-                                                                 });
+                                                                setSelectedPaymentMode('Credit');
+                                                                Swal.fire({
+                                                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                                                                    icon: 'success', title: 'Customer group updated to Credit Customer'
+                                                                });
                                                             }
                                                         }
                                                     } else {
@@ -3938,7 +3971,7 @@ function Home() {
             }
 
             // F6: Quick Price Update
-            if (e.key === 'F4') {
+            if (e.key === 'F11') {
                 e.preventDefault();
                 if (selectedBillIndex !== -1) {
                     const item = billItems[selectedBillIndex];
@@ -4106,7 +4139,9 @@ function Home() {
         showDropdown,
         handleCheckout,
         addPayment,
-        completePayment
+        completePayment,
+        countryCodePrefix,
+        showCreateModal
     ]);
 
     if (loadingItems && Items.length === 0) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
@@ -4457,19 +4492,111 @@ function Home() {
                     <aside className="so-bill-side">
                         <div className="so-bill-header flex flex-col gap-3">
                             <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+                                <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white focus-within:border-emerald-500 transition-all">
+                                    <select
+                                        value={countryCodePrefix}
+                                        onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
+                                        className="h-9 px-1.5 bg-slate-50 border-r border-slate-200 text-[11px] font-black text-slate-700 outline-none cursor-pointer"
+                                        style={{ minWidth: '60px' }}
+                                        title="Country Code (Press F4 to toggle)"
+                                    >
+                                        <option value="+971">🇦🇪 +971</option>
+                                        <option value="+91">🇮🇳 +91</option>
+                                    </select>
+                                    <div className="relative flex-1">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+                                        </div>
+                                        <input
+                                            ref={nameInputRef}
+                                            type="text"
+                                            placeholder="Customer Name..."
+                                            value={customerName === 'Cash' ? '' : customerName}
+                                            className="w-full pl-9 pr-3 py-2 text-sm font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
+                                            onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
+                                            onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); setShowDropdown(true); }}
+                                            onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
+                                            onKeyDown={async (e) => {
+                                                if (e.key === 'Enter') {
+                                                    const term = customerName.trim();
+                                                    if (!term || term === 'Cash') return;
+
+                                                    // Check if it is a mobile number (7+ digits after stripping prefix)
+                                                    const strippedNumber = term
+                                                        .replace(/^\+?(971|91)/, '')
+                                                        .replace(/\D/g, '');
+                                                    const isMobile = /^\d{7,}$/.test(strippedNumber) || /^\d{7,}$/.test(term);
+
+                                                    // 1. If we have search results matching, pick the first one
+                                                    if (searchResults.length > 0) {
+                                                        const matched = searchResults.find(c =>
+                                                            c.customer_name.toLowerCase() === term.toLowerCase() ||
+                                                            (c.mobile_no && c.mobile_no.replace(/\D/g, '').includes(strippedNumber))
+                                                        ) || searchResults[0];
+
+                                                        pickCustomer(matched);
+                                                        const Toast = Swal.mixin({
+                                                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                                                        });
+                                                        Toast.fire({ icon: 'success', title: `Customer: ${matched.customer_name}` });
+                                                        return;
+                                                    }
+
+                                                    // 2. If it is a mobile number, register via speed checkout
+                                                    if (isMobile) {
+                                                        setCustomerLoading(true);
+                                                        const fullMobile = strippedNumber || term.replace(/\D/g, '');
+                                                        const mobileWithCode = `${countryCodePrefix}${fullMobile}`;
+                                                        try {
+                                                            const res = await frappeCall({
+                                                                method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
+                                                                args: {
+                                                                    mobile_no: mobileWithCode,
+                                                                    warehouse: warehouse,
+                                                                    customer_group: 'Retail Customer'
+                                                                }
+                                                            });
+
+                                                            if (res && res.name) {
+                                                                pickCustomer(res);
+                                                                const Toast = Swal.mixin({
+                                                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                                                                });
+                                                                Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name}` });
+                                                            } else {
+                                                                Swal.fire('Error', "Failed to create customer", 'error');
+                                                            }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            // Offline creation if network fails
+                                                            if (!navigator.onLine) {
+                                                                const offlineCustomer = {
+                                                                    name: `OFFLINE-CUST-${Date.now()}`,
+                                                                    customer_name: `Customer ${mobileWithCode}`,
+                                                                    mobile_no: mobileWithCode,
+                                                                    primary_address: "",
+                                                                    email_id: "",
+                                                                    is_synced: 0,
+                                                                    is_offline: true
+                                                                };
+                                                                await db.customers.put(offlineCustomer);
+                                                                pickCustomer(offlineCustomer);
+                                                                Swal.fire('Offline Save', 'Customer saved locally. Will sync when online.', 'info');
+                                                            } else {
+                                                                Swal.fire('Error', 'Network error', 'error');
+                                                            }
+                                                        } finally {
+                                                            setCustomerLoading(false);
+                                                        }
+                                                    } else {
+                                                        // It's a name, open creation modal
+                                                        openCreate();
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    </div>
                                 </div>
-                                <input
-                                    ref={nameInputRef}
-                                    type="text"
-                                    placeholder="Customer Name..."
-                                    value={customerName === 'Cash' ? '' : customerName}
-                                    className="so-customer-input pl-10"
-                                    onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
-                                    onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); setShowDropdown(true); }}
-                                    onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
-                                />
                                 {showDropdown && (
                                     <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-[300] mt-1 max-h-56 overflow-y-auto">
                                         {searchResults.map(c => (
@@ -4705,28 +4832,78 @@ function Home() {
 
                     <div className="ml-auto flex items-center gap-6 pr-4">
 
-                        {/* Quick Actions / Status grouped together */}
-                        <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
-                            <div className={`flex items-center gap-2 font-black text-[11px] uppercase tracking-wider ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-700' : 'text-sky-700')}`}>
-                                {isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}
-                                {isOffline ? 'OFFLINE' : 'ONLINE'}
-                            </div>
-                            <div className="w-[1px] h-4 bg-slate-300"></div>
+                        {/* CLASSIC DROPDOWN SETTINGS BUTTON */}
+                        <div className="relative" ref={settingsDropdownRef}>
                             <button
-                                onClick={() => setShowThemeSidebar(true)}
-                                className={`font-black text-[11px] uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-1.5 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
-                                title="Open Theme Settings Sidebar"
+                                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                                className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
+                                title="System & Settings"
                             >
-                                <Palette size={13} /> THEME CONFIG
+                                <Settings size={18} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
+                                {pendingSyncCount > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white font-black text-[9px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+                                        {pendingSyncCount}
+                                    </span>
+                                )}
                             </button>
-                            <div className="w-[1px] h-4 bg-slate-300"></div>
-                            <button
-                                onClick={() => setShowDraftsModal(true)}
-                                className={`font-black text-[11px] uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-1.5 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
-                            >
-                                <Package size={14} />
-                                ACTIVE ORDERS
-                            </button>
+
+                            {showSettingsMenu && (
+                                <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-[9999] p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                                        System & Status
+                                    </div>
+
+                                    {/* Connection Status Row */}
+                                    <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-xl p-3">
+                                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Connection</span>
+                                        <div className={`flex items-center gap-1.5 font-black text-[11px] uppercase tracking-wider ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-700' : 'text-sky-700')}`}>
+                                            <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                                            {isOffline ? 'OFFLINE' : 'ONLINE'}
+                                        </div>
+                                    </div>
+
+                                    {/* Active Orders / Sync Status Row */}
+                                    <div className="flex flex-col gap-2 bg-slate-50 border border-slate-100 rounded-xl p-3">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Active Orders</span>
+                                            <span className="text-[11px] font-black text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-md">
+                                                {pendingSyncCount} Pending
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setShowDraftsModal(true);
+                                                setShowSettingsMenu(false);
+                                            }}
+                                            className={`w-full py-2 bg-sky-50 text-sky-600 hover:bg-sky-100 hover:text-sky-700 font-black text-[10px] uppercase tracking-wider border border-sky-100 rounded-lg flex items-center justify-center gap-1.5 transition-colors`}
+                                        >
+                                            <Package size={12} /> View Active Orders
+                                        </button>
+                                    </div>
+
+                                    <div className="h-[1px] bg-slate-100 my-1"></div>
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                                        Configuration
+                                    </div>
+
+                                    {/* Theme Switcher Button */}
+                                    <button
+                                        onClick={() => {
+                                            setShowThemeSidebar(true);
+                                            setShowSettingsMenu(false);
+                                        }}
+                                        className="w-full p-3 hover:bg-slate-50 rounded-xl flex items-center justify-between border border-transparent hover:border-slate-100 transition-all text-left"
+                                    >
+                                        <div className="flex items-center gap-2 font-black text-[11px] text-slate-700 uppercase tracking-wider">
+                                            <Palette size={14} className="text-slate-400" />
+                                            Theme Config
+                                        </div>
+                                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
+                                            {legacySubTheme.toUpperCase()}
+                                        </span>
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <button
@@ -4780,17 +4957,19 @@ function Home() {
                     {[
                         { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
                         { key: 'F3', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
-                        { key: 'F4', label: `CC (${countryCodePrefix})`, color: '#0ea5e9', icon: <Phone size={12} />, action: () => {
-                            setCountryCodePrefix(prev => {
-                                const next = prev === '+971' ? '+91' : '+971';
-                                localStorage.setItem('pos_country_code', next);
-                                const Toast = Swal.mixin({
-                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                        {
+                            key: 'F4', label: `CC (${countryCodePrefix})`, color: '#0ea5e9', icon: <Phone size={12} />, action: () => {
+                                setCountryCodePrefix(prev => {
+                                    const next = prev === '+971' ? '+91' : '+971';
+                                    localStorage.setItem('pos_country_code', next);
+                                    const Toast = Swal.mixin({
+                                        toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                                    });
+                                    Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
+                                    return next;
                                 });
-                                Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
-                                return next;
-                            });
-                        } },
+                            }
+                        },
                         {
                             key: 'F5', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
                                 if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
@@ -4799,15 +4978,17 @@ function Home() {
                         },
                         { key: 'F6', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} /> },
                         { key: 'F7', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
-                        { key: 'F8', label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
-                            if (selectedBillIndex !== -1) {
-                                const item = billItems[selectedBillIndex];
-                                const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
-                                toggleUom(item.id, newUom);
-                            } else {
-                                Swal.fire('Info', 'Select an item in cart first', 'info');
+                        {
+                            key: 'F8', label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
+                                if (selectedBillIndex !== -1) {
+                                    const item = billItems[selectedBillIndex];
+                                    const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
+                                    toggleUom(item.id, newUom);
+                                } else {
+                                    Swal.fire('Info', 'Select an item in cart first', 'info');
+                                }
                             }
-                        } },
+                        },
                         { key: 'F9', label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
                         { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
                         { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
@@ -5755,7 +5936,25 @@ function Home() {
                         </div>
                         <div className="home-modal-body">
                             <input type="text" placeholder="Customer Name *" value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
-                            <input type="tel" placeholder="Phone" value={createForm.phone} onChange={e => setCreateForm({ ...createForm, phone: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '0.75rem' }}>
+                                <select
+                                    value={countryCodePrefix}
+                                    onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
+                                    className="home-customer-input"
+                                    style={{ width: '100px', cursor: 'pointer', fontWeight: 700 }}
+                                >
+                                    <option value="+971">🇦🇪 +971</option>
+                                    <option value="+91">🇮🇳 +91</option>
+                                </select>
+                                <input
+                                    type="tel"
+                                    placeholder="Phone"
+                                    value={createForm.phone}
+                                    onChange={e => setCreateForm({ ...createForm, phone: e.target.value })}
+                                    className="home-customer-input"
+                                    style={{ flex: 1, margin: 0 }}
+                                />
+                            </div>
                             <input type="text" placeholder="Address (optional)" value={createForm.address} onChange={e => setCreateForm({ ...createForm, address: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
                             <input type="email" placeholder="Email (optional)" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
                         </div>
