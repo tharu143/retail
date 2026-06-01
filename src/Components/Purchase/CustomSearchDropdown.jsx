@@ -80,6 +80,8 @@ const CustomSearchDropdown = ({
     if (value && value[optionsLabel]) {
       setQuery(value[optionsLabel]);
       setJustCreated(false);
+    } else {
+      setQuery('');
     }
   }, [value, optionsLabel]);
 

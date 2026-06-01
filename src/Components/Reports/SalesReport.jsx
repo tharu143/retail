@@ -3,11 +3,12 @@ import { useSelector } from 'react-redux';
 import { 
     Loader2, FileText, AlertCircle, CheckCircle2, 
     Calendar, Search, Filter, Palette, RefreshCw, 
-    Download, Printer, ChevronDown, TrendingUp, DollarSign, CreditCard, Layers
+    Download, Printer, ChevronDown, TrendingUp, DollarSign, CreditCard, Layers, Zap, Coins
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 
 function SalesReport() {
   const navigate = useNavigate();
@@ -28,7 +29,8 @@ function SalesReport() {
     from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0], // 1st of current month
     to_date: new Date().toISOString().split('T')[0],
     customer: '',
-    warehouse: ''
+    warehouse: '',
+    payment_mode: new URLSearchParams(window.location.search).get('payment_mode') || ''
   });
   
   const [customers, setCustomers] = useState([]);
@@ -38,6 +40,8 @@ function SalesReport() {
     net_total: 0,
     cash: 0,
     card: 0,
+    instapay: 0,
+    credit: 0,
     other: 0
   });
 
@@ -120,7 +124,7 @@ function SalesReport() {
       if (payload.status === 'success') {
         setData(payload.data || []);
         setColumns(payload.columns || []);
-        setBreakdown(payload.payment_breakdown || { grand_total: 0, net_total: 0, cash: 0, card: 0, other: 0 });
+        setBreakdown(payload.payment_breakdown || { grand_total: 0, net_total: 0, cash: 0, card: 0, instapay: 0, credit: 0, other: 0 });
         setSuccess('Report generated successfully');
       } else {
         setError(payload.message || payload.error || 'Unknown error');
@@ -276,18 +280,38 @@ function SalesReport() {
 
           <div style={{ flex: '1 1 250px' }}>
             <label className="so-filter-label">Filter by Customer</label>
+            <div className="so-relative" style={{ display: 'flex', alignItems: 'center' }}>
+               <CustomSearchDropdown
+                 placeholder="Search customer..."
+                 value={filters.customer ? { name: filters.customer } : null}
+                 onSelect={(item) => handleFilterUpdate('customer', item ? item.name : '')}
+                 fetchData={async (query) => {
+                   const q = (query || '').toLowerCase();
+                   return customers.filter(c => 
+                     (c.customer_name || c.name || '').toLowerCase().includes(q)
+                   );
+                 }}
+                 optionsLabel="name"
+                 themeColor={themeColor}
+               />
+            </div>
+          </div>
+
+          <div style={{ flex: '1 1 200px' }}>
+            <label className="so-filter-label">Payment Mode</label>
             <div className="so-relative">
-               <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+               <Filter size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                <select 
                  className="so-filter-select" 
                  style={{ paddingLeft: '2.5rem' }}
-                 value={filters.customer}
-                 onChange={(e) => handleFilterUpdate('customer', e.target.value)}
+                 value={filters.payment_mode}
+                 onChange={(e) => handleFilterUpdate('payment_mode', e.target.value)}
                >
-                 <option value="">All Customers</option>
-                 {customers.map(c => (
-                   <option key={c.name} value={c.name}>{c.customer_name || c.name}</option>
-                 ))}
+                 <option value="">All Payment Modes</option>
+                 <option value="Cash">Cash</option>
+                 <option value="Card">Card</option>
+                 <option value="InstaPay">InstaPay</option>
+                 <option value="Credit">Credit Sales</option>
                </select>
                <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }} />
             </div>
@@ -301,8 +325,10 @@ function SalesReport() {
                  from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0], 
                  to_date: new Date().toISOString().split('T')[0], 
                  customer: '',
-                 warehouse: isAdmin ? '' : (warehouse || '')
+                 warehouse: isAdmin ? '' : (warehouse || ''),
+                 payment_mode: ''
                };
+               window.history.replaceState({}, document.title, window.location.pathname);
                setFilters(reset);
                fetchReport(reset);
              }}
@@ -331,7 +357,11 @@ function SalesReport() {
             marginBottom: '2rem' 
           }}>
             {/* Card 1: Grand Total */}
-            <div className="po-card shadow-sm" style={{ borderLeft: `4px solid ${themeColor}`, padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: themeColor }}>
+            <div 
+              className="po-card shadow-sm clickable-metric-card" 
+              onClick={() => window.open('/salesreport', '_blank')}
+              style={{ borderLeft: `4px solid ${themeColor}`, padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: themeColor }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Total POS Revenue</span>
                 <TrendingUp size={14} style={{ color: themeColor }} />
@@ -343,7 +373,11 @@ function SalesReport() {
             </div>
 
             {/* Card 2: Cash Payments */}
-            <div className="po-card shadow-sm" style={{ borderLeft: '4px solid #10b981', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#10b981' }}>
+            <div 
+              className="po-card shadow-sm clickable-metric-card" 
+              onClick={() => window.open('/salesreport?payment_mode=Cash', '_blank')}
+              style={{ borderLeft: '4px solid #10b981', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#10b981' }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Cash Payments</span>
                 <DollarSign size={14} style={{ color: '#10b981' }} />
@@ -351,11 +385,15 @@ function SalesReport() {
               <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#047857', display: 'block', marginTop: '0.5rem' }}>
                 AED {breakdown.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#a7f3d0', display: 'block', marginTop: '0.25rem' }}>Physical Cash Sales</span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#10b981', display: 'block', marginTop: '0.25rem' }}>Physical Cash Sales</span>
             </div>
 
             {/* Card 3: Card Payments */}
-            <div className="po-card shadow-sm" style={{ borderLeft: '4px solid #3b82f6', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#3b82f6' }}>
+            <div 
+              className="po-card shadow-sm clickable-metric-card" 
+              onClick={() => window.open('/salesreport?payment_mode=Card', '_blank')}
+              style={{ borderLeft: '4px solid #3b82f6', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#3b82f6' }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Card Payments</span>
                 <CreditCard size={14} style={{ color: '#3b82f6' }} />
@@ -363,19 +401,39 @@ function SalesReport() {
               <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#1d4ed8', display: 'block', marginTop: '0.5rem' }}>
                 AED {breakdown.card.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#bfdbfe', display: 'block', marginTop: '0.25rem' }}>Credit & Debit Cards</span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#3b82f6', display: 'block', marginTop: '0.25rem' }}>Credit & Debit Cards</span>
             </div>
 
-            {/* Card 4: Other Payments */}
-            <div className="po-card shadow-sm" style={{ borderLeft: '4px solid #a855f7', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#a855f7' }}>
+            {/* Card 4: InstaPay Payments */}
+            <div 
+              className="po-card shadow-sm clickable-metric-card" 
+              onClick={() => window.open('/salesreport?payment_mode=InstaPay', '_blank')}
+              style={{ borderLeft: '4px solid #06b6d4', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#06b6d4' }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Other Payments</span>
-                <Layers size={14} style={{ color: '#a855f7' }} />
+                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>InstaPay Payments</span>
+                <Zap size={14} style={{ color: '#06b6d4' }} />
               </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#7e22ce', display: 'block', marginTop: '0.5rem' }}>
-                AED {breakdown.other.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#0891b2', display: 'block', marginTop: '0.5rem' }}>
+                AED {(breakdown.instapay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#e9d5ff', display: 'block', marginTop: '0.25rem' }}>Cheque, Loyalty, etc.</span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#06b6d4', display: 'block', marginTop: '0.25rem' }}>InstaPay Transactions</span>
+            </div>
+
+            {/* Card 5: Credit Customer Payments */}
+            <div 
+              className="po-card shadow-sm clickable-metric-card" 
+              onClick={() => window.open('/salesreport?payment_mode=Credit', '_blank')}
+              style={{ borderLeft: '4px solid #f59e0b', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#f59e0b' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Credit Sales</span>
+                <Coins size={14} style={{ color: '#f59e0b' }} />
+              </div>
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#d97706', display: 'block', marginTop: '0.5rem' }}>
+                AED {(breakdown.credit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#f59e0b', display: 'block', marginTop: '0.25rem' }}>Outstanding Credit Sales</span>
             </div>
           </div>
 
@@ -436,6 +494,18 @@ function SalesReport() {
       </div>
       
       <style dangerouslySetInnerHTML={{ __html: `
+        .clickable-metric-card {
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .clickable-metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.08) !important;
+            border-color: #cbd5e1 !important;
+        }
+        .clickable-metric-card:active {
+            transform: translateY(-1px);
+        }
         @media print {
             body {
                 background: #ffffff !important;
