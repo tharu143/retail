@@ -2182,6 +2182,8 @@ function Home() {
             return;
         }
 
+        const uom = item.uom || item.stock_uom || 'Nos';
+
         const html = `
         <div style="text-align: left; padding: 10px; max-height: 500px; overflow-y: auto; font-family: 'Inter', sans-serif;">
              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 10px; font-weight: 800; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-bottom: 10px; font-size: 11px; text-transform: uppercase; color: #64748b;">
@@ -2204,7 +2206,7 @@ function Home() {
                     </div>
                     
                     <div style="text-align: center;">
-                      <span style="font-weight: 800; color: ${qty > 0 ? '#10b981' : '#ef4444'}">${qty}</span>
+                      <span style="font-weight: 800; color: ${qty > 0 ? '#10b981' : '#ef4444'}">${qty} <span style="font-size: 9px; font-weight: 700; color: #64748b; margin-left: 2px;">${uom}</span></span>
                     </div>
 
                     <div style="text-align: center;">
