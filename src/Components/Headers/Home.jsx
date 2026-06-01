@@ -4999,16 +4999,16 @@ function Home() {
                     ].map((s, idx) => (
                         <div
                             key={idx}
-                            className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all cursor-pointer group"
                             onClick={s.action}
                         >
                             <span
-                                className="px-1.5 py-0.5 rounded text-[10px] font-black text-white shadow-sm"
-                                style={{ background: s.color }}
+                                className="px-2 py-0.5 rounded-lg text-[10.5px] font-black text-white shadow-sm tracking-wider"
+                                style={{ background: `linear-gradient(135deg, ${s.color} 0%, rgba(0,0,0,0.15) 100%)`, backgroundColor: s.color }}
                             >
                                 {s.key}
                             </span>
-                            <div className="flex items-center gap-1 text-slate-500 group-hover:text-slate-800 transition-colors">
+                            <div className="flex items-center gap-1 text-slate-600 group-hover:text-slate-900 transition-colors">
                                 {s.icon}
                                 <span className="text-[10px] font-black uppercase tracking-tight">{s.label}</span>
                             </div>
