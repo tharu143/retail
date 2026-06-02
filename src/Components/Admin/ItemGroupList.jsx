@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, X, Loader2, ChevronLeft, ChevronRight, Palette, Layers, Edit2, Package, Save, CheckCircle2, ChevronDown, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import axios from 'axios';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 export default function ItemGroupList() {
   const [groups, setGroups] = useState([]);
@@ -436,7 +437,11 @@ export default function ItemGroupList() {
                                 <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{item.item_name}</span>
                                 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: 700 }}>{item.item_code}</span>
                               </div>
-                              {item.standard_rate > 0 && <span style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>AED {item.standard_rate}</span>}
+                              {item.standard_rate > 0 && (
+                                <span style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <DirhamIcon size={12} /> {item.standard_rate}
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>

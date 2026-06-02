@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import '../Admin/SalesOrder.css';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -2323,7 +2324,10 @@ function PurchaseReceiptList() {
                                 </span>
                               </td>
                               <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                AED {rec.is_return === 1 ? '-' : ''}{parseFloat(rec.rounded_total || rec.grand_total || rec.total || rec.base_net_total || rec.net_total || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}>
+                                  <DirhamIcon size={12} />
+                                  <span>{rec.is_return === 1 ? '-' : ''}{parseFloat(rec.rounded_total || rec.grand_total || rec.total || rec.base_net_total || rec.net_total || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</span>
+                                </div>
                               </td>
                               <td onClick={e => e.stopPropagation()}>
                                 <button style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
@@ -3365,16 +3369,16 @@ function PurchaseReceiptList() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
                           <span>Net Total</span>
-                          <span style={{ fontWeight: 700 }}>AED {formatPrice(formData.net_total)}</span>
+                          <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(formData.net_total)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
                           <span>Total Tax</span>
-                          <span style={{ fontWeight: 700 }}>AED {formatPrice(formData.total_taxes_and_charges)}</span>
+                          <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(formData.total_taxes_and_charges)}</span>
                         </div>
                         <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '0.5rem 0' }}></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Grand Total</span>
-                          <span style={{ fontSize: '1.6rem', fontWeight: 900 }}>AED {formatPrice(formData.grand_total)}</span>
+                          <span style={{ fontSize: '1.6rem', fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: '5px' }}><DirhamIcon size={20} /> {formatPrice(formData.grand_total)}</span>
                         </div>
                       </div>
                     </div>

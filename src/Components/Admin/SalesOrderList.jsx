@@ -10,6 +10,7 @@ import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const API_PATH_C = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
@@ -678,7 +679,10 @@ export default function SalesOrderList() {
               <div className="so-summary-divider" />
               <div className="so-summary-item">
                 <span className="so-summary-label">Total Amount</span>
-                <span className="so-summary-value">AED {stats.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <span className="so-summary-value flex items-center gap-1">
+                  <DirhamIcon size={14} />
+                  <span>{stats.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </span>
               </div>
             </div>
           </div>
@@ -749,8 +753,9 @@ export default function SalesOrderList() {
                             </div>
                           </td>
                           <td>
-                            <div style={{ fontWeight: 800 }}>
-                              AED {parseFloat(order.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <div style={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <DirhamIcon size={12} />
+                              <span>{parseFloat(order.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div style={{ fontSize: '0.65rem', color: 'var(--so-text-muted)', fontWeight: 600 }}>
                               Items: {order.total_qty || 0}
@@ -998,8 +1003,16 @@ export default function SalesOrderList() {
                               <th style={{ width: '100px' }}>UOM</th>
                               <th style={{ width: '140px' }}>Delivery Date <span style={{ color: '#ef4444' }}>*</span></th>
                               <th style={{ width: '100px', textAlign: 'center' }}>Quantity <span style={{ color: '#ef4444' }}>*</span></th>
-                              <th style={{ width: '130px', textAlign: 'right' }}>Rate (AED)</th>
-                              <th style={{ width: '130px', textAlign: 'right' }}>Amount (AED)</th>
+                              <th style={{ width: '130px', textAlign: 'right' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}>
+                                  Rate (<DirhamIcon size={10} />)
+                                </span>
+                              </th>
+                              <th style={{ width: '130px', textAlign: 'right' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}>
+                                  Amount (<DirhamIcon size={10} />)
+                                </span>
+                              </th>
                               <th style={{ width: '40px' }}></th>
                             </tr>
                           </thead>
@@ -1057,7 +1070,7 @@ export default function SalesOrderList() {
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                               <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>{res.item_group}</span>
-                                              {res.price && <span style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 900 }}>AED {parseFloat(res.price).toLocaleString()}</span>}
+                                              {res.price && <span style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {parseFloat(res.price).toLocaleString()}</span>}
                                             </div>
                                           </div>
                                         ))}
@@ -1120,7 +1133,7 @@ export default function SalesOrderList() {
                                         handleItemChange(idx, 'rate', val);
                                       }}
                                     />
-                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, marginLeft: '4px', opacity: 0.5 }}>.د.إ</span>
+                                    <DirhamIcon size={10} className="text-slate-400 ml-1" style={{ opacity: 0.5 }} />
                                   </div>
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
@@ -1131,7 +1144,7 @@ export default function SalesOrderList() {
                                       style={{ textAlign: 'right', fontWeight: 800, color: themeColor, background: 'transparent', border: 'none' }}
                                       value={(parseFloat(item.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     />
-                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, marginLeft: '4px', opacity: 0.5 }}>.د.إ</span>
+                                    <DirhamIcon size={10} className="text-slate-400 ml-1" style={{ opacity: 0.5 }} />
                                   </div>
                                 </td>
                                 <td>
@@ -1162,7 +1175,7 @@ export default function SalesOrderList() {
                           <input className="so-input" readOnly value={formData.total_qty || 0} style={{ background: '#f8fafc', fontWeight: 800 }} />
                         </div>
                         <div className="so-field">
-                          <label className="so-label">Net Total (AED)</label>
+                          <label className="so-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Net Total (<DirhamIcon size={10} style={{ display: 'inline-block' }} />)</label>
                           <input className="so-input" readOnly value={(parseFloat(formData.base_total) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} style={{ background: '#f8fafc', fontWeight: 800 }} />
                         </div>
                       </div>
@@ -1224,8 +1237,16 @@ export default function SalesOrderList() {
                               <th style={{ width: '180px' }}>Type <span style={{ color: '#ef4444' }}>*</span></th>
                               <th>Account Head <span style={{ color: '#ef4444' }}>*</span></th>
                               <th style={{ width: '120px' }}>Tax Rate %</th>
-                              <th style={{ width: '140px' }}>Amount (AED)</th>
-                              <th style={{ width: '140px' }}>Total (AED)</th>
+                              <th style={{ width: '140px' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  Amount (<DirhamIcon size={10} />)
+                                </span>
+                              </th>
+                              <th style={{ width: '140px' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  Total (<DirhamIcon size={10} />)
+                                </span>
+                              </th>
                               <th style={{ width: '50px' }}></th>
                             </tr>
                           </thead>
@@ -1264,11 +1285,11 @@ export default function SalesOrderList() {
                                 <td>
                                   <input type="number" className="so-table-input" style={{ textAlign: 'right' }} value={tax.rate} onChange={e => handleTaxChange(idx, 'rate', e.target.value)} />
                                 </td>
-                                <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                                  {(tax.tax_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.6rem' }}>.د.إ</span>
+                                 <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}><DirhamIcon size={10} /> {(tax.tax_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </td>
                                 <td style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
-                                  {(tax.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.6rem' }}>.د.إ</span>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%', color: themeColor }}><DirhamIcon size={10} /> {(tax.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </td>
                                 <td>
                                   <button onClick={() => {
@@ -1291,9 +1312,9 @@ export default function SalesOrderList() {
                         </button>
 
                         <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Total Taxes and Charges (AED)</label>
+                          <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.25rem', justifyContent: 'flex-end' }}>Total Taxes and Charges (<DirhamIcon size={10} style={{ display: 'inline-block' }} />)</label>
                           <div style={{ background: '#f8fafc', padding: '0.75rem 1.5rem', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontWeight: 900, color: themeColor, fontSize: '1.1rem' }}>
-                            {(formData.total_taxes_and_charges || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>.د.إ</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={12} /> {(formData.total_taxes_and_charges || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         </div>
                       </div>
@@ -1306,26 +1327,26 @@ export default function SalesOrderList() {
 
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1.5rem', alignSelf: 'flex-end', width: '400px' }}>
                         <div className="so-field" style={{ width: '100%' }}>
-                          <label className="so-label">Grand Total (AED)</label>
+                          <label className="so-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Grand Total (<DirhamIcon size={10} style={{ display: 'inline-block' }} />)</label>
                           <div style={{ position: 'relative' }}>
                             <input className="so-input" readOnly value={(formData.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} style={{ background: '#f8fafc', fontWeight: 800, textAlign: 'right', paddingRight: '3rem' }} />
-                            <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, fontSize: '0.7rem', opacity: 0.3 }}>.د.إ</span>
+                            <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', opacity: 0.4 }}><DirhamIcon size={12} /></span>
                           </div>
                         </div>
 
                         <div className="so-field" style={{ width: '100%' }}>
-                          <label className="so-label">Rounding Adjustment (AED)</label>
+                          <label className="so-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Rounding Adjustment (<DirhamIcon size={10} style={{ display: 'inline-block' }} />)</label>
                           <div style={{ position: 'relative' }}>
                             <input className="so-input" readOnly value={(formData.rounding_adjustment || 0).toFixed(2)} style={{ background: '#f8fafc', fontWeight: 800, textAlign: 'right', paddingRight: '3rem' }} />
-                            <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, fontSize: '0.7rem', opacity: 0.3 }}>.د.إ</span>
+                            <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', opacity: 0.4 }}><DirhamIcon size={12} /></span>
                           </div>
                         </div>
 
                         <div className="so-field" style={{ width: '100%' }}>
-                          <label className="so-label">Rounded Total (AED)</label>
+                          <label className="so-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Rounded Total (<DirhamIcon size={10} style={{ display: 'inline-block' }} />)</label>
                           <div style={{ position: 'relative' }}>
                             <input className="so-input" readOnly value={(formData.rounded_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} style={{ background: '#f8fafc', fontWeight: 900, fontSize: '1.2rem', color: themeColor, textAlign: 'right', paddingRight: '3rem' }} />
-                            <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, fontSize: '0.8rem', opacity: 0.3 }}>.د.إ</span>
+                            <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', opacity: 0.5, color: themeColor }}><DirhamIcon size={14} /></span>
                           </div>
                         </div>
                       </div>

@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { db } from '../../db';
 import "../Admin/SalesOrder.css";
 import { useLegacyTheme } from "../../hooks/useLegacyTheme";
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const formatDateToDMY = (dateStr) => {
     if (!dateStr) return '';
@@ -178,6 +179,7 @@ function InvoiceList() {
         const subtotal = items.reduce((sum, it) => sum + (it.amount || 0), 0);
         
         const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoice.name}&scale=2&height=10`;
+        const dirhamSvgHtml = `<svg viewBox="0 0 344.84 299.91" style="width: 12px; height: 10px; display: inline-block; vertical-align: middle; fill: currentColor; margin-right: 2px;"><path d="M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z"/></svg>`;
 
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
@@ -245,7 +247,7 @@ function InvoiceList() {
                         <div class="total-row"><span>NET TOTAL:</span><span>${parseFloat(subtotal).toFixed(2)}</span></div>
                         ${invoice.total_taxes_and_charges > 0 ? `<div class="total-row"><span>VAT/TAX:</span><span>${parseFloat(invoice.total_taxes_and_charges).toFixed(2)}</span></div>` : ''}
                         ${invoice.discount_amount > 0 ? `<div class="total-row"><span>DISCOUNT:</span><span>-${parseFloat(invoice.discount_amount).toFixed(2)}</span></div>` : ''}
-                        <div class="total-row bold grand-total"><span>GRAND TOTAL:</span><span>AED ${parseFloat(invoice.grand_total).toFixed(2)}</span></div>
+                        <div class="total-row bold grand-total"><span>GRAND TOTAL:</span><span>${dirhamSvgHtml}${parseFloat(invoice.grand_total).toFixed(2)}</span></div>
                     </div>
                     
                     <div class="divider"></div>
@@ -431,7 +433,7 @@ function InvoiceList() {
                                                 </td>
                                                 <td style={{ fontWeight: 600 }}>{inv.customer_name}</td>
                                                 <td style={{ fontWeight: 800, textAlign: 'right', fontSize: '0.9rem' }}>
-                                                    AED {parseFloat(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} /> {parseFloat(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                                 </td>
                                                 <td style={{ textAlign: 'center' }}><StatusBadge inv={inv} /></td>
                                                 <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
@@ -528,7 +530,7 @@ function InvoiceList() {
                                             {(selectedInvoice.payments || []).map((p, idx) => (
                                                 <div key={idx} className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg">
                                                     <span className="text-[11px] font-bold text-slate-600 uppercase">{p.mode_of_payment}</span>
-                                                    <span className="text-sm font-black text-slate-900">AED {parseFloat(p.amount).toFixed(2)}</span>
+                                                    <span className="text-sm font-black text-slate-900 flex items-center gap-1"><DirhamIcon size={12} /> {parseFloat(p.amount).toFixed(2)}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -553,8 +555,8 @@ function InvoiceList() {
                                     <div className="mt-8 pt-6 border-t border-slate-100">
                                         <div className="bg-slate-900 rounded-xl p-5 text-white">
                                             <span className="text-[10px] font-black opacity-50 uppercase tracking-[0.2em]">Grand Total</span>
-                                            <div className="text-3xl font-black mt-1">
-                                                <small className="text-sm mr-1.5 opacity-40 italic">AED</small>
+                                            <div className="text-3xl font-black mt-1 flex items-center justify-start gap-1.5">
+                                                <DirhamIcon size={18} className="opacity-40" />
                                                 {parseFloat(selectedInvoice.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </div>
                                             <p className="text-[10px] font-bold opacity-40 mt-2 uppercase italic leading-tight">
@@ -605,13 +607,13 @@ function InvoiceList() {
                                                         </td>
                                                         <td className="px-6 py-5 text-right">
                                                             <div className="flex flex-col">
-                                                                <span className="text-[13px] font-black text-slate-700">AED {parseFloat(it.tax_amount || 0).toFixed(2)}</span>
+                                                                <span className="text-[13px] font-black text-slate-700 flex items-center gap-1"><DirhamIcon size={12} /> {parseFloat(it.tax_amount || 0).toFixed(2)}</span>
                                                                 <span className="text-[9px] font-black text-slate-400 uppercase">{it.tax_rate}% VAT</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-5 text-right">
                                                             <div className="flex flex-col">
-                                                                <span className="text-[15px] font-black text-slate-900">AED {parseFloat(it.amount || 0).toFixed(2)}</span>
+                                                                <span className="text-[15px] font-black text-slate-900 flex items-center gap-1"><DirhamIcon size={14} /> {parseFloat(it.amount || 0).toFixed(2)}</span>
                                                                 <span className="text-[9px] font-bold text-slate-400 italic">Rate: {parseFloat(it.rate || 0).toFixed(2)}</span>
                                                             </div>
                                                         </td>
@@ -636,7 +638,7 @@ function InvoiceList() {
                                                             <p className="text-[10px] font-black text-slate-400 uppercase leading-tight max-w-[70%]">
                                                                 {tax.description}
                                                             </p>
-                                                            <span className="text-xs font-black text-slate-900">AED {parseFloat(tax.tax_amount).toFixed(2)}</span>
+                                                            <span className="text-xs font-black text-slate-900 flex items-center gap-1"><DirhamIcon size={11} /> {parseFloat(tax.tax_amount).toFixed(2)}</span>
                                                         </div>
                                                         <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
                                                             <div 

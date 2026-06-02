@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, Package, ArrowLeft, Calculator, Search, Trash2, Plus, Box, Send } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { frappeCall } from '../../utils/frappe';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './Purchase.css';
 
 export default function PurchaseTools() {
@@ -342,7 +343,11 @@ export default function PurchaseTools() {
 
                     <td className="purchase-td text-right">
                       <div className={`px-4 py-3 rounded-xl font-black text-sm transition-all shadow-sm border ${row.calculated_price > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
-                        {row.calculated_price > 0 ? `AED ${row.calculated_price.toFixed(2)}` : '—'}
+                        {row.calculated_price > 0 ? (
+                          <span className="flex items-center justify-end gap-1">
+                            <DirhamIcon size={12} /> {row.calculated_price.toFixed(2)}
+                          </span>
+                        ) : '—'}
                       </div>
                     </td>
 

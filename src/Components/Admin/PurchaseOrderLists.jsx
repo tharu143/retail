@@ -8,6 +8,7 @@ import {
 import { format } from 'date-fns';
 import './SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -331,7 +332,12 @@ function PurchaseOrderLists() {
                         <td style={{ color: '#475569', fontSize: '0.85rem' }}>
                           {po.transaction_date && format(new Date(po.transaction_date), 'dd-MM-yyyy')}
                         </td>
-                        <td style={{ textAlign: 'right', fontWeight: 700 }}>AED {parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                            <DirhamIcon size={12} />
+                            <span>{parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '80px' }}>
                             <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>

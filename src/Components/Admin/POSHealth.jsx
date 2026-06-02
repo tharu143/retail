@@ -6,6 +6,7 @@ import {
     Database, Wifi, WifiOff, Server, HardDrive
 } from 'lucide-react';
 import '../Admin/SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const POSHealth = () => {
     const posProfile = useSelector((state) => state.user.posProfile);
@@ -162,7 +163,7 @@ const POSHealth = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
                         <DashboardCard
                             title="Fiscal Sales"
-                            value={`AED ${healthData?.today_total_sales?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}`}
+                            value={<span className="flex items-center gap-1"><DirhamIcon size={20} /> {healthData?.today_total_sales?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</span>}
                             subtitle="Total revenue processed today"
                             icon={TrendingUp}
                             color={themeColor}

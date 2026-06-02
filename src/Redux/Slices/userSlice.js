@@ -53,7 +53,16 @@ const userSlice = createSlice({
       state.warehouse = action.payload;
     },
     toggleTheme: (state) => {
-      state.theme = state.theme === 'modern' ? 'legacy' : 'modern';
+      if (state.theme === 'modern') {
+        state.theme = 'modern_no_image';
+      } else if (state.theme === 'modern_no_image') {
+        state.theme = 'legacy';
+      } else {
+        state.theme = 'modern';
+      }
+    },
+    setTheme: (state, action) => {
+      state.theme = action.payload;
     },
     setSecretKey: (state, action) => {
       state.secret_key = action.payload;
@@ -61,5 +70,5 @@ const userSlice = createSlice({
   },
 });
 
-export const { loginSuccess, logout, setWarehouse, toggleTheme, setSecretKey } = userSlice.actions;
+export const { loginSuccess, logout, setWarehouse, toggleTheme, setTheme, setSecretKey } = userSlice.actions;
 export default userSlice.reducer;

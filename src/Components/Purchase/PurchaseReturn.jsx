@@ -9,6 +9,7 @@ import {
   Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, ArrowRightLeft, ArrowLeft
 } from 'lucide-react';
 import CustomSearchDropdown from './CustomSearchDropdown';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './Purchase.css';
 import '../Headers/LegacyPOS.css';
 
@@ -162,7 +163,7 @@ function PurchaseReturn() {
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Identity</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Supplier</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Value (AED)</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right flex items-center justify-end gap-1">Value (<DirhamIcon size={9} />)</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Status</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider"></th>
                 </tr>

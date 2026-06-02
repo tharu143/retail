@@ -7,6 +7,7 @@ import {
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import './SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const API_PATH_K = '/api/method/kyle_retail.retail_api.api';
 const API_PATH_C = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -661,7 +662,10 @@ function SalesOrder() {
                         <td>{order.transaction_date}</td>
                         <td>{order.customer_name}</td>
                         <td>
-                          <strong>AED {Number(order.grand_total || 0).toLocaleString('en-AE', { minimumFractionDigits: 2 })}</strong>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 700 }}>
+                            <DirhamIcon size={12} />
+                            <span>{Number(order.grand_total || 0).toLocaleString('en-AE', { minimumFractionDigits: 2 })}</span>
+                          </div>
                         </td>
                         <td>
                           {order.docstatus === 1 ? (
@@ -838,7 +842,10 @@ function SalesOrder() {
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span style={{ fontSize: '1rem', fontWeight: 900 }}>Total</span>
-                                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: themeColor }}>AED {form.grand_total.toFixed(2)}</span>
+                                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: themeColor, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <DirhamIcon size={18} />
+                                  <span>{form.grand_total.toFixed(2)}</span>
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -970,7 +977,11 @@ function SalesOrder() {
                               <th style={{ width: '35%' }}>Item</th>
                               <th style={{ width: '10%' }}>UOM</th>
                               <th style={{ width: '12%' }}>Qty</th>
-                              <th style={{ width: '15%' }}>Rate (AED)</th>
+                              <th style={{ width: '15%' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  Rate (<DirhamIcon size={10} />)
+                                </span>
+                              </th>
                               <th style={{ width: '18%' }}>Amount</th>
                               <th style={{ width: '10%' }}></th>
                             </tr>
@@ -1137,17 +1148,17 @@ function SalesOrder() {
                       <div className="so-summary-divider" />
                       <div className="so-summary-item">
                         <span className="so-summary-label">Net Total</span>
-                        <span className="so-summary-value">AED {Number(form.base_total || 0).toFixed(2)}</span>
+                        <span className="so-summary-value flex items-center gap-1"><DirhamIcon size={12} /> {Number(form.base_total || 0).toFixed(2)}</span>
                       </div>
                       <div className="so-summary-divider" />
                       <div className="so-summary-item">
                         <span className="so-summary-label">Taxes</span>
-                        <span className="so-summary-value">AED {Number(form.total_taxes_and_charges || 0).toFixed(2)}</span>
+                        <span className="so-summary-value flex items-center gap-1"><DirhamIcon size={12} /> {Number(form.total_taxes_and_charges || 0).toFixed(2)}</span>
                       </div>
                       <div className="so-summary-divider" />
                       <div className="so-summary-item">
                         <span className="so-summary-label">Grand Total</span>
-                        <span className="so-summary-value grand">AED {Number(form.rounded_total || 0).toFixed(2)}</span>
+                        <span className="so-summary-value grand flex items-center gap-1"><DirhamIcon size={14} /> {Number(form.rounded_total || 0).toFixed(2)}</span>
                       </div>
                     </div>
 

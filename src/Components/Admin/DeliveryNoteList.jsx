@@ -13,6 +13,7 @@ import { frappeCall } from '../../utils/frappe';
 import Swal from 'sweetalert2';
 import { useSelector } from 'react-redux';
 import '../Admin/SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const CustomerDropdown = ({ query, onSelect, customers, targetRef }) => {
     const results = useMemo(() => {
@@ -152,7 +153,7 @@ const ItemDropdown = ({ query, onSelect, warehouse, targetRef }) => {
                     >
                         <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{item.item_name}</div>
                         <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{item.item_code} | {item.stock_uom}</div>
-                        {item.price_list_rate && <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981' }}>AED {item.price_list_rate}</div>}
+                        {item.price_list_rate && <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={10} /> {item.price_list_rate}</div>}
                     </div>
                 ))
             ) : (
@@ -276,7 +277,7 @@ const DeliveryNoteList = () => {
     const getCurrencySymbol = (currency = 'INR') => {
         switch (currency) {
             case 'INR': return '₹';
-            case 'AED': return 'AED ';
+            case 'AED': return <DirhamIcon size={12} className="inline mr-1" />;
             case 'USD': return '$';
             default: return '₹';
         }
@@ -844,7 +845,7 @@ const DeliveryNoteList = () => {
                                                 <td style={{ fontWeight: 600 }}>{dn.title || 'Cash'}</td>
                                                 <td><span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', ...getStatusStyle(dn.docstatus) }}>{dn.docstatus === 0 ? 'Draft' : dn.docstatus === 1 ? 'Submitted' : 'Cancelled'}</span></td>
                                                 <td>{dn.customer_name}</td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700 }}>{getCurrencySymbol(dn.currency)} {Number(dn.grand_total).toLocaleString()}</td>
+                                                <td style={{ textAlign: 'right', fontWeight: 700 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end' }}><DirhamIcon size={12} /> {Number(dn.grand_total).toLocaleString()}</span></td>
                                                 <td style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{dn.name}</td>
                                             </tr>
                                         ))}

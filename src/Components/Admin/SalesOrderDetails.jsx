@@ -10,6 +10,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 /* ==================== CORE LOGIC ==================== */
 function recalcForm(form) {
@@ -783,7 +784,13 @@ export default function SalesOrderDetails() {
                                                 <th style={{ width: '25%' }}>Type</th>
                                                 <th style={{ width: '40%' }}>Account Head</th>
                                                 <th style={{ width: '15%', textAlign: 'center' }}>Tax Rate %</th>
-                                                <th style={{ width: '15%', textAlign: 'right' }}>Amount (AED)</th>
+                                                <th style={{ width: '15%', textAlign: 'right' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                                        <span>Amount (</span>
+                                                        <DirhamIcon size={10} />
+                                                        <span>)</span>
+                                                    </div>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -844,12 +851,18 @@ export default function SalesOrderDetails() {
                             <div className="so-summary-bar" style={{ alignSelf: 'flex-end', minWidth: '350px' }}>
                                 <div className="so-summary-item">
                                     <span className="so-summary-label">Base Total</span>
-                                    <span className="so-summary-value">AED {form.base_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span className="so-summary-value" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        <DirhamIcon size={12} />
+                                        <span>{form.base_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </span>
                                 </div>
                                 <div className="so-summary-divider" />
                                 <div className="so-summary-item" style={{ textAlign: 'right' }}>
                                     <span className="so-summary-label">Net Payable</span>
-                                    <span className="so-summary-value grand">AED {form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        <DirhamIcon size={14} />
+                                        <span>{form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -860,7 +873,10 @@ export default function SalesOrderDetails() {
                             <div className="so-summary-bar">
                                 <div className="so-summary-item">
                                     <span className="so-summary-label">Artifact Valuation</span>
-                                    <span className="so-summary-value grand">AED {form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        <DirhamIcon size={14} />
+                                        <span>{form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </span>
                                 </div>
                                 <div className="so-summary-divider" />
                                 <div className="so-summary-item">
@@ -953,7 +969,12 @@ export default function SalesOrderDetails() {
                                                             <tr key={idx} style={{ cursor: 'default' }}>
                                                                 <td style={{ fontWeight: 700 }}>{t.account_head}</td>
                                                                 <td style={{ textAlign: 'center', fontWeight: 700 }}>{t.rate}%</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 700, color: themeColor }}>AED {parseFloat(t.tax_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 700, color: themeColor }}>
+                                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                                                                        <DirhamIcon size={12} />
+                                                                        <span>{parseFloat(t.tax_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                                    </div>
+                                                                </td>
                                                             </tr>
                                                         ))
                                                     )}
@@ -990,8 +1011,18 @@ export default function SalesOrderDetails() {
                                                     </td>
                                                     <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{i.uom}</td>
                                                     <td style={{ textAlign: 'center', fontWeight: 800, color: '#475569' }}>{i.qty}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>AED {parseFloat(i.rate || 0).toLocaleString()}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>AED {parseFloat(i.amount || 0).toLocaleString()}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>
+                                                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                                                            <DirhamIcon size={12} />
+                                                            <span>{parseFloat(i.rate || 0).toLocaleString()}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>
+                                                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                                                            <DirhamIcon size={13} />
+                                                            <span>{parseFloat(i.amount || 0).toLocaleString()}</span>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

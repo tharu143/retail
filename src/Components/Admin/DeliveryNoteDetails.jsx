@@ -12,6 +12,7 @@ import {
 import { frappeCall } from '../../utils/frappe';
 import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const CustomerDropdown = ({ query, onSelect, customers, targetRef }) => {
     const results = useMemo(() => {
@@ -151,7 +152,7 @@ const ItemDropdown = ({ query, onSelect, warehouse, targetRef }) => {
                     >
                         <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{item.item_name}</div>
                         <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{item.item_code} | {item.stock_uom}</div>
-                        {item.price_list_rate && <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981' }}>AED {item.price_list_rate}</div>}
+                        {item.price_list_rate && <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={10} /> {item.price_list_rate}</div>}
                     </div>
                 ))
             ) : (
@@ -192,6 +193,13 @@ const DeliveryNoteDetails = () => {
     const themeColorHover = isGreen ? '#059669' : '#0284c7';
     const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
 
+    useEffect(() => {
+        localStorage.setItem('legacySubTheme', dnTheme);
+        document.documentElement.style.setProperty('--so-primary', themeColor);
+        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+        document.documentElement.style.setProperty('--so-primary-light', themeLight);
+    }, [dnTheme, themeColor, themeColorHover, themeLight]);
+
     const [form, setForm] = useState({
         name: '', title: '', naming_series: '',
         posting_date: new Date().toISOString().split('T')[0],
@@ -212,7 +220,7 @@ const DeliveryNoteDetails = () => {
     const getCurrencySymbol = (currency = 'INR') => {
         switch (currency) {
             case 'INR': return '₹';
-            case 'AED': return 'AED ';
+            case 'AED': return <DirhamIcon size={12} className="inline mr-1" />;
             case 'USD': return '$';
             default: return '₹';
         }
@@ -884,8 +892,8 @@ const DeliveryNoteDetails = () => {
                                                 {form.taxes.map((t, idx) => (
                                                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
                                                         <span style={{ color: '#64748b', fontWeight: 600 }}>{t.account_head} ({t.rate}%)</span>
-                                                        <span style={{ fontWeight: 700, color: '#1e293b' }}>
-                                                            AED {((t.rate / 100) * form.base_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        <span style={{ fontWeight: 700, color: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                                            <DirhamIcon size={12} /> {((t.rate / 100) * form.base_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </span>
                                                     </div>
                                                 ))}
@@ -899,12 +907,12 @@ const DeliveryNoteDetails = () => {
                             <div className="so-summary-bar" style={{ alignSelf: 'flex-end', minWidth: '350px' }}>
                                 <div className="so-summary-item">
                                     <span className="so-summary-label">Base Total</span>
-                                    <span className="so-summary-value">AED {form.base_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span className="so-summary-value" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {form.base_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="so-summary-divider" />
                                 <div className="so-summary-item" style={{ textAlign: 'right' }}>
                                     <span className="so-summary-label">Net Payable</span>
-                                    <span className="so-summary-value grand">AED {form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={14} /> {form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                         </div>
@@ -915,7 +923,7 @@ const DeliveryNoteDetails = () => {
                             <div className="so-summary-bar">
                                 <div className="so-summary-item">
                                     <span className="so-summary-label">Artifact Valuation</span>
-                                    <span className="so-summary-value grand">AED {form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={14} /> {form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="so-summary-divider" />
                                 <div className="so-summary-item">
@@ -1016,7 +1024,7 @@ const DeliveryNoteDetails = () => {
                                                             <tr key={idx} style={{ cursor: 'default' }}>
                                                                 <td style={{ fontWeight: 700 }}>{t.account_head}</td>
                                                                 <td style={{ textAlign: 'center', fontWeight: 700 }}>{t.rate}%</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 700, color: themeColor }}>AED {parseFloat((t.rate / 100) * form.base_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 700, color: themeColor }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {parseFloat((t.rate / 100) * form.base_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
                                                             </tr>
                                                         ))
                                                     )}
@@ -1053,8 +1061,8 @@ const DeliveryNoteDetails = () => {
                                                     </td>
                                                     <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{item.uom}</td>
                                                     <td style={{ textAlign: 'center', fontWeight: 800, color: '#475569' }}>{item.qty}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>AED {parseFloat(item.rate || 0).toLocaleString()}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>AED {parseFloat(item.amount || 0).toLocaleString()}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {parseFloat(item.rate || 0).toLocaleString()}</span></td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {parseFloat(item.amount || 0).toLocaleString()}</span></td>
                                                 </tr>
                                             ))}
                                         </tbody>

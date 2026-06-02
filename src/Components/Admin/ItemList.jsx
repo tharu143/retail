@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 /* ========== DESIGN TOKENS ========== */
 const T = {
@@ -264,7 +265,7 @@ const ItemCard = ({ item, onClick }) => (
       <div style={{ fontSize: 14, fontWeight: 600, color: T.text, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: 38 }}>{item.item_name}</div>
       <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>{item.stock_uom || 'Nos'}</span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}><span style={{ fontSize: 10, color: T.textMuted, marginRight: 2 }}>AED</span>{Number(item.valuation_rate || 0).toFixed(2)}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: T.text, display: 'inline-flex', alignItems: 'center' }}><DirhamIcon size={11} style={{ color: T.textMuted, marginRight: '2px' }} />{Number(item.valuation_rate || 0).toFixed(2)}</span>
       </div>
     </div>
   </div>
@@ -1200,7 +1201,7 @@ export default function ItemList() {
                       <th>Group</th>
                       <th>UOM</th>
                       <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Valuation Rate (AED)</th>
+                      <th style={{ textAlign: 'right' }}><span className="flex items-center justify-end gap-1">Valuation Rate (<DirhamIcon size={10} />)</span></th>
                       <th style={{ width: 36 }}></th>
                     </tr>
                   </thead>
@@ -1571,10 +1572,10 @@ export default function ItemList() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {/* Stats */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-                      <StatCard label="Valuation Rate" value={`AED ${Number(valuationData?.valuation_rate || form.valuation_rate || 0).toFixed(2)}`} accent={T.blue} />
-                      <StatCard label="Last Buy Price" value={`AED ${Number(priceData.metrics?.last_buying_price || 0).toFixed(2)}`} accent={T.amber} />
+                      <StatCard label="Valuation Rate" value={<span className="flex items-center gap-1"><DirhamIcon size={20} /> {Number(valuationData?.valuation_rate || form.valuation_rate || 0).toFixed(2)}</span>} accent={T.blue} />
+                      <StatCard label="Last Buy Price" value={<span className="flex items-center gap-1"><DirhamIcon size={20} /> {Number(priceData.metrics?.last_buying_price || 0).toFixed(2)}</span>} accent={T.amber} />
                       <StatCard label="Total Stock" value={`${valuationData?.stock_qty || priceData.metrics?.total_stock || 0} ${form.default_uom}`} accent={T.purple} />
-                      <StatCard label="Stock Value" value={`AED ${Number(valuationData?.stock_value || priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} accent={T.green} />
+                      <StatCard label="Stock Value" value={<span className="flex items-center gap-1"><DirhamIcon size={20} /> {Number(valuationData?.stock_value || priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>} accent={T.green} />
                     </div>
 
                     {/* Grid */}
@@ -1816,7 +1817,7 @@ export default function ItemList() {
                         </div>
                         <div className="il-card" style={{ overflow: 'hidden' }}>
                           <table className="il-table">
-                            <thead><tr><th>Price List</th><th>UOM</th><th>Type</th><th style={{ textAlign: 'right' }}>Rate (AED)</th><th style={{ width: 36 }}></th></tr></thead>
+                            <thead><tr><th>Price List</th><th>UOM</th><th>Type</th><th style={{ textAlign: 'right' }}><span className="flex items-center justify-end gap-1">Rate (<DirhamIcon size={10} />)</span></th><th style={{ width: 36 }}></th></tr></thead>
                             <tbody>
                               {loadingPrices ? (
                                 <tr><td colSpan={5} style={{ padding: '50px', textAlign: 'center' }}><Loader2 size={24} style={{ color: T.blue, margin: '0 auto' }} className="spin" /></td></tr>
@@ -1871,7 +1872,7 @@ export default function ItemList() {
                             </div>
                           </div>
                           <div className="il-form-field">
-                            <label className="il-form-label">Rate (AED)</label>
+                            <label className="il-form-label flex items-center gap-1">Rate (<DirhamIcon size={10} />)</label>
                             <input type="number" className="il-input" style={{ fontSize: 22, fontWeight: 700, height: 52, color: T.blue }} value={priceForm.price_list_rate} onChange={e => setPriceForm(p => ({ ...p, price_list_rate: Number(e.target.value) }))} />
                           </div>
                           <div style={{ display: 'flex', gap: 10 }}>
@@ -1925,11 +1926,11 @@ export default function ItemList() {
                                     <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 3 }}>{form.default_uom}</span>
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
-                                    <span style={{ fontSize: 11, color: T.textMuted, marginRight: 2 }}>AED</span>
+                                    <DirhamIcon size={11} style={{ color: T.textMuted, marginRight: 2 }} />
                                     <span style={{ fontWeight: 600 }}>{Number(w.avg_buying_price || 0).toFixed(2)}</span>
                                   </td>
                                   <td style={{ textAlign: 'right' }}>
-                                    <span style={{ fontSize: 11, color: T.textMuted, marginRight: 2 }}>AED</span>
+                                    <DirhamIcon size={11} style={{ color: T.textMuted, marginRight: 2 }} />
                                     <span style={{ fontWeight: 700, color: T.green }}>{Number(w.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                   </td>
                                 </tr>

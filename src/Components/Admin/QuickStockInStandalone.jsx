@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import '../Admin/SalesOrder.css';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const QuickStockInStandalone = () => {
     const user_roles = useSelector((state) => state.user.user_roles || []);
@@ -459,7 +460,9 @@ const QuickStockInStandalone = () => {
                                                 <div className="so-item-display-code">{it.id}</div>
                                             </div>
                                         </div>
-                                        <div style={{ fontWeight: 800, color: themeColor, alignSelf: 'center' }}>AED {it.price?.toFixed(2)}</div>
+                                        <div style={{ fontWeight: 800, color: themeColor, alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                            <DirhamIcon size={12} /> {it.price?.toFixed(2)}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -658,7 +661,9 @@ const QuickStockInStandalone = () => {
                                     <div className="so-field">
                                         <label className="so-label" style={{ color: themeColor }}>Buying Rate (Total per Box)</label>
                                         <div style={{ position: 'relative' }}>
-                                            <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8' }}>AED</span>
+                                            <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
+                                                <DirhamIcon size={10} className="text-slate-400" />
+                                            </span>
                                             <input 
                                                 type="number" 
                                                 className="so-input" 
@@ -698,7 +703,7 @@ const QuickStockInStandalone = () => {
                                             <div>
                                                 <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Unit Sale Price</div>
                                                 <div style={{ fontSize: '1.25rem', fontWeight: 900, color: themeColor }}>
-                                                    <span style={{ fontSize: '0.65rem', marginRight: '0.2rem', verticalAlign: 'middle', opacity: 0.6 }}>AED</span>
+                                                    <DirhamIcon size={10} style={{ marginRight: '0.2rem', opacity: 0.6 }} />
                                                     {calculateLivePrice().toFixed(2)}
                                                 </div>
                                             </div>
@@ -733,7 +738,7 @@ const QuickStockInStandalone = () => {
                                     <div>
                                         <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Total Batch Cost</div>
                                         <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a' }}>
-                                            <small style={{ fontSize: '0.75rem', marginRight: '0.25rem' }}>AED</small>
+                                            <DirhamIcon size={14} style={{ marginRight: '0.25rem' }} />
                                             {itemsToSubmit.reduce((sum, it) => sum + (it.box_qty * it.purchase_price), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </div>
                                     </div>

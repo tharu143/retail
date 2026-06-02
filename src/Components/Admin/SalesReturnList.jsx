@@ -9,6 +9,14 @@ import Swal from 'sweetalert2';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import './SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
+
+const renderCurrency = (currencyCode, size = 12, className = "") => {
+  if (currencyCode === 'AED') {
+    return <DirhamIcon size={size} className={className || "inline mr-0.5"} />;
+  }
+  return <span>{currencyCode} </span>;
+};
 
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
@@ -608,7 +616,10 @@ function SalesReturnList() {
                         </td>
                         <td style={{ fontWeight: 700, color: '#475569', fontSize: '13px' }}>{r.return_against}</td>
                         <td style={{ textAlign: 'right', fontWeight: 800, color: '#334155', fontSize: '14px' }}>
-                          {r.currency} {Math.abs(parseFloat(r.rounded_total || r.grand_total || r.total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            {renderCurrency(r.currency, 12)}
+                            <span>{Math.abs(parseFloat(r.rounded_total || r.grand_total || r.total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </span>
                         </td>
                         <td style={{ textAlign: 'right', paddingRight: '2rem' }}><span style={{ fontWeight: 800, fontFamily: 'monospace', color: themeColor, background: themeLight, padding: '4px 10px', borderRadius: '6px', fontSize: '11px' }}>{r.name}</span></td>
                       </tr>
@@ -731,8 +742,11 @@ function SalesReturnList() {
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <p className="font-black text-sm text-slate-800">{inv.currency} {inv.grand_total.toLocaleString()}</p>
-                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Select Invoice <ArrowRight size={10} className="inline ml-1" /></span>
+                        <div className="font-black text-sm text-slate-800" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          {renderCurrency(inv.currency, 12)}
+                          <span>{inv.grand_total.toLocaleString()}</span>
+                        </div>
+                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Select Invoice <ArrowRight size={10} className="inline ml-1" /></span>
                       </div>
                     </div>
                   ))
@@ -757,7 +771,10 @@ function SalesReturnList() {
                       </div>
                       <div className="text-right">
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">original value</span>
-                        <p className="text-base font-black text-slate-800">{selectedInvoice.currency} {selectedInvoice.grand_total.toLocaleString()}</p>
+                        <div className="text-base font-black text-slate-800" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          {renderCurrency(selectedInvoice.currency, 14)}
+                          <span>{selectedInvoice.grand_total.toLocaleString()}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -816,10 +833,16 @@ function SalesReturnList() {
                                   />
                                 </td>
                                 <td className="p-4 text-right text-xs font-bold text-slate-600">
-                                  {selectedInvoice.currency} {(item.rate || 0).toFixed(2)}
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                    {renderCurrency(selectedInvoice.currency, 11)}
+                                    <span>{(item.rate || 0).toFixed(2)}</span>
+                                  </div>
                                 </td>
                                 <td className="p-4 text-right text-xs font-black text-slate-800">
-                                  {selectedInvoice.currency} {((sel.qty || 0) * (item.rate || 0)).toFixed(2)}
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                    {renderCurrency(selectedInvoice.currency, 11)}
+                                    <span>{((sel.qty || 0) * (item.rate || 0)).toFixed(2)}</span>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -861,8 +884,18 @@ function SalesReturnList() {
                                     <span className="text-[9px] text-slate-400">{item.item_code}</span>
                                   </td>
                                   <td className="p-2 text-center">{item.qty} {item.uom}</td>
-                                  <td className="p-2 text-right">{selectedInvoice?.currency || 'AED'} {(item.rate || 0).toFixed(2)}</td>
-                                  <td className="p-2 text-right">{selectedInvoice?.currency || 'AED'} {(item.qty * (item.rate || 0)).toFixed(2)}</td>
+                                  <td className="p-2 text-right">
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                      {renderCurrency(selectedInvoice?.currency || 'AED', 11)}
+                                      <span>{(item.rate || 0).toFixed(2)}</span>
+                                    </div>
+                                  </td>
+                                  <td className="p-2 text-right">
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                      {renderCurrency(selectedInvoice?.currency || 'AED', 11)}
+                                      <span>{(item.qty * (item.rate || 0)).toFixed(2)}</span>
+                                    </div>
+                                  </td>
                                   <td className="p-2 text-center">
                                     <button 
                                       onClick={() => handleRemoveFromQueue(item.parent_detail_docname)}
@@ -892,7 +925,10 @@ function SalesReturnList() {
                             {totals.taxes?.map((t, idx) => (
                               <div key={idx} className="flex justify-between items-center text-xs font-bold text-slate-500">
                                 <span>{t.description}</span>
-                                <span>{selectedInvoice.currency} {Math.abs(t.tax_amount).toFixed(2)}</span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  {renderCurrency(selectedInvoice.currency, 11)}
+                                  <span>{Math.abs(t.tax_amount).toFixed(2)}</span>
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -904,17 +940,27 @@ function SalesReturnList() {
                         <div className="flex flex-col gap-3 mt-4">
                           <div className="flex justify-between items-center text-xs font-bold text-slate-400">
                             <span>Subtotal Impact</span>
-                            <span>-{selectedInvoice.currency} {Math.abs(totals.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <span>-</span>
+                              {renderCurrency(selectedInvoice.currency, 11)}
+                              <span>{Math.abs(totals.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </span>
                           </div>
                           <div className="flex justify-between items-center text-xs font-bold text-slate-400">
                             <span>Tax Reversal</span>
-                            <span>-{selectedInvoice.currency} {Math.abs(totals.total_taxes_and_charges || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <span>-</span>
+                              {renderCurrency(selectedInvoice.currency, 11)}
+                              <span>{Math.abs(totals.total_taxes_and_charges || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </span>
                           </div>
                           <div className="h-px bg-slate-800 my-1" />
                           <div className="flex justify-between items-end">
                             <span className="text-xs font-black text-slate-300">Total Credit Value</span>
-                            <span className="text-lg font-black text-red-400">
-                              -{selectedInvoice.currency} {Math.abs(totals.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <span className="text-lg font-black text-red-400 style-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <span>-</span>
+                              {renderCurrency(selectedInvoice.currency, 14)}
+                              <span>{Math.abs(totals.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </span>
                           </div>
                         </div>
@@ -1004,10 +1050,16 @@ function SalesReturnList() {
                                       {Math.abs(item.qty)} <span style={{ fontSize: '10px', color: '#94a3b8' }}>{item.uom}</span>
                                    </td>
                                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#475569', fontSize: '13px' }}>
-                                      {selectedReturnDoc.currency} {item.rate.toLocaleString()}
+                                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', width: '100%' }}>
+                                         {renderCurrency(selectedReturnDoc.currency, 12)}
+                                         <span>{item.rate.toLocaleString()}</span>
+                                      </div>
                                    </td>
                                    <td style={{ textAlign: 'right', paddingRight: '2rem', fontWeight: 800, color: '#1e293b', fontSize: '13px' }}>
-                                      {selectedReturnDoc.currency} {Math.abs(item.amount).toLocaleString()}
+                                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', width: '100%' }}>
+                                         {renderCurrency(selectedReturnDoc.currency, 12)}
+                                         <span>{Math.abs(item.amount).toLocaleString()}</span>
+                                      </div>
                                    </td>
                                 </tr>
                              ))}
@@ -1026,8 +1078,10 @@ function SalesReturnList() {
                           <div style={{ height: '1.5px', background: 'rgba(255,255,255,0.05)', margin: '0.5rem 0' }} />
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                              <span style={{ fontSize: '12px', fontWeight: 800, color: 'rgba(255,255,255,0.6)' }}>Total Credit Value</span>
-                             <span style={{ fontSize: '2rem', fontWeight: 950, letterSpacing: '-0.03em', color: '#ef4444' }}>
-                                -{selectedReturnDoc.currency} {Math.abs(selectedReturnDoc.grand_total).toLocaleString()}
+                             <span style={{ fontSize: '2rem', fontWeight: 950, letterSpacing: '-0.03em', color: '#ef4444', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <span>-</span>
+                                {renderCurrency(selectedReturnDoc.currency, 18)}
+                                <span>{Math.abs(selectedReturnDoc.grand_total).toLocaleString()}</span>
                              </span>
                           </div>
                        </div>
@@ -1055,7 +1109,11 @@ function SalesReturnList() {
 const FinRow = ({ label, value, currency }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
      <span style={{ fontSize: '12px', fontWeight: 800, color: 'rgba(255,255,255,0.4)' }}>{label}</span>
-     <span style={{ fontSize: '13px', fontWeight: 850 }}>-{currency} {Math.abs(value).toLocaleString()}</span>
+     <span style={{ fontSize: '13px', fontWeight: 850, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+       <span>-</span>
+       {renderCurrency(currency, 12)}
+       <span>{Math.abs(value).toLocaleString()}</span>
+     </span>
   </div>
 );
 

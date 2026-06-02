@@ -9,6 +9,7 @@ import { db } from '../../db';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './StockBalanceReport.css';
 
 const DEFAULT_STOCK_COLUMNS = [
@@ -385,8 +386,8 @@ function StockBalanceReport() {
               <DollarSign size={22} />
             </div>
             <div className="metric-info">
-              <h3>Closing Value (AED)</h3>
-              <p className="metric-value">AED {totalClosingValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <h3 className="flex items-center gap-1">Closing Value (<DirhamIcon size={12} />)</h3>
+              <p className="metric-value flex items-center justify-center gap-1.5"><DirhamIcon size={22} /> {totalClosingValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               <span className="metric-sub">Total Capital Investment</span>
             </div>
           </div>
@@ -398,7 +399,7 @@ function StockBalanceReport() {
             <div className="metric-info">
               <h3>Inward Movement</h3>
               <p className="metric-value">{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-              <span className="metric-sub">Value: AED {totalInValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+               <span className="metric-sub flex items-center justify-center gap-1">Value: <DirhamIcon size={9} /> {totalInValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
           </div>
 
@@ -409,7 +410,7 @@ function StockBalanceReport() {
             <div className="metric-info">
               <h3>Outward Movement</h3>
               <p className="metric-value">{totalOutQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-              <span className="metric-sub">Value: AED {totalOutValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+               <span className="metric-sub flex items-center justify-center gap-1">Value: <DirhamIcon size={9} /> {totalOutValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
           </div>
         </div>
@@ -630,7 +631,7 @@ function StockBalanceReport() {
                               case 'opening_val':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{(parseFloat(row.opening_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.opening_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </td>
                                 );
                               case 'in_qty':
@@ -648,7 +649,7 @@ function StockBalanceReport() {
                               case 'in_val':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{(parseFloat(row.in_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.in_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </td>
                                 );
                               case 'out_qty':
@@ -666,7 +667,7 @@ function StockBalanceReport() {
                               case 'out_val':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{(parseFloat(row.out_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.out_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </td>
                                 );
                               case 'bal_qty':
@@ -678,13 +679,13 @@ function StockBalanceReport() {
                               case 'val_rate':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{(parseFloat(row.val_rate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.val_rate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </td>
                                 );
                               case 'bal_val':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
-                                    <span className="curr-sym" style={{ color: themeColor, opacity: 0.7 }}>AED</span> <span className="curr-val">{(parseFloat(row.bal_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} style={{ color: themeColor }} /> {(parseFloat(row.bal_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </td>
                                 );
                               default:

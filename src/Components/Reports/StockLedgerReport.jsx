@@ -10,6 +10,7 @@ import { db } from '../../db';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './StockLedgerReport.css';
 
 const DEFAULT_LEDGER_COLUMNS = [
@@ -414,8 +415,8 @@ function StockLedgerReport() {
               <DollarSign size={22} />
             </div>
             <div className="metric-info">
-              <h3>Closing Value (AED)</h3>
-              <p className="metric-value">AED {finalBalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <h3 className="flex items-center gap-1">Closing Value (<DirhamIcon size={12} />)</h3>
+              <p className="metric-value flex items-center justify-center gap-1.5"><DirhamIcon size={22} /> {finalBalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               <span className="metric-sub">Latest Valuation Balance</span>
             </div>
           </div>
@@ -695,22 +696,22 @@ function StockLedgerReport() {
                               case 'valuation_rate':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
-                                    <span className="curr-sym">AED</span> <span className="curr-val">{valRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {valRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </td>
                                 );
                               case 'stock_value':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
-                                    <span className="curr-sym" style={{ color: themeColor, opacity: 0.7 }}>AED</span> <span className="curr-val">{stockVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} style={{ color: themeColor }} /> {stockVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </td>
                                 );
                               case 'stock_value_difference':
                                 return (
                                   <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
-                                    <span className="curr-sym">AED</span> 
+                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> 
                                     <span className="curr-val" style={{ color: valDiff > 0 ? '#047857' : valDiff < 0 ? '#b91c1c' : '#334155' }}>
                                       {valDiff > 0 ? '+' : ''}{valDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
+                                    </span></span>
                                   </td>
                                 );
                               default:

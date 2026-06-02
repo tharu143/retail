@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -976,7 +977,7 @@ function PurchaseInvoiceList() {
           '<p style="margin: 5px 0 0; font-size: 0.9rem; font-weight: 900; color: #1e293b;">' + (formData.supplier_name || formData.supplier) + '</p>' +
           '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">' +
           '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Outstanding:</span>' +
-          '<span style="font-size: 1rem; font-weight: 900; color: #10b981;">AED ' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + '</span>' +
+          '<span style="font-size: 1rem; font-weight: 900; color: #10b981; display: inline-flex; align-items: center; gap: 3px;"><svg viewBox=\"0 0 344.84 299.91\" style=\"width: 14px; height: 12px; display: inline-block; fill: currentColor; margin-right: 2px;\"><path d=\"M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z\"/></svg> ' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + '</span>' +
           '</div>' +
           '</div>' +
           '<div style="text-align: left; margin-bottom: 20px;">' +
@@ -992,7 +993,7 @@ function PurchaseInvoiceList() {
           '<input id="swal-post-date" type="date" class="swal2-input" style="margin: 0; width: 100%;" value="' + new Date().toISOString().split('T')[0] + '">' +
           '</div>' +
           '<div style="text-align: left; margin-bottom: 20px;">' +
-          '<label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Amount to Pay (AED)</label>' +
+          '<label style="font-size: 0.8rem; font-weight: bold; display: flex; align-items: center; gap: 4px; margin-bottom: 5px;">Amount to Pay <svg viewBox=\"0 0 344.84 299.91\" style=\"width: 12px; height: 10px; display: inline-block; fill: currentColor;\"><path d=\"M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z\"/></svg></label>' +
           '<input id="swal-amount" type="number" class="swal2-input" style="margin: 0; width: 100%;" value="' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toFixed(2) + '">' +
           '</div>' +
           '<div id="ref-fields-container" style="display: none;">' +
@@ -2302,7 +2303,7 @@ function PurchaseInvoiceList() {
                                 </span>
                               </td>
                               <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                AED {inv.is_return === 1 ? '-' : ''}{Math.abs(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                               <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} /> {inv.is_return === 1 ? '-' : ''}{Math.abs(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                               </td>
                               <td onClick={e => e.stopPropagation()}>
                                 <div ref={el => actionsRefs.current[inv.name] = el} style={{ position: 'relative' }}>
@@ -3358,19 +3359,19 @@ function PurchaseInvoiceList() {
                     <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
                         <span>Subtotal</span>
-                        <span style={{ fontWeight: 700 }}>AED {formatPrice(subtotal)}</span>
+                        <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(subtotal)}</span>
                       </div>
 
                       {discountAmount > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fda4af' }}>
                           <span>Total Discount</span>
-                          <span style={{ fontWeight: 700 }}>- AED {formatPrice(discountAmount)}</span>
+                          <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>- <DirhamIcon size={12} /> {formatPrice(discountAmount)}</span>
                         </div>
                       )}
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
                         <span>Tax Total</span>
-                        <span style={{ fontWeight: 700 }}>AED {formatPrice(taxTotal)}</span>
+                        <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(taxTotal)}</span>
                       </div>
 
                       <div style={{
@@ -3384,7 +3385,7 @@ function PurchaseInvoiceList() {
                         <span style={{ fontSize: '1rem', fontWeight: 500 }}>Grand Total</span>
                         <div style={{ textAlign: 'right' }}>
                           <span style={{ fontSize: '1.75rem', fontWeight: 900, display: 'block', lineHeight: 1 }}>
-                            AED {formatPrice(grandTotal)}
+                            <span className="flex items-center justify-end gap-1.5"><DirhamIcon size={20} /> {formatPrice(grandTotal)}</span>
                           </span>
                           <span style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inc. All Taxes</span>
                         </div>

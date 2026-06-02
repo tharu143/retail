@@ -9,6 +9,7 @@ import {
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import './SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 /* ─── Branch colour palette ────────────────────────────────── */
 const BRANCH_COLORS = [
@@ -468,7 +469,11 @@ function ItemPriceList() {
                         <th>Branch / Price List</th>
                         <th style={{ textAlign: 'center' }}>Type</th>
                         <th style={{ textAlign: 'center' }}>Stock</th>
-                        <th style={{ textAlign: 'right' }}>Rate (AED)</th>
+                        <th style={{ textAlign: 'right' }}>
+                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', justifyContent: 'flex-end', width: '100%' }}>
+                              Rate (<DirhamIcon size={10} style={{ display: 'inline-block' }} />)
+                           </span>
+                        </th>
                         <th style={{ textAlign: 'center', width: 90 }}>Actions</th>
                      </tr>
                   </thead>
@@ -555,7 +560,7 @@ function ItemPriceList() {
                                  {/* Rate */}
                                  <td style={{ textAlign: 'right' }}>
                                     <div style={{ fontSize: '1rem', fontWeight: 900, color: themeColor, fontVariantNumeric: 'tabular-nums' }}>
-                                       <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700, marginRight: '0.15rem' }}>AED</span>
+                                       <DirhamIcon size={12} style={{ marginRight: '0.15rem', display: 'inline-block', verticalAlign: 'middle' }} />
                                        {Number(p.rate ?? p.price_list_rate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </div>
                                  </td>
@@ -696,7 +701,9 @@ function ItemPriceList() {
 
                      {/* Rate */}
                      <div className="so-field">
-                        <label className="so-label">Rate (AED)</label>
+                        <label className="so-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                           Rate (<DirhamIcon size={10} style={{ display: 'inline-block' }} />)
+                        </label>
                         <input
                            type="number" className="so-input"
                            style={{ height: '4rem', fontSize: '2rem', fontWeight: 800, color: themeColor, textAlign: 'center' }}

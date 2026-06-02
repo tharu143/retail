@@ -12,6 +12,7 @@ import { BrowserMultiFormatReader } from '@zxing/library';
 import { useNavigate } from 'react-router-dom';
 import CustomSearchDropdown from './CustomSearchDropdown';
 import ColumnConfigModal from './ColumnConfigModal';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './Purchase.css';
 import '../Headers/LegacyPOS.css';
 
@@ -2523,8 +2524,15 @@ function PurchaseOrder() {
                       {isViewOnly && (
                         <div>
                           <label className="po-label">Currency</label>
-                          <div className="text-base font-black text-[var(--po-primary)] h-[42px] flex items-center">
-                            {formData.currency || 'AED'}
+                          <div className="text-base font-black text-[var(--po-primary)] h-[42px] flex items-center gap-1.5">
+                            {(formData.currency || 'AED') === 'AED' ? (
+                              <>
+                                <DirhamIcon size={16} />
+                                <span>AED</span>
+                              </>
+                            ) : (
+                              formData.currency || 'AED'
+                            )}
                           </div>
                         </div>
                       )}
@@ -3047,7 +3055,7 @@ function PurchaseOrder() {
                     <div className="summary-section grand-total-section border-l border-slate-200 pl-12">
                       <div className="text-right">
                         <span className="summary-label block">Grand Total</span>
-                        <p className="grand-total-value"><span className="currency-label-large">AED</span> {formatPrice(formData.grand_total)}</p>
+                        <p className="grand-total-value flex items-center justify-end gap-1.5"><DirhamIcon size={20} className="text-slate-700" /> {formatPrice(formData.grand_total)}</p>
                       </div>
                     </div>
                   </div>
@@ -3111,7 +3119,7 @@ function PurchaseOrder() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 font-sans">
                         <DollarSign size={13} className="text-emerald-500" />
-                        <span className="text-sm font-black text-slate-800">{d.grand_total?.toLocaleString()} AED</span>
+                        <span className="text-sm font-black text-slate-800 flex items-center gap-1"><DirhamIcon size={12} /> {d.grand_total?.toLocaleString()}</span>
                       </div>
                       <div className="px-3 py-1 bg-white border border-slate-100 rounded-lg text-[9px] font-black text-orange-600 uppercase group-hover:bg-orange-600 group-hover:text-white transition-all shadow-sm font-sans">
                         Resume Order

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import '../Admin/SalesOrder.css';
 import '../Headers/LegacyPOS.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const PurchaseOrderList = ({ onNew }) => {
   const theme = useSelector((state) => state.user.theme);
@@ -299,7 +300,9 @@ const PurchaseOrderList = ({ onNew }) => {
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.15rem' }}>NET AMOUNT</div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
-                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, marginRight: '0.2rem' }}>AED</span>
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, marginRight: '0.2rem' }}>
+                          <DirhamIcon size={11} className="mr-0.5" />
+                        </span>
                         {parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>

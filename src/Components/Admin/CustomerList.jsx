@@ -7,6 +7,7 @@ import {
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useSelector } from 'react-redux';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './SalesOrder.css';
 
@@ -1942,7 +1943,13 @@ const OrbStat = ({ label, value, currency, icon: Icon, color }) => (
     <div>
       <p style={{ fontSize: '12px', fontWeight: 950, color: '#94a3b8', textTransform: 'uppercase', tracking: '0.1em' }}>{label}</p>
       <p style={{ fontSize: '3rem', fontWeight: 950, color: '#0f172a', tracking: '-0.04em', lineHeight: 1 }}>
-        {currency && <span style={{ fontSize: '16px', color: '#cbd5e1', marginRight: '8px', verticalAlign: 'middle' }}>{currency}</span>}
+        {currency && (
+          currency === 'AED' ? (
+            <DirhamIcon size={16} className="text-slate-300 mr-2 inline-block align-middle" style={{ verticalAlign: 'middle' }} />
+          ) : (
+            <span style={{ fontSize: '16px', color: '#cbd5e1', marginRight: '8px', verticalAlign: 'middle' }}>{currency}</span>
+          )
+        )}
         {typeof value === 'number' ? value.toLocaleString() : value}
       </p>
     </div>

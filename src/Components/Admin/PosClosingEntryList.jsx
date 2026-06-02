@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import './SalesOrder.css';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 function PosClosingEntryList() {
   const [closings, setClosings] = useState([]);
@@ -232,12 +233,16 @@ function PosClosingEntryList() {
                          <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '4px' }}>pcs</span>
                       </td>
                       <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                          AED {c.net_total.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}>
+                          <DirhamIcon size={12} />
+                          <span>{c.net_total.toLocaleString('en-AE', { minimumFractionDigits: 2 })}</span>
+                        </div>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                          <div style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>
-                              AED {c.grand_total.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
-                          </div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%', fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>
+                          <DirhamIcon size={12} />
+                          <span>{c.grand_total.toLocaleString('en-AE', { minimumFractionDigits: 2 })}</span>
+                        </div>
                       </td>
                       <td>
                         <span className="so-badge" style={{

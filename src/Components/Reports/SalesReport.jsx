@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 function SalesReport() {
   const navigate = useNavigate();
@@ -372,10 +373,10 @@ function SalesReport() {
                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Total POS Revenue</span>
                 <TrendingUp size={14} style={{ color: themeColor }} />
               </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#0f172a', display: 'block', marginTop: '0.5rem' }}>
-                AED {breakdown.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <DirhamIcon size={18} /> {breakdown.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', display: 'block', marginTop: '0.25rem' }}>Net Total: AED {breakdown.net_total.toFixed(2)}</span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.25rem' }}>Net Total: <DirhamIcon size={9} /> {breakdown.net_total.toFixed(2)}</span>
             </div>
  
             {/* Card 2: Cash Payments */}
@@ -388,8 +389,8 @@ function SalesReport() {
                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Cash Payments</span>
                 <DollarSign size={14} style={{ color: '#10b981' }} />
               </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#047857', display: 'block', marginTop: '0.5rem' }}>
-                AED {breakdown.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#047857', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <DirhamIcon size={18} /> {breakdown.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#10b981', display: 'block', marginTop: '0.25rem' }}>Physical Cash Sales</span>
             </div>
@@ -404,8 +405,8 @@ function SalesReport() {
                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Card Payments</span>
                 <CreditCard size={14} style={{ color: '#3b82f6' }} />
               </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#1d4ed8', display: 'block', marginTop: '0.5rem' }}>
-                AED {breakdown.card.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <DirhamIcon size={18} /> {breakdown.card.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#3b82f6', display: 'block', marginTop: '0.25rem' }}>Credit & Debit Cards</span>
             </div>
@@ -420,8 +421,8 @@ function SalesReport() {
                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>InstaPay Payments</span>
                 <Zap size={14} style={{ color: '#06b6d4' }} />
               </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#0891b2', display: 'block', marginTop: '0.5rem' }}>
-                AED {(breakdown.instapay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#0891b2', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <DirhamIcon size={18} /> {(breakdown.instapay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#06b6d4', display: 'block', marginTop: '0.25rem' }}>InstaPay Transactions</span>
             </div>
@@ -436,8 +437,8 @@ function SalesReport() {
                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Credit Sales</span>
                 <Coins size={14} style={{ color: '#f59e0b' }} />
               </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#d97706', display: 'block', marginTop: '0.5rem' }}>
-                AED {(breakdown.credit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#d97706', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <DirhamIcon size={18} /> {(breakdown.credit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#f59e0b', display: 'block', marginTop: '0.25rem' }}>Outstanding Credit Sales</span>
             </div>

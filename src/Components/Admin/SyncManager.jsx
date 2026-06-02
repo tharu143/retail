@@ -11,6 +11,7 @@ import POSService from '../../utils/posService';
 import { useSelector } from 'react-redux';
 import "../Admin/SalesOrder.css";
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 
 const SyncManager = () => {
@@ -321,7 +322,11 @@ const SyncManager = () => {
                                                 <ArrowDownCircle size={16} color="#4338ca" /> {entry.offline_id}
                                                 <span className="so-badge" style={{ background: '#e0e7ff', color: '#4338ca' }}>CLOSING</span>
                                             </div>
-                                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Total Sales: AED {entry.grand_total?.toFixed(2)}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                <span>Total Sales:</span>
+                                                <DirhamIcon size={12} />
+                                                <span>{entry.grand_total?.toFixed(2)}</span>
+                                            </div>
                                         </div>
                                         <button className="so-btn-primary" style={{ background: '#4338ca', borderColor: '#4338ca' }} onClick={() => syncClosingEntry(entry)} disabled={syncingId === `close-${entry.id}`}>
                                             {syncingId === `close-${entry.id}` ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Close Shift
@@ -376,7 +381,12 @@ const SyncManager = () => {
                                                         <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{new Date(inv.timestamp || 0).toLocaleString()}</div>
                                                     </td>
                                                     <td style={{ fontWeight: 600 }}>{inv.customer}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 800 }}>AED {inv.grand_total?.toFixed(2)}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}>
+                                                            <DirhamIcon size={12} />
+                                                            <span>{inv.grand_total?.toFixed(2)}</span>
+                                                        </div>
+                                                    </td>
                                                     <td style={{ textAlign: 'center' }}>
                                                         <span className="so-badge" style={{ background: '#fef3c7', color: '#92400e' }}>PENDING</span>
                                                     </td>

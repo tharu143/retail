@@ -3,6 +3,7 @@ import {
   AlertCircle, CheckCircle2, Loader2, Receipt, Calendar, CreditCard,
   TrendingUp, DollarSign, Palette, RefreshCw, FileText, ChevronDown
 } from 'lucide-react';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useSelector } from 'react-redux';
 import { db } from '../../db';
 import '../Admin/SalesOrder.css';
@@ -373,7 +374,7 @@ function ClosingEntry() {
         alert("Shift data saved successfully! An Admin will perform the final closing. Logging out...");
       } else {
         setSuccessMessage(
-          `POS Closing Entry submitted successfully! Name: ${name}, Total: AED ${total.toFixed(2)}`
+          `POS Closing Entry submitted successfully! Name: ${name}, Total: د.إ ${total.toFixed(2)}`
         );
         alert(`POS Closing Entry submitted successfully! Logging out...`);
       }
@@ -591,7 +592,7 @@ function ClosingEntry() {
                     <div className="p-2 bg-white/20 rounded-lg"><DollarSign size={20} /></div>
                     <span className="text-xs font-bold uppercase tracking-wider text-white/70">Grand Total</span>
                   </div>
-                  <div className="ce-stat-value">AED {flt(invoicesData.grand_total).toLocaleString('en-AE', { minimumFractionDigits: 2 })}</div>
+                  <div className="ce-stat-value flex items-center justify-center gap-1.5"><DirhamIcon size={24} /> {flt(invoicesData.grand_total).toLocaleString('en-AE', { minimumFractionDigits: 2 })}</div>
                   <div className="mt-2 text-sm text-white/80 flex items-center gap-1">
                     <TrendingUp size={14} /> Total collected across all modes
                   </div>
@@ -680,7 +681,11 @@ function ClosingEntry() {
                           <tr key={tax.account_head}>
                             <td style={{ fontSize: '0.75rem' }}>{tax.account_head}</td>
                             <td style={{ textAlign: 'right' }}>{tax.rate}%</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>AED {flt(tax.amount).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                              <span className="flex items-center justify-end gap-1">
+                                <DirhamIcon size={12} className="text-slate-400" /> {flt(tax.amount).toFixed(2)}
+                              </span>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -712,7 +717,11 @@ function ClosingEntry() {
                           <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{inv.name}</td>
                           <td>{inv.customer_name}</td>
                           <td>{new Date(inv.posting_date).toLocaleDateString()}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700 }}>AED {flt(inv.grand_total).toFixed(2)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                             <span className="flex items-center justify-end gap-1">
+                               <DirhamIcon size={12} /> {flt(inv.grand_total).toFixed(2)}
+                             </span>
+                           </td>
                         </tr>
                       ))}
                     </tbody>

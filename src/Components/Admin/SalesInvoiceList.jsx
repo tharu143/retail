@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
@@ -94,9 +95,9 @@ const SalesInvoiceList = () => {
   const getCurrencySymbol = (curr = form.currency) => {
     switch (curr) {
       case 'INR': return '₹';
-      case 'AED': return 'د.إ';
+      case 'AED': return <DirhamIcon size={12} className="inline mr-1" />;
       case 'USD': return '$';
-      default: return 'د.إ';
+      default: return <DirhamIcon size={12} className="inline mr-1" />;
     }
   };
 

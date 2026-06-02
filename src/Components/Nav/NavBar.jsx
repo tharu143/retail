@@ -489,7 +489,7 @@ function NavBar() {
           <div
             onClick={() => dispatch(toggleTheme())}
             className={`cursor-pointer nav-icon flex items-center gap-1 ${theme === 'legacy' ? 'text-indigo-600' : ''}`}
-            title={`Switch to ${theme === 'modern' ? 'Legacy' : 'Modern'} Theme`}
+            title="Switch POS Theme"
           >
             <Palette size={20} />
             <span style={{ fontSize: '10px', fontWeight: 800 }}>THEME: {(theme || 'modern').toUpperCase()}</span>

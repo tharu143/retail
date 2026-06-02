@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Calendar, DollarSign, User, Building2, CreditCard, Plus, Trash2, Check, X } from 'lucide-react';
 import { db } from '../../db';
@@ -244,7 +245,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                         <div className="flex gap-2">
                                             <div className="flex-1 relative">
                                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <span className="text-slate-400 text-xs font-bold">AED</span>
+                                                    <DirhamIcon size={12} className="text-slate-400 font-bold" />
                                                 </div>
                                                 <input
                                                     type="number"
@@ -282,9 +283,9 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between shadow-lg">
                     <div>
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Opening Amount</span>
-                        <div className="text-slate-400 text-xs font-bold mt-0.5">AED (United Arab Emirates Dirham)</div>
+                        <div className="text-slate-400 text-xs font-bold mt-0.5 flex items-center gap-1"><DirhamIcon size={11} /> United Arab Emirates Dirham</div>
                     </div>
-                    <span className="text-2xl font-black text-emerald-400">AED {totalAmount.toFixed(2)}</span>
+                    <span className="text-2xl font-black text-emerald-400 flex items-center gap-1.5"><DirhamIcon size={18} /> {totalAmount.toFixed(2)}</span>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-end border-t border-slate-100 pt-6">
@@ -466,7 +467,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                         <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 mb-8">
                             <div className="flex items-center justify-between text-white">
                                 <span className="text-lg font-semibold">Total Opening Amount</span>
-                                <span className="text-3xl font-bold">AED {totalAmount.toFixed(2)}</span>
+                                <span className="text-3xl font-bold flex items-center gap-1.5"><DirhamIcon size={24} /> {totalAmount.toFixed(2)}</span>
                             </div>
                         </div>
 

@@ -11,6 +11,7 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import Swal from 'sweetalert2';
 import '../Purchase/Purchase.css'; // Import standard PO/PI/PR styles
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
 
@@ -805,10 +806,10 @@ function InterBranchTransferDetails() {
                                                     onFocus={(e) => e.target.select()}
                                                 />
                                             ) : (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right font-bold">AED {parseFloat(item.rate || 0).toFixed(2)}</div>
+                                                <div className="premium-cell-readonly premium-cell-readonly-right font-bold flex items-center justify-end gap-1"><DirhamIcon size={12} /> {parseFloat(item.rate || 0).toFixed(2)}</div>
                                             )}
                                         </div>
-                                        <span className="premium-subtext">AED per Unit</span>
+                                        <span className="premium-subtext flex items-center gap-1"><DirhamIcon size={8} /> per Unit</span>
                                     </div>
                                 </td>
                                 
@@ -898,7 +899,7 @@ function InterBranchTransferDetails() {
                                     value={sellingPrices[item.item_code] || ''}
                                     onChange={(e) => setSellingPrices(prev => ({...prev, [item.item_code]: parseFloat(e.target.value) || 0}))}
                                 />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase">AED</span>
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase flex items-center gap-1"><DirhamIcon size={10} /> AED</span>
                                 <label className="absolute -top-2 left-3 px-2 bg-white text-[8px] font-black text-blue-500 uppercase tracking-widest">Branch Selling Price</label>
                             </div>
                         </div>

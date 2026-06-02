@@ -21,10 +21,12 @@ import {
     Barcode
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
-import { logout, toggleTheme } from '../../Redux/Slices/userSlice';
+import { logout, toggleTheme, setTheme } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import './LegacyPOS.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import ModernNoImageGrid from './ModernNoImageGrid';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 import { db } from '../../db';
 import Swal from 'sweetalert2';
@@ -585,7 +587,7 @@ function Home() {
 
                                 <div style={{ display: 'flex', gap: '1rem' }}>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ fontSize: '13px', fontWeight: 700 }}>Purchase Rate (AED)</label>
+                                        <label style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>Purchase Rate (<DirhamIcon size={12} />)</label>
                                         <input type="number" value={purchaseForm.purchase_rate} onChange={e => updatePurchasePrice('purchase_rate', e.target.value)} className="home-customer-input" />
                                     </div>
                                     <div style={{ flex: 1 }}>
@@ -609,7 +611,7 @@ function Home() {
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', marginTop: '15px' }}>
                                         <span style={{ fontWeight: 700 }}>Target Selling Price:</span>
-                                        <span style={{ fontWeight: 800, color: '#10b981' }}>AED {purchaseForm.target_price.toFixed(2)}</span>
+                                        <span style={{ fontWeight: 800, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={14} /> {purchaseForm.target_price.toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -653,7 +655,7 @@ function Home() {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <div style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', letterSpacing: '1px' }}>TOTAL</div>
-                                                    <div style={{ fontWeight: 900, color: '#0ea5e9', fontSize: '18px' }}>AED {draft.grand_total?.toFixed(2)}</div>
+                                                    <div style={{ fontWeight: 900, color: '#0ea5e9', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}><DirhamIcon size={16} /> {draft.grand_total?.toFixed(2)}</div>
                                                 </div>
                                                 <button
                                                     onClick={() => loadDraftOrder(draft)}
@@ -729,30 +731,49 @@ function Home() {
                         {/* Section: Layout Style */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Layout Style</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 <button
-                                    onClick={() => { if (theme === 'legacy') dispatch(toggleTheme()); }}
+                                    onClick={() => dispatch(setTheme('modern'))}
                                     style={{
-                                        padding: '14px',
+                                        padding: '12px 14px',
                                         borderRadius: '12px',
                                         border: '2px solid',
-                                        borderColor: theme !== 'legacy' ? '#0ea5e9' : '#e2e8f0',
-                                        background: theme !== 'legacy' ? '#f0f9ff' : '#ffffff',
+                                        borderColor: theme === 'modern' ? '#0ea5e9' : '#e2e8f0',
+                                        background: theme === 'modern' ? '#f0f9ff' : '#ffffff',
                                         textAlign: 'left',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        gap: '4px'
+                                        gap: '2px'
                                     }}
                                 >
                                     <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>Modern UI</span>
-                                    <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>Sleek, bright cards</span>
+                                    <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>Sleek, premium cards with images</span>
                                 </button>
                                 <button
-                                    onClick={() => { if (theme !== 'legacy') dispatch(toggleTheme()); }}
+                                    onClick={() => dispatch(setTheme('modern_no_image'))}
                                     style={{
-                                        padding: '14px',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '2px solid',
+                                        borderColor: theme === 'modern_no_image' ? '#6366f1' : '#e2e8f0',
+                                        background: theme === 'modern_no_image' ? '#e0e7ff' : '#ffffff',
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '2px'
+                                    }}
+                                >
+                                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>Modern (No Image)</span>
+                                    <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>High-density compact cards without images</span>
+                                </button>
+                                <button
+                                    onClick={() => dispatch(setTheme('legacy'))}
+                                    style={{
+                                        padding: '12px 14px',
                                         borderRadius: '12px',
                                         border: '2px solid',
                                         borderColor: theme === 'legacy' ? '#10b981' : '#e2e8f0',
@@ -762,11 +783,11 @@ function Home() {
                                         transition: 'all 0.2s',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        gap: '4px'
+                                        gap: '2px'
                                     }}
                                 >
                                     <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>Classic UI</span>
-                                    <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>Retro POS terminal</span>
+                                    <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>Retro POS terminal layout</span>
                                 </button>
                             </div>
                         </div>
@@ -3367,7 +3388,7 @@ function Home() {
                             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${discount.type === 'amount' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             onClick={() => setDiscount({ ...discount, type: 'amount' })}
                         >
-                            <DollarSign size={14} /> AED
+                            <DirhamIcon size={14} /> Dirham
                         </button>
                         <button
                             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${discount.type === 'percentage' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
@@ -3380,7 +3401,7 @@ function Home() {
                     {/* Input Area */}
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
-                            <span className="text-2xl font-black text-blue-500">{discount.type === 'amount' ? 'AED' : '%'}</span>
+                            <span className="text-2xl font-black text-blue-500 flex items-center justify-center">{discount.type === 'amount' ? <DirhamIcon size={20} /> : '%'}</span>
                         </div>
                         <input
                             type="number"
@@ -3457,12 +3478,12 @@ function Home() {
                         <div className="flex justify-between items-center relative z-10">
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Total</span>
-                                <span className="text-lg font-black">AED {subtotal.toFixed(2)}</span>
+                                <span className="text-lg font-black flex items-center gap-1"><DirhamIcon size={14} /> {subtotal.toFixed(2)}</span>
                             </div>
                             <div className="flex flex-col items-end">
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Final Price</span>
-                                <span className="text-2xl font-black text-blue-400">
-                                    AED {flt(subtotal - ((discount.type === 'percentage' ? subtotal * (parseFloat(discountInput) || 0) / 100 : (parseFloat(discountInput) || 0)))).toFixed(2)}
+                                <span className="text-2xl font-black text-blue-400 flex items-center gap-1.5">
+                                    <DirhamIcon size={18} /> {flt(subtotal - ((discount.type === 'percentage' ? subtotal * (parseFloat(discountInput) || 0) / 100 : (parseFloat(discountInput) || 0)))).toFixed(2)}
                                 </span>
                             </div>
                         </div>
@@ -3559,7 +3580,7 @@ function Home() {
                                     </div>
                                     <div className="flex flex-col items-end">
                                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">Redemption Rate</span>
-                                        <span className="text-xs font-bold">1 Pt = AED 1.00</span>
+                                        <span className="text-xs font-bold flex items-center gap-1">1 Pt = <DirhamIcon size={11} /> 1.00</span>
                                     </div>
                                 </div>
                             </div>
@@ -3595,12 +3616,12 @@ function Home() {
                             <div className="flex justify-between items-center relative z-10">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Total</span>
-                                    <span className="text-lg font-black">AED {subtotal.toFixed(2)}</span>
+                                    <span className="text-lg font-black flex items-center gap-1"><DirhamIcon size={14} /> {subtotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex flex-col items-end">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Final Price</span>
-                                    <span className="text-2xl font-black text-emerald-400">
-                                        AED {Math.max(0, subtotal - redeemedValue).toFixed(2)}
+                                    <span className="text-2xl font-black text-emerald-400 flex items-center gap-1.5">
+                                        <DirhamIcon size={18} /> {Math.max(0, subtotal - redeemedValue).toFixed(2)}
                                     </span>
                                 </div>
                             </div>
@@ -3680,14 +3701,14 @@ function Home() {
                         <div className="payment-status-card bg-gradient-to-br from-slate-800 to-slate-950 text-white p-3 rounded-2xl flex flex-col justify-between shadow-md border border-slate-900 relative overflow-hidden min-h-[76px]">
                             <div className="absolute -top-4 -right-4 w-12 h-12 bg-white/5 rounded-full blur-xl"></div>
                             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Total Bill</span>
-                            <span className="text-base sm:text-lg font-black tracking-tight mt-1">AED {grandTotal.toFixed(2)}</span>
+                            <span className="text-base sm:text-lg font-black tracking-tight mt-1 flex items-center gap-1"><DirhamIcon size={12} /> {grandTotal.toFixed(2)}</span>
                         </div>
 
                         {/* Paid Amount Card */}
                         <div className="payment-status-card bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 text-emerald-950 p-3 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[76px]">
                             <div className="absolute -top-4 -right-4 w-12 h-12 bg-emerald-500/5 rounded-full blur-xl"></div>
                             <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">Paid Amount</span>
-                            <span className="text-base sm:text-lg font-black tracking-tight text-emerald-700 mt-1">AED {totalPaid.toFixed(2)}</span>
+                            <span className="text-base sm:text-lg font-black tracking-tight text-emerald-700 mt-1 flex items-center gap-1"><DirhamIcon size={12} /> {totalPaid.toFixed(2)}</span>
                         </div>
 
                         {/* Balance / Change Card */}
@@ -3702,7 +3723,7 @@ function Home() {
                             </span>
                             <span className={`text-base sm:text-lg font-black tracking-tight mt-1 ${balanceRemaining > 0 ? 'text-rose-700' : 'text-emerald-700'
                                 }`}>
-                                AED {Math.abs(balanceRemaining).toFixed(2)}
+                                <DirhamIcon size={12} /> {Math.abs(balanceRemaining).toFixed(2)}
                             </span>
                         </div>
                     </div>
@@ -3721,7 +3742,7 @@ function Home() {
                                             <span className="text-sm font-bold text-slate-700">{p.mode_of_payment}</span>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <span className="text-sm font-black text-slate-900">AED {p.amount.toFixed(2)}</span>
+                                            <span className="text-sm font-black text-slate-900 flex items-center gap-1"><DirhamIcon size={11} /> {p.amount.toFixed(2)}</span>
                                             <button onClick={() => removePayment(idx)} className="text-rose-400 hover:text-rose-600 p-1">
                                                 <Trash2 size={14} />
                                             </button>
@@ -3825,7 +3846,7 @@ function Home() {
                                         <button onClick={() => setSelectedPaymentMode('')} className="text-[10px] font-black text-sky-600 hover:underline uppercase">Change Mode</button>
                                     </div>
                                     <div className="mb-3 flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
-                                        <span className="pl-4 pr-2 text-base font-black text-slate-400">AED</span>
+                                        <span className="pl-4 pr-2 text-base font-black text-slate-400 flex items-center justify-center"><DirhamIcon size={16} /></span>
                                         <input
                                             type="number"
                                             value={tenderedAmount}
@@ -3841,7 +3862,7 @@ function Home() {
                                         onClick={addPayment}
                                         className="w-full py-3.5 bg-sky-600 text-white rounded-xl font-black uppercase tracking-[0.2em] shadow-xl shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all text-xs"
                                     >
-                                        Add {selectedPaymentMode} AED {(parseFloat(tenderedAmount) || 0).toFixed(2)}
+                                        Add {selectedPaymentMode} <DirhamIcon size={11} className="mx-1" /> {(parseFloat(tenderedAmount) || 0).toFixed(2)}
                                     </button>
                                 </div>
                             )}
@@ -3885,6 +3906,7 @@ function Home() {
         const companyName = company || 'KYLE RETAIL';
         const storeAddress = warehouse || 'Main Store Address';
         const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoiceData.name}&scale=2&height=10`;
+        const dirhamSvgHtml = `<svg viewBox="0 0 344.84 299.91" style="width: 12px; height: 10px; display: inline-block; vertical-align: middle; fill: currentColor; margin-right: 2px;"><path d="M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z"/></svg>`;
 
         // Calculate total paid and change due
         const totalPaidAmount = (invoiceData.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
@@ -3959,35 +3981,35 @@ function Home() {
                 <div class="totals">
                     <div class="total-row">
                         <span>SUB TOTAL</span>
-                        <span>AED ${parseFloat(invoiceData.subtotal || invoiceData.grand_total).toFixed(2)}</span>
+                        <span>${dirhamSvgHtml}${parseFloat(invoiceData.subtotal || invoiceData.grand_total).toFixed(2)}</span>
                     </div>
                     ${invoiceData.discount_amount > 0 ? `
                         <div class="total-row">
                             <span>DISCOUNT</span>
-                            <span>-AED ${parseFloat(invoiceData.discount_amount).toFixed(2)}</span>
+                            <span>-${dirhamSvgHtml}${parseFloat(invoiceData.discount_amount).toFixed(2)}</span>
                         </div>
                     ` : ''}
                     ${invoiceData.tax_amount > 0 ? `
                         <div class="total-row">
                             <span>TAX</span>
-                            <span>AED ${parseFloat(invoiceData.tax_amount).toFixed(2)}</span>
+                            <span>${dirhamSvgHtml}${parseFloat(invoiceData.tax_amount).toFixed(2)}</span>
                         </div>
                     ` : ''}
                     <div class="total-row grand-total bold">
                         <span>TOTAL</span>
-                        <span>AED ${parseFloat(invoiceData.grand_total).toFixed(2)}</span>
+                        <span>${dirhamSvgHtml}${parseFloat(invoiceData.grand_total).toFixed(2)}</span>
                     </div>
                     <div style="margin-top: 10px;">
                         ${(invoiceData.payments || [{ mode_of_payment: 'CASH', amount: invoiceData.grand_total }]).map(p => `
                             <div class="total-row">
                                 <span>${(p.mode_of_payment || 'PAYMENT').toUpperCase()}</span>
-                                <span>AED ${parseFloat(p.amount || 0).toFixed(2)}</span>
+                                <span>${dirhamSvgHtml}${parseFloat(p.amount || 0).toFixed(2)}</span>
                             </div>
                         `).join('')}
                     </div>
                     <div class="total-row" style="margin-top: 5px; opacity: 0.8;">
                         <span>CHANGE</span>
-                        <span class="bold">AED ${changeDue.toFixed(2)}</span>
+                        <span class="bold">${dirhamSvgHtml}${changeDue.toFixed(2)}</span>
                     </div>
                 </div>
                 <div class="center">
@@ -4677,74 +4699,85 @@ function Home() {
                             )}
                         </div>
 
-                        <div className="so-grid-area">
-                            {filteredItems.length === 0 ? (
-                                <div className="col-span-full h-96 flex flex-col items-center justify-center text-slate-300 gap-4 opacity-70">
-                                    <SearchSlash size={64} strokeWidth={1} />
-                                    <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
-                                </div>
-                            ) : (
-                                filteredItems.map(item => (
-                                    <div
-                                        key={item.id}
-                                        className="so-item-card"
-                                        onClick={() => { setLastInteractedItem(item); if (item.local_qty > 0) { handleAddToBill(item); } else { handleOutOfStockAlert(item); } }}
-                                        style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
-                                    >
-                                        <div className="relative group">
-                                            {item.image ? (
-                                                <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
-                                            ) : (
-                                                <div className="so-item-img flex items-center justify-center p-6 text-center text-slate-400 font-black text-[10px] uppercase bg-slate-50 border-2 border-dashed border-slate-200">
-                                                    {item.name}
-                                                </div>
-                                            )}
-                                            <div className="absolute top-2.5 right-2.5">
-                                                <span className={`so-item-badge ${item.local_qty > 10 ? 'so-badge-emerald' : (item.local_qty > 0 ? 'so-badge-amber' : 'so-badge-rose')}`}>
-                                                    {item.local_qty > 0 ? `${item.local_qty} UNIT` : 'OUT STOCK'}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col flex-1 justify-between gap-1.5">
-                                            <h4 className="so-item-name">
-                                                {item.name}
-                                            </h4>
-                                            {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) && (
-                                                <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
-                                                    <Barcode size={10} style={{ opacity: 0.6 }} /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
-                                                </span>
-                                            )}
-
-                                            <div className="flex items-center justify-between pt-2">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Price</span>
-                                                    <span className="font-black text-slate-900 text-[13px]">
-                                                        <span className="text-[9px] text-slate-400 mr-0.5">AED</span> {parseFloat(item.price).toFixed(2)}
+                        {theme === 'modern_no_image' ? (
+                            <ModernNoImageGrid
+                                filteredItems={filteredItems}
+                                setLastInteractedItem={setLastInteractedItem}
+                                handleAddToBill={handleAddToBill}
+                                handleOutOfStockAlert={handleOutOfStockAlert}
+                                showStockBreakdown={showStockBreakdown}
+                                handleFindNearestStock={handleFindNearestStock}
+                            />
+                        ) : (
+                            <div className="so-grid-area">
+                                {filteredItems.length === 0 ? (
+                                    <div className="col-span-full h-96 flex flex-col items-center justify-center text-slate-300 gap-4 opacity-70">
+                                        <SearchSlash size={64} strokeWidth={1} />
+                                        <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
+                                    </div>
+                                ) : (
+                                    filteredItems.map(item => (
+                                        <div
+                                            key={item.id}
+                                            className="so-item-card"
+                                            onClick={() => { setLastInteractedItem(item); if (item.local_qty > 0) { handleAddToBill(item); } else { handleOutOfStockAlert(item); } }}
+                                            style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
+                                        >
+                                            <div className="relative group">
+                                                {item.image ? (
+                                                    <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
+                                                ) : (
+                                                    <div className="so-item-img flex items-center justify-center p-6 text-center text-slate-400 font-black text-[10px] uppercase bg-slate-50 border-2 border-dashed border-slate-200">
+                                                        {item.name}
+                                                    </div>
+                                                )}
+                                                <div className="absolute top-2.5 right-2.5">
+                                                    <span className={`so-item-badge ${item.local_qty > 10 ? 'so-badge-emerald' : (item.local_qty > 0 ? 'so-badge-amber' : 'so-badge-rose')}`}>
+                                                        {item.local_qty > 0 ? `${item.local_qty} UNIT` : 'OUT STOCK'}
                                                     </span>
                                                 </div>
-
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                >
-                                                    <Info size={14} />
-                                                </button>
                                             </div>
-                                        </div>
 
-                                        {item.local_qty <= 0 && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
-                                                className="w-full mt-1 py-1.5 bg-sky-50 text-sky-600 rounded-lg border border-sky-100 text-[9px] font-black uppercase tracking-tighter hover:bg-sky-600 hover:text-white transition-all"
-                                            >
-                                                Find in Branches
-                                            </button>
-                                        )}
-                                    </div>
-                                )
-                                ))}
-                        </div>
+                                            <div className="flex flex-col flex-1 justify-between gap-1.5">
+                                                <h4 className="so-item-name">
+                                                    {item.name}
+                                                </h4>
+                                                {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) && (
+                                                    <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+                                                        <Barcode size={10} style={{ opacity: 0.6 }} /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
+                                                    </span>
+                                                )}
+
+                                                <div className="flex items-center justify-between pt-2">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Price</span>
+                                                        <span className="font-black text-slate-900 text-[13px] flex items-center gap-0.5">
+                                                            <DirhamIcon size={10} className="text-slate-400" /> {parseFloat(item.price).toFixed(2)}
+                                                        </span>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
+                                                    >
+                                                        <Info size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {item.local_qty <= 0 && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
+                                                    className="w-full mt-1 py-1.5 bg-sky-50 text-sky-600 rounded-lg border border-sky-100 text-[9px] font-black uppercase tracking-tighter hover:bg-sky-600 hover:text-white transition-all"
+                                                >
+                                                    Find in Branches
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <aside className="so-bill-side">
@@ -4932,7 +4965,7 @@ function Home() {
                                                 <div className="flex-1 pr-6">
                                                     <h4 className="so-bill-item-name">{item.name}</h4>
                                                     <div className="flex items-center gap-4">
-                                                        <span className="text-[11px] font-black text-slate-400">AED {item.price}</span>
+                                                        <span className="text-[11px] font-black text-slate-400 flex items-center gap-0.5"><DirhamIcon size={10} /> {item.price}</span>
                                                         <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
                                                             <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => {
                                                                 const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
@@ -4966,7 +4999,7 @@ function Home() {
 
                                             <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
                                                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
-                                                <span className="text-[13px] font-black text-slate-800">AED {(item.qty * effectivePrice).toFixed(2)}</span>
+                                                <span className="text-[13px] font-black text-slate-800 flex items-center gap-0.5"><DirhamIcon size={12} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}</span>
                                             </div>
                                         </div>
                                     );
@@ -5005,28 +5038,28 @@ function Home() {
                             <div className="so-total-box">
                                 <div className="so-total-row">
                                     <span>Subtotal</span>
-                                    <span>AED {displaySubtotal.toFixed(2)}</span>
+                                    <span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displaySubtotal.toFixed(2)}</span>
                                 </div>
                                 {displayDiscount > 0 && (
                                     <div className="so-total-row" style={{ color: 'var(--so-danger)' }}>
                                         <span>Discount</span>
-                                        <span>-AED {displayDiscount.toFixed(2)}</span>
+                                        <span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {displayDiscount.toFixed(2)}</span>
                                     </div>
                                 )}
                                 {loyaltyAmount > 0 && (
                                     <div className="so-total-row" style={{ color: '#10b981' }}>
                                         <span>Loyalty Redeemed</span>
-                                        <span>-AED {loyaltyAmount.toFixed(2)}</span>
+                                        <span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {loyaltyAmount.toFixed(2)}</span>
                                     </div>
                                 )}
                                 <div className="so-total-row">
                                     <span>Tax ({taxRate}%)</span>
-                                    <span>AED {displayTax.toFixed(2)}</span>
+                                    <span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displayTax.toFixed(2)}</span>
                                 </div>
 
                                 <div className="so-grand-total">
                                     <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
-                                    <span>AED {grandTotal.toFixed(2)}</span>
+                                    <span className="flex items-center gap-0.5"><DirhamIcon size={15} /> {grandTotal.toFixed(2)}</span>
                                 </div>
                             </div>
 
@@ -5549,11 +5582,11 @@ function Home() {
                                                         ? (lineTotal - (lineTotal / (1 + (taxRate / 100)))).toFixed(2)
                                                         : (lineTotal * (taxRate / 100)).toFixed(2)}
                                                 </td>
-                                                <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50">
-                                                    AED {item.is_tax_inclusive
-                                                        ? (parseFloat(lineTotal) || 0).toFixed(2)
-                                                        : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
-                                                </td>
+                                                <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50 flex items-center justify-center gap-0.5">
+                                                     <DirhamIcon size={12} /> {item.is_tax_inclusive
+                                                         ? (parseFloat(lineTotal) || 0).toFixed(2)
+                                                         : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
+                                                 </td>
                                                 <td className="text-center">
                                                     <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
                                                 </td>
@@ -5676,32 +5709,32 @@ function Home() {
 
                                 <div className="flex flex-col items-end px-3 border-r border-slate-200">
                                     <span className="text-[9px] font-black text-slate-400 uppercase">Subtotal</span>
-                                    <span className="text-slate-800 font-black text-base leading-none">AED {displaySubtotal.toFixed(2)}</span>
+                                    <span className="text-slate-800 font-black text-base leading-none flex items-center gap-0.5"><DirhamIcon size={13} /> {displaySubtotal.toFixed(2)}</span>
                                 </div>
 
                                 {displayDiscount > 0 && (
                                     <div className="flex flex-col items-end px-3 border-r border-slate-200">
                                         <span className="text-[9px] font-black text-rose-400 uppercase">Disc.</span>
-                                        <span className="text-rose-500 font-black text-base leading-none">-AED {displayDiscount.toFixed(2)}</span>
+                                        <span className="text-rose-500 font-black text-base leading-none flex items-center gap-0.5">-<DirhamIcon size={13} /> {displayDiscount.toFixed(2)}</span>
                                     </div>
                                 )}
 
                                 {loyaltyAmount > 0 && (
                                     <div className="flex flex-col items-end px-3 border-r border-slate-200">
                                         <span className="text-[9px] font-black text-emerald-500 uppercase">Loyalty</span>
-                                        <span className="text-emerald-500 font-black text-base leading-none">-AED {loyaltyAmount.toFixed(2)}</span>
+                                        <span className="text-emerald-500 font-black text-base leading-none flex items-center gap-0.5">-<DirhamIcon size={13} /> {loyaltyAmount.toFixed(2)}</span>
                                     </div>
                                 )}
 
                                 <div className="flex flex-col items-end px-3 border-r border-slate-200">
                                     <span className={`text-[9px] font-black ${isGreen ? 'text-emerald-500' : 'text-sky-500'} uppercase`}>VAT ({taxRate}%)</span>
-                                    <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-base leading-none`}>AED {displayTax.toFixed(2)}</span>
+                                    <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-base leading-none flex items-center gap-0.5`}><DirhamIcon size={13} /> {displayTax.toFixed(2)}</span>
                                 </div>
 
                                 <div className="flex flex-col items-end pl-3">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grand Total</span>
-                                    <span className={`text-2xl font-black ${isGreen ? 'text-emerald-600' : 'text-sky-600'} leading-none`}>
-                                        AED {grandTotal.toFixed(2)}
+                                    <span className={`text-2xl font-black ${isGreen ? 'text-emerald-600' : 'text-sky-600'} leading-none flex items-center gap-0.5`}>
+                                        <DirhamIcon size={18} /> {grandTotal.toFixed(2)}
                                     </span>
                                 </div>
                             </div>
@@ -5918,7 +5951,7 @@ function Home() {
                                                             </span>
                                                         )}
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                            <p className="home-item-price" style={{ margin: 0 }}><strong>AED</strong> {item.price}</p>
+                                                            <p className="home-item-price" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {item.price}</p>
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }} onClick={() => setLastInteractedItem(item)}>
                                                                 <span style={{ fontSize: '0.65rem', color: item.local_qty > 0 ? '#10b981' : (item.total_qty > 0 ? '#f59e0b' : '#ef4444'), background: item.local_qty > 0 ? 'rgba(16, 185, 129, 0.1)' : (item.total_qty > 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)'), padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
                                                                     {item.local_qty > 0 ? 'IN STOCK' : (item.total_qty > 0 ? 'NEARBY' : 'OUT STOCK')}: {item.local_qty}
@@ -6067,7 +6100,7 @@ function Home() {
                                                         <div style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600 }}>{it.is_global ? 'Registry discovery - sync to branch' : `Stock: ${it.local_qty} UNITS | Code: ${it.id}`}</div>
                                                     </div>
                                                     <div style={{ fontWeight: 900, color: '#0f172a', textAlign: 'right' }}>
-                                                        {it.is_global ? <span style={{ color: '#d97706', fontSize: 10, letterSpacing: '-0.2px' }}>AUTHORIZE ENTRY</span> : `AED ${parseFloat(it.price).toFixed(2)}`}
+                                                        {it.is_global ? <span style={{ color: '#d97706', fontSize: 10, letterSpacing: '-0.2px' }}>AUTHORIZE ENTRY</span> : <span className="flex items-center gap-0.5"><DirhamIcon size={12} /> {parseFloat(it.price).toFixed(2)}</span>}
                                                     </div>
                                                 </div>
                                             ))}
@@ -6129,7 +6162,7 @@ function Home() {
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div className="home-bill-item-info">
                                                             <span className="home-bill-item-name">{item.name}</span>
-                                                            <span className="home-bill-item-price"><strong>AED</strong> {item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price} × {item.qty} Pc</span>
+                                                            <span className="home-bill-item-price flex items-center gap-0.5"><DirhamIcon size={11} /> {item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price} × {item.qty} Pc</span>
                                                         </div>
                                                         <div className="home-bill-item-actions">
                                                             <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, -1); }}>-</button>
@@ -6151,11 +6184,11 @@ function Home() {
 
                                 {/* Summary */}
                                 <div className="home-bill-summary">
-                                    <div className="home-bill-summary-row"><span>Subtotal</span><span><strong>AED</strong> {displaySubtotal.toFixed(2)}</span></div>
-                                    {discount.value > 0 && <div className="home-bill-summary-row home-bill-discount"><span>Discount {discount.type === 'percent' ? `(${discount.value}%)` : ''}</span><span>-<strong>AED</strong> {displayDiscount.toFixed(2)}</span></div>}
-                                    {loyaltyAmount > 0 && <div className="home-bill-summary-row home-bill-discount" style={{ color: '#10b981' }}><span>Loyalty Redeemed</span><span>-<strong>AED</strong> {loyaltyAmount.toFixed(2)}</span></div>}
-                                    <div className="home-bill-summary-row"><span>Tax ({taxRate}%)</span><span><strong>AED</strong> {displayTax.toFixed(2)}</span></div>
-                                    <div className="home-bill-summary-row home-bill-grand-total"><span>Grand Total</span><span><strong>AED</strong> {grandTotal.toFixed(2)}</span></div>
+                                    <div className="home-bill-summary-row"><span>Subtotal</span><span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displaySubtotal.toFixed(2)}</span></div>
+                                    {discount.value > 0 && <div className="home-bill-summary-row home-bill-discount"><span>Discount {discount.type === 'percent' ? `(${discount.value}%)` : ''}</span><span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {displayDiscount.toFixed(2)}</span></div>}
+                                    {loyaltyAmount > 0 && <div className="home-bill-summary-row home-bill-discount" style={{ color: '#10b981' }}><span>Loyalty Redeemed</span><span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {loyaltyAmount.toFixed(2)}</span></div>}
+                                    <div className="home-bill-summary-row"><span>Tax ({taxRate}%)</span><span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displayTax.toFixed(2)}</span></div>
+                                    <div className="home-bill-summary-row home-bill-grand-total"><span>Grand Total</span><span className="flex items-center gap-0.5"><DirhamIcon size={14} /> {grandTotal.toFixed(2)}</span></div>
                                 </div>
 
                                 {/* Buttons */}
@@ -6163,7 +6196,7 @@ function Home() {
                                     <div className="row">
                                         <div className="col-12">
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1 }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? `Edit (${discount.type === 'percent' ? `${discount.value}%` : `AED ${discount.value}`})` : 'Add Discount'}</button>
+                                                <button className="home-bill-discount-btn" style={{ flex: 1 }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? (discount.type === 'percent' ? `Edit (${discount.value}%)` : <span className="flex items-center justify-center gap-0.5">Edit (<DirhamIcon size={10} />{discount.value})</span>) : 'Add Discount'}</button>
                                                 <button className="home-bill-discount-btn" style={{ flex: 1, backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'}</button>
                                                 {grandTotal > 0 && <button className="home-bill-pay-btn" style={{ flex: 1 }} onClick={handleCheckout}>Pay</button>}
                                             </div>
@@ -6189,8 +6222,8 @@ function Home() {
                         </div>
                         <div className="home-modal-body">
                             <div className="home-discount-type">
-                                <label><input type="radio" name="type" checked={discount.type === 'amount'} onChange={() => setDiscount({ ...discount, type: 'amount' })} /> Amount (AED)</label>
-                                <label><input type="radio" name="type" checked={discount.type === 'percent'} onChange={() => setDiscount({ ...discount, type: 'percent' })} /> Percentage (%)</label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><input type="radio" name="type" checked={discount.type === 'amount'} onChange={() => setDiscount({ ...discount, type: 'amount' })} /> Amount (<DirhamIcon size={12} />)</label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><input type="radio" name="type" checked={discount.type === 'percent'} onChange={() => setDiscount({ ...discount, type: 'percent' })} /> Percentage (%)</label>
                             </div>
                             <input
                                 type="number"
