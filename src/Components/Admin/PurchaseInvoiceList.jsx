@@ -39,6 +39,32 @@ const getLocalISODate = () => {
   return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
 };
 
+const getDefaultTaxTemplate = (templates, activeWarehouse) => {
+  if (!templates || templates.length === 0) return '';
+
+  // Try to find the company abbreviation suffix from the warehouse name (e.g. "Main Store - KSPL" -> "KSPL")
+  const companyAbbr = activeWarehouse && activeWarehouse.includes(' - ')
+    ? activeWarehouse.split(' - ').pop()
+    : '';
+
+  // 1. Tries to match a 5% VAT template containing the active company suffix (e.g. "UAE VAT 5% - KSPL")
+  if (companyAbbr) {
+    const target = templates.find(t =>
+      t.name.toLowerCase().includes('5%') && t.name.toLowerCase().includes(companyAbbr.toLowerCase())
+    );
+    if (target) return target.name;
+  }
+
+  // 2. Tries to match any template containing "VAT 5%" or "5%" (case-insensitive)
+  const target5Percent = templates.find(t =>
+    t.name.toLowerCase().includes('vat 5%') || t.name.toLowerCase().includes('5%')
+  );
+  if (target5Percent) return target5Percent.name;
+
+  // 3. Fallback to the first available tax template
+  return templates[0]?.name || '';
+};
+
 function PurchaseInvoiceList() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -565,9 +591,9 @@ function PurchaseInvoiceList() {
 
       // Auto-set default 5% tax for NEW documents if nothing selected
       if (!docName && !formData.taxes_and_charges && filteredTemplates.length > 0) {
-        const defaultTax = filteredTemplates.find(t => t.name.includes('UAE VAT 5% - NS')) || filteredTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'));
-        if (defaultTax) {
-          setFormData(prev => ({ ...prev, taxes_and_charges: defaultTax.name }));
+        const defaultTaxName = getDefaultTaxTemplate(filteredTemplates, warehouse);
+        if (defaultTaxName) {
+          setFormData(prev => ({ ...prev, taxes_and_charges: defaultTaxName }));
         }
       }
     } catch (err) { console.error(err); }
@@ -646,7 +672,7 @@ function PurchaseInvoiceList() {
   }, [formData.taxes_and_charges]);
 
   const openCreateModal = useCallback(() => {
-    const defaultTax = taxTemplates.find(t => t.name.includes('UAE VAT 5% - NS')) || taxTemplates.find(t => t.name.includes('VAT 5%') || t.name.includes('5%'))?.name || '';
+    const defaultTax = getDefaultTaxTemplate(taxTemplates, localStorage.getItem('warehouse') || '');
     setFormData({
       name: '', supplier: '', supplier_name: '',
       posting_date: getLocalISODate(),
@@ -2172,8 +2198,8 @@ function PurchaseInvoiceList() {
                 value={filterDateFrom}
                 onChange={e => setFilterDateFrom(e.target.value)}
                 className="so-filter-input"
-                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
               />
             </div>
 
@@ -2184,8 +2210,8 @@ function PurchaseInvoiceList() {
                 value={filterDateTo}
                 onChange={e => setFilterDateTo(e.target.value)}
                 className="so-filter-input"
-                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
               />
             </div>
 
@@ -2605,8 +2631,8 @@ function PurchaseInvoiceList() {
                             className="so-input"
                             style={{ paddingLeft: '2.5rem' }}
                             disabled={isViewMode}
-                            onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                            onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                            onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                            onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
                           />
                         </div>
                       </div>
@@ -2631,8 +2657,8 @@ function PurchaseInvoiceList() {
                             className="so-input"
                             style={{ paddingLeft: '2.5rem' }}
                             disabled={isViewMode}
-                            onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                            onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                            onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                            onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
                           />
                         </div>
                       </div>
@@ -3087,7 +3113,9 @@ function PurchaseInvoiceList() {
                                         <td key={col.id}>
                                           <div className="premium-cell-container">
                                             <div className="premium-cell-box">
-                                              {isViewMode ? (
+                                              {item.use_box_entry || (item.uom || '').toLowerCase() === 'box' ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                              ) : isViewMode ? (
                                                 <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[var(--so-primary)]">
                                                   {formatPrice(item.rate)}
                                                 </div>

@@ -70,9 +70,23 @@ function NavBar() {
     setActiveSearchIndex(0);
   }, [searchQuery]);
 
-  // Global hotkey to focus search bar (Ctrl + K or /)
+  // Global hotkey to focus search bar (Ctrl + K or /) and other navigations
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Global navigation hotkeys
+      if (e.shiftKey && e.altKey) {
+        if (e.key.toLowerCase() === "s") {
+          e.preventDefault();
+          navigate("/salesreturn");
+          return;
+        }
+        if (e.key.toLowerCase() === "p") {
+          e.preventDefault();
+          navigate("/purchasereturn");
+          return;
+        }
+      }
+
       if ((e.ctrlKey && e.key === "k") || e.key === "/") {
         // Only trigger if we aren't typing in some input already
         if (
@@ -87,7 +101,7 @@ function NavBar() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [navigate]);
 
   // Close search on click outside
   useEffect(() => {
