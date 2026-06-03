@@ -2059,7 +2059,16 @@ function Home() {
     // ---------- CAMERA SCANNER ENGINE ----------
     if (!homeCodeReader.current) {
         const hints = new Map();
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.UPC_A, BarcodeFormat.CODE_128]);
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.EAN_13,
+            BarcodeFormat.EAN_8,
+            BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E,
+            BarcodeFormat.CODE_128,
+            BarcodeFormat.CODE_39,
+            BarcodeFormat.ITF,
+            BarcodeFormat.QR_CODE
+        ]);
         hints.set(DecodeHintType.TRY_HARDER, true);
         homeCodeReader.current = new BrowserMultiFormatReader(hints);
     }
@@ -2082,7 +2091,16 @@ function Home() {
                         selectedDeviceId = backCamera ? backCamera.deviceId : (videoInputDevices[videoInputDevices.length - 1].deviceId || videoInputDevices[0].deviceId);
                     }
 
-                    await homeCodeReader.current.decodeFromVideoDevice(selectedDeviceId, homeVideoRef.current, (result, err) => {
+                    const constraints = {
+                        video: {
+                            deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    };
+
+                    await homeCodeReader.current.decodeFromConstraints(constraints, homeVideoRef.current, (result, err) => {
                         if (result && showCamera) {
                             const scannedText = result.text.trim();
                             barcodeScanRef.current(scannedText);
@@ -2094,7 +2112,11 @@ function Home() {
                     console.error("Camera scanner error, attempting constraints fallback:", error);
                     try {
                         const constraints = {
-                            video: { facingMode: 'environment' }
+                            video: {
+                                facingMode: 'environment',
+                                width: { ideal: 1280 },
+                                height: { ideal: 720 }
+                            }
                         };
                         await homeCodeReader.current.decodeFromConstraints(constraints, homeVideoRef.current, (result, err) => {
                             if (result && showCamera) {
