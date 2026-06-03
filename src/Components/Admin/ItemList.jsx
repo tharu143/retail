@@ -7,7 +7,7 @@ import {
   LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap
 } from 'lucide-react';
 import axios from 'axios';
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
@@ -273,21 +273,70 @@ const ItemCard = ({ item, onClick }) => (
 
 /* ========== CAMERA SCANNER ========== */
 const CameraScanner = ({ onScan, onClose }) => {
-  const videoRef = useRef(null);
-  const reader = useRef(new BrowserMultiFormatReader());
+  const html5QrcodeRef = useRef(null);
+
   useEffect(() => {
-    reader.current.decodeFromVideoDevice(undefined, videoRef.current, r => { if (r) onScan(r.getText()); });
-    return () => reader.current.reset();
+    const html5Qrcode = new Html5Qrcode("item-camera-scanner-reader");
+    html5QrcodeRef.current = html5Qrcode;
+
+    const config = {
+      fps: 15,
+      qrbox: (width, height) => {
+        const boxWidth = Math.min(width * 0.8, 260);
+        const boxHeight = Math.min(height * 0.6, 150);
+        return { width: boxWidth, height: boxHeight };
+      },
+      aspectRatio: 1.0
+    };
+
+    const formats = [
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.QR_CODE
+    ];
+
+    html5Qrcode.start(
+      { facingMode: "environment" },
+      { ...config, formatsToSupport: formats },
+      (decodedText) => {
+        onScan(decodedText.trim());
+        html5Qrcode.stop().catch(err => console.error(err));
+      },
+      () => {}
+    ).catch(err => {
+      console.error("Scanner start error, trying default device:", err);
+      html5Qrcode.start(
+        { deviceId: undefined },
+        { ...config, formatsToSupport: formats },
+        (decodedText) => {
+          onScan(decodedText.trim());
+          html5Qrcode.stop().catch(fallbackErr => console.error(fallbackErr));
+        },
+        () => {}
+      ).catch(finalErr => {
+        console.error("All startup options failed:", finalErr);
+      });
+    });
+
+    return () => {
+      if (html5Qrcode.isScanning) {
+        html5Qrcode.stop().catch(err => console.error(err));
+      }
+    };
   }, [onScan]);
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
       <div style={{ background: T.surface, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontWeight: 700 }}>Scan Barcode</span>
         <button className="il-btn il-btn-ghost" onClick={onClose}><X size={18} /></button>
       </div>
-      <video ref={videoRef} style={{ flex: 1, width: '100%', objectFit: 'cover' }} />
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 260, height: 150, border: '3px solid #EF4444', borderRadius: 12 }} />
-      <div style={{ position: 'absolute', bottom: 32, left: 0, right: 0, textAlign: 'center' }}>
+      <div id="item-camera-scanner-reader" style={{ flex: 1, width: '100%', background: '#000' }} />
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 260, height: 150, border: '3px solid #EF4444', borderRadius: 12, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: 32, left: 0, right: 0, textAlign: 'center', pointerEvents: 'none' }}>
         <span style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '9px 20px', borderRadius: 100, fontSize: 13, fontWeight: 600 }}>Align barcode in frame</span>
       </div>
     </div>
@@ -468,8 +517,7 @@ export default function ItemList() {
   const [syncGroupFilter, setSyncGroupFilter] = useState('');
 
 
-  const scanVideoRef = useRef(null);
-  const codeReader = useRef(new BrowserMultiFormatReader());
+  const html5QrcodeRef = useRef(null);
   const barcodeInputRef = useRef(null);
 
   useEffect(() => {
@@ -744,34 +792,85 @@ export default function ItemList() {
 
   const startBarcodeScanner = async () => {
     setShowGlobalScan(true);
-    setTimeout(async () => {
+    setTimeout(() => {
       try {
-        await codeReader.current.decodeFromVideoDevice(null, scanVideoRef.current, (result) => {
-          if (result) {
-            setBarcodeFilter(result.text);
+        const html5Qrcode = new Html5Qrcode("global-list-scanner-reader");
+        html5QrcodeRef.current = html5Qrcode;
+
+        const config = {
+          fps: 15,
+          qrbox: (width, height) => {
+            const boxWidth = Math.min(width * 0.8, 450);
+            const boxHeight = Math.min(height * 0.6, 250);
+            return { width: boxWidth, height: boxHeight };
+          },
+          aspectRatio: 1.0
+        };
+
+        const formats = [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ];
+
+        html5Qrcode.start(
+          { facingMode: "environment" },
+          { ...config, formatsToSupport: formats },
+          (decodedText) => {
+            setBarcodeFilter(decodedText.trim());
+            stopBarcodeScanner();
+          },
+          () => {}
+        ).catch(err => {
+          console.error("Scanner failed, trying fallback device:", err);
+          html5Qrcode.start(
+            { deviceId: undefined },
+            { ...config, formatsToSupport: formats },
+            (decodedText) => {
+              setBarcodeFilter(decodedText.trim());
+              stopBarcodeScanner();
+            },
+            () => {}
+          ).catch(finalErr => {
+            console.error("All startup options failed:", finalErr);
             setShowGlobalScan(false);
-            codeReader.current.reset();
-          }
+          });
         });
-      } catch (err) { console.error(err); setShowGlobalScan(false); }
-    }, 100);
+      } catch (err) {
+        console.error(err);
+        setShowGlobalScan(false);
+      }
+    }, 150);
+  };
+
+  const stopBarcodeScanner = () => {
+    if (html5QrcodeRef.current) {
+      if (html5QrcodeRef.current.isScanning) {
+        html5QrcodeRef.current.stop().catch(err => console.error("Error stopping scanner:", err));
+      }
+    }
+    setShowGlobalScan(false);
   };
 
   const handleBarcodeFileScan = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = async () => {
-        try {
-          const result = await codeReader.current.decodeFromImageElement(img);
-          if (result) setBarcodeFilter(result.text);
-        } catch (err) { Swal.fire('Error', 'No barcode found in image', 'error'); }
-      };
-    };
-    reader.readAsDataURL(file);
+    try {
+      const html5Qrcode = html5QrcodeRef.current || new Html5Qrcode("global-list-scanner-reader");
+      html5Qrcode.scanFile(file, false)
+        .then(decodedText => {
+          setBarcodeFilter(decodedText.trim());
+          stopBarcodeScanner();
+        })
+        .catch(err => {
+          Swal.fire('Error', 'No barcode found in image', 'error');
+        });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleGlobalSearchMaster = async (term) => {
@@ -2249,11 +2348,11 @@ export default function ItemList() {
           <div style={{ width: '100%', maxWidth: 500, background: '#fff', borderRadius: 24, overflow: 'hidden' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontWeight: 800, fontSize: 16 }}>Camera Scanner</div>
-              <button onClick={() => { codeReader.current.reset(); setShowGlobalScan(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+              <button onClick={stopBarcodeScanner} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
             </div>
             <div style={{ padding: 20 }}>
-              <video ref={scanVideoRef} style={{ width: '100%', borderRadius: 16, background: '#000' }} />
-              <button onClick={() => { codeReader.current.reset(); setShowGlobalScan(false); }} style={{ width: '100%', marginTop: 20, padding: 12, background: T.blue, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700 }}>Stop Scanner</button>
+              <div id="global-list-scanner-reader" style={{ width: '100%', aspectRatio: '1.0', borderRadius: 16, overflow: 'hidden', background: '#000' }}></div>
+              <button onClick={stopBarcodeScanner} style={{ width: '100%', marginTop: 20, padding: 12, background: T.blue, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700 }}>Stop Scanner</button>
             </div>
           </div>
         </div>

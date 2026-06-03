@@ -21,6 +21,7 @@ import {
     Barcode
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { logout, toggleTheme, setTheme } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import './LegacyPOS.css';
@@ -471,6 +472,7 @@ function Home() {
     const [showCamera, setShowCamera] = useState(false);
     const homeVideoRef = useRef(null);
     const homeCodeReader = useRef(null);
+    const html5QrcodeRef = useRef(null);
 
     if (!homeCodeReader.current) {
         const hints = new Map();
@@ -542,13 +544,7 @@ function Home() {
 
                         <div className="p-8">
                             <div className="relative aspect-video rounded-3xl overflow-hidden bg-slate-900 shadow-inner group">
-                                <video
-                                    ref={homeVideoRef}
-                                    className="w-full h-full object-contain"
-                                    playsInline
-                                    muted
-                                    autoPlay
-                                />
+                                <div id="home-scanner-reader" className="w-full h-full" style={{ background: '#0f172a' }}></div>
                                 {/* OVERLAY GUIDES */}
                                 <div className="absolute inset-0 border-[2px] border-sky-400/30"></div>
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-1/2 border-[2px] border-sky-400 rounded-2xl shadow-[0_0_0_1000px_rgba(15,23,42,0.6)]">
@@ -2077,78 +2073,76 @@ function Home() {
     }
 
     useEffect(() => {
-        if (showCamera && homeVideoRef.current) {
-            const startScanner = async () => {
-                try {
-                    // Try to list video devices and find the back/rear camera
-                    const videoInputDevices = await homeCodeReader.current.listVideoInputDevices();
-                    let selectedDeviceId = undefined;
+        if (showCamera) {
+            console.log("[Scanner Debug] Starting Html5Qrcode...");
+            const html5Qrcode = new Html5Qrcode("home-scanner-reader");
+            html5QrcodeRef.current = html5Qrcode;
 
-                    if (videoInputDevices && videoInputDevices.length > 0) {
-                        const backCamera = videoInputDevices.find(device =>
-                            device.label.toLowerCase().includes('back') ||
-                            device.label.toLowerCase().includes('rear') ||
-                            device.label.toLowerCase().includes('environment')
-                        );
-                        // Default to back camera, else last device (usually back on mobiles), else first device
-                        selectedDeviceId = backCamera ? backCamera.deviceId : (videoInputDevices[videoInputDevices.length - 1].deviceId || videoInputDevices[0].deviceId);
-                    }
-
-                    const constraints = {
-                        video: {
-                            deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-                            facingMode: 'environment',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    };
-
-                    await homeCodeReader.current.decodeFromConstraints(constraints, homeVideoRef.current, (result, err) => {
-                        if (result && showCamera) {
-                            const scannedText = result.text.trim();
-                            barcodeScanRef.current(scannedText);
-                            setShowCamera(false);
-                            homeCodeReader.current.reset();
-                        }
-                    });
-                } catch (error) {
-                    console.error("Camera scanner error, attempting constraints fallback:", error);
-                    try {
-                        const constraints = {
-                            video: {
-                                facingMode: 'environment',
-                                width: { ideal: 1280 },
-                                height: { ideal: 720 }
-                            }
-                        };
-                        await homeCodeReader.current.decodeFromConstraints(constraints, homeVideoRef.current, (result, err) => {
-                            if (result && showCamera) {
-                                barcodeScanRef.current(result.text.trim());
-                                setShowCamera(false);
-                                homeCodeReader.current.reset();
-                            }
-                        });
-                    } catch (fallbackError) {
-                        console.error("Camera scanner constraints fallback error, attempting default device:", fallbackError);
-                        try {
-                            await homeCodeReader.current.decodeFromVideoDevice(undefined, homeVideoRef.current, (result, err) => {
-                                if (result && showCamera) {
-                                    barcodeScanRef.current(result.text.trim());
-                                    setShowCamera(false);
-                                    homeCodeReader.current.reset();
-                                }
-                            });
-                        } catch (finalError) {
-                            console.error("All camera scanner fallbacks failed:", finalError);
-                            Swal.fire('Camera Error', 'Could not open scanner.', 'error');
-                            setShowCamera(false);
-                        }
-                    }
-                }
+            const config = {
+                fps: 15,
+                qrbox: (width, height) => {
+                    const boxWidth = Math.min(width * 0.8, 450);
+                    const boxHeight = Math.min(height * 0.6, 250);
+                    return { width: boxWidth, height: boxHeight };
+                },
+                aspectRatio: 1.777778
             };
-            startScanner();
+
+            const formats = [
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.EAN_8,
+                Html5QrcodeSupportedFormats.UPC_A,
+                Html5QrcodeSupportedFormats.UPC_E,
+                Html5QrcodeSupportedFormats.CODE_128,
+                Html5QrcodeSupportedFormats.QR_CODE
+            ];
+
+            html5Qrcode.start(
+                { facingMode: "environment" },
+                {
+                    ...config,
+                    formatsToSupport: formats
+                },
+                (decodedText, decodedResult) => {
+                    console.log("[Scanner Debug] Decoded text:", decodedText);
+                    if (showCamera) {
+                        barcodeScanRef.current(decodedText.trim());
+                        setShowCamera(false);
+                        html5Qrcode.stop().catch(err => console.error("[Scanner Debug] Error stopping on success:", err));
+                    }
+                },
+                (errorMessage) => {
+                    // Suppress verbose frame analysis logs
+                }
+            ).catch(err => {
+                console.error("[Scanner Debug] start failed, trying fallback device:", err);
+                html5Qrcode.start(
+                    { deviceId: undefined },
+                    { ...config, formatsToSupport: formats },
+                    (decodedText, decodedResult) => {
+                        if (showCamera) {
+                            barcodeScanRef.current(decodedText.trim());
+                            setShowCamera(false);
+                            html5Qrcode.stop().catch(fallbackErr => console.error("[Scanner Debug] Error stopping on fallback success:", fallbackErr));
+                        }
+                    },
+                    (errorMessage) => {}
+                ).catch(finalErr => {
+                    console.error("[Scanner Debug] All startup options failed:", finalErr);
+                    Swal.fire('Camera Error', 'Could not start camera barcode scanner.', 'error');
+                    setShowCamera(false);
+                });
+            });
         }
-        return () => { if (homeCodeReader.current) homeCodeReader.current.reset(); };
+
+        return () => {
+            if (html5QrcodeRef.current) {
+                console.log("[Scanner Debug] Cleanup called.");
+                if (html5QrcodeRef.current.isScanning) {
+                    html5QrcodeRef.current.stop().catch(err => console.error("[Scanner Debug] Error during stop cleanup:", err));
+                }
+            }
+        };
     }, [showCamera]);
 
     const handleImageScan = async (fileOrEvent) => {

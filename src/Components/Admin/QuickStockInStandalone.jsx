@@ -7,7 +7,7 @@ import {
 import Swal from 'sweetalert2';
 import POSService from '../../utils/posService';
 import { db } from '../../db';
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import '../Admin/SalesOrder.css';
@@ -81,8 +81,7 @@ const QuickStockInStandalone = () => {
     const themeHeaderText = isGreen ? '#0d9488' : '#1d4ed8';
 
     const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const videoRef = useRef(null);
-    const codeReader = useRef(new BrowserMultiFormatReader());
+    const html5QrcodeRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => {
@@ -224,26 +223,66 @@ const QuickStockInStandalone = () => {
 
     const startCameraScanner = async () => {
         setIsScannerOpen(true);
-        setTimeout(async () => {
+        setTimeout(() => {
             try {
-                const videoInputDevices = await codeReader.current.listVideoInputDevices();
-                const selectedDeviceId = videoInputDevices[0].deviceId;
-                codeReader.current.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result) => {
-                    if (result) {
-                        const barcode = result.getText();
-                        handleBarcodeEnter({ key: 'Enter', target: { value: barcode } });
+                const html5Qrcode = new Html5Qrcode("standalone-scanner-reader");
+                html5QrcodeRef.current = html5Qrcode;
+
+                const config = {
+                    fps: 15,
+                    qrbox: (width, height) => {
+                        const boxWidth = Math.min(width * 0.8, 450);
+                        const boxHeight = Math.min(height * 0.6, 250);
+                        return { width: boxWidth, height: boxHeight };
+                    },
+                    aspectRatio: 1.0
+                };
+
+                const formats = [
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.QR_CODE
+                ];
+
+                html5Qrcode.start(
+                    { facingMode: "environment" },
+                    { ...config, formatsToSupport: formats },
+                    (decodedText) => {
+                        handleBarcodeEnter({ key: 'Enter', target: { value: decodedText.trim() } });
                         stopCameraScanner();
-                    }
+                    },
+                    () => {}
+                ).catch(err => {
+                    console.error("Scanner failed, trying fallback device:", err);
+                    html5Qrcode.start(
+                        { deviceId: undefined },
+                        { ...config, formatsToSupport: formats },
+                        (decodedText) => {
+                            handleBarcodeEnter({ key: 'Enter', target: { value: decodedText.trim() } });
+                            stopCameraScanner();
+                        },
+                        () => {}
+                    ).catch(finalErr => {
+                        console.error("All startup options failed:", finalErr);
+                        setIsScannerOpen(false);
+                    });
                 });
             } catch (err) {
                 console.error(err);
                 setIsScannerOpen(false);
             }
-        }, 100);
+        }, 150);
     };
 
     const stopCameraScanner = () => {
-        codeReader.current.reset();
+        if (html5QrcodeRef.current) {
+            if (html5QrcodeRef.current.isScanning) {
+                html5QrcodeRef.current.stop().catch(err => console.error("Error stopping scanner:", err));
+            }
+        }
         setIsScannerOpen(false);
     };
 
@@ -255,21 +294,15 @@ const QuickStockInStandalone = () => {
 
     const decodeImage = async (file) => {
         try {
-            const reader = new FileReader();
-            reader.onload = async () => {
-                const image = new Image();
-                image.src = reader.result;
-                image.onload = async () => {
-                    try {
-                        const result = await codeReader.current.decodeFromImageElement(image);
-                        handleBarcodeEnter({ key: 'Enter', target: { value: result.getText() } });
-                        stopCameraScanner();
-                    } catch (err) {
-                        Swal.fire('Error', 'No barcode found', 'error');
-                    }
-                };
-            };
-            reader.readAsDataURL(file);
+            const html5Qrcode = html5QrcodeRef.current || new Html5Qrcode("standalone-scanner-reader");
+            html5Qrcode.scanFile(file, false)
+                .then(decodedText => {
+                    handleBarcodeEnter({ key: 'Enter', target: { value: decodedText.trim() } });
+                    stopCameraScanner();
+                })
+                .catch(err => {
+                    Swal.fire('Error', 'No barcode found', 'error');
+                });
         } catch (err) { }
     };
 
@@ -778,7 +811,7 @@ const QuickStockInStandalone = () => {
                             </div>
                         ) : (
                             <>
-                                <video ref={videoRef} className="w-full h-full object-cover" />
+                                <div id="standalone-scanner-reader" className="w-full h-full" style={{ background: '#000' }}></div>
                                 <div className="absolute inset-0 border-[60px] border-black/40 pointer-events-none flex items-center justify-center">
                                     <div className="w-full h-full border-2 border-emerald-400/50 relative">
                                         <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-sm" />

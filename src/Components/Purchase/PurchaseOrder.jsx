@@ -8,7 +8,7 @@ import {
   DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
   Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Edit3, Settings, Link, Copy
 } from 'lucide-react';
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
 import CustomSearchDropdown from './CustomSearchDropdown';
 import ColumnConfigModal from './ColumnConfigModal';
@@ -119,8 +119,7 @@ function PurchaseOrder() {
   const [linkedConnections, setLinkedConnections] = useState([]); // New state for dashboard connections
   const [linkedDocStatuses, setLinkedDocStatuses] = useState({});
   const [loadingLinks, setLoadingLinks] = useState(false);
-  const videoRef = useRef(null);
-  const codeReader = useRef(new BrowserMultiFormatReader());
+  const html5QrcodeRef = useRef(null);
 
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = '';
@@ -930,14 +929,35 @@ function PurchaseOrder() {
 
   const startCameraScanner = async () => {
     setIsScannerOpen(true);
-    setTimeout(async () => {
+    setTimeout(() => {
       try {
-        const videoInputDevices = await codeReader.current.listVideoInputDevices();
-        const selectedDeviceId = videoInputDevices[0].deviceId;
+        const html5Qrcode = new Html5Qrcode("po-scanner-reader");
+        html5QrcodeRef.current = html5Qrcode;
 
-        codeReader.current.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result, err) => {
-          if (result) {
-            const barcode = result.getText();
+        const config = {
+          fps: 15,
+          qrbox: (width, height) => {
+            const boxWidth = Math.min(width * 0.8, 450);
+            const boxHeight = Math.min(height * 0.6, 250);
+            return { width: boxWidth, height: boxHeight };
+          },
+          aspectRatio: 1.0
+        };
+
+        const formats = [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ];
+
+        html5Qrcode.start(
+          { facingMode: "environment" },
+          { ...config, formatsToSupport: formats },
+          (decodedText) => {
+            const barcode = decodedText.trim();
             handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
             stopCameraScanner();
             Swal.fire({
@@ -949,17 +969,46 @@ function PurchaseOrder() {
               timer: 2000,
               showConfirmButton: false
             });
-          }
+          },
+          () => {}
+        ).catch(err => {
+          console.error("Scanner failed, trying fallback device:", err);
+          html5Qrcode.start(
+            { deviceId: undefined },
+            { ...config, formatsToSupport: formats },
+            (decodedText) => {
+              const barcode = decodedText.trim();
+              handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
+              stopCameraScanner();
+              Swal.fire({
+                icon: 'success',
+                title: 'Scanned Successfully',
+                text: `Item found: ${barcode}`,
+                toast: true,
+                position: 'top-end',
+                timer: 2000,
+                showConfirmButton: false
+              });
+            },
+            () => {}
+          ).catch(finalErr => {
+            console.error("All startup options failed:", finalErr);
+            setIsScannerOpen(false);
+          });
         });
       } catch (err) {
-        console.error("Camera error:", err);
+        console.error("Camera setup error:", err);
         setIsScannerOpen(false);
       }
-    }, 100);
+    }, 150);
   };
 
   const stopCameraScanner = () => {
-    codeReader.current.reset();
+    if (html5QrcodeRef.current) {
+      if (html5QrcodeRef.current.isScanning) {
+        html5QrcodeRef.current.stop().catch(err => console.error("Error stopping scanner:", err));
+      }
+    }
     setIsScannerOpen(false);
   };
 
@@ -971,36 +1020,30 @@ function PurchaseOrder() {
 
   const decodeImage = async (file) => {
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const image = new Image();
-        image.src = reader.result;
-        image.onload = async () => {
-          try {
-            const result = await codeReader.current.decodeFromImageElement(image);
-            const barcode = result.getText();
-            handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
-            stopCameraScanner();
-            Swal.fire({
-              icon: 'success',
-              title: 'Barcode Detected',
-              text: `Added: ${barcode}`,
-              toast: true,
-              position: 'top-end',
-              timer: 2000,
-              showConfirmButton: false
-            });
-          } catch (err) {
-            Swal.fire({
-              icon: 'error',
-              title: 'Not Found',
-              text: 'Could not find a valid barcode in this image. Please try again.',
-              timer: 2000
-            });
-          }
-        };
-      };
-      reader.readAsDataURL(file);
+      const html5Qrcode = html5QrcodeRef.current || new Html5Qrcode("po-scanner-reader");
+      html5Qrcode.scanFile(file, false)
+        .then(decodedText => {
+          const barcode = decodedText.trim();
+          handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
+          stopCameraScanner();
+          Swal.fire({
+            icon: 'success',
+            title: 'Barcode Detected',
+            text: `Added: ${barcode}`,
+            toast: true,
+            position: 'top-end',
+            timer: 2000,
+            showConfirmButton: false
+          });
+        })
+        .catch(err => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Not Found',
+            text: 'Could not find a valid barcode in this image. Please try again.',
+            timer: 2000
+          });
+        });
     } catch (err) {
       console.error("Image decode error:", err);
     }
@@ -2604,7 +2647,7 @@ function PurchaseOrder() {
                           </div>
                         ) : (
                           <>
-                            <video ref={videoRef} className="w-full h-full object-cover" />
+                            <div id="po-scanner-reader" className="w-full h-full" style={{ background: '#000' }}></div>
                             <div className="absolute inset-0 border-[60px] border-black/40 pointer-events-none flex items-center justify-center">
                               <div className="w-full h-full border-2 border-emerald-400/50 relative">
                                 <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-sm" />
