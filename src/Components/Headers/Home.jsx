@@ -544,7 +544,10 @@ function Home() {
                             <div className="relative aspect-video rounded-3xl overflow-hidden bg-slate-900 shadow-inner group">
                                 <video
                                     ref={homeVideoRef}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-contain"
+                                    playsInline
+                                    muted
+                                    autoPlay
                                 />
                                 {/* OVERLAY GUIDES */}
                                 <div className="absolute inset-0 border-[2px] border-sky-400/30"></div>
