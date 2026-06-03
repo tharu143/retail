@@ -46,9 +46,23 @@ const handleGlobalAuthError = () => {
 
 console.log(`[APP] Mode: ${IS_PROD ? 'Production (Electron)' : (IS_LOCAL ? 'Development (Local)' : 'Web (Server)')}`);
 
+// Helper to get cookie value
+const getCookie = (name) => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 // Route Axios requests through local Vite Proxy to bypass CORS/SameSite cookie failures
 axios.interceptors.request.use((config) => {
   if (!config.url) return config;
+
+  const csrfToken = getCookie('csrf_token');
+  if (csrfToken) {
+    config.headers['X-Frappe-CSRF-Token'] = csrfToken;
+  }
 
   const session = localStorage.getItem('session');
 
