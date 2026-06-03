@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
 const hostname = typeof window !== 'undefined' ? window.location.hostname : '75.119.130.59';
 
-const socket = io(`${protocol}//${hostname}`, {
+const socket = io(`${protocol}//${hostname}/retailpos`, {
   path: '/socket.io',
   transports: ['websocket'],
   autoConnect: true,
