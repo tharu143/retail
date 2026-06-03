@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import PrintConfigModal from './PrintConfigModal';
 
 
 function ItemWiseSalesReport() {
@@ -15,6 +16,17 @@ function ItemWiseSalesReport() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
+  // Print Customization State
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printOrientation, setPrintOrientation] = useState('portrait');
+  const [selectedPrintColumns, setSelectedPrintColumns] = useState([]);
+
+  useEffect(() => {
+    if (columns.length > 0 && selectedPrintColumns.length === 0) {
+      setSelectedPrintColumns(columns.map(c => c.fieldname));
+    }
+  }, [columns]);
+
   // Theme Hook
   const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
 
@@ -99,6 +111,17 @@ function ItemWiseSalesReport() {
     fetchReport(next);
   };
 
+  const handlePrint = () => {
+    setIsPrintModalOpen(true);
+  };
+
+  const executePrint = () => {
+    setIsPrintModalOpen(false);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
   return (
     <div className="so-page">
       
@@ -131,7 +154,7 @@ function ItemWiseSalesReport() {
           
           <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 0.25rem' }}></div>
           
-          <button className="so-btn-secondary" style={{ height: '38px', padding: '0 1rem' }}>
+          <button onClick={handlePrint} className="so-btn-secondary" style={{ height: '38px', padding: '0 1rem' }}>
              <Printer size={16} /> Print
           </button>
           <button className="so-btn-primary" style={{ height: '38px', padding: '0 1.25rem' }}>
@@ -259,7 +282,7 @@ function ItemWiseSalesReport() {
               <table className="so-table">
                 <thead>
                   <tr>
-                    {columns.map((col, i) => (
+                    {columns.filter(col => selectedPrintColumns.includes(col.fieldname)).map((col, i) => (
                       <th key={i}>{col.label}</th>
                     ))}
                   </tr>
@@ -267,14 +290,14 @@ function ItemWiseSalesReport() {
                 <tbody>
                   {loading && data.length === 0 ? (
                     <tr>
-                      <td colSpan={columns.length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
+                      <td colSpan={columns.filter(col => selectedPrintColumns.includes(col.fieldname)).length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
                         <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                         <p style={{ marginTop: '0.75rem', fontWeight: 700, color: '#94a3b8', fontSize: '0.6rem', textTransform: 'uppercase' }}>Building Report Matrix...</p>
                       </td>
                     </tr>
                   ) : data.length === 0 ? (
                     <tr>
-                      <td colSpan={columns.length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
+                      <td colSpan={columns.filter(col => selectedPrintColumns.includes(col.fieldname)).length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
                         <div style={{ opacity: 0.1, marginBottom: '0.75rem' }}>
                            <Package size={40} style={{ margin: '0 auto' }} />
                         </div>
@@ -284,7 +307,7 @@ function ItemWiseSalesReport() {
                   ) : (
                     data.map((row, idx) => (
                       <tr key={idx}>
-                        {columns.map((col, cIdx) => (
+                        {columns.filter(col => selectedPrintColumns.includes(col.fieldname)).map((col, cIdx) => (
                           <td key={cIdx} style={
                             col.label?.toLowerCase().includes('qty') || 
                             col.label?.toLowerCase().includes('amount') || 
@@ -295,7 +318,9 @@ function ItemWiseSalesReport() {
                             {row[col.fieldname] !== null && row[col.fieldname] !== undefined ? (
                                 typeof row[col.fieldname] === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate')) ? 
                                 row[col.fieldname].toLocaleString(undefined, { minimumFractionDigits: 2 }) : 
-                                row[col.fieldname]
+                                typeof row[col.fieldname] === 'string' && row[col.fieldname].startsWith('<b>') ?
+                                <span dangerouslySetInnerHTML={{ __html: row[col.fieldname] }} /> :
+                                String(row[col.fieldname]).replace(' - KSPL', '')
                             ) : '-'}
                           </td>
                         ))}
@@ -308,6 +333,50 @@ function ItemWiseSalesReport() {
           </div>
         </main>
       </div>
+      
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+            @page {
+                size: ${printOrientation};
+                margin: 10mm;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+            .so-page-header button, .so-filter-bar, .no-print, button, .so-page-header div:nth-child(2) {
+                display: none !important;
+            }
+            .so-page {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .so-content {
+                padding: 0 !important;
+            }
+            .so-table-card {
+                box-shadow: none !important;
+                border: none !important;
+            }
+            th, td {
+                border: 1px solid #cbd5e1 !important;
+                padding: 8px 12px !important;
+                font-size: 11px !important;
+            }
+        }
+      `}} />
+
+      <PrintConfigModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        columns={columns}
+        selectedColumns={selectedPrintColumns}
+        onSelectedColumnsChange={setSelectedPrintColumns}
+        orientation={printOrientation}
+        onOrientationChange={setPrintOrientation}
+        onPrint={executePrint}
+        themeColor={themeColor}
+      />
     </div>
   );
 }

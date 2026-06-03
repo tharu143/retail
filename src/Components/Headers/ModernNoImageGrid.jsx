@@ -32,16 +32,17 @@ const ModernNoImageGrid = ({
                         }}
                         style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
                     >
-                        {/* Top Row: Barcode & Stock Badge */}
-                        <div className="flex items-center justify-between w-full">
+                        {/* Top Row: Barcode */}
+                        <div className="flex items-center justify-between w-full" style={{ height: '16px' }}>
                             {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) ? (
                                 <span className="text-slate-400 font-bold flex items-center gap-1 text-[9px]" style={{ letterSpacing: '0.02em' }}>
                                     <Barcode size={10} className="opacity-60" /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
                                 </span>
-                            ) : <div />}
-                            <span className={`so-item-badge ${item.local_qty > 10 ? 'so-badge-emerald' : (item.local_qty > 0 ? 'so-badge-amber' : 'so-badge-rose')}`}>
-                                {item.local_qty > 0 ? `${item.local_qty} UNIT` : 'OUT STOCK'}
-                            </span>
+                            ) : (
+                                <span className="text-slate-300 font-bold flex items-center gap-1 text-[9px]">
+                                    <Barcode size={10} className="opacity-20" /> -
+                                </span>
+                            )}
                         </div>
 
                         {/* Item Name */}
@@ -69,17 +70,23 @@ const ModernNoImageGrid = ({
                             </button>
                         </div>
 
-                        {item.local_qty <= 0 && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleFindNearestStock(item);
-                                }}
-                                className="w-full mt-1.5 py-1 bg-sky-50 text-sky-600 rounded-lg border border-sky-100 text-[8px] font-black uppercase tracking-tighter hover:bg-sky-600 hover:text-white transition-all"
-                            >
-                                Find in Branches
-                            </button>
-                        )}
+                        <div style={{ height: '24px', display: 'flex', alignItems: 'center', marginTop: '4px', flexShrink: 0 }}>
+                            {item.local_qty <= 0 ? (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleFindNearestStock(item);
+                                    }}
+                                    className="w-full py-1 bg-slate-50 text-slate-400 rounded-lg border border-slate-200 text-[8px] font-bold uppercase tracking-tight hover:bg-slate-200 hover:text-slate-600 transition-all"
+                                >
+                                    Find in Branches
+                                </button>
+                            ) : (
+                                <div className={`so-item-instock-placeholder ${item.local_qty <= 10 ? 'low-stock' : ''}`} style={{ padding: '0.15rem 0' }}>
+                                    {item.local_qty} UNITS
+                                </div>
+                            )}
+                        </div>
                     </div>
                 ))
             )}

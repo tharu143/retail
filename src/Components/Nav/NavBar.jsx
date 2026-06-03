@@ -374,12 +374,37 @@ function NavBar() {
       });
     };
 
+    const handleDispatched = (data) => {
+      console.log("[Socket] Inter-Branch Dispatch Received:", data);
+      // Only notify if we are the DESTINATION warehouse (Case-insensitive check)
+      if (data.to_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+        Swal.fire({
+          title: 'MATERIAL DISPATCHED',
+          html: `Branch <b>${data.from_warehouse}</b> has dispatched stock. Please accept the items!`,
+          icon: 'success',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: true,
+          confirmButtonText: 'ACCEPT STOCK',
+          confirmButtonColor: '#10b981',
+          timer: 15000,
+          timerProgressBar: true
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate(`/interbranchrequest/${data.name}`);
+          }
+        });
+      }
+    };
+
     socket.on('inter_branch_request_created', handleNewRequest);
     socket.on('inter_branch_decision', handleDecision);
+    socket.on('inter_branch_dispatched', handleDispatched);
 
     return () => {
       socket.off('inter_branch_request_created', handleNewRequest);
       socket.off('inter_branch_decision', handleDecision);
+      socket.off('inter_branch_dispatched', handleDispatched);
     };
   }, [warehouse, navigate]);
 

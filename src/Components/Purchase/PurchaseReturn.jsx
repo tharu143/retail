@@ -12,6 +12,7 @@ import CustomSearchDropdown from './CustomSearchDropdown';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './Purchase.css';
 import '../Headers/LegacyPOS.css';
+import '../Admin/SalesOrder.css';
 
 const PRItemModel = {
   item_code: null,
@@ -132,175 +133,247 @@ function PurchaseReturn() {
 
   if (viewMode === 'list') {
     return (
-      <div className="purchase-container p-6 animate-fadeIn">
-        <div className="flex items-center justify-between mb-8">
+      <div className="so-page animate-in fade-in duration-300">
+        <div className="so-page-header">
           <div>
-            <h1 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-              <ArrowRightLeft className="w-8 h-8 text-orange-500" />
+            <h1 className="so-page-title">
+              <ArrowRightLeft size={20} className="text-orange-500" />
               Purchase Returns
             </h1>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1 italic">Debit Notes & Stock Corrections</p>
+            <p className="so-page-subtitle">Debit Notes & Stock Corrections</p>
           </div>
-          <button 
-            onClick={() => {/* TODO: Implement Create Return from Original PR */}}
-            className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-black shadow-lg shadow-orange-100 transition-all active:scale-95"
+          <button
+            onClick={() => {/* TODO: Implement Create Return from Original PR */ }}
+            className="so-btn-primary"
           >
-            <Plus className="w-4 h-4" />
+            <Plus size={16} />
             New Purchase Return
           </button>
         </div>
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
-            <p className="text-slate-400 font-black text-[10px] uppercase tracking-tighter">Syncing directory...</p>
-          </div>
-        ) : (
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Identity</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Supplier</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right flex items-center justify-end gap-1">Value (<DirhamIcon size={9} />)</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Status</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {returns.map(ret => (
-                  <tr key={ret.name} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center">
-                          <FileText size={16} />
-                        </div>
-                        <span className="text-xs font-black text-slate-700">{ret.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-bold text-slate-600">{ret.supplier}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{ret.posting_date}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-xs font-black text-slate-800 tabular-nums">
-                        {parseFloat(ret.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${ret.docstatus === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {ret.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => loadReturn(ret.name)}
-                        className="p-2 hover:bg-white hover:shadow-md rounded-lg text-slate-400 hover:text-orange-500 transition-all translate-x-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-0"
-                      >
-                        <Zap size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Detail View (Similar to PO but for Returns)
-  return (
-    <div className="purchase-container animate-slideIn">
-      <div className="bg-white px-6 py-2 border-b border-slate-100 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => setViewMode('list')} className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 transition-all"><ArrowLeft size={18} /></button>
-          <div className="flex flex-col text-left">
-            <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
-              Return Document: {formData.name}
-            </h1>
-            <p className="text-[11px] font-normal text-slate-400 mt-0.5">Procurement / Purchase Return</p>
-          </div>
-        </div>
-        <div className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-widest ${formData.docstatus === 1 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-orange-50 text-orange-600 border border-orange-100'}`}>
-          {formData.status}
-        </div>
-      </div>
-
-      <div className="po-layout-container !pt-6 pb-20">
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12">
-            {/* Connection Dashboard */}
-            <div className="mb-6 p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-4">
-                <Zap className="w-3 h-3 text-orange-500" />
-                Linked Records Dashboard
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Simplified categories for return */}
-                <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-100 flex flex-col gap-1">
-                  <span className="text-[9px] font-black text-slate-300 uppercase">Original Receipt</span>
-                  <span className="text-xs font-black text-slate-600 underline cursor-pointer hover:text-orange-500">{formData.return_against || 'None'}</span>
-                </div>
-              </div>
+        <div className="so-content">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+              <p className="text-slate-400 font-black text-[10px] uppercase tracking-tighter">Syncing directory...</p>
             </div>
-
-            {/* Main Return Body */}
-            <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 overflow-hidden">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Supplier</label>
-                  <p className="text-sm font-black text-slate-800">{formData.supplier?.supplier_name || formData.supplier?.name}</p>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Date</label>
-                  <p className="text-sm font-black text-slate-800">{formData.posting_date}</p>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Warehouse</label>
-                  <p className="text-sm font-black text-slate-800">{formData.set_warehouse}</p>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Return Against</label>
-                  <p className="text-sm font-bold text-orange-600 italic underline">{formData.return_against}</p>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50/50">
+          ) : (
+            <div className="so-table-card">
+              <div className="so-table-wrapper">
+                <table className="so-table">
+                  <thead>
                     <tr>
-                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Item</th>
-                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Return Qty</th>
-                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Rate</th>
-                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Amount</th>
+                      <th>Identity</th>
+                      <th>Supplier</th>
+                      <th>Date</th>
+                      <th style={{ textAlign: 'right' }}>Value</th>
+                      <th style={{ textAlign: 'center' }}>Status</th>
+                      <th style={{ width: '48px' }}></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {formData.items.map((item, i) => (
-                      <tr key={i} className="border-t border-slate-50">
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-xs text-slate-800">{item.item_name}</div>
-                          <div className="text-[9px] font-bold text-slate-400">{item.item_code}</div>
+                    {returns.map(ret => (
+                      <tr key={ret.name} onClick={() => loadReturn(ret.name)}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fff7ed', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <FileText size={16} />
+                            </div>
+                            <span style={{ fontWeight: 800, color: '#0f172a' }}>{ret.name}</span>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="text-xs font-black text-red-500">{item.qty}</span>
+                        <td>
+                          <span style={{ fontWeight: 700, color: '#475569' }}>{ret.supplier}</span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="text-xs font-bold text-slate-600">{parseFloat(item.rate).toFixed(2)}</span>
+                        <td>
+                          <span style={{ fontWeight: 700, color: '#94a3b8' }}>{ret.posting_date}</span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="text-xs font-black text-slate-800">{parseFloat(item.amount).toFixed(2)}</span>
+                        <td style={{ textAlign: 'right', fontWeight: 800, color: '#334155' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            {renderCurrency(ret.currency || formData.currency, 12)}
+                            <span>{parseFloat(ret.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`so-badge ${ret.docstatus === 1 ? 'so-badge-submitted' : 'so-badge-draft'}`}>
+                            {ret.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); loadReturn(ret.name); }}
+                            className="so-btn-ghost"
+                            style={{ padding: '0.25rem' }}
+                          >
+                            <Zap size={14} />
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Detail View (Similar to PO but for Returns)
+  return (
+    <div className="so-page animate-in fade-in duration-500">
+      {/* 1. Page Header */}
+      <div className="so-page-header">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setViewMode('list')} className="so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto' }}>
+            <ArrowLeft size={18} />
+          </button>
+          <div className="flex flex-col text-left">
+            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <RotateCw size={18} className="text-orange-500" />
+              Return Document: {formData.name}
+            </h1>
+            <p className="so-page-subtitle">
+              Against Reference: {formData.return_against}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest ${formData.docstatus === 1 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-orange-50 text-orange-600 border border-orange-100'}`}>
+            {formData.status}
+          </div>
+          <button
+            onClick={() => setViewMode('list')}
+            className="so-btn-secondary"
+            style={{ color: '#475569' }}
+          >
+            Back
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Main Page Layout */}
+      <div className="so-layout" style={{ paddingTop: '1.5rem', paddingBottom: '5rem' }}>
+        <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+          {/* Summary Bar for Stats */}
+          <div className="so-summary-bar">
+            <div className="so-summary-item">
+              <span className="so-summary-label">Debit Valuation</span>
+              <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                <DirhamIcon size={14} className="text-slate-400" />
+                <span>{Math.abs(formData.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </span>
+            </div>
+            <div className="so-summary-divider" />
+            <div className="so-summary-item">
+              <span className="so-summary-label">Quantity Returned</span>
+              <span className="so-summary-value">
+                {formData.items ? formData.items.reduce((acc, it) => acc + Math.abs(it.qty), 0) : 0} Units
+              </span>
+            </div>
+            <div className="so-summary-divider" />
+            <div className="so-summary-item">
+              <span className="so-summary-label">Lifecycle Status</span>
+              <span className="so-badge" style={{
+                background: formData.docstatus === 1 ? '#dcfce7' : (formData.docstatus === 2 ? '#fee2e2' : '#fef9c3'),
+                color: formData.docstatus === 1 ? '#156534' : (formData.docstatus === 2 ? '#b91c1c' : '#854d0e'),
+                fontSize: '0.65rem',
+                fontWeight: 800,
+                padding: '0.25rem 0.6rem',
+                borderRadius: '9999px',
+                textTransform: 'uppercase'
+              }}>
+                {formData.docstatus === 1 ? 'Submitted' : (formData.docstatus === 2 ? 'Cancelled' : 'Draft')}
+              </span>
+            </div>
+            <div className="so-summary-divider" />
+            <div className="so-summary-item" style={{ textAlign: 'right' }}>
+              <span className="so-summary-label">Posting Date</span>
+              <span className="so-summary-value" style={{ fontSize: '0.85rem' }}>{formData.posting_date}</span>
+            </div>
+          </div>
+
+          {/* Main Detail Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div className="so-card">
+              <div className="so-card-header">
+                <h5 className="so-card-title">Debit Properties</h5>
+              </div>
+              <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Supplier</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{formData.supplier?.supplier_name || formData.supplier?.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Original Reference</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f97316' }}>{formData.return_against}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Warehouse</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{formData.set_warehouse}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="so-card">
+              <div className="so-card-header">
+                <h5 className="so-card-title">Linked Records</h5>
+              </div>
+              <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Original Receipt Reference</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b', textDecoration: 'underline' }}>{formData.return_against || 'None'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Items Table Presentation */}
+          <div className="so-table-card">
+            <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+              <h5 className="so-card-title">Debit Item Matrix</h5>
+              <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>
+                {formData.items ? formData.items.length : 0} ACTIVE ITEMS
+              </span>
+            </div>
+            <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
+              <table className="so-table">
+                <thead>
+                  <tr>
+                    <th>Asset Specification</th>
+                    <th style={{ textAlign: 'center' }}>Quantity</th>
+                    <th style={{ textAlign: 'right' }}>Credit Rate</th>
+                    <th style={{ textAlign: 'right' }}>Extension</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {formData.items?.map((item, idx) => (
+                    <tr key={idx} style={{ cursor: 'default' }}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: '#1e293b' }}>{item.item_code}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{item.item_name}</div>
+                      </td>
+                      <td style={{ textAlign: 'center', fontWeight: 800, color: '#475569' }}>
+                        {Math.abs(item.qty)} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>{item.uom}</span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <DirhamIcon size={12} className="text-slate-400" />
+                          <span>{parseFloat(item.rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <DirhamIcon size={12} className="text-slate-400" />
+                          <span>{Math.abs(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

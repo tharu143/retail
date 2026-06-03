@@ -10,6 +10,7 @@ import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import PrintConfigModal from './PrintConfigModal';
 
 function SalesReport() {
   const navigate = useNavigate();
@@ -19,7 +20,16 @@ function SalesReport() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  // Theme Hook
+  // Print Customization State
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printOrientation, setPrintOrientation] = useState('portrait');
+  const [selectedPrintColumns, setSelectedPrintColumns] = useState([]);
+
+  useEffect(() => {
+    if (columns.length > 0 && selectedPrintColumns.length === 0) {
+      setSelectedPrintColumns(columns.map(c => c.fieldname));
+    }
+  }, [columns]);
   const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, themeHeaderBg, themeHeaderText, toggleTheme } = useLegacyTheme();
 
   // Redux Hook
@@ -150,7 +160,14 @@ function SalesReport() {
   };
 
   const handlePrint = () => {
-    window.print();
+    setIsPrintModalOpen(true);
+  };
+
+  const executePrint = () => {
+    setIsPrintModalOpen(false);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const handleExportCSV = () => {
@@ -456,7 +473,7 @@ function SalesReport() {
               <table className="so-table">
                 <thead>
                   <tr>
-                    {columns.map((col, i) => (
+                    {columns.filter(col => selectedPrintColumns.includes(col.fieldname)).map((col, i) => (
                       <th key={i}>{col.label}</th>
                     ))}
                   </tr>
@@ -464,14 +481,14 @@ function SalesReport() {
                 <tbody>
                   {loading && data.length === 0 ? (
                     <tr>
-                      <td colSpan={columns.length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
+                      <td colSpan={columns.filter(col => selectedPrintColumns.includes(col.fieldname)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
                         <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                         <p style={{ marginTop: '1rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.65rem' }}>Processing Data Streams...</p>
                       </td>
                     </tr>
                   ) : data.length === 0 ? (
                     <tr>
-                      <td colSpan={columns.length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
+                      <td colSpan={columns.filter(col => selectedPrintColumns.includes(col.fieldname)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
                         <div style={{ opacity: 0.2, marginBottom: '1rem' }}>
                            <FileText size={48} style={{ margin: '0 auto' }} />
                         </div>
@@ -481,7 +498,7 @@ function SalesReport() {
                   ) : (
                     data.map((row, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
-                        {columns.map((col, cIdx) => (
+                        {columns.filter(col => selectedPrintColumns.includes(col.fieldname)).map((col, cIdx) => (
                           <td key={cIdx} style={col.label?.toLowerCase().includes('amount') || col.label?.toLowerCase().includes('total') ? { textAlign: 'right', fontWeight: 600 } : {}}>
                             {row[col.fieldname] !== null && row[col.fieldname] !== undefined ? (
                                 typeof row[col.fieldname] === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('amount')) ? 
@@ -514,6 +531,10 @@ function SalesReport() {
             transform: translateY(-1px);
         }
         @media print {
+            @page {
+                size: ${printOrientation};
+                margin: 10mm;
+            }
             body {
                 background: #ffffff !important;
                 color: #000000 !important;
@@ -539,6 +560,18 @@ function SalesReport() {
             }
         }
       `}} />
+
+      <PrintConfigModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        columns={columns}
+        selectedColumns={selectedPrintColumns}
+        onSelectedColumnsChange={setSelectedPrintColumns}
+        orientation={printOrientation}
+        onOrientationChange={setPrintOrientation}
+        onPrint={executePrint}
+        themeColor={themeColor}
+      />
     </div>
   );
 }

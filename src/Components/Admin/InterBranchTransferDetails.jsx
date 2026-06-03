@@ -144,6 +144,9 @@ function InterBranchTransferDetails() {
   const [sellingPrices, setSellingPrices] = useState({});
   const [updatingPrices, setUpdatingPrices] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(false);
+  
+  const [acceptingStock, setAcceptingStock] = useState(false);
+  const [sourcePrices, setSourcePrices] = useState({});
 
   useEffect(() => {
     fetchWarehouses();
@@ -164,12 +167,45 @@ function InterBranchTransferDetails() {
     }
   }, [currentWarehouse, isNew]);
 
-  // Sync selling prices from doc when it arrives
+  // Fetch read-only source buying & selling prices for items
+  useEffect(() => {
+    if (doc.items && doc.items.length > 0 && doc.set_from_warehouse) {
+      fetchSourcePrices();
+    }
+  }, [doc.items, doc.set_from_warehouse]);
+
+  const fetchSourcePrices = async () => {
+    const prices = {};
+    for (const it of doc.items) {
+      if (!it.item_code) continue;
+      try {
+        const r = await axios.get(`${API_PATH}.get_retail_item_details`, { 
+            params: { searchTerm: it.item_code, warehouse: doc.set_from_warehouse },
+            headers: { 'X-Frappe-SID': getSession() },
+            withCredentials: true
+        });
+        const details = r.data?.message?.[0];
+        const whDetail = details?.warehouse_details?.find(w => w.warehouse === doc.set_from_warehouse);
+        prices[it.item_code] = {
+          buying_price: whDetail?.buying_price || details?.valuation_rate || 0,
+          selling_price: whDetail?.selling_price || details?.price_list_rate || 0
+        };
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setSourcePrices(prices);
+  };
+
+  // Sync selling prices from doc when it arrives (with Box & Nos support)
   useEffect(() => {
     if (doc.status === 'Transferred' && doc.items) {
         const prices = {};
         doc.items.forEach(it => {
-            prices[it.item_code] = it.rate || 0;
+            prices[it.item_code] = {
+                Nos: it.rate || 0,
+                Box: (it.rate || 0) * (it.custom_pieces_per_box || 1)
+            };
         });
         setSellingPrices(prices);
     }
@@ -286,10 +322,23 @@ function InterBranchTransferDetails() {
   const handleUpdateSellingPrices = async () => {
     try {
         setUpdatingPrices(true);
-        const itemsToUpdate = Object.keys(sellingPrices).map(code => ({
-            item_code: code,
-            selling_price: sellingPrices[code]
-        }));
+        const itemsToUpdate = [];
+        Object.keys(sellingPrices).forEach(code => {
+            if (sellingPrices[code]?.Nos) {
+                itemsToUpdate.push({
+                    item_code: code,
+                    uom: 'Nos',
+                    selling_price: sellingPrices[code].Nos
+                });
+            }
+            if (sellingPrices[code]?.Box) {
+                itemsToUpdate.push({
+                    item_code: code,
+                    uom: 'Box',
+                    selling_price: sellingPrices[code].Box
+                });
+            }
+        });
 
         const res = await axios.post(`${API_PATH}.update_ibt_prices`, {
             items: JSON.stringify(itemsToUpdate),
@@ -306,6 +355,38 @@ function InterBranchTransferDetails() {
         Swal.fire('Error', "Failed to update price list", 'error');
     } finally {
         setUpdatingPrices(false);
+    }
+  };
+
+  const handleAcceptStock = async () => {
+    const result = await Swal.fire({
+      title: 'Accept stock transfer?',
+      text: "Accept and submit this inter-branch material transfer? This will update stock levels for this branch.",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      confirmButtonText: 'Yes, Accept & Receive'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        setAcceptingStock(true);
+        const res = await axios.post(`/api/method/kyle_retail.retail_api.api.accept_and_submit_stock_transfer`, {
+            request_name: name
+        }, { withCredentials: true, headers: { 'X-Frappe-SID': getSession() } });
+        
+        if (res.data?.message?.status === 'success') {
+            Swal.fire('Accepted!', 'Stock entry submitted successfully.', 'success');
+            fetchRequest();
+        } else {
+            Swal.fire('Failed', res.data?.message?.message || 'Acceptance failed', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Error', 'Failed to accept stock transfer.', 'error');
+    } finally {
+        setAcceptingStock(false);
     }
   };
 
@@ -546,6 +627,7 @@ function InterBranchTransferDetails() {
               <div className="flex items-center gap-2 mt-0.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${
                       doc.status === 'Requested' ? 'bg-blue-500' : 
+                      doc.status === 'Dispatched' ? 'bg-amber-500' :
                       doc.status === 'Transferred' ? 'bg-emerald-500' :
                       doc.status === 'Stopped' ? 'bg-rose-500' : 'bg-slate-300'
                   }`} />
@@ -651,6 +733,25 @@ function InterBranchTransferDetails() {
             {!isNew && doc.status === 'Stopped' && (
               <div className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-[10px] uppercase tracking-widest border border-red-100 flex items-center gap-1.5">
                 <XCircle size={13} /> Request Stopped
+              </div>
+            )}
+            {!isNew && doc.status === 'Dispatched' && (
+              <div className="flex items-center gap-3">
+                {doc.set_warehouse === currentWarehouse ? (
+                  <button 
+                    onClick={handleAcceptStock}
+                    disabled={acceptingStock}
+                    className="po-btn-primary flex items-center gap-1.5"
+                    style={{ height: '2.25rem', padding: '0 1.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', background: '#10b981', borderColor: '#10b981', borderRadius: '0.5rem' }}
+                  >
+                    {acceptingStock ? <Loader2 className="animate-spin" size={13} /> : <CheckCircle2 size={13} />}
+                    Received
+                  </button>
+                ) : (
+                  <div className="px-4 py-2 bg-amber-50 text-amber-600 rounded-lg font-bold text-[10px] uppercase tracking-widest border border-amber-100 flex items-center gap-1.5">
+                    <Loader2 size={12} className="animate-spin text-amber-500" /> Awaiting Target Acceptance
+                  </div>
+                )}
               </div>
             )}
             {!isNew && doc.status === 'Transferred' && (
@@ -892,15 +993,59 @@ function InterBranchTransferDetails() {
                                     <p className="text-[9px] font-bold text-slate-400 uppercase">{item.item_code}</p>
                                 </div>
                             </div>
-                            <div className="relative group/sp">
+                            
+                            {/* Read-Only Source Prices */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '8px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                                <div>
+                                    <div style={{ fontSize: '7.5px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Source Buying</div>
+                                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>
+                                        AED {(sourcePrices[item.item_code]?.buying_price || 0).toFixed(2)}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '7.5px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Source Selling</div>
+                                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>
+                                        AED {(sourcePrices[item.item_code]?.selling_price || 0).toFixed(2)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Local Selling Price input for Nos */}
+                            <div className="relative group/sp" style={{ marginTop: '10px' }}>
                                 <input 
                                     type="number"
-                                    className="w-full pl-4 pr-12 py-3 bg-white border-2 border-slate-200 rounded-xl font-black text-sm outline-none focus:border-blue-500 transition-all"
-                                    value={sellingPrices[item.item_code] || ''}
-                                    onChange={(e) => setSellingPrices(prev => ({...prev, [item.item_code]: parseFloat(e.target.value) || 0}))}
+                                    className="w-full pl-4 pr-12 py-2 bg-white border-2 border-slate-200 rounded-xl font-black text-xs outline-none focus:border-blue-500 transition-all"
+                                    value={sellingPrices[item.item_code]?.Nos || ''}
+                                    placeholder="0.00"
+                                    onChange={(e) => setSellingPrices(prev => ({
+                                        ...prev,
+                                        [item.item_code]: {
+                                            ...prev[item.item_code],
+                                            Nos: parseFloat(e.target.value) || 0
+                                        }
+                                    }))}
                                 />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase flex items-center gap-1"><DirhamIcon size={10} /> AED</span>
-                                <label className="absolute -top-2 left-3 px-2 bg-white text-[8px] font-black text-blue-500 uppercase tracking-widest">Branch Selling Price</label>
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">Nos</span>
+                                <label className="absolute -top-2 left-3 px-2 bg-white text-[7px] font-black text-blue-500 uppercase tracking-widest">Selling Price (Nos)</label>
+                            </div>
+
+                            {/* Local Selling Price input for Box */}
+                            <div className="relative group/sp" style={{ marginTop: '10px' }}>
+                                <input 
+                                    type="number"
+                                    className="w-full pl-4 pr-12 py-2 bg-white border-2 border-slate-200 rounded-xl font-black text-xs outline-none focus:border-blue-500 transition-all"
+                                    value={sellingPrices[item.item_code]?.Box || ''}
+                                    placeholder="0.00"
+                                    onChange={(e) => setSellingPrices(prev => ({
+                                        ...prev,
+                                        [item.item_code]: {
+                                            ...prev[item.item_code],
+                                            Box: parseFloat(e.target.value) || 0
+                                        }
+                                    }))}
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">Box</span>
+                                <label className="absolute -top-2 left-3 px-2 bg-white text-[7px] font-black text-blue-500 uppercase tracking-widest">Selling Price (Box)</label>
                             </div>
                         </div>
                     ))}

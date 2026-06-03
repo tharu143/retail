@@ -234,6 +234,18 @@ function Home() {
         gap: 12px !important;
         box-shadow: inset 0 -2px 10px rgba(0,0,0,0.2) !important;
       }
+      .classic-shortcut-guide.horizontal .classic-shortcut-badge {
+        padding: 2.5px 7px !important;
+        gap: 5px !important;
+        border-radius: 6px !important;
+      }
+      .classic-shortcut-guide.horizontal .classic-shortcut-key {
+        font-size: 8.5px !important;
+        padding: 1px 4px !important;
+      }
+      .classic-shortcut-guide.horizontal .classic-shortcut-label {
+        font-size: 9px !important;
+      }
       .classic-shortcut-badge {
         display: flex;
         align-items: center;
@@ -792,6 +804,37 @@ function Home() {
                             </div>
                         </div>
 
+                        {/* Section: Shortcuts Position */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+                            <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Shortcuts Position</label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                {['top', 'bottom', 'left', 'right'].map(pos => (
+                                    <button
+                                        key={pos}
+                                        onClick={() => {
+                                            setShortcutsPosition(pos);
+                                            localStorage.setItem('pos_shortcuts_position', pos);
+                                        }}
+                                        style={{
+                                            padding: '8px 12px',
+                                            borderRadius: '8px',
+                                            border: '2px solid',
+                                            borderColor: shortcutsPosition === pos ? '#6366f1' : '#e2e8f0',
+                                            background: shortcutsPosition === pos ? '#e0e7ff' : '#ffffff',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            fontSize: '11px',
+                                            fontWeight: 800,
+                                            color: '#1e293b',
+                                            textTransform: 'uppercase'
+                                        }}
+                                    >
+                                        {pos}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Section: Color Palette (Only shown for legacy/classic layout) */}
                         {theme === 'legacy' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
@@ -902,6 +945,31 @@ function Home() {
 
 
     // ---------- States ----------
+    const [shortcutsPosition, setShortcutsPosition] = useState(localStorage.getItem('pos_shortcuts_position') || 'top');
+    const [isDraggingShortcuts, setIsDraggingShortcuts] = useState(false);
+    const [dragOverZone, setDragOverZone] = useState(null); // 'top', 'bottom', 'left', 'right'
+    const [showPosDropdown, setShowPosDropdown] = useState(false);
+
+    const handleShortcutsDragStart = (e) => {
+        setIsDraggingShortcuts(true);
+        if (e.dataTransfer) {
+            e.dataTransfer.setData('text/plain', 'shortcuts');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+    };
+
+    const handleShortcutsDragEnd = () => {
+        setIsDraggingShortcuts(false);
+        setDragOverZone(null);
+    };
+
+    const handleShortcutsDrop = (position) => {
+        setShortcutsPosition(position);
+        localStorage.setItem('pos_shortcuts_position', position);
+        setIsDraggingShortcuts(false);
+        setDragOverZone(null);
+    };
+
     const [Items, setItems] = useState([]);
     const [loadingItems, setLoadingItems] = useState(true);
     const [error, setError] = useState("");
@@ -972,7 +1040,8 @@ function Home() {
         // 2. Try to find the selected template
         let targetTemplate = selectedTaxTemplate;
         if (!targetTemplate && taxTemplates.length > 0) {
-            const defaultT = taxTemplates.find(t => t.name.includes("VAT 5% - KSPL")) ||
+            const defaultT = taxTemplates.find(t => t.name.includes("VAT 5% - NS")) ||
+                taxTemplates.find(t => t.name.includes("VAT 5% - KSPL")) ||
                 taxTemplates.find(t => t.name.includes("5%")) ||
                 taxTemplates[0];
             targetTemplate = defaultT.name;
@@ -1001,11 +1070,7 @@ function Home() {
 
     const subtotal = useMemo(() =>
         billItems.reduce((sum, item) => {
-            // Calculate effective price for the selected UOM
-            // If Box is selected and a specific Box price exists, use it. Otherwise, use piece price * factor.
-            const factor = (item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1);
-            const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
-            const lineTotal = effectivePrice * item.qty;
+            const lineTotal = item.price * item.qty;
 
             // If inclusive, extract base price; if exclusive, use the total as base
             let netItem = lineTotal;
@@ -1090,7 +1155,8 @@ function Home() {
                 setTaxTemplates(templates);
                 if (templates.length) {
                     // Default to the requested template: VAT 5% - KSPL
-                    const defaultTax = templates.find(t => t.name.includes("VAT 5% - KSPL")) ||
+                    const defaultTax = templates.find(t => t.name.includes("VAT 5% - NS")) ||
+                        templates.find(t => t.name.includes("VAT 5% - KSPL")) ||
                         templates.find(t => t.name.includes("UAE VAT 5%")) ||
                         templates[0];
                     setSelectedTaxTemplate(defaultTax.name);
@@ -1109,7 +1175,8 @@ function Home() {
                         const cached = await db.tax_templates.toArray();
                         if (cached.length) {
                             setTaxTemplates(cached);
-                            const defaultTax = cached.find(t => t.name.includes("VAT 5% - KSPL")) ||
+                            const defaultTax = cached.find(t => t.name.includes("VAT 5% - NS")) ||
+                                cached.find(t => t.name.includes("VAT 5% - KSPL")) ||
                                 cached.find(t => t.name.includes("UAE VAT 5%")) ||
                                 cached[0];
                             setSelectedTaxTemplate(defaultTax.name);
@@ -1302,36 +1369,32 @@ function Home() {
                 }
             }, 100);
         }
-    };
-
-    const createCustomer = async () => {
-        if (!createForm.name.trim()) {
-            alert("Customer name is required!");
+    };    const createCustomer = async () => {
+        const cleanedName = createForm.name.trim().replace(/[^a-zA-Z\s]/g, '');
+        if (!cleanedName) {
+            Swal.fire('Validation Error', 'Customer name is required and must contain only alphabets.', 'warning');
             return;
         }
 
-        setCreatingCustomer(true);  // ← Loading starts
+        const strippedNumber = createForm.phone.trim().replace(/\D/g, '');
+        if (!strippedNumber) {
+            Swal.fire('Validation Error', 'Mobile number is required.', 'warning');
+            return;
+        }
+
+        if (countryCodePrefix === '+971' && strippedNumber.length !== 9) {
+            Swal.fire('Validation Error', 'UAE mobile number must be exactly 9 digits.', 'warning');
+            return;
+        }
+        if (countryCodePrefix === '+91' && strippedNumber.length !== 10) {
+            Swal.fire('Validation Error', 'India mobile number must be exactly 10 digits.', 'warning');
+            return;
+        }
+
+        const formattedPhone = `${countryCodePrefix}${strippedNumber}`;
+        setCreatingCustomer(true);
 
         try {
-            let formattedPhone = "";
-            if (createForm.phone.trim()) {
-                const strippedNumber = createForm.phone.trim()
-                    .replace(/^\+?(971|91)/, '')   // remove UAE (+971) or India (+91) prefix
-                    .replace(/\D/g, '');            // remove any remaining non-digits
-                
-                if (countryCodePrefix === '+971' && strippedNumber.length !== 9) {
-                    Swal.fire('Validation Error', 'UAE mobile number must be exactly 9 digits.', 'warning');
-                    setCreatingCustomer(false);
-                    return;
-                }
-                if (countryCodePrefix === '+91' && strippedNumber.length !== 10) {
-                    Swal.fire('Validation Error', 'India mobile number must be exactly 10 digits.', 'warning');
-                    setCreatingCustomer(false);
-                    return;
-                }
-                formattedPhone = `${countryCodePrefix}${strippedNumber}`;
-            }
-
             const formData = new FormData();
             formData.append("customer_name", createForm.name.trim());
             formData.append("customer_group", "Retail Customer");
@@ -1605,13 +1668,15 @@ function Home() {
                         }
                         apiItems = filteredResults;
 
-                        // Background: Update local cache for offline fallback
                         db.items.bulkPut(results.map(item => ({
                             id: item.name,
                             name: item.item_name,
                             image: item.image,
                             group: item.item_group || "others",
                             price: item.price_list_rate || 0,
+                            prices: item.prices || {},
+                            uom_conversions: item.uom_conversions || {},
+                            stock_uom: item.stock_uom || 'Nos',
                             actual_qty: item.actual_qty || 0,
                             local_qty: item.actual_qty || 0,
                             total_qty: item.total_qty || item.actual_qty || 0,
@@ -1812,6 +1877,7 @@ function Home() {
                     qty: 1,
                     uom: baseUom,
                     price: initialPrice,
+                    base_unit_price: initialPrice,
                     is_tax_inclusive: true // Default to inclusive for retail
                 };
                 setSelectedBillIndex(prev.length);
@@ -1985,6 +2051,11 @@ function Home() {
         }
     };
 
+    const barcodeScanRef = useRef(handleBarcodeScan);
+    useEffect(() => {
+        barcodeScanRef.current = handleBarcodeScan;
+    }, [handleBarcodeScan]);
+
     // ---------- CAMERA SCANNER ENGINE ----------
     if (!homeCodeReader.current) {
         const hints = new Map();
@@ -2014,7 +2085,7 @@ function Home() {
                     await homeCodeReader.current.decodeFromVideoDevice(selectedDeviceId, homeVideoRef.current, (result, err) => {
                         if (result && showCamera) {
                             const scannedText = result.text.trim();
-                            handleBarcodeScan(scannedText);
+                            barcodeScanRef.current(scannedText);
                             setShowCamera(false);
                             homeCodeReader.current.reset();
                         }
@@ -2027,7 +2098,7 @@ function Home() {
                         };
                         await homeCodeReader.current.decodeFromConstraints(constraints, homeVideoRef.current, (result, err) => {
                             if (result && showCamera) {
-                                handleBarcodeScan(result.text.trim());
+                                barcodeScanRef.current(result.text.trim());
                                 setShowCamera(false);
                                 homeCodeReader.current.reset();
                             }
@@ -2037,7 +2108,7 @@ function Home() {
                         try {
                             await homeCodeReader.current.decodeFromVideoDevice(undefined, homeVideoRef.current, (result, err) => {
                                 if (result && showCamera) {
-                                    handleBarcodeScan(result.text.trim());
+                                    barcodeScanRef.current(result.text.trim());
                                     setShowCamera(false);
                                     homeCodeReader.current.reset();
                                 }
@@ -2053,7 +2124,7 @@ function Home() {
             startScanner();
         }
         return () => { if (homeCodeReader.current) homeCodeReader.current.reset(); };
-    }, [showCamera, handleBarcodeScan]);
+    }, [showCamera]);
 
     const handleImageScan = async (fileOrEvent) => {
         let file;
@@ -2405,9 +2476,10 @@ function Home() {
                 }
 
                 // Standard UOM toggle logic - set price based on UOM or keep base price
-                const originalSinglePrice = item.prices?.Piece || item.prices?.Nos || item.price || 0;
+                const originalSinglePrice = item.base_unit_price || item.prices?.Piece || item.prices?.Nos || (item.uom === 'Box' ? (item.price / (item.custom_pieces_per_box || 1)) : item.price);
+                const hasValidBoxPrice = item.prices?.Box && item.prices.Box > originalSinglePrice;
                 const newPrice = newUom === 'Box'
-                    ? (item.prices?.Box || (originalSinglePrice * (item.custom_pieces_per_box || 1)))
+                    ? (hasValidBoxPrice ? item.prices.Box : (originalSinglePrice * (item.custom_pieces_per_box || 1)))
                     : (item.prices?.[newUom] || originalSinglePrice);
                 return { ...item, uom: newUom, price: newPrice };
             }
@@ -2540,10 +2612,10 @@ function Home() {
                 if (i.uom === 'Box') {
                     const prices = { ...i.prices, Box: newPrice };
                     const factor = i.custom_pieces_per_box || 1;
-                    return { ...updated, price: newPrice / factor, prices };
+                    return { ...updated, price: newPrice, prices, base_unit_price: newPrice / factor };
                 } else {
                     const prices = { ...i.prices, Nos: newPrice, Piece: newPrice };
-                    return { ...updated, price: newPrice, prices };
+                    return { ...updated, price: newPrice, prices, base_unit_price: newPrice };
                 }
             }
             return i;
@@ -2727,15 +2799,14 @@ function Home() {
             customer_name: customerName,
             contact_mobile: phoneNumber,
             items: billItems.map(item => {
-                const discRate = item.custom_pieces_per_box > 0 && item.uom === 'Box'
-                    ? item.price * item.custom_pieces_per_box
-                    : item.price;
+                const discRate = item.price;
                 return {
                     item_code: item.id,
                     item_name: item.name || item.item_name,
                     qty: item.qty,
                     uom: item.uom,
                     uom_type: item.uom,
+                    is_tax_inclusive: item.is_tax_inclusive !== false,
                     custom_pieces_per_box: item.custom_pieces_per_box,
                     rate: discRate,
                     price_list_rate: discRate,
@@ -2806,16 +2877,27 @@ function Home() {
             const res = await POSService.getDraftInvoiceDetails(draft.name);
             if (res && res.status === 'success') {
                 // Map backend items back to frontend format
-                const loadedItems = res.items.map(item => ({
-                    id: item.id || item.item_code,
-                    name: item.item_name,
-                    qty: item.qty,
-                    uom: item.uom,
-                    price: item.rate,
-                    custom_pieces_per_box: item.custom_pieces_per_box,
-                    image: item.image,
-                    category: item.category
-                }));
+                const loadedItems = res.items.map(item => {
+                    const itemId = item.id || item.item_code;
+                    const catalogItem = Items.find(it => it.id === itemId);
+                    return {
+                        id: itemId,
+                        name: item.item_name || catalogItem?.name || '',
+                        qty: item.qty,
+                        uom: item.uom,
+                        price: item.rate,
+                        is_tax_inclusive: item.is_tax_inclusive !== false,
+                        custom_pieces_per_box: item.custom_pieces_per_box || catalogItem?.custom_pieces_per_box || 1,
+                        image: item.image || catalogItem?.image,
+                        category: item.category || catalogItem?.category || catalogItem?.group,
+                        prices: catalogItem?.prices || { [item.uom]: item.rate },
+                        uom_conversions: catalogItem?.uom_conversions || { [item.uom]: 1 },
+                        local_qty: catalogItem?.local_qty || item.qty,
+                        actual_qty: catalogItem?.actual_qty || item.qty,
+                        warehouse_details: catalogItem?.warehouse_details || [],
+                        base_unit_price: catalogItem?.prices?.Nos || catalogItem?.prices?.Piece || (item.uom === 'Box' ? (item.rate / (item.custom_pieces_per_box || 1)) : item.rate)
+                    };
+                });
 
                 setBillItems(loadedItems);
                 if (res.discount) {
@@ -2956,18 +3038,17 @@ function Home() {
             customer: customerId,
             contact_mobile: phoneNumber,
             items: billItems.map(item => {
-                const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
-                const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
                 return {
                     item_code: item.id,
                     item_name: item.name,
                     quantity: item.qty,
                     uom: item.uom,
                     uom_type: item.uom,
+                    is_tax_inclusive: item.is_tax_inclusive !== false,
                     custom_pieces_per_box: item.custom_pieces_per_box,
                     basePrice: item.price,
-                    rate: effectivePrice,
-                    price_list_rate: effectivePrice,
+                    rate: item.price,
+                    price_list_rate: item.price,
                     income_account: 'Sales of I/C - KSPL',
                     warehouse: warehouse
                 };
@@ -3137,7 +3218,7 @@ function Home() {
                     const stockUom = itemObj?.stock_uom || 'Nos';
                     const conversions = itemObj?.uom_conversions || {};
                     const uomOptions = Object.keys(conversions).length > 0 ? Object.keys(conversions) : [stockUom];
-                    
+
                     const uomSelectHtml = uomOptions.map(u => `<option value="${u}">${u}</option>`).join('');
 
                     const { value: formValues } = await Swal.fire({
@@ -3175,18 +3256,18 @@ function Home() {
                         try {
                             const res = await frappeCall({
                                 method: 'kyle_retail.retail_api.api.create_draft_material_request',
-                                args: { 
-                                    item_code: itemCode, 
-                                    qty: parseFloat(qty), 
-                                    from_warehouse: fromWh, 
+                                args: {
+                                    item_code: itemCode,
+                                    qty: parseFloat(qty),
+                                    from_warehouse: fromWh,
                                     to_warehouse: toWh,
                                     uom: uom
                                 }
                             });
                             if (res.status === 'success') {
-                                Swal.fire('Success', `Draft Material Request ${res.name} created!`, 'success');
+                                Swal.fire('Success', `Material Request ${res.name} submitted successfully!`, 'success');
                             } else {
-                                throw new Error(res.message || 'Failed to create request');
+                                throw new Error(res.message || 'Failed to submit request');
                             }
                         } catch (e) {
                             Swal.fire('Error', e.message || 'Failed to create request', 'error');
@@ -3234,6 +3315,7 @@ function Home() {
     // ---------- SPEED CHECKOUT & KEYBOARD SHORTCUTS ----------
     const handleMobileEnter = async (e) => {
         if (e.key === 'Enter') {
+            e.preventDefault();
             const rawTerm = (customerMobile || customerName).trim();
             if (!rawTerm || rawTerm === 'Cash') return;
 
@@ -3317,18 +3399,108 @@ function Home() {
                     setCustomerLoading(false);
                 }
             } else {
-                // It's a name, confirm and create via speed checkout by name
+                // It's a name/non-numeric string, show input popup to enter mobile number with country prefix switch
+                const cleanName = rawTerm.trim();
                 const result = await Swal.fire({
-                    title: 'Create Customer?',
-                    text: `No matching customer found. Do you want to create a new customer named "${rawTerm}"?`,
-                    icon: 'question',
+                    title: 'Create Customer',
+                    text: `Enter mobile number for "${cleanName}":`,
+                    html: `
+                        <div style="display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 15px;">
+                            <select id="swal-country-code" style="height: 38px; padding: 0 8px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; outline: none; cursor: pointer;">
+                                <option value="+971" ${countryCodePrefix === '+971' ? 'selected' : ''}>🇦🇪 +971</option>
+                                <option value="+91" ${countryCodePrefix === '+91' ? 'selected' : ''}>🇮🇳 +91</option>
+                            </select>
+                            <input id="swal-mobile-input" type="tel" placeholder="Enter mobile number..." style="height: 38px; padding: 0 12px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; flex: 1; outline: none;" />
+                        </div>
+                    `,
                     showCancelButton: true,
-                    confirmButtonText: 'Yes, Create',
+                    confirmButtonText: 'Create Customer',
                     cancelButtonText: 'Cancel',
-                    confirmButtonColor: '#2563eb'
+                    confirmButtonColor: '#2563eb',
+                    allowEnterKey: false,
+                    didOpen: () => {
+                        const select = document.getElementById('swal-country-code');
+                        const input = document.getElementById('swal-mobile-input');
+                        if (select && input) {
+                            input.focus();
+                            const getLimit = () => select.value === '+971' ? 9 : 10;
+                            input.addEventListener('input', (e) => {
+                                let val = e.target.value.replace(/\D/g, '');
+                                const maxDigits = getLimit();
+                                if (val.length > maxDigits) {
+                                    val = val.substring(0, maxDigits);
+                                }
+                                e.target.value = val;
+                            });
+                            input.addEventListener('keydown', (e) => {
+                                const maxDigits = getLimit();
+                                const stripped = input.value.replace(/\D/g, '');
+                                if (stripped.length >= maxDigits && 
+                                    !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            });
+                            select.addEventListener('change', () => {
+                                let val = input.value.replace(/\D/g, '');
+                                const maxDigits = getLimit();
+                                if (val.length > maxDigits) {
+                                    val = val.substring(0, maxDigits);
+                                }
+                                input.value = val;
+                                input.focus();
+                            });
+                        }
+                    },
+                    preConfirm: () => {
+                        const code = document.getElementById('swal-country-code').value;
+                        const number = document.getElementById('swal-mobile-input').value;
+                        const stripped = number.replace(/\D/g, '');
+                        if (!stripped) {
+                            Swal.showValidationMessage('Mobile number is required!');
+                            return false;
+                        }
+                        if (code === '+971' && stripped.length !== 9) {
+                            Swal.showValidationMessage('UAE mobile number must be exactly 9 digits.');
+                            return false;
+                        }
+                        if (code === '+91' && stripped.length !== 10) {
+                            Swal.showValidationMessage('India mobile number must be exactly 10 digits.');
+                            return false;
+                        }
+                        return { code, number: stripped };
+                    }
                 });
-                if (result.isConfirmed) {
-                    handleCreateCustomerByName(rawTerm);
+                if (result.isConfirmed && result.value) {
+                    const { code, number } = result.value;
+                    const mobileWithCode = `${code}${number}`;
+                    setCustomerLoading(true);
+                    try {
+                        const res = await frappeCall({
+                            method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
+                            args: {
+                                mobile_no: mobileWithCode,
+                                customer_name: cleanName,
+                                warehouse: warehouse,
+                                customer_group: 'Retail Customer'
+                            }
+                        });
+                        if (res && res.name) {
+                            pickCustomer(res);
+                            const Toast = Swal.mixin({
+                                toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                            });
+                            Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name || res.name}` });
+                            setCustomerMobile('');
+                            barcodeInputRef.current?.focus();
+                        } else {
+                            Swal.fire('Error', "Failed to create customer", 'error');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        Swal.fire('Error', err.message || "Failed to create customer", 'error');
+                    } finally {
+                        setCustomerLoading(false);
+                    }
                 }
             }
         }
@@ -4354,7 +4526,7 @@ function Home() {
                 }
             }
 
-            // Esc: Close/Clear
+            // Esc: Close Modals
             if (e.key === 'Escape') {
                 if (showPaymentModal) {
                     setShowPaymentModal(false);
@@ -4365,7 +4537,13 @@ function Home() {
                     setShowLoyaltyModal(false);
                 } else if (showItemDropdown) {
                     setShowItemDropdown(false);
-                } else if (billItems.length > 0) {
+                }
+            }
+
+            // Alt + C: Clear Bill
+            if (e.altKey && e.key?.toLowerCase() === 'c') {
+                e.preventDefault();
+                if (billItems.length > 0) {
                     clearBillHandler();
                 }
             }
@@ -4463,16 +4641,504 @@ function Home() {
 
     const changeBack = Math.max(0, totalPaid - grandTotal);
 
+    const renderShortcutsList = () => {
+        return (
+            <>
+                <div className="so-shortcut-badge violet" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => setShowDiscountModal(prev => !prev)}>
+                    <span className="so-shortcut-key">F1</span>
+                    <span className="so-shortcut-label">Discount</span>
+                </div>
+                <div className="so-shortcut-badge blue" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => mobileInputRef.current?.focus()}>
+                    <span className="so-shortcut-key">F2</span>
+                    <span className="so-shortcut-label">Customer</span>
+                </div>
+                <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => barcodeInputRef.current?.focus()}>
+                    <span className="so-shortcut-key">F3</span>
+                    <span className="so-shortcut-label">Search</span>
+                </div>
+                <div className="so-shortcut-badge cyan" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                    setCountryCodePrefix(prev => {
+                        const next = prev === '+971' ? '+91' : '+971';
+                        localStorage.setItem('pos_country_code', next);
+                        const Toast = Swal.mixin({
+                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                        });
+                        Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
+                        return next;
+                    });
+                }}>
+                    <span className="so-shortcut-key">F4</span>
+                    <span className="so-shortcut-label">CC ({countryCodePrefix})</span>
+                </div>
+                <div className="so-shortcut-badge emerald" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleCheckout}>
+                    <span className="so-shortcut-key">SPACE</span>
+                    <span className="so-shortcut-label">Pay</span>
+                </div>
+                <div className="so-shortcut-badge rose" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={clearBillHandler}>
+                    <span className="so-shortcut-key">ALT+C</span>
+                    <span className="so-shortcut-label">Clear</span>
+                </div>
+                <div className="so-shortcut-badge amber" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                    if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
+                    else Swal.fire('Info', 'Select or scan an item first.', 'info');
+                }}>
+                    <span className="so-shortcut-key">F5</span>
+                    <span className="so-shortcut-label">Stock</span>
+                </div>
+                <div className="so-shortcut-badge pink" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleBulkQtyUpdate}>
+                    <span className="so-shortcut-key">F6</span>
+                    <span className="so-shortcut-label">Bulk Qty</span>
+                </div>
+                <div className="so-shortcut-badge violet" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                    if (selectedBillIndex !== -1) {
+                        const item = billItems[selectedBillIndex];
+                        const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
+                        toggleUom(item.id, newUom);
+                    }
+                }}>
+                    <span className="so-shortcut-key">F8</span>
+                    <span className="so-shortcut-label">UOM</span>
+                </div>
+                <div className="so-shortcut-badge sky" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => setShowDraftsModal(prev => !prev)}>
+                    <span className="so-shortcut-key">F9</span>
+                    <span className="so-shortcut-label">Orders</span>
+                </div>
+                <div className="so-shortcut-badge amber" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleSaveDraft}>
+                    <span className="so-shortcut-key">F10</span>
+                    <span className="so-shortcut-label">Save Draft</span>
+                </div>
+                <div className="so-shortcut-badge emerald" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleLoyaltyPointsClick}>
+                    <span className="so-shortcut-key">F12</span>
+                    <span className="so-shortcut-label">Loyalty</span>
+                </div>
+                <div className="so-shortcut-badge slate" style={{ flexShrink: 0 }}>
+                    <span className="so-shortcut-key">↑ ↓</span>
+                    <span className="so-shortcut-label">Navigate</span>
+                </div>
+                <div className="so-shortcut-badge slate" style={{ flexShrink: 0 }}>
+                    <span className="so-shortcut-key">+ / -</span>
+                    <span className="so-shortcut-label">Qty</span>
+                </div>
+                <div className="so-shortcut-badge slate" style={{ flexShrink: 0 }}>
+                    <span className="so-shortcut-key">← / →</span>
+                    <span className="so-shortcut-label">Tax Toggle</span>
+                </div>
+            </>
+        );
+    };
+
+    const renderDragHandle = () => {
+        return (
+            <div
+                draggable
+                onDragStart={handleShortcutsDragStart}
+                onDragEnd={handleShortcutsDragEnd}
+                className="so-drag-handle"
+                title="Drag to Top, Bottom, Left, or Right edge of items list to dock"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '6px',
+                    cursor: 'grab',
+                    background: '#f8fafc',
+                    border: '1.5px dashed #cbd5e1',
+                    color: '#94a3b8',
+                    transition: 'all 0.2s',
+                    flexShrink: 0
+                }}
+                onMouseDown={(e) => { e.currentTarget.style.cursor = 'grabbing'; }}
+                onMouseUp={(e) => { e.currentTarget.style.cursor = 'grab'; }}
+            >
+                <Move size={12} />
+            </div>
+        );
+    };
+
+    const renderShortcutsSelector = () => {
+        return (
+            <div
+                className="so-pos-selector-container"
+                onMouseLeave={() => setShowPosDropdown(false)}
+                style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
+            >
+                <button
+                    onClick={() => setShowPosDropdown(prev => !prev)}
+                    className="so-shortcut-badge slate"
+                    title="Change shortcuts bar position"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '28px',
+                        height: '28px',
+                        padding: 0,
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        background: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        color: '#64748b',
+                        boxShadow: 'none',
+                        userSelect: 'none',
+                        flexShrink: 0
+                    }}
+                >
+                    <LayoutDashboard size={12} className="text-slate-500" />
+                </button>
+                {showPosDropdown && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: shortcutsPosition === 'bottom' ? '32px' : 'auto',
+                        top: shortcutsPosition === 'bottom' ? 'auto' : '32px',
+                        left: 0,
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                        zIndex: 10000,
+                        minWidth: '120px',
+                        padding: '4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px'
+                    }}>
+                        {['top', 'bottom', 'left', 'right'].map(pos => (
+                            <button
+                                key={pos}
+                                onClick={() => {
+                                    setShortcutsPosition(pos);
+                                    localStorage.setItem('pos_shortcuts_position', pos);
+                                    setShowPosDropdown(false);
+                                }}
+                                style={{
+                                    padding: '6px 10px',
+                                    fontSize: '9px',
+                                    fontWeight: 900,
+                                    textTransform: 'uppercase',
+                                    textAlign: 'left',
+                                    border: 'none',
+                                    background: shortcutsPosition === pos ? '#e0e7ff' : 'transparent',
+                                    color: shortcutsPosition === pos ? '#4f46e5' : '#475569',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    transition: 'all 0.15s'
+                                }}
+                                className="pos-dropdown-item"
+                            >
+                                <span>{pos}</span>
+                                {shortcutsPosition === pos && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#4f46e5' }}></span>}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderShortcutsHorizontal = () => {
+        return (
+            <div className="so-shortcuts-strip" style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 14px', background: '#f8fafc',
+                borderBottom: shortcutsPosition === 'top' ? '1px solid #e2e8f0' : 'none',
+                borderTop: shortcutsPosition === 'bottom' ? '1px solid #e2e8f0' : 'none',
+                overflowX: 'auto',
+                scrollbarWidth: 'none', msOverflowStyle: 'none',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)',
+                flexShrink: 0
+            }}>
+                {renderDragHandle()}
+                {renderShortcutsSelector()}
+                <div style={{ height: '16px', width: '1px', background: '#cbd5e1', margin: '0 2px', flexShrink: 0 }}></div>
+                {renderShortcutsList()}
+            </div>
+        );
+    };
+
+    const renderShortcutsVertical = (pos) => {
+        return (
+            <div style={{
+                display: 'flex', flexDirection: 'column', gap: '8px',
+                width: '190px', flexShrink: 0, padding: '14px 10px',
+                background: '#f8fafc', overflowY: 'auto',
+                borderRight: '1px solid #e2e8f0',
+                borderLeft: pos === 'right' ? '1px solid #e2e8f0' : 'none',
+                boxShadow: pos === 'left' ? 'inset -1px 0 2px rgba(0,0,0,0.02)' : 'inset 1px 0 2px rgba(0,0,0,0.02)',
+                scrollbarWidth: 'none', msOverflowStyle: 'none',
+                height: '100%'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', marginBottom: '4px', flexShrink: 0 }}>
+                    {renderDragHandle()}
+                    {renderShortcutsSelector()}
+                </div>
+
+                <div style={{ height: '1px', width: '100%', background: '#cbd5e1', marginBottom: '2px', flexShrink: 0 }}></div>
+                {renderShortcutsList()}
+            </div>
+        );
+    };
+
+    const renderDropZones = () => {
+        return (
+            <div className="so-drop-zones-overlay" style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 99999,
+                pointerEvents: 'none',
+                display: 'grid',
+                gridTemplateRows: '80px 1fr 80px',
+                gridTemplateColumns: '160px 1fr 160px',
+                gap: '10px',
+                padding: '20px'
+            }}>
+                <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOverZone('top'); }}
+                    onDragLeave={() => setDragOverZone(null)}
+                    onDrop={() => handleShortcutsDrop('top')}
+                    style={{
+                        gridColumn: '1 / span 3',
+                        gridRow: '1',
+                        pointerEvents: 'auto',
+                        border: `3px dashed ${dragOverZone === 'top' ? '#4f46e5' : '#cbd5e1'}`,
+                        background: dragOverZone === 'top' ? 'rgba(79, 70, 229, 0.15)' : 'rgba(255, 255, 255, 0.8)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: dragOverZone === 'top' ? '#4f46e5' : '#64748b',
+                        fontWeight: 900,
+                        fontSize: '13px',
+                        textTransform: 'uppercase',
+                        transition: 'all 0.2s',
+                        backdropFilter: 'blur(4px)',
+                        boxShadow: dragOverZone === 'top' ? '0 0 20px rgba(79, 70, 229, 0.2)' : 'none'
+                    }}
+                >
+                    Drop at Top Edge
+                </div>
+
+                <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOverZone('left'); }}
+                    onDragLeave={() => setDragOverZone(null)}
+                    onDrop={() => handleShortcutsDrop('left')}
+                    style={{
+                        gridColumn: '1',
+                        gridRow: '2',
+                        pointerEvents: 'auto',
+                        border: `3px dashed ${dragOverZone === 'left' ? '#4f46e5' : '#cbd5e1'}`,
+                        background: dragOverZone === 'left' ? 'rgba(79, 70, 229, 0.15)' : 'rgba(255, 255, 255, 0.8)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: dragOverZone === 'left' ? '#4f46e5' : '#64748b',
+                        fontWeight: 900,
+                        fontSize: '13px',
+                        textTransform: 'uppercase',
+                        transition: 'all 0.2s',
+                        backdropFilter: 'blur(4px)',
+                        boxShadow: dragOverZone === 'left' ? '0 0 20px rgba(79, 70, 229, 0.2)' : 'none',
+                        textAlign: 'center',
+                        writingMode: 'vertical-lr',
+                        transform: 'rotate(180deg)'
+                    }}
+                >
+                    Drop on Left of Items
+                </div>
+
+                <div></div>
+
+                <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOverZone('right'); }}
+                    onDragLeave={() => setDragOverZone(null)}
+                    onDrop={() => handleShortcutsDrop('right')}
+                    style={{
+                        gridColumn: '3',
+                        gridRow: '2',
+                        pointerEvents: 'auto',
+                        border: `3px dashed ${dragOverZone === 'right' ? '#4f46e5' : '#cbd5e1'}`,
+                        background: dragOverZone === 'right' ? 'rgba(79, 70, 229, 0.15)' : 'rgba(255, 255, 255, 0.8)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: dragOverZone === 'right' ? '#4f46e5' : '#64748b',
+                        fontWeight: 900,
+                        fontSize: '13px',
+                        textTransform: 'uppercase',
+                        transition: 'all 0.2s',
+                        backdropFilter: 'blur(4px)',
+                        boxShadow: dragOverZone === 'right' ? '0 0 20px rgba(79, 70, 229, 0.2)' : 'none',
+                        textAlign: 'center',
+                        writingMode: 'vertical-lr'
+                    }}
+                >
+                    Drop on Right of Items
+                </div>
+
+                <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOverZone('bottom'); }}
+                    onDragLeave={() => setDragOverZone(null)}
+                    onDrop={() => handleShortcutsDrop('bottom')}
+                    style={{
+                        gridColumn: '1 / span 3',
+                        gridRow: '3',
+                        pointerEvents: 'auto',
+                        border: `3px dashed ${dragOverZone === 'bottom' ? '#4f46e5' : '#cbd5e1'}`,
+                        background: dragOverZone === 'bottom' ? 'rgba(79, 70, 229, 0.15)' : 'rgba(255, 255, 255, 0.8)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: dragOverZone === 'bottom' ? '#4f46e5' : '#64748b',
+                        fontWeight: 900,
+                        fontSize: '13px',
+                        textTransform: 'uppercase',
+                        transition: 'all 0.2s',
+                        backdropFilter: 'blur(4px)',
+                        boxShadow: dragOverZone === 'bottom' ? '0 0 20px rgba(79, 70, 229, 0.2)' : 'none'
+                    }}
+                >
+                    Drop at Bottom Edge
+                </div>
+            </div>
+        );
+    };
+
+    // ---------- CLASSIC THEME RENDERERS (Green & Blue) ----------
+    const renderClassicShortcutsList = () => {
+        const classicShortcutsData = [
+            { key: 'F1', label: 'Discount', color: '#ec4899', icon: <Percent size={12} />, action: () => setShowDiscountModal(prev => !prev) },
+            { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
+            { key: 'F3', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
+            {
+                key: 'F4', label: `CC (${countryCodePrefix})`, color: '#0ea5e9', icon: <Phone size={12} />, action: () => {
+                    setCountryCodePrefix(prev => {
+                        const next = prev === '+971' ? '+91' : '+971';
+                        localStorage.setItem('pos_country_code', next);
+                        const Toast = Swal.mixin({
+                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                        });
+                        Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
+                        return next;
+                    });
+                }
+            },
+            {
+                key: 'F5', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
+                    if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
+                    else Swal.fire('Info', 'Select an item first', 'info');
+                }
+            },
+            { key: 'F6', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} />, action: handleBulkQtyUpdate },
+            { key: 'F7', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
+            {
+                key: 'F8', label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
+                    if (selectedBillIndex !== -1) {
+                        const item = billItems[selectedBillIndex];
+                        const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
+                        toggleUom(item.id, newUom);
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
+            { key: 'F9', label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
+            { key: 'F10', label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
+            { key: 'F12', label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
+            { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
+            { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
+            { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
+            { key: 'ALT+C', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
+        ];
+
+        return classicShortcutsData.map((s, idx) => (
+            <div
+                key={idx}
+                className="classic-shortcut-badge"
+                onClick={s.action}
+                style={{ flexShrink: 0 }}
+            >
+                <span className="classic-shortcut-key">
+                    {s.key}
+                </span>
+                <div className="classic-shortcut-icon">
+                    {s.icon}
+                </div>
+                <span className="classic-shortcut-label">{s.label}</span>
+            </div>
+        ));
+    };
+
+    const renderClassicShortcutsHorizontal = () => {
+        const isGreen = legacySubTheme === 'green';
+        const borderColor = isGreen ? '#10b981' : '#0ea5e9';
+        return (
+            <div className="classic-shortcut-guide horizontal" style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '8px 16px',
+                background: isGreen ? '#0d4a35' : '#0d3050',
+                borderBottom: shortcutsPosition === 'top' ? `2px solid ${borderColor}` : 'none',
+                borderTop: shortcutsPosition === 'bottom' ? `2px solid ${borderColor}` : 'none',
+                overflowX: 'auto',
+                scrollbarWidth: 'none', msOverflowStyle: 'none',
+                flexShrink: 0,
+                flexWrap: 'nowrap'
+            }}>
+                {renderDragHandle()}
+                {renderShortcutsSelector()}
+                <div style={{ height: '20px', width: '2px', background: isGreen ? '#1e7556' : '#235985', margin: '0 2px', flexShrink: 0 }}></div>
+                {renderClassicShortcutsList()}
+            </div>
+        );
+    };
+
+    const renderClassicShortcutsVertical = (pos) => {
+        const isGreen = legacySubTheme === 'green';
+        const borderColor = isGreen ? '#10b981' : '#0ea5e9';
+        return (
+            <div className="classic-shortcut-guide" style={{
+                display: 'flex', flexDirection: 'column', gap: '8px',
+                width: '190px', flexShrink: 0, padding: '14px 10px',
+                background: isGreen ? '#0d4a35' : '#0d3050', overflowY: 'auto',
+                borderRight: pos === 'left' ? `2px solid ${borderColor}` : 'none',
+                borderLeft: pos === 'right' ? `2px solid ${borderColor}` : 'none',
+                scrollbarWidth: 'none', msOverflowStyle: 'none',
+                height: '100%',
+                flexWrap: 'nowrap',
+                boxShadow: 'inset 0 0 10px rgba(0,0,0,0.3)',
+                alignItems: 'stretch'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', marginBottom: '4px', flexShrink: 0 }}>
+                    {renderDragHandle()}
+                    {renderShortcutsSelector()}
+                </div>
+                <div style={{ height: '1px', width: '100%', background: isGreen ? '#1e7556' : '#235985', marginBottom: '2px', flexShrink: 0 }}></div>
+                {renderClassicShortcutsList()}
+            </div>
+        );
+    };
+
     // ---------- LIGHT THEME RENDERER (Emerald & Slate) ----------
     const renderLightTheme = () => {
         return (
-            <div className="so-page" style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="so-page" style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 {/* MODERN TOOL STRIP — Two-Zone Layout */}
                 <div className="so-tool-strip" style={{
                     display: 'flex', alignItems: 'center', width: '100%',
-                    maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden',
+                    maxWidth: '100%', boxSizing: 'border-box', overflow: 'visible',
                     minHeight: 'fit-content', padding: '0', gap: '0',
-                    borderBottom: '1px solid #e2e8f0', background: '#ffffff'
+                    borderBottom: '1px solid #e2e8f0', background: '#ffffff',
+                    position: 'relative', zIndex: 150
                 }}>
                     {/* ── LEFT: Logo ── */}
                     <div style={{
@@ -4494,23 +5160,6 @@ function Home() {
                         borderLeft: '1px solid #e2e8f0', marginLeft: 'auto',
                         background: '#ffffff'
                     }}>
-                        {/* Theme Customizer */}
-                        <button
-                            onClick={() => setShowThemeSidebar(true)}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                padding: '0 0.75rem', height: '1.85rem',
-                                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                                border: '1.5px solid #cbd5e1', borderRadius: '0.375rem',
-                                fontSize: '0.65rem', fontWeight: 850, color: '#334155',
-                                cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
-                                whiteSpace: 'nowrap'
-                            }}
-                            title="Configure Themes & Layouts"
-                        >
-                            <Palette size={11} className="text-indigo-600" /> Theme
-                        </button>
-
                         {/* Dashboard */}
                         <button
                             onClick={() => navigate('/dashboard')}
@@ -4535,7 +5184,7 @@ function Home() {
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            <Package size={11} /> Orders
+                            <Package size={11} /> Active Orders
                         </button>
 
                         {/* User Info Card */}
@@ -4584,538 +5233,607 @@ function Home() {
                         >
                             <Power size={16} />
                         </button>
-                    </div>
-                </div>
 
-                {/* ── ROW 2: Dedicated scrollable keyboard shortcuts strip ── */}
-                <div className="so-shortcuts-strip" style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '8px 14px', background: '#f8fafc',
-                    borderBottom: '1px solid #e2e8f0', overflowX: 'auto',
-                    scrollbarWidth: 'none', msOverflowStyle: 'none',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
-                }}>
-                    <div className="so-shortcut-badge violet" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => setShowDiscountModal(prev => !prev)}>
-                        <span className="so-shortcut-key">F1</span>
-                        <span className="so-shortcut-label">Discount</span>
-                    </div>
-                    <div className="so-shortcut-badge blue" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => mobileInputRef.current?.focus()}>
-                        <span className="so-shortcut-key">F2</span>
-                        <span className="so-shortcut-label">Customer</span>
-                    </div>
-                    <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => barcodeInputRef.current?.focus()}>
-                        <span className="so-shortcut-key">F3</span>
-                        <span className="so-shortcut-label">Search</span>
-                    </div>
-                    <div className="so-shortcut-badge cyan" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
-                        setCountryCodePrefix(prev => {
-                            const next = prev === '+971' ? '+91' : '+971';
-                            localStorage.setItem('pos_country_code', next);
-                            const Toast = Swal.mixin({
-                                toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
-                            });
-                            Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
-                            return next;
-                        });
-                    }}>
-                        <span className="so-shortcut-key">F4</span>
-                        <span className="so-shortcut-label">CC ({countryCodePrefix})</span>
-                    </div>
-                    <div className="so-shortcut-badge emerald" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleCheckout}>
-                        <span className="so-shortcut-key">SPACE</span>
-                        <span className="so-shortcut-label">Pay</span>
-                    </div>
-                    <div className="so-shortcut-badge rose" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={clearBillHandler}>
-                        <span className="so-shortcut-key">ESC</span>
-                        <span className="so-shortcut-label">Clear</span>
-                    </div>
-                    <div className="so-shortcut-badge amber" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
-                        if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
-                        else Swal.fire('Info', 'Select or scan an item first.', 'info');
-                    }}>
-                        <span className="so-shortcut-key">F5</span>
-                        <span className="so-shortcut-label">Stock</span>
-                    </div>
-                    <div className="so-shortcut-badge pink" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleBulkQtyUpdate}>
-                        <span className="so-shortcut-key">F6</span>
-                        <span className="so-shortcut-label">Bulk Qty</span>
-                    </div>
-                    <div className="so-shortcut-badge violet" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
-                        if (selectedBillIndex !== -1) {
-                            const item = billItems[selectedBillIndex];
-                            const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
-                            toggleUom(item.id, newUom);
-                        }
-                    }}>
-                        <span className="so-shortcut-key">F8</span>
-                        <span className="so-shortcut-label">UOM</span>
-                    </div>
-                    <div className="so-shortcut-badge sky" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => setShowDraftsModal(prev => !prev)}>
-                        <span className="so-shortcut-key">F9</span>
-                        <span className="so-shortcut-label">Orders</span>
-                    </div>
-                    <div className="so-shortcut-badge amber" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleSaveDraft}>
-                        <span className="so-shortcut-key">F10</span>
-                        <span className="so-shortcut-label">Save Draft</span>
-                    </div>
-                    <div className="so-shortcut-badge emerald" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleLoyaltyPointsClick}>
-                        <span className="so-shortcut-key">F12</span>
-                        <span className="so-shortcut-label">Loyalty</span>
-                    </div>
-                    <div className="so-shortcut-badge slate" style={{ flexShrink: 0 }}>
-                        <span className="so-shortcut-key">↑ ↓</span>
-                        <span className="so-shortcut-label">Navigate</span>
-                    </div>
-                    <div className="so-shortcut-badge slate" style={{ flexShrink: 0 }}>
-                        <span className="so-shortcut-key">+ / -</span>
-                        <span className="so-shortcut-label">Qty</span>
-                    </div>
-                </div>
+                        {/* Dropdown Settings Button */}
+                        <div className="relative" ref={settingsDropdownRef}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowSettingsMenu(!showSettingsMenu);
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
+                                title="Settings"
+                                style={{ height: '1.85rem', width: '1.85rem', padding: 0 }}
+                            >
+                                <Settings size={14} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
+                            </button>
 
+                            {showSettingsMenu && (
+                                <div
+                                    className="absolute right-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-[9999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
+                                    style={{ borderTop: `4px solid var(--so-primary)` }}
+                                >
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
+                                        Configuration
+                                    </div>
 
-                <main className="so-main-layout">
-                    <div className="so-item-side">
-                        <div className="so-cat-bar">
-                            {categories.length > 5 && (
-                                <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handlePrevSlide}>
-                                    <ChevronLeft size={18} />
-                                </button>
-                            )}
-                            <div className="so-cat-tabs" ref={categoryScrollRef}>
-                                {categories.map(cat => (
+                                    {/* Theme Switcher Button */}
                                     <button
-                                        key={cat}
-                                        className={`so-cat-tab ${selectedCategory === cat ? 'active' : ''}`}
-                                        onClick={() => handleFilter(cat)}
+                                        onClick={() => {
+                                            setShowThemeSidebar(true);
+                                            setShowSettingsMenu(false);
+                                        }}
+                                        className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
                                     >
-                                        {cat === "all" ? "All Categories" : cat}
+                                        <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
+                                            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-500 group-hover:scale-110 transition-transform">
+                                                <Palette size={14} />
+                                            </div>
+                                            Theme Config
+                                        </div>
+                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
+                                            {legacySubTheme.toUpperCase()}
+                                        </span>
                                     </button>
-                                ))}
-                            </div>
-                            {categories.length > 5 && (
-                                <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handleNextSlide}>
-                                    <ChevronRight size={18} />
-                                </button>
+                                </div>
                             )}
                         </div>
-
-                        {theme === 'modern_no_image' ? (
-                            <ModernNoImageGrid
-                                filteredItems={filteredItems}
-                                setLastInteractedItem={setLastInteractedItem}
-                                handleAddToBill={handleAddToBill}
-                                handleOutOfStockAlert={handleOutOfStockAlert}
-                                showStockBreakdown={showStockBreakdown}
-                                handleFindNearestStock={handleFindNearestStock}
-                            />
-                        ) : (
-                            <div className="so-grid-area">
-                                {filteredItems.length === 0 ? (
-                                    <div className="col-span-full h-96 flex flex-col items-center justify-center text-slate-300 gap-4 opacity-70">
-                                        <SearchSlash size={64} strokeWidth={1} />
-                                        <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
-                                    </div>
-                                ) : (
-                                    filteredItems.map(item => (
-                                        <div
-                                            key={item.id}
-                                            className="so-item-card"
-                                            onClick={() => { setLastInteractedItem(item); if (item.local_qty > 0) { handleAddToBill(item); } else { handleOutOfStockAlert(item); } }}
-                                            style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
-                                        >
-                                            <div className="relative group">
-                                                {item.image ? (
-                                                    <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
-                                                ) : (
-                                                    <div className="so-item-img flex items-center justify-center p-6 text-center text-slate-400 font-black text-[10px] uppercase bg-slate-50 border-2 border-dashed border-slate-200">
-                                                        {item.name}
-                                                    </div>
-                                                )}
-                                                <div className="absolute top-2.5 right-2.5">
-                                                    <span className={`so-item-badge ${item.local_qty > 10 ? 'so-badge-emerald' : (item.local_qty > 0 ? 'so-badge-amber' : 'so-badge-rose')}`}>
-                                                        {item.local_qty > 0 ? `${item.local_qty} UNIT` : 'OUT STOCK'}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-col flex-1 justify-between gap-1.5">
-                                                <h4 className="so-item-name">
-                                                    {item.name}
-                                                </h4>
-                                                {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) && (
-                                                    <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
-                                                        <Barcode size={10} style={{ opacity: 0.6 }} /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
-                                                    </span>
-                                                )}
-
-                                                <div className="flex items-center justify-between pt-2">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Price</span>
-                                                        <span className="font-black text-slate-900 text-[13px] flex items-center gap-0.5">
-                                                            <DirhamIcon size={10} className="text-slate-400" /> {parseFloat(item.price).toFixed(2)}
-                                                        </span>
-                                                    </div>
-
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
-                                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                    >
-                                                        <Info size={14} />
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {item.local_qty <= 0 && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
-                                                    className="w-full mt-1 py-1.5 bg-sky-50 text-sky-600 rounded-lg border border-sky-100 text-[9px] font-black uppercase tracking-tighter hover:bg-sky-600 hover:text-white transition-all"
-                                                >
-                                                    Find in Branches
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
                     </div>
+                </div>
 
-                    <aside className="so-bill-side">
-                        <div className="so-bill-header flex flex-col gap-3">
-                            <div className="relative group">
-                                <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white focus-within:border-emerald-500 transition-all">
-                                    <select
-                                        value={countryCodePrefix}
-                                        onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                        className="h-9 px-1.5 bg-slate-50 border-r border-slate-200 text-[11px] font-black text-slate-700 outline-none cursor-pointer"
-                                        style={{ minWidth: '60px' }}
-                                        title="Country Code (Press F4 to toggle)"
-                                    >
-                                        <option value="+971">🇦🇪 +971</option>
-                                        <option value="+91">🇮🇳 +91</option>
-                                    </select>
-                                    <div className="relative flex-1">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
-                                        </div>
-                                        <input
-                                            ref={nameInputRef}
-                                            type="text"
-                                            placeholder="Customer Name..."
-                                            value={customerName === 'Cash' ? '' : customerName}
-                                            className="w-full pl-9 pr-3 py-2 text-sm font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
-                                            onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
-                                            onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); setShowDropdown(true); }}
-                                            onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
-                                            onKeyDown={async (e) => {
-                                                if (e.key === 'Enter') {
-                                                    const term = customerName.trim();
-                                                    if (!term || term === 'Cash') return;
+                {shortcutsPosition === 'top' && renderShortcutsHorizontal()}
 
-                                                    // Check if it is a mobile number (7+ digits after stripping prefix)
-                                                    const strippedNumber = term
-                                                        .replace(/^\+?(971|91)/, '')
-                                                        .replace(/\D/g, '');
-                                                    const isMobile = /^\d{7,}$/.test(strippedNumber) || /^\d{7,}$/.test(term);
-
-                                                    // 1. If we have search results matching, pick the first one
-                                                    if (searchResults.length > 0) {
-                                                        const matched = searchResults.find(c =>
-                                                            c.customer_name.toLowerCase() === term.toLowerCase() ||
-                                                            (c.mobile_no && c.mobile_no.replace(/\D/g, '').includes(strippedNumber))
-                                                        ) || searchResults[0];
-
-                                                        pickCustomer(matched);
-                                                        const Toast = Swal.mixin({
-                                                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                                        });
-                                                        Toast.fire({ icon: 'success', title: `Customer: ${matched.customer_name}` });
-                                                        return;
-                                                    }
-
-                                                    // 2. If it is a mobile number, register via speed checkout
-                                                    if (isMobile) {
-                                                        const fullMobile = strippedNumber || term.replace(/\D/g, '');
-                                                        if (countryCodePrefix === '+971' && fullMobile.length !== 9) {
-                                                            Swal.fire('Validation Error', 'UAE mobile number must be exactly 9 digits.', 'warning');
-                                                            return;
-                                                        }
-                                                        if (countryCodePrefix === '+91' && fullMobile.length !== 10) {
-                                                            Swal.fire('Validation Error', 'India mobile number must be exactly 10 digits.', 'warning');
-                                                            return;
-                                                        }
-
-                                                        setCustomerLoading(true);
-                                                        const mobileWithCode = `${countryCodePrefix}${fullMobile}`;
-                                                        try {
-                                                            const res = await frappeCall({
-                                                                method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
-                                                                args: {
-                                                                    mobile_no: mobileWithCode,
-                                                                    warehouse: warehouse,
-                                                                    customer_group: 'Retail Customer'
-                                                                }
-                                                            });
-
-                                                            if (res && res.name) {
-                                                                pickCustomer(res);
-                                                                const Toast = Swal.mixin({
-                                                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                                                });
-                                                                Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name}` });
-                                                            } else {
-                                                                Swal.fire('Error', "Failed to create customer", 'error');
-                                                            }
-                                                        } catch (err) {
-                                                            console.error(err);
-                                                            // Offline creation if network fails
-                                                            if (!navigator.onLine) {
-                                                                const offlineCustomer = {
-                                                                    name: `OFFLINE-CUST-${Date.now()}`,
-                                                                    customer_name: `Customer ${mobileWithCode}`,
-                                                                    mobile_no: mobileWithCode,
-                                                                    primary_address: "",
-                                                                    email_id: "",
-                                                                    is_synced: 0,
-                                                                    is_offline: true
-                                                                };
-                                                                await db.customers.put(offlineCustomer);
-                                                                pickCustomer(offlineCustomer);
-                                                                Swal.fire('Offline Save', 'Customer saved locally. Will sync when online.', 'info');
-                                                            } else {
-                                                                Swal.fire('Error', 'Network error', 'error');
-                                                            }
-                                                        } finally {
-                                                            setCustomerLoading(false);
-                                                        }
-                                                    } else {
-                                                        // It's a name, confirm and create via speed checkout by name
-                                                        const result = await Swal.fire({
-                                                            title: 'Create Customer?',
-                                                            text: `No matching customer found. Do you want to create a new customer named "${term}"?`,
-                                                            icon: 'question',
-                                                            showCancelButton: true,
-                                                            confirmButtonText: 'Yes, Create',
-                                                            cancelButtonText: 'Cancel',
-                                                            confirmButtonColor: '#2563eb'
-                                                        });
-                                                        if (result.isConfirmed) {
-                                                            handleCreateCustomerByName(term);
-                                                        }
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                {showDropdown && (
-                                    <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-[300] mt-1 max-h-56 overflow-y-auto">
-                                        {searchResults.map(c => (
-                                            <div key={c.name} onMouseDown={() => pickCustomer(c)} className="p-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
-                                                <div>
-                                                    <div className="font-black text-[12px] text-slate-800 uppercase">{c.customer_name}</div>
-                                                    <div className="text-[10px] text-slate-400 font-bold">{c.mobile_no}</div>
-                                                </div>
-                                                <ChevronRight size={12} className="text-slate-300 group-hover:text-emerald-500" />
-                                            </div>
+                <div style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%', overflow: 'hidden' }}>
+                    <main className="so-main-layout">
+                        <div style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden', height: '100%' }}>
+                            {shortcutsPosition === 'left' && renderShortcutsVertical('left')}
+                            <div className="so-item-side">
+                                <div className="so-cat-bar">
+                                    {categories.length > 5 && (
+                                        <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handlePrevSlide}>
+                                            <ChevronLeft size={18} />
+                                        </button>
+                                    )}
+                                    <div className="so-cat-tabs" ref={categoryScrollRef}>
+                                        {categories.map(cat => (
+                                            <button
+                                                key={cat}
+                                                className={`so-cat-tab ${selectedCategory === cat ? 'active' : ''}`}
+                                                onClick={() => handleFilter(cat)}
+                                            >
+                                                {cat === "all" ? "All Categories" : cat}
+                                            </button>
                                         ))}
-                                        <div onMouseDown={openCreate} className="p-3 bg-emerald-50 text-emerald-600 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
-                                            + Register New Customer
-                                        </div>
                                     </div>
-                                )}
-                            </div>
-
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Search size={14} className="text-sky-400 group-focus-within:text-sky-600 transition-colors" />
+                                    {categories.length > 5 && (
+                                        <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handleNextSlide}>
+                                            <ChevronRight size={18} />
+                                        </button>
+                                    )}
                                 </div>
-                                <input
-                                    ref={barcodeInputRef}
-                                    type="text"
-                                    placeholder="SCAN / SEARCH PRODUCT..."
-                                    value={barcodeInput}
-                                    onChange={e => setBarcodeInput(e.target.value)}
-                                    onKeyDown={onBarcodeKeyDown}
-                                    className="so-customer-input pl-10 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
-                                />
-                            </div>
-                        </div>
 
-                        <div className="so-bill-items">
-                            {billItems.length === 0 ? (
-                                <div className="flex-1 flex flex-col items-center justify-center opacity-20 gap-3 grayscale">
-                                    <MonitorSmartphone size={64} strokeWidth={1} />
-                                    <span className="font-black text-[10px] uppercase tracking-widest text-center px-12 leading-relaxed">
-                                        Select items or scan barcode<br />to start a new transaction
-                                    </span>
-                                </div>
-                            ) : (
-                                billItems.map((item, idx) => {
-                                    const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
-                                    const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
-                                    return (
-                                        <div
-                                            key={item.id}
-                                            id={`bill-row-${idx}`}
-                                            className={`so-bill-item transition-all cursor-pointer ${idx === selectedBillIndex ? 'active' : ''}`}
-                                            onClick={() => setSelectedBillIndex(idx)}
-                                        >
-                                            <div className="relative flex justify-between items-start">
-                                                <div className="flex-1 pr-6">
-                                                    <h4 className="so-bill-item-name">{item.name}</h4>
-                                                    <div className="flex items-center gap-4">
-                                                        <span className="text-[11px] font-black text-slate-400 flex items-center gap-0.5"><DirhamIcon size={10} /> {item.price}</span>
-                                                        <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-                                                            <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => {
-                                                                const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
-                                                                toggleUom(item.id, targetUom);
-                                                            }} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
-                                                            <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
+                                {theme === 'modern_no_image' ? (
+                                    <ModernNoImageGrid
+                                        filteredItems={filteredItems}
+                                        setLastInteractedItem={setLastInteractedItem}
+                                        handleAddToBill={handleAddToBill}
+                                        handleOutOfStockAlert={handleOutOfStockAlert}
+                                        showStockBreakdown={showStockBreakdown}
+                                        handleFindNearestStock={handleFindNearestStock}
+                                    />
+                                ) : (
+                                    <div className="so-grid-area">
+                                        {filteredItems.length === 0 ? (
+                                            <div className="col-span-full h-96 flex flex-col items-center justify-center text-slate-300 gap-4 opacity-70">
+                                                <SearchSlash size={64} strokeWidth={1} />
+                                                <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
+                                            </div>
+                                        ) : (
+                                            filteredItems.map(item => (
+                                                <div
+                                                    key={item.id}
+                                                    className="so-item-card"
+                                                    onClick={() => { setLastInteractedItem(item); if (item.local_qty > 0) { handleAddToBill(item); } else { handleOutOfStockAlert(item); } }}
+                                                    style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
+                                                >
+                                                    <div className="relative group">
+                                                        {item.image ? (
+                                                            <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
+                                                        ) : (
+                                                            <div className="so-item-img flex flex-col items-center justify-center bg-slate-50 border border-slate-100 text-slate-300">
+                                                                <Package size={28} strokeWidth={1.5} />
+                                                                <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">No Image</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex flex-col flex-1 justify-between gap-1.5">
+                                                        <h4 className="so-item-name">
+                                                            {item.name}
+                                                        </h4>
+
+                                                        <div style={{ height: '16px', display: 'flex', alignItems: 'center', marginTop: '2px' }}>
+                                                            {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) ? (
+                                                                <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                    <Barcode size={10} style={{ opacity: 0.6 }} /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ fontSize: '9px', color: '#cbd5e1', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                    <Barcode size={10} style={{ opacity: 0.3 }} /> -
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between pt-2">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Price</span>
+                                                                <span className="font-black text-slate-900 text-[13px] flex items-center gap-0.5">
+                                                                    <DirhamIcon size={10} className="text-slate-400" /> {parseFloat(item.price).toFixed(2)}
+                                                                </span>
+                                                            </div>
+
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
+                                                            >
+                                                                <Info size={14} />
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                </div>
 
-                                                <div className="flex flex-col items-end gap-2">
-                                                    <div className="so-bill-qty-control shadow-sm">
-                                                        <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
-                                                            {item.qty > 1 ? <Minus size={11} className="opacity-40" /> : <X size={11} className="text-rose-400" />}
-                                                        </button>
-                                                        <input
-                                                            id={`qty-input-${idx}`}
-                                                            className="so-bill-qty-input"
-                                                            value={item.qty}
-                                                            onChange={(e) => setQuantity(item.id, e.target.value)}
-                                                            onFocus={(e) => e.target.select()}
-                                                            onClick={(e) => e.target.select()}
-                                                        />
-                                                        <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500"><Plus size={11} /></button>
+                                                    <div style={{ height: '32px', display: 'flex', alignItems: 'center', marginTop: 'auto', flexShrink: 0 }}>
+                                                        {item.local_qty <= 0 ? (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
+                                                                className="w-full py-1.5 bg-slate-50 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 text-[8px] font-bold uppercase tracking-tight transition-all flex items-center justify-center"
+                                                            >
+                                                                Request More Stock
+                                                            </button>
+                                                        ) : (
+                                                            <div className={`so-item-instock-placeholder ${item.local_qty <= 10 ? 'low-stock' : ''}`}>
+                                                                {item.local_qty} UNITS
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-                                                <button onClick={() => removeFromBill(item.id)} className="so-bill-remove">
-                                                    <X size={16} />
-                                                </button>
-                                            </div>
-
-                                            <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
-                                                <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
-                                                <span className="text-[13px] font-black text-slate-800 flex items-center gap-0.5"><DirhamIcon size={12} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-
-                        <div className="so-bill-footer">
-                            {/* Sales Taxes and Charges Template Dropdown */}
-                            <div className="mb-4">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                                    Sales Taxes & Charges
-                                </label>
-                                <div className="relative">
-                                    <select
-                                        value={selectedTaxTemplate}
-                                        onChange={(e) => setSelectedTaxTemplate(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 pr-8 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold cursor-pointer transition-all duration-200 hover:bg-slate-50"
-                                    >
-                                        {taxTemplates.length === 0 ? (
-                                            <option value="">No Tax Templates Available</option>
-                                        ) : (
-                                            taxTemplates.map(t => (
-                                                <option key={t.name} value={t.name}>
-                                                    {t.name}
-                                                </option>
                                             ))
                                         )}
-                                    </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
-                                        <Percent size={14} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="so-total-box">
-                                <div className="so-total-row">
-                                    <span>Subtotal</span>
-                                    <span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displaySubtotal.toFixed(2)}</span>
-                                </div>
-                                {displayDiscount > 0 && (
-                                    <div className="so-total-row" style={{ color: 'var(--so-danger)' }}>
-                                        <span>Discount</span>
-                                        <span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {displayDiscount.toFixed(2)}</span>
                                     </div>
                                 )}
-                                {loyaltyAmount > 0 && (
-                                    <div className="so-total-row" style={{ color: '#10b981' }}>
-                                        <span>Loyalty Redeemed</span>
-                                        <span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {loyaltyAmount.toFixed(2)}</span>
+                            </div>
+                            {shortcutsPosition === 'right' && renderShortcutsVertical('right')}
+                        </div>
+
+                        <aside className="so-bill-side">
+                            <div className="so-bill-header flex flex-col gap-3">
+                                <div className="relative group">
+                                    <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white focus-within:border-emerald-500 transition-all">
+                                        <select
+                                            value={countryCodePrefix}
+                                            onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
+                                            className="h-9 px-1.5 bg-slate-50 border-r border-slate-200 text-[11px] font-black text-slate-700 outline-none cursor-pointer"
+                                            style={{ minWidth: '60px' }}
+                                            title="Country Code (Press F4 to toggle)"
+                                        >
+                                            <option value="+971">🇦🇪 +971</option>
+                                            <option value="+91">🇮🇳 +91</option>
+                                        </select>
+                                        <div className="relative flex-1">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+                                            </div>
+                                            <input
+                                                ref={nameInputRef}
+                                                type="text"
+                                                placeholder="Customer Name..."
+                                                value={customerName === 'Cash' ? '' : customerName}
+                                                className="w-full pl-9 pr-3 py-2 text-sm font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
+                                                onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
+                                                onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); setShowDropdown(true); }}
+                                                onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
+                                                onKeyDown={async (e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const term = customerName.trim();
+                                                        if (!term || term === 'Cash') return;
+
+                                                        // Check if it is a mobile number (7+ digits after stripping prefix)
+                                                        const strippedNumber = term
+                                                            .replace(/^\+?(971|91)/, '')
+                                                            .replace(/\D/g, '');
+                                                        const isMobile = /^\d{7,}$/.test(strippedNumber) || /^\d{7,}$/.test(term);
+
+                                                        // 1. If we have search results matching, pick the first one
+                                                        if (searchResults.length > 0) {
+                                                            const matched = searchResults.find(c =>
+                                                                c.customer_name.toLowerCase() === term.toLowerCase() ||
+                                                                (c.mobile_no && c.mobile_no.replace(/\D/g, '').includes(strippedNumber))
+                                                            ) || searchResults[0];
+
+                                                            pickCustomer(matched);
+                                                            const Toast = Swal.mixin({
+                                                                toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                                                            });
+                                                            Toast.fire({ icon: 'success', title: `Customer: ${matched.customer_name}` });
+                                                            return;
+                                                        }
+
+                                                        // 2. If it is a mobile number, register via speed checkout
+                                                        if (isMobile) {
+                                                            const fullMobile = strippedNumber || term.replace(/\D/g, '');
+                                                            if (countryCodePrefix === '+971' && fullMobile.length !== 9) {
+                                                                Swal.fire('Validation Error', 'UAE mobile number must be exactly 9 digits.', 'warning');
+                                                                return;
+                                                            }
+                                                            if (countryCodePrefix === '+91' && fullMobile.length !== 10) {
+                                                                Swal.fire('Validation Error', 'India mobile number must be exactly 10 digits.', 'warning');
+                                                                return;
+                                                            }
+
+                                                            setCustomerLoading(true);
+                                                            const mobileWithCode = `${countryCodePrefix}${fullMobile}`;
+                                                            try {
+                                                                const res = await frappeCall({
+                                                                    method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
+                                                                    args: {
+                                                                        mobile_no: mobileWithCode,
+                                                                        warehouse: warehouse,
+                                                                        customer_group: 'Retail Customer'
+                                                                    }
+                                                                });
+
+                                                                if (res && res.name) {
+                                                                    pickCustomer(res);
+                                                                    const Toast = Swal.mixin({
+                                                                        toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                                                                    });
+                                                                    Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name}` });
+                                                                } else {
+                                                                    Swal.fire('Error', "Failed to create customer", 'error');
+                                                                }
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                // Offline creation if network fails
+                                                                if (!navigator.onLine) {
+                                                                    const offlineCustomer = {
+                                                                        name: `OFFLINE-CUST-${Date.now()}`,
+                                                                        customer_name: `Customer ${mobileWithCode}`,
+                                                                        mobile_no: mobileWithCode,
+                                                                        primary_address: "",
+                                                                        email_id: "",
+                                        is_synced: 0,
+                                                                        is_offline: true
+                                                                    };
+                                                                    await db.customers.put(offlineCustomer);
+                                                                    pickCustomer(offlineCustomer);
+                                                                    Swal.fire('Offline Save', 'Customer saved locally. Will sync when online.', 'info');
+                                                                } else {
+                                                                    Swal.fire('Error', 'Network error', 'error');
+                                                                }
+                                                            } finally {
+                                                                setCustomerLoading(false);
+                                                            }
+                                                        } else {
+                                                             // It's a name, show input popup to enter mobile number with country prefix switch
+                                                             const result = await Swal.fire({
+                                                                 title: 'Create Customer',
+                                                                 text: `Enter mobile number for "${term}":`,
+                                                                 html: `
+                                                                     <div style="display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 15px;">
+                                                                         <select id="swal-country-code" style="height: 38px; padding: 0 8px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; outline: none; cursor: pointer;">
+                                                                             <option value="+971" ${countryCodePrefix === '+971' ? 'selected' : ''}>🇦🇪 +971</option>
+                                                                             <option value="+91" ${countryCodePrefix === '+91' ? 'selected' : ''}>🇮🇳 +91</option>
+                                                                         </select>
+                                                                         <input id="swal-mobile-input" type="tel" placeholder="Enter mobile number..." style="height: 38px; padding: 0 12px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; flex: 1; outline: none;" />
+                                                                     </div>
+                                                                 `,
+                                                                 showCancelButton: true,
+                                                                 confirmButtonText: 'Create Customer',
+                                                                 cancelButtonText: 'Cancel',
+                                                                 confirmButtonColor: '#2563eb',
+                                                                 allowEnterKey: false,
+                                                                 didOpen: () => {
+                                                                     const select = document.getElementById('swal-country-code');
+                                                                     const input = document.getElementById('swal-mobile-input');
+                                                                     if (select && input) {
+                                                                         input.focus();
+                                                                         const getLimit = () => select.value === '+971' ? 9 : 10;
+                                                                         input.addEventListener('input', (e) => {
+                                                                             let val = e.target.value.replace(/\D/g, '');
+                                                                             const maxDigits = getLimit();
+                                                                             if (val.length > maxDigits) {
+                                                                                 val = val.substring(0, maxDigits);
+                                                                             }
+                                                                             e.target.value = val;
+                                                                         });
+                                                                         input.addEventListener('keydown', (e) => {
+                                                                             const maxDigits = getLimit();
+                                                                             const stripped = input.value.replace(/\D/g, '');
+                                                                             if (stripped.length >= maxDigits && 
+                                                                                 !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
+                                                                                 e.preventDefault();
+                                                                             }
+                                                                         });
+                                                                         select.addEventListener('change', () => {
+                                                                             let val = input.value.replace(/\D/g, '');
+                                                                             const maxDigits = getLimit();
+                                                                             if (val.length > maxDigits) {
+                                                                                 val = val.substring(0, maxDigits);
+                                                                             }
+                                                                             input.value = val;
+                                                                             input.focus();
+                                                                         });
+                                                                     }
+                                                                 },
+                                                                 preConfirm: () => {
+                                                                     const code = document.getElementById('swal-country-code').value;
+                                                                     const number = document.getElementById('swal-mobile-input').value;
+                                                                     const stripped = number.replace(/\D/g, '');
+                                                                     if (!stripped) {
+                                                                         Swal.showValidationMessage('Mobile number is required!');
+                                                                         return false;
+                                                                     }
+                                                                     if (code === '+971' && stripped.length !== 9) {
+                                                                         Swal.showValidationMessage('UAE mobile number must be exactly 9 digits.');
+                                                                         return false;
+                                                                     }
+                                                                     if (code === '+91' && stripped.length !== 10) {
+                                                                         Swal.showValidationMessage('India mobile number must be exactly 10 digits.');
+                                                                         return false;
+                                                                     }
+                                                                     return { code, number: stripped };
+                                                                 }
+                                                             });
+                                                             if (result.isConfirmed && result.value) {
+                                                                 const { code, number } = result.value;
+                                                                 const mobileWithCode = `${code}${number}`;
+                                                                 setCustomerLoading(true);
+                                                                 try {
+                                                                     const res = await frappeCall({
+                                                                         method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
+                                                                         args: {
+                                                                             mobile_no: mobileWithCode,
+                                                                             customer_name: term,
+                                                                             warehouse: warehouse,
+                                                                             customer_group: 'Retail Customer'
+                                                                         }
+                                                                     });
+                                                                     if (res && res.name) {
+                                                                         pickCustomer(res);
+                                                                         const Toast = Swal.mixin({
+                                                                             toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                                                                         });
+                                                                         Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name}` });
+                                                                     } else {
+                                                                         Swal.fire('Error', "Failed to create customer", 'error');
+                                                                     }
+                                                                 } catch (err) {
+                                                                     console.error(err);
+                                                                     Swal.fire('Error', err.message || "Failed to create customer", 'error');
+                                                                 } finally {
+                                                                     setCustomerLoading(false);
+                                                                 }
+                                                             }
+                                                             setShowDropdown(false);
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                )}
-                                <div className="so-total-row">
-                                    <span>Tax ({taxRate}%)</span>
-                                    <span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displayTax.toFixed(2)}</span>
+                                    {showDropdown && (
+                                        <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-[300] mt-1 max-h-56 overflow-y-auto">
+                                            {searchResults.map(c => (
+                                                <div key={c.name} onMouseDown={() => pickCustomer(c)} className="p-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
+                                                    <div>
+                                                        <div className="font-black text-[12px] text-slate-800 uppercase">{c.customer_name}</div>
+                                                        <div className="text-[10px] text-slate-400 font-bold">{c.mobile_no}</div>
+                                                    </div>
+                                                    <ChevronRight size={12} className="text-slate-300 group-hover:text-emerald-500" />
+                                                </div>
+                                            ))}
+                                            <div onMouseDown={openCreate} className="p-3 bg-emerald-50 text-emerald-600 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
+                                                + Register New Customer
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="so-grand-total">
-                                    <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
-                                    <span className="flex items-center gap-0.5"><DirhamIcon size={15} /> {grandTotal.toFixed(2)}</span>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Search size={14} className="text-sky-400 group-focus-within:text-sky-600 transition-colors" />
+                                    </div>
+                                    <input
+                                        ref={barcodeInputRef}
+                                        type="text"
+                                        placeholder="SCAN / SEARCH PRODUCT..."
+                                        value={barcodeInput}
+                                        onChange={e => setBarcodeInput(e.target.value)}
+                                        onKeyDown={onBarcodeKeyDown}
+                                        className="so-customer-input pl-10 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
+                                    />
                                 </div>
                             </div>
 
-                            <div className="flex gap-1.5 mb-2">
-                                <button
-                                    onClick={() => setShowDiscountModal(true)}
-                                    className="so-btn-secondary flex-1"
-                                    style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2' } : {}}
-                                >
-                                    <Palette size={14} /> % Discount
-                                </button>
-                                <button
-                                    onClick={handleLoyaltyPointsClick}
-                                    className="so-btn-secondary flex-1"
-                                    style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5' } : {}}
-                                >
-                                    <Award size={14} /> Loyalty
-                                </button>
-                            </div>
-                            <div className="flex gap-1.5 mb-4">
-                                <button
-                                    onClick={handleSaveDraft}
-                                    className="so-btn-secondary flex-1"
-                                    style={{ color: '#d97706', borderColor: '#fef3c7' }}
-                                    disabled={billItems.length === 0}
-                                >
-                                    <Package size={14} /> Save Draft
-                                </button>
-                                <button
-                                    onClick={clearBillHandler}
-                                    className="so-btn-secondary flex-1"
-                                    style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
-                                >
-                                    <Trash2 size={14} /> Reset
-                                </button>
-                            </div>
-
-                            <button
-                                className={`so-btn-pay ${paymentLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                                disabled={grandTotal <= 0 || paymentLoading}
-                                onClick={handleCheckout}
-                            >
-                                {paymentLoading ? (
-                                    <div className="flex items-center justify-center gap-2">
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        <span>Processing...</span>
+                            <div className="so-bill-items">
+                                {billItems.length === 0 ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center opacity-20 gap-3 grayscale">
+                                        <MonitorSmartphone size={64} strokeWidth={1} />
+                                        <span className="font-black text-[10px] uppercase tracking-widest text-center px-12 leading-relaxed">
+                                            Select items or scan barcode<br />to start a new transaction
+                                        </span>
                                     </div>
                                 ) : (
-                                    <>
-                                        <CreditCard size={18} /> Confirm & Pay (Space)
-                                    </>
+                                    billItems.map((item, idx) => {
+                                        const effectivePrice = item.price;
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                id={`bill-row-${idx}`}
+                                                className={`so-bill-item transition-all cursor-pointer ${idx === selectedBillIndex ? 'active' : ''}`}
+                                                onClick={() => setSelectedBillIndex(idx)}
+                                            >
+                                                <div className="relative flex justify-between items-start">
+                                                    <div className="flex-1 pr-6">
+                                                        <h4 className="so-bill-item-name">{item.name}</h4>
+                                                        <div className="flex items-center gap-4">
+                                                            <span className="text-[11px] font-black text-slate-400 flex items-center gap-0.5"><DirhamIcon size={10} /> {item.price}</span>
+                                                            <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                                                                <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => {
+                                                                    const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
+                                                                    toggleUom(item.id, targetUom);
+                                                                }} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
+                                                                <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        <div className="so-bill-qty-control shadow-sm">
+                                                            <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
+                                                                {item.qty > 1 ? <Minus size={11} className="opacity-40" /> : <X size={11} className="text-rose-400" />}
+                                                            </button>
+                                                            <input
+                                                                id={`qty-input-${idx}`}
+                                                                className="so-bill-qty-input"
+                                                                value={item.qty}
+                                                                onChange={(e) => setQuantity(item.id, e.target.value)}
+                                                                onFocus={(e) => e.target.select()}
+                                                                onClick={(e) => e.target.select()}
+                                                            />
+                                                            <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500"><Plus size={11} /></button>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => removeFromBill(item.id)} className="so-bill-remove">
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+
+                                                <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
+                                                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
+                                                    <span className="text-[13px] font-black text-slate-800 flex items-center gap-0.5"><DirhamIcon size={12} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
                                 )}
-                            </button>
-                        </div>
-                    </aside>
-                </main>
+                            </div>
+
+                            <div className="so-bill-footer">
+                                {/* Sales Taxes and Charges Template Dropdown */}
+                                <div className="mb-4">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                        Sales Taxes & Charges
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={selectedTaxTemplate}
+                                            onChange={(e) => setSelectedTaxTemplate(e.target.value)}
+                                            className="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 pr-8 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold cursor-pointer transition-all duration-200 hover:bg-slate-50"
+                                        >
+                                            {taxTemplates.length === 0 ? (
+                                                <option value="">No Tax Templates Available</option>
+                                            ) : (
+                                                taxTemplates.map(t => (
+                                                    <option key={t.name} value={t.name}>
+                                                        {t.name}
+                                                    </option>
+                                                ))
+                                            )}
+                                        </select>
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                                            <Percent size={14} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="so-total-box">
+                                    <div className="so-total-row">
+                                        <span>Subtotal</span>
+                                        <span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displaySubtotal.toFixed(2)}</span>
+                                    </div>
+                                    {displayDiscount > 0 && (
+                                        <div className="so-total-row" style={{ color: 'var(--so-danger)' }}>
+                                            <span>Discount</span>
+                                            <span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {displayDiscount.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    {loyaltyAmount > 0 && (
+                                        <div className="so-total-row" style={{ color: '#10b981' }}>
+                                            <span>Loyalty Redeemed</span>
+                                            <span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {loyaltyAmount.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    <div className="so-total-row">
+                                        <span>Tax ({taxRate}%)</span>
+                                        <span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displayTax.toFixed(2)}</span>
+                                    </div>
+
+                                    <div className="so-grand-total">
+                                        <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
+                                        <span className="flex items-center gap-0.5"><DirhamIcon size={15} /> {grandTotal.toFixed(2)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-1.5 mb-2">
+                                    <button
+                                        onClick={() => setShowDiscountModal(true)}
+                                        className="so-btn-secondary flex-1"
+                                        style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2' } : {}}
+                                    >
+                                        <Palette size={14} /> % Discount <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm select-none">F1</span>
+                                    </button>
+                                    <button
+                                        onClick={handleLoyaltyPointsClick}
+                                        className="so-btn-secondary flex-1"
+                                        style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5' } : {}}
+                                    >
+                                        <Award size={14} /> Loyalty <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm select-none">F12</span>
+                                    </button>
+                                </div>
+                                <div className="flex gap-1.5 mb-4">
+                                    <button
+                                        onClick={handleSaveDraft}
+                                        className="so-btn-secondary flex-1"
+                                        style={{ color: '#d97706', borderColor: '#fef3c7' }}
+                                        disabled={billItems.length === 0}
+                                    >
+                                        <Package size={14} /> Save Draft <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200/60 font-mono shadow-sm select-none">F10</span>
+                                    </button>
+                                    <button
+                                        onClick={clearBillHandler}
+                                        className="so-btn-secondary flex-1"
+                                        style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
+                                    >
+                                        <Trash2 size={14} /> Reset <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200/60 font-mono shadow-sm select-none">Alt+C</span>
+                                    </button>
+                                </div>
+
+                                <button
+                                    className={`so-btn-pay ${paymentLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    disabled={grandTotal <= 0 || paymentLoading}
+                                    onClick={handleCheckout}
+                                >
+                                    {paymentLoading ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <span>Processing...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <CreditCard size={18} /> Confirm & Pay <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-emerald-700 text-white rounded border border-emerald-500 font-mono shadow-sm select-none">Space / F7</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </aside>
+                    </main>
+                </div>
+
+                {shortcutsPosition === 'bottom' && renderShortcutsHorizontal()}
+
+                {isDraggingShortcuts && renderDropZones()}
 
                 {renderCommonModals()}
             </div>
@@ -5135,7 +5853,7 @@ function Home() {
         const accentColor = '#e8c84a';
 
         return (
-            <div className={`classic-root ${!isGreen ? 'theme-blue' : ''}`}>
+            <div className={`classic-root ${!isGreen ? 'theme-blue' : ''}`} style={{ position: 'relative' }}>
                 <style>{classicStyles}</style>
 
                 {/* CLASSIC NAVBAR */}
@@ -5205,16 +5923,15 @@ function Home() {
                         {/* Dropdown Settings Button (Very Last!) */}
                         <div className="relative" ref={settingsDropdownRef}>
                             <button
-                                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowSettingsMenu(!showSettingsMenu);
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
                                 className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
-                                title="System & Settings"
+                                title="Settings"
                             >
                                 <Settings size={18} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
-                                {pendingSyncCount > 0 && (
-                                    <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white font-black text-[9px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
-                                        {pendingSyncCount}
-                                    </span>
-                                )}
                             </button>
 
                             {showSettingsMenu && (
@@ -5222,33 +5939,6 @@ function Home() {
                                     className="absolute right-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-[9999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
                                     style={{ borderTop: `4px solid ${isGreen ? '#10b981' : '#0ea5e9'}` }}
                                 >
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
-                                        System & Status
-                                    </div>
-
-                                    {/* Active Orders / Sync Status Card */}
-                                    <div className="flex flex-col gap-3 bg-slate-50/70 border border-slate-100 rounded-xl p-3.5 hover:bg-slate-50 transition-colors">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                                                <Package size={14} className="text-slate-400" />
-                                                Active Orders
-                                            </span>
-                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${pendingSyncCount > 0 ? 'bg-rose-50 text-rose-600 animate-pulse' : 'bg-slate-200/60 text-slate-500'}`}>
-                                                {pendingSyncCount} Pending
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                setShowDraftsModal(true);
-                                                setShowSettingsMenu(false);
-                                            }}
-                                            className={`w-full py-2 bg-gradient-to-r ${isGreen ? 'from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700' : 'from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700'} text-white font-black text-[10px] uppercase tracking-wider rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95`}
-                                        >
-                                            View Active Orders
-                                        </button>
-                                    </div>
-
-                                    <div className="h-[1px] bg-slate-100/80 my-1"></div>
                                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
                                         Configuration
                                     </div>
@@ -5278,66 +5968,7 @@ function Home() {
                 </nav>
 
                 {/* CLASSIC SHORTCUTS GUIDE - RELOCATED TO TOP */}
-                <div className="classic-shortcut-guide">
-                    {[
-                        { key: 'F1', label: 'Discount', color: '#ec4899', icon: <Percent size={12} />, action: () => setShowDiscountModal(prev => !prev) },
-                        { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
-                        { key: 'F3', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
-                        {
-                            key: 'F4', label: `CC (${countryCodePrefix})`, color: '#0ea5e9', icon: <Phone size={12} />, action: () => {
-                                setCountryCodePrefix(prev => {
-                                    const next = prev === '+971' ? '+91' : '+971';
-                                    localStorage.setItem('pos_country_code', next);
-                                    const Toast = Swal.mixin({
-                                        toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
-                                    });
-                                    Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
-                                    return next;
-                                });
-                            }
-                        },
-                        {
-                            key: 'F5', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
-                                if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
-                                else Swal.fire('Info', 'Select an item first', 'info');
-                            }
-                        },
-                        { key: 'F6', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} />, action: handleBulkQtyUpdate },
-                        { key: 'F7', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
-                        {
-                            key: 'F8', label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
-                                if (selectedBillIndex !== -1) {
-                                    const item = billItems[selectedBillIndex];
-                                    const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
-                                    toggleUom(item.id, newUom);
-                                } else {
-                                    Swal.fire('Info', 'Select an item in cart first', 'info');
-                                }
-                            }
-                        },
-                        { key: 'F9', label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
-                        { key: 'F10', label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
-                        { key: 'F12', label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
-                        { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
-                        { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
-                        { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
-                        { key: 'ESC', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
-                    ].map((s, idx) => (
-                        <div
-                            key={idx}
-                            className="classic-shortcut-badge"
-                            onClick={s.action}
-                        >
-                            <span className="classic-shortcut-key">
-                                {s.key}
-                            </span>
-                            <div className="classic-shortcut-icon">
-                                {s.icon}
-                            </div>
-                            <span className="classic-shortcut-label">{s.label}</span>
-                        </div>
-                    ))}
-                </div>
+                {shortcutsPosition === 'top' && renderClassicShortcutsHorizontal()}
 
                 {/* CLASSIC HEADER FORM */}
                 <div className="classic-header-form">
@@ -5447,6 +6078,8 @@ function Home() {
 
                 {/* CLASSIC MAIN BODY */}
                 <div className="flex-1 flex overflow-hidden">
+                    {shortcutsPosition === 'left' && renderClassicShortcutsVertical('left')}
+
                     <div className="classic-entry-area">
                         {/* GRID SECTION */}
                         <div className="flex-1 overflow-auto bg-slate-100 pb-16">
@@ -5479,9 +6112,9 @@ function Home() {
                                 </thead>
                                 <tbody>
                                     {billItems.map((item, idx) => {
-                                        const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
-                                        const effectivePrice = (item.uom === 'Box' && item.prices?.Box) ? item.prices.Box : (item.price * factor);
+                                        const effectivePrice = item.price;
                                         const lineTotal = item.qty * effectivePrice;
+                                        const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
                                         return (
                                             <tr
                                                 key={idx}
@@ -5583,10 +6216,10 @@ function Home() {
                                                         : (lineTotal * (taxRate / 100)).toFixed(2)}
                                                 </td>
                                                 <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50 flex items-center justify-center gap-0.5">
-                                                     <DirhamIcon size={12} /> {item.is_tax_inclusive
-                                                         ? (parseFloat(lineTotal) || 0).toFixed(2)
-                                                         : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
-                                                 </td>
+                                                    <DirhamIcon size={12} /> {item.is_tax_inclusive
+                                                        ? (parseFloat(lineTotal) || 0).toFixed(2)
+                                                        : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
+                                                </td>
                                                 <td className="text-center">
                                                     <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
                                                 </td>
@@ -5747,33 +6380,33 @@ function Home() {
                                 className={`px-6 py-2.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
                                 onClick={() => setShowDiscountModal(true)}
                             >
-                                <Palette size={14} /> % DISCOUNT
+                                <Palette size={14} /> % DISCOUNT <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">F1</span>
                             </button>
                             <button
                                 className={`px-6 py-2.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
                                 onClick={handleLoyaltyPointsClick}
                             >
-                                <Award size={14} /> LOYALTY
+                                <Award size={14} /> LOYALTY <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">F12</span>
                             </button>
                             <button
                                 className={`px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
                                 onClick={clearBillHandler}
                             >
-                                <Trash2 size={14} /> CLEAR BILL
+                                <Trash2 size={14} /> CLEAR BILL <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">Alt+C</span>
                             </button>
                             <button
                                 className={`px-8 py-2.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[13px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center gap-2 ml-4`}
                                 onClick={handleSaveDraft}
                                 disabled={billItems.length === 0}
                             >
-                                <Package size={16} /> SAVE DRAFT
+                                <Package size={16} /> SAVE DRAFT <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-amber-600 text-white rounded border border-amber-500 font-mono shadow-sm normal-case select-none">F10</span>
                             </button>
                             <button
                                 className={`px-12 py-2.5 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[14px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center gap-2`}
                                 onClick={handleCheckout}
                                 disabled={grandTotal <= 0}
                             >
-                                <CreditCard size={18} /> PROCESS PAYMENT
+                                <CreditCard size={18} /> PROCESS PAYMENT <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-white/20 text-white rounded border border-white/30 font-mono shadow-sm normal-case select-none">Space / F7</span>
                             </button>
                         </div>
 
@@ -5794,7 +6427,27 @@ function Home() {
                             <div className="ml-auto opacity-50 font-bold">READY · SYSTEM OK</div>
                         </div>
                     </div>
+                    {shortcutsPosition === 'right' && renderClassicShortcutsVertical('right')}
                 </div>
+
+                {shortcutsPosition === 'bottom' && renderClassicShortcutsHorizontal()}
+
+                {isDraggingShortcuts && renderDropZones()}
+
+                {/* FLOATING ACTIVE ORDERS BUTTON */}
+                <button
+                    onClick={() => setShowDraftsModal(true)}
+                    className="classic-active-orders-float-btn"
+                    title="View Active Orders"
+                >
+                    <Package size={16} />
+                    <span className="classic-active-orders-text">Active Orders</span>
+                    {pendingSyncCount > 0 && (
+                        <span className="classic-active-orders-badge">
+                            {pendingSyncCount}
+                        </span>
+                    )}
+                </button>
 
                 {/* Common Modals */}
                 {renderCommonModals()}
@@ -6162,7 +6815,7 @@ function Home() {
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div className="home-bill-item-info">
                                                             <span className="home-bill-item-name">{item.name}</span>
-                                                            <span className="home-bill-item-price flex items-center gap-0.5"><DirhamIcon size={11} /> {item.uom === 'Box' ? (item.price * (item.custom_pieces_per_box || 1)) : item.price} × {item.qty} Pc</span>
+                                                            <span className="home-bill-item-price flex items-center gap-0.5"><DirhamIcon size={11} /> {item.price} × {item.qty} {item.uom || 'Pc'}</span>
                                                         </div>
                                                         <div className="home-bill-item-actions">
                                                             <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, -1); }}>-</button>
@@ -6196,8 +6849,8 @@ function Home() {
                                     <div className="row">
                                         <div className="col-12">
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1 }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? (discount.type === 'percent' ? `Edit (${discount.value}%)` : <span className="flex items-center justify-center gap-0.5">Edit (<DirhamIcon size={10} />{discount.value})</span>) : 'Add Discount'}</button>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1, backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'}</button>
+                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? (discount.type === 'percent' ? `Edit (${discount.value}%)` : <span className="flex items-center justify-center gap-0.5">Edit (<DirhamIcon size={10} />{discount.value})</span>) : 'Add Discount'} <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-600 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">F1</span></button>
+                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'} <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-600 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">F12</span></button>
                                                 {grandTotal > 0 && <button className="home-bill-pay-btn" style={{ flex: 1 }} onClick={handleCheckout}>Pay</button>}
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
@@ -6253,18 +6906,36 @@ function Home() {
             )}
 
             {showCreateModal && (
-                <div className="home-modal-overlay" onClick={() => setShowCreateModal(false)}>
+                <div className="home-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}>
                     <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px' }}>
                         <div className="home-modal-header">
                             <h3>Create New Customer</h3>
                             <button className="home-modal-close" onClick={() => setShowCreateModal(false)}><X size={20} /></button>
                         </div>
                         <div className="home-modal-body">
-                            <input type="text" placeholder="Customer Name *" value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
+                            <input
+                                type="text"
+                                placeholder="Customer Name *"
+                                value={createForm.name}
+                                onChange={e => {
+                                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                                    setCreateForm({ ...createForm, name: val });
+                                }}
+                                className="home-customer-input"
+                                style={{ marginBottom: '0.75rem' }}
+                            />
                             <div style={{ display: 'flex', gap: '8px', marginBottom: '0.75rem' }}>
                                 <select
                                     value={countryCodePrefix}
-                                    onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
+                                    onChange={e => {
+                                        const newPrefix = e.target.value;
+                                        setCountryCodePrefix(newPrefix);
+                                        localStorage.setItem('pos_country_code', newPrefix);
+                                        const limit = newPrefix === '+971' ? 9 : 10;
+                                        if (createForm.phone.length > limit) {
+                                            setCreateForm(prev => ({ ...prev, phone: prev.phone.slice(0, limit) }));
+                                        }
+                                    }}
                                     className="home-customer-input"
                                     style={{ width: '100px', cursor: 'pointer', fontWeight: 700 }}
                                 >
@@ -6273,9 +6944,15 @@ function Home() {
                                 </select>
                                 <input
                                     type="tel"
-                                    placeholder="Phone"
+                                    placeholder={`Phone (${countryCodePrefix === '+971' ? '9 digits' : '10 digits'}) *`}
                                     value={createForm.phone}
-                                    onChange={e => setCreateForm({ ...createForm, phone: e.target.value })}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(/\D/g, '');
+                                        const limit = countryCodePrefix === '+971' ? 9 : 10;
+                                        if (val.length <= limit) {
+                                            setCreateForm({ ...createForm, phone: val });
+                                        }
+                                    }}
                                     className="home-customer-input"
                                     style={{ flex: 1, margin: 0 }}
                                 />

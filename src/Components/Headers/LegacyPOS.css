@@ -423,6 +423,7 @@ table.classic-table tbody tr:hover {
   color: #475569 !important;
   background: #ffffff !important;
   border-radius: 0.375rem !important;
+  font-weight: 800 !important;
 }
 
 .theme-legacy .home-category-btn:hover {
@@ -431,9 +432,12 @@ table.classic-table tbody tr:hover {
 }
 
 .theme-legacy .home-category-btn-active {
-  background: var(--legacy-primary-light) !important;
-  color: var(--legacy-primary) !important;
-  border: 1px solid var(--legacy-primary-border) !important;
+  background: var(--legacy-primary) !important;
+  color: #ffffff !important;
+  border: 1px solid var(--legacy-primary-hover) !important;
+  font-weight: 900 !important;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.22) !important;
+  transform: translateY(-1px);
 }
 
 /* ---- Item cards ---- */
@@ -527,4 +531,75 @@ table.classic-table tbody tr:hover {
 /* ---- Items container (right panel) ---- */
 .theme-legacy .home-items-container {
   background: transparent !important;
+}
+
+/* ============================================================
+   FLOATING ACTIVE ORDERS BUTTON (WhatsApp Style)
+   ============================================================ */
+.classic-active-orders-float-btn {
+  position: fixed;
+  bottom: 110px;
+  left: 20px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--legacy-primary) !important;
+  color: #ffffff !important;
+  border: 1px solid var(--legacy-primary-hover) !important;
+  border-radius: 50px !important;
+  font-size: 0.72rem !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.classic-active-orders-float-btn:hover {
+  background: var(--legacy-primary-hover) !important;
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.classic-active-orders-float-btn:active {
+  transform: scale(0.98) translateY(0);
+}
+
+.classic-active-orders-text {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.72rem !important;
+  font-weight: 900 !important;
+}
+
+.classic-active-orders-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  font-size: 0.65rem !important;
+  font-weight: 900 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  animation: pulse-classic-badge 2s infinite;
+}
+
+@keyframes pulse-classic-badge {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
