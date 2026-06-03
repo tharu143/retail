@@ -4149,20 +4149,41 @@ function Home() {
                 <table class="items-table">
                     <thead>
                         <tr>
-                            <th style="width: 55%; text-align: left;">ITEM</th>
-                            <th class="text-right" style="width: 15%;">QTY</th>
-                            <th class="text-right" style="width: 30%;">PRICE</th>
+                            <th style="width: 30%; text-align: left; font-size: 9px;">ITEM</th>
+                            <th class="text-right" style="width: 10%; font-size: 9px;">QTY</th>
+                            <th class="text-center" style="width: 10%; font-size: 9px;">UOM</th>
+                            <th class="text-right" style="width: 12%; font-size: 9px;">PRICE</th>
+                            <th class="text-center" style="width: 10%; font-size: 9px;">VAT</th>
+                            <th class="text-right" style="width: 13%; font-size: 9px;">VAT VAL</th>
+                            <th class="text-right" style="width: 15%; font-size: 9px;">AMOUNT</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${(invoiceData.items || []).map(it => {
-            const unitPrice = (it.uom === 'Box' ? (it.price * (it.custom_pieces_per_box || 1)) : it.price) || it.rate || it.basePrice || 0;
-            const lineTotal = (it.qty || 1) * unitPrice;
+            const qty = parseFloat(it.qty) || 1;
+            const price = parseFloat(it.price || it.rate || it.basePrice || 0);
+            const isInc = it.is_tax_inclusive !== false;
+            const taxRatePercent = 5.0; // Standard VAT rate fallback
+            
+            // Calculate VAT for one unit
+            const vatVal = isInc 
+                ? (price - (price / (1 + (taxRatePercent / 100)))) 
+                : (price * (taxRatePercent / 100));
+                
+            // Calculate total line amount
+            const lineTotal = isInc 
+                ? (qty * price) 
+                : (qty * (price + vatVal));
+
             return `
                             <tr>
-                                <td style="padding-right: 5px; word-break: break-word;">${it.item_name || it.item_code || it.name || 'ITEM'}</td>
-                                <td class="text-right" style="padding-right: 5px;">${it.qty || 1} <span style="font-size: 0.85em; opacity: 0.8;">${it.uom || ''}</span></td>
-                                <td class="text-right">${parseFloat(lineTotal).toFixed(2)}</td>
+                                <td style="padding-right: 2px; word-break: break-word; font-size: 9px;">${it.item_name || it.item_code || it.name || 'ITEM'}</td>
+                                <td class="text-right" style="padding-right: 2px; font-size: 9px;">${qty}</td>
+                                <td class="text-center" style="padding-right: 2px; font-size: 9px;">${it.uom || ''}</td>
+                                <td class="text-right" style="padding-right: 2px; font-size: 9px;">${price.toFixed(2)}</td>
+                                <td class="text-center" style="padding-right: 2px; font-size: 9px;">${isInc ? 'INC' : 'EXC'}</td>
+                                <td class="text-right" style="padding-right: 2px; font-size: 9px;">${vatVal.toFixed(2)}</td>
+                                <td class="text-right" style="font-size: 9px;">${parseFloat(lineTotal).toFixed(2)}</td>
                             </tr>
                           `;
         }).join('')}

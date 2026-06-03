@@ -686,7 +686,7 @@ const SalesInvoiceList = () => {
     printWindow.document.write(`
     <html>
         <head>
-            <title>Receipt - \${invoiceData.name}</title>
+            <title>Receipt - ${invoiceData.name}</title>
             <style>
                 @page { size: 80mm auto; margin: 0; }
                 body { 
@@ -714,36 +714,57 @@ const SalesInvoiceList = () => {
         </head>
         <body>
             <div class="header center">
-                <h2 class="bold">\${companyName}</h2>
-                <p>\${storeAddress}</p>
+                <h2 class="bold">${companyName}</h2>
+                <p>${storeAddress}</p>
                 <p>Tel: +971 00 000 0000</p>
             </div>
             <div class="divider"></div>
             <div class="info">
-                <div class="info-row"><span>CASHIER:</span> <span class="bold">#\${cashierName}</span></div>
-                <div class="info-row"><span>DATE:</span> <span>\${invoiceData.posting_date}</span></div>
-                <div class="info-row"><span>TIME:</span> <span>\${invoiceData.posting_time || 'N/A'}</span></div>
-                <div class="info-row"><span>INV NO:</span> <span class="bold">\${invoiceData.name}</span></div>
+                <div class="info-row"><span>CASHIER:</span> <span class="bold">#${cashierName}</span></div>
+                <div class="info-row"><span>DATE:</span> <span>${invoiceData.posting_date}</span></div>
+                <div class="info-row"><span>TIME:</span> <span>${invoiceData.posting_time || 'N/A'}</span></div>
+                <div class="info-row"><span>INV NO:</span> <span class="bold">${invoiceData.name}</span></div>
             </div>
             <table class="items-table">
                 <thead>
                     <tr>
-                        <th style="width: 55%; text-align: left;">ITEM</th>
-                        <th class="text-right" style="width: 15%;">QTY</th>
-                        <th class="text-right" style="width: 30%;">PRICE</th>
+                        <th style="width: 30%; text-align: left; font-size: 9px;">ITEM</th>
+                        <th class="text-right" style="width: 10%; font-size: 9px;">QTY</th>
+                        <th class="text-center" style="width: 10%; font-size: 9px;">UOM</th>
+                        <th class="text-right" style="width: 12%; font-size: 9px;">PRICE</th>
+                        <th class="text-center" style="width: 10%; font-size: 9px;">VAT</th>
+                        <th class="text-right" style="width: 13%; font-size: 9px;">VAT VAL</th>
+                        <th class="text-right" style="width: 15%; font-size: 9px;">AMOUNT</th>
                     </tr>
                 </thead>
                 <tbody>
-                    \${(invoiceData.items || []).map(it => {
-                      const unitPrice = it.rate || 0;
-                      const lineTotal = it.amount || ((it.qty || 1) * unitPrice);
-                      return \`
+                    ${(invoiceData.items || []).map(it => {
+                      const qty = parseFloat(it.qty) || 1;
+                      const price = parseFloat(it.price || it.rate || it.basePrice || 0);
+                      const isInc = it.is_tax_inclusive !== false;
+                      const taxRatePercent = 5.0; // Standard VAT rate fallback
+                      
+                      // Calculate VAT for one unit
+                      const vatVal = isInc 
+                          ? (price - (price / (1 + (taxRatePercent / 100)))) 
+                          : (price * (taxRatePercent / 100));
+                          
+                      // Calculate total line amount
+                      const lineTotal = isInc 
+                          ? (qty * price) 
+                          : (qty * (price + vatVal));
+
+                      return `
                         <tr>
-                            <td style="padding-right: 5px; word-break: break-word;">\${it.item_name || it.item_code || 'ITEM'}</td>
-                            <td class="text-right" style="padding-right: 5px;">\${it.qty || 1} <span style="font-size: 0.85em; opacity: 0.8;">\${it.uom || ''}</span></td>
-                            <td class="text-right">\${parseFloat(lineTotal).toFixed(2)}</td>
+                            <td style="padding-right: 2px; word-break: break-word; font-size: 9px;">${it.item_name || it.item_code || 'ITEM'}</td>
+                            <td class="text-right" style="padding-right: 2px; font-size: 9px;">${qty}</td>
+                            <td class="text-center" style="padding-right: 2px; font-size: 9px;">${it.uom || ''}</td>
+                            <td class="text-right" style="padding-right: 2px; font-size: 9px;">${price.toFixed(2)}</td>
+                            <td class="text-center" style="padding-right: 2px; font-size: 9px;">${isInc ? 'INC' : 'EXC'}</td>
+                            <td class="text-right" style="padding-right: 2px; font-size: 9px;">${vatVal.toFixed(2)}</td>
+                            <td class="text-right" style="font-size: 9px;">${parseFloat(lineTotal).toFixed(2)}</td>
                         </tr>
-                      \`;
+                      `;
                     }).join('')}
                 </tbody>
             </table>
@@ -751,48 +772,48 @@ const SalesInvoiceList = () => {
             <div class="totals">
                 <div class="total-row">
                     <span>SUB TOTAL</span>
-                    <span>AED \${parseFloat(invoiceData.base_total || invoiceData.subtotal || 0).toFixed(2)}</span>
+                    <span>AED ${parseFloat(invoiceData.base_total || invoiceData.subtotal || 0).toFixed(2)}</span>
                 </div>
-                \${parseFloat(invoiceData.discount_amount || 0) > 0 ? \`
+                ${parseFloat(invoiceData.discount_amount || 0) > 0 ? `
                     <div class="total-row">
                         <span>DISCOUNT</span>
-                        <span>-AED \${parseFloat(invoiceData.discount_amount).toFixed(2)}</span>
+                        <span>-AED ${parseFloat(invoiceData.discount_amount).toFixed(2)}</span>
                     </div>
-                \` : ''}
-                \${parseFloat(invoiceData.total_taxes_and_charges || invoiceData.tax_amount || 0) > 0 ? \`
+                ` : ''}
+                ${parseFloat(invoiceData.total_taxes_and_charges || invoiceData.tax_amount || 0) > 0 ? `
                     <div class="total-row">
                         <span>TAX</span>
-                        <span>AED \${parseFloat(invoiceData.total_taxes_and_charges || invoiceData.tax_amount || 0).toFixed(2)}</span>
+                        <span>AED ${parseFloat(invoiceData.total_taxes_and_charges || invoiceData.tax_amount || 0).toFixed(2)}</span>
                     </div>
-                \` : ''}
+                ` : ''}
                 <div class="total-row grand-total bold">
                     <span>TOTAL</span>
-                    <span>AED \${parseFloat(invoiceData.grand_total || invoiceData.rounded_total || 0).toFixed(2)}</span>
+                    <span>AED ${parseFloat(invoiceData.grand_total || invoiceData.rounded_total || 0).toFixed(2)}</span>
                 </div>
                 <div style="margin-top: 10px;">
-                    \${(invoiceData.payments && invoiceData.payments.some(p => parseFloat(p.amount) > 0)) ? 
-                      invoiceData.payments.filter(p => parseFloat(p.amount) > 0).map(p => \`
+                    ${(invoiceData.payments && invoiceData.payments.some(p => parseFloat(p.amount) > 0)) ? 
+                      invoiceData.payments.filter(p => parseFloat(p.amount) > 0).map(p => `
                         <div class="total-row">
-                            <span>\${(p.mode_of_payment || 'PAYMENT').toUpperCase()}</span>
-                            <span>AED \${parseFloat(p.amount || 0).toFixed(2)}</span>
+                            <span>${(p.mode_of_payment || 'PAYMENT').toUpperCase()}</span>
+                            <span>AED ${parseFloat(p.amount || 0).toFixed(2)}</span>
                         </div>
-                      \`).join('') : \`
+                      `).join('') : `
                         <div class="total-row">
-                            <span>\${invoiceData.outstanding_amount > 0 ? 'CREDIT' : 'PAID'}</span>
-                            <span>AED \${parseFloat(invoiceData.grand_total || invoiceData.rounded_total || 0).toFixed(2)}</span>
+                            <span>${invoiceData.outstanding_amount > 0 ? 'CREDIT' : 'PAID'}</span>
+                            <span>AED ${parseFloat(invoiceData.grand_total || invoiceData.rounded_total || 0).toFixed(2)}</span>
                         </div>
-                      \`
+                      `
                     }
                 </div>
-                \${changeDue > 0 ? \`
+                ${changeDue > 0 ? `
                   <div class="total-row" style="margin-top: 5px; opacity: 0.8;">
                       <span>CHANGE</span>
-                      <span class="bold">AED \${changeDue.toFixed(2)}</span>
+                      <span class="bold">AED ${changeDue.toFixed(2)}</span>
                   </div>
-                \` : ''}
+                ` : ''}
             </div>
             <div class="center">
-                <img class="barcode" src="\${barCodeUrl}" />
+                <img class="barcode" src="${barCodeUrl}" />
                 <div class="footer">
                     <p class="bold" style="font-size: 12px;">THANK YOU!</p>
                     <p>GLAD TO SEE YOU AGAIN!</p>
@@ -1153,7 +1174,11 @@ const SalesInvoiceList = () => {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", fontSize: "0.875rem" }}>
                           <div>
                             <span style={{ color: "#94a3b8", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Branch / Warehouse</span>
-                            <span style={{ color: "#1e293b", fontWeight: 700 }}>{form.set_warehouse ? form.set_warehouse.split(" - ")[0] : "N/A"}</span>
+                            <span style={{ color: "#1e293b", fontWeight: 700 }}>
+                              {form.set_warehouse 
+                                ? form.set_warehouse.split(" - ")[0] 
+                                : (warehouse ? warehouse.split(" - ")[0] : "N/A")}
+                            </span>
                           </div>
                           <div>
                             <span style={{ color: "#94a3b8", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Price List</span>
