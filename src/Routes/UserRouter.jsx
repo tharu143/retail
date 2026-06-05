@@ -1,4 +1,5 @@
 import { Route, Routes, useLocation } from 'react-router-dom'
+import ScrollToTop from '../Components/ScrollToTop'
 import { useSelector } from 'react-redux';
 import NavBar from '../Components/Nav/NavBar'
 import HomePage from '../Pages/HomePage'
@@ -57,6 +58,7 @@ function UserRouter() {
 
   return (
     <>
+      <ScrollToTop />
       {showNavBar && <NavBar />}
       <div style={{ paddingTop: applyPadding ? '56px' : '0' }}>
         <Routes>

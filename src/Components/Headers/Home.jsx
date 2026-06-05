@@ -1368,7 +1368,7 @@ function Home() {
                 }
             }, 100);
         }
-    };    const createCustomer = async () => {
+    }; const createCustomer = async () => {
         const cleanedName = createForm.name.trim().replace(/[^a-zA-Z\s]/g, '');
         if (!cleanedName) {
             Swal.fire('Validation Error', 'Customer name is required and must contain only alphabets.', 'warning');
@@ -2126,7 +2126,7 @@ function Home() {
                             html5Qrcode.stop().catch(fallbackErr => console.error("[Scanner Debug] Error stopping on fallback success:", fallbackErr));
                         }
                     },
-                    (errorMessage) => {}
+                    (errorMessage) => { }
                 ).catch(finalErr => {
                     console.error("[Scanner Debug] All startup options failed:", finalErr);
                     Swal.fire('Camera Error', 'Could not start camera barcode scanner.', 'error');
@@ -3454,7 +3454,7 @@ function Home() {
                             input.addEventListener('keydown', (e) => {
                                 const maxDigits = getLimit();
                                 const stripped = input.value.replace(/\D/g, '');
-                                if (stripped.length >= maxDigits && 
+                                if (stripped.length >= maxDigits &&
                                     !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
                                     e.preventDefault();
                                 }
@@ -4164,15 +4164,15 @@ function Home() {
             const price = parseFloat(it.price || it.rate || it.basePrice || 0);
             const isInc = it.is_tax_inclusive !== false;
             const taxRatePercent = 5.0; // Standard VAT rate fallback
-            
+
             // Calculate VAT for one unit
-            const vatVal = isInc 
-                ? (price - (price / (1 + (taxRatePercent / 100)))) 
+            const vatVal = isInc
+                ? (price - (price / (1 + (taxRatePercent / 100))))
                 : (price * (taxRatePercent / 100));
-                
+
             // Calculate total line amount
-            const lineTotal = isInc 
-                ? (qty * price) 
+            const lineTotal = isInc
+                ? (qty * price)
                 : (qty * (price + vatVal));
 
             return `
@@ -5542,7 +5542,7 @@ function Home() {
                                                                         mobile_no: mobileWithCode,
                                                                         primary_address: "",
                                                                         email_id: "",
-                                        is_synced: 0,
+                                                                        is_synced: 0,
                                                                         is_offline: true
                                                                     };
                                                                     await db.customers.put(offlineCustomer);
@@ -5555,11 +5555,11 @@ function Home() {
                                                                 setCustomerLoading(false);
                                                             }
                                                         } else {
-                                                             // It's a name, show input popup to enter mobile number with country prefix switch
-                                                             const result = await Swal.fire({
-                                                                 title: 'Create Customer',
-                                                                 text: `Enter mobile number for "${term}":`,
-                                                                 html: `
+                                                            // It's a name, show input popup to enter mobile number with country prefix switch
+                                                            const result = await Swal.fire({
+                                                                title: 'Create Customer',
+                                                                text: `Enter mobile number for "${term}":`,
+                                                                html: `
                                                                      <div style="display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 15px;">
                                                                          <select id="swal-country-code" style="height: 38px; padding: 0 8px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; outline: none; cursor: pointer;">
                                                                              <option value="+971" ${countryCodePrefix === '+971' ? 'selected' : ''}>🇦🇪 +971</option>
@@ -5568,94 +5568,94 @@ function Home() {
                                                                          <input id="swal-mobile-input" type="tel" placeholder="Enter mobile number..." style="height: 38px; padding: 0 12px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; flex: 1; outline: none;" />
                                                                      </div>
                                                                  `,
-                                                                 showCancelButton: true,
-                                                                 confirmButtonText: 'Create Customer',
-                                                                 cancelButtonText: 'Cancel',
-                                                                 confirmButtonColor: '#2563eb',
-                                                                 allowEnterKey: false,
-                                                                 didOpen: () => {
-                                                                     const select = document.getElementById('swal-country-code');
-                                                                     const input = document.getElementById('swal-mobile-input');
-                                                                     if (select && input) {
-                                                                         input.focus();
-                                                                         const getLimit = () => select.value === '+971' ? 9 : 10;
-                                                                         input.addEventListener('input', (e) => {
-                                                                             let val = e.target.value.replace(/\D/g, '');
-                                                                             const maxDigits = getLimit();
-                                                                             if (val.length > maxDigits) {
-                                                                                 val = val.substring(0, maxDigits);
-                                                                             }
-                                                                             e.target.value = val;
-                                                                         });
-                                                                         input.addEventListener('keydown', (e) => {
-                                                                             const maxDigits = getLimit();
-                                                                             const stripped = input.value.replace(/\D/g, '');
-                                                                             if (stripped.length >= maxDigits && 
-                                                                                 !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
-                                                                                 e.preventDefault();
-                                                                             }
-                                                                         });
-                                                                         select.addEventListener('change', () => {
-                                                                             let val = input.value.replace(/\D/g, '');
-                                                                             const maxDigits = getLimit();
-                                                                             if (val.length > maxDigits) {
-                                                                                 val = val.substring(0, maxDigits);
-                                                                             }
-                                                                             input.value = val;
-                                                                             input.focus();
-                                                                         });
-                                                                     }
-                                                                 },
-                                                                 preConfirm: () => {
-                                                                     const code = document.getElementById('swal-country-code').value;
-                                                                     const number = document.getElementById('swal-mobile-input').value;
-                                                                     const stripped = number.replace(/\D/g, '');
-                                                                     if (!stripped) {
-                                                                         Swal.showValidationMessage('Mobile number is required!');
-                                                                         return false;
-                                                                     }
-                                                                     if (code === '+971' && stripped.length !== 9) {
-                                                                         Swal.showValidationMessage('UAE mobile number must be exactly 9 digits.');
-                                                                         return false;
-                                                                     }
-                                                                     if (code === '+91' && stripped.length !== 10) {
-                                                                         Swal.showValidationMessage('India mobile number must be exactly 10 digits.');
-                                                                         return false;
-                                                                     }
-                                                                     return { code, number: stripped };
-                                                                 }
-                                                             });
-                                                             if (result.isConfirmed && result.value) {
-                                                                 const { code, number } = result.value;
-                                                                 const mobileWithCode = `${code}${number}`;
-                                                                 setCustomerLoading(true);
-                                                                 try {
-                                                                     const res = await frappeCall({
-                                                                         method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
-                                                                         args: {
-                                                                             mobile_no: mobileWithCode,
-                                                                             customer_name: term,
-                                                                             warehouse: warehouse,
-                                                                             customer_group: 'Retail Customer'
-                                                                         }
-                                                                     });
-                                                                     if (res && res.name) {
-                                                                         pickCustomer(res);
-                                                                         const Toast = Swal.mixin({
-                                                                             toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                                                         });
-                                                                         Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name}` });
-                                                                     } else {
-                                                                         Swal.fire('Error', "Failed to create customer", 'error');
-                                                                     }
-                                                                 } catch (err) {
-                                                                     console.error(err);
-                                                                     Swal.fire('Error', err.message || "Failed to create customer", 'error');
-                                                                 } finally {
-                                                                     setCustomerLoading(false);
-                                                                 }
-                                                             }
-                                                             setShowDropdown(false);
+                                                                showCancelButton: true,
+                                                                confirmButtonText: 'Create Customer',
+                                                                cancelButtonText: 'Cancel',
+                                                                confirmButtonColor: '#2563eb',
+                                                                allowEnterKey: false,
+                                                                didOpen: () => {
+                                                                    const select = document.getElementById('swal-country-code');
+                                                                    const input = document.getElementById('swal-mobile-input');
+                                                                    if (select && input) {
+                                                                        input.focus();
+                                                                        const getLimit = () => select.value === '+971' ? 9 : 10;
+                                                                        input.addEventListener('input', (e) => {
+                                                                            let val = e.target.value.replace(/\D/g, '');
+                                                                            const maxDigits = getLimit();
+                                                                            if (val.length > maxDigits) {
+                                                                                val = val.substring(0, maxDigits);
+                                                                            }
+                                                                            e.target.value = val;
+                                                                        });
+                                                                        input.addEventListener('keydown', (e) => {
+                                                                            const maxDigits = getLimit();
+                                                                            const stripped = input.value.replace(/\D/g, '');
+                                                                            if (stripped.length >= maxDigits &&
+                                                                                !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
+                                                                                e.preventDefault();
+                                                                            }
+                                                                        });
+                                                                        select.addEventListener('change', () => {
+                                                                            let val = input.value.replace(/\D/g, '');
+                                                                            const maxDigits = getLimit();
+                                                                            if (val.length > maxDigits) {
+                                                                                val = val.substring(0, maxDigits);
+                                                                            }
+                                                                            input.value = val;
+                                                                            input.focus();
+                                                                        });
+                                                                    }
+                                                                },
+                                                                preConfirm: () => {
+                                                                    const code = document.getElementById('swal-country-code').value;
+                                                                    const number = document.getElementById('swal-mobile-input').value;
+                                                                    const stripped = number.replace(/\D/g, '');
+                                                                    if (!stripped) {
+                                                                        Swal.showValidationMessage('Mobile number is required!');
+                                                                        return false;
+                                                                    }
+                                                                    if (code === '+971' && stripped.length !== 9) {
+                                                                        Swal.showValidationMessage('UAE mobile number must be exactly 9 digits.');
+                                                                        return false;
+                                                                    }
+                                                                    if (code === '+91' && stripped.length !== 10) {
+                                                                        Swal.showValidationMessage('India mobile number must be exactly 10 digits.');
+                                                                        return false;
+                                                                    }
+                                                                    return { code, number: stripped };
+                                                                }
+                                                            });
+                                                            if (result.isConfirmed && result.value) {
+                                                                const { code, number } = result.value;
+                                                                const mobileWithCode = `${code}${number}`;
+                                                                setCustomerLoading(true);
+                                                                try {
+                                                                    const res = await frappeCall({
+                                                                        method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
+                                                                        args: {
+                                                                            mobile_no: mobileWithCode,
+                                                                            customer_name: term,
+                                                                            warehouse: warehouse,
+                                                                            customer_group: 'Retail Customer'
+                                                                        }
+                                                                    });
+                                                                    if (res && res.name) {
+                                                                        pickCustomer(res);
+                                                                        const Toast = Swal.mixin({
+                                                                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                                                                        });
+                                                                        Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name}` });
+                                                                    } else {
+                                                                        Swal.fire('Error', "Failed to create customer", 'error');
+                                                                    }
+                                                                } catch (err) {
+                                                                    console.error(err);
+                                                                    Swal.fire('Error', err.message || "Failed to create customer", 'error');
+                                                                } finally {
+                                                                    setCustomerLoading(false);
+                                                                }
+                                                            }
+                                                            setShowDropdown(false);
                                                         }
                                                     }
                                                 }}
@@ -5751,7 +5751,21 @@ function Home() {
                                                 </div>
 
                                                 <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
-                                                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const newBill = [...billItems];
+                                                                newBill[idx].is_tax_inclusive = !newBill[idx].is_tax_inclusive;
+                                                                setBillItems(newBill);
+                                                            }}
+                                                            className={`px-2 py-0.5 rounded-md text-[9px] font-black cursor-pointer hover:scale-105 active:scale-95 transition-all select-none ${item.is_tax_inclusive !== false ? 'bg-sky-100 text-sky-600 hover:bg-sky-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`}
+                                                            title={item.is_tax_inclusive !== false ? 'Tax Inclusive - Click to change' : 'Tax Exclusive - Click to change'}
+                                                        >
+                                                            {item.is_tax_inclusive !== false ? 'INC' : 'EXC'}
+                                                        </div>
+                                                    </div>
                                                     <span className="text-[13px] font-black text-slate-800 flex items-center gap-0.5"><DirhamIcon size={12} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}</span>
                                                 </div>
                                             </div>
@@ -6854,7 +6868,35 @@ function Home() {
                                                 <li key={item.id} className="home-bill-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div className="home-bill-item-info">
-                                                            <span className="home-bill-item-name">{item.name}</span>
+                                                            <span className="home-bill-item-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                {item.name}
+                                                                <span
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const newBill = [...billItems];
+                                                                        const idx = newBill.findIndex(b => b.id === item.id);
+                                                                        if (idx !== -1) {
+                                                                            newBill[idx].is_tax_inclusive = !newBill[idx].is_tax_inclusive;
+                                                                            setBillItems(newBill);
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        fontSize: '9px',
+                                                                        fontWeight: 900,
+                                                                        padding: '1px 6px',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer',
+                                                                        userSelect: 'none',
+                                                                        transition: 'all 0.15s ease',
+                                                                        background: item.is_tax_inclusive !== false ? '#dbeafe' : '#fef3c7',
+                                                                        color: item.is_tax_inclusive !== false ? '#2563eb' : '#d97706',
+                                                                        flexShrink: 0
+                                                                    }}
+                                                                    title={item.is_tax_inclusive !== false ? 'Tax Inclusive - Click to toggle' : 'Tax Exclusive - Click to toggle'}
+                                                                >
+                                                                    {item.is_tax_inclusive !== false ? 'Inc' : 'Exc'}
+                                                                </span>
+                                                            </span>
                                                             <span className="home-bill-item-price flex items-center gap-0.5"><DirhamIcon size={11} /> {item.price} × {item.qty} {item.uom || 'Pc'}</span>
                                                         </div>
                                                         <div className="home-bill-item-actions">

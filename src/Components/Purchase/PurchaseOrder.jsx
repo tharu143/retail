@@ -54,6 +54,24 @@ const getLocalISOString = () => {
   return (new Date(Date.now() - tzoffset)).toISOString().slice(0, 16);
 };
 
+const getDefaultTaxTemplate = (templates, activeWarehouse) => {
+  if (!templates || templates.length === 0) return '';
+  const companyAbbr = activeWarehouse && activeWarehouse.includes(' - ')
+    ? activeWarehouse.split(' - ').pop()
+    : '';
+  if (companyAbbr) {
+    const target = templates.find(t =>
+      t.name.toLowerCase().includes('5%') && t.name.toLowerCase().includes(companyAbbr.toLowerCase())
+    );
+    if (target) return target.name;
+  }
+  const target5Percent = templates.find(t =>
+    t.name.toLowerCase().includes('vat 5%') || t.name.toLowerCase().includes('5%')
+  );
+  if (target5Percent) return target5Percent.name;
+  return templates[0]?.name || '';
+};
+
 function PurchaseOrder() {
   const navigate = useNavigate();
   const { warehouse, user_roles, theme } = useSelector((state) => state.user || {});
@@ -1182,21 +1200,20 @@ function PurchaseOrder() {
 
   const fetchTaxTemplates = async () => {
     try {
-      // Step 1: Get templates for the company
-      const res = await fetch(`${API_PATH}.get_purchase_tax_templates?company=${encodeURIComponent(formData.company)}`, {
-        headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include'
+      // Fetch templates from the same legacy endpoint used in other purchase modules
+      const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+      const res = await axios.get(`${LEGACY_API}.get_purchase_taxes_templates`, {
+        params: { company: formData.company },
+        withCredentials: true
       });
-      if (!res.ok) throw new Error('Failed');
-      const data = await res.json();
-      const templates = data.message || [];
+      const templates = res.data?.message || [];
       setTaxTemplates(templates);
 
       // Auto-set default 5% tax for NEW documents if nothing selected
       if (!formData.name && !formData.taxes_and_charges && templates.length > 0) {
-        const defaultTax = templates.find(t => t.name.includes('UAE VAT 5% - NS')) || templates.find(t => t.name === 'UAE VAT 5%') || templates.find(t => t.name.includes('5%'));
-        if (defaultTax) {
-          onTaxChange(defaultTax.name);
+        const defaultTaxName = getDefaultTaxTemplate(templates, warehouse || localStorage.getItem('warehouse') || '');
+        if (defaultTaxName) {
+          onTaxChange(defaultTaxName);
         }
       }
     } catch (err) {

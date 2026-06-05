@@ -691,13 +691,15 @@ function PurchaseInvoiceList() {
     });
     setFormErrors({});
     setSearchSupplier('');
-    setTaxPreview([]);
+    // NOTE: Do NOT clear taxPreview here — the useEffect watching formData.taxes_and_charges
+    // will automatically load the correct tax template details when taxes_and_charges is set above.
     setDocName('');
     setDocStatus(null);
     setBarcodeInput(''); // NEW: Reset barcode
     setIsEditMode(false);
     setIsViewMode(false);
     setIsModalOpen(true);
+
   }, [taxTemplates]);
 
   const handleDuplicate = () => {

@@ -763,7 +763,7 @@ function InterBranchTransferDetails() {
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto space-y-6 mt-6">
+      <div className="w-full space-y-6 mt-6" style={{ padding: '0 1.5rem' }}>
         
         {/* Route Selector Card - Redesigned to po-card */}
         <div className="po-card animate-fadeIn">
