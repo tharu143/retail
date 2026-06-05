@@ -13,6 +13,7 @@ const userSlice = createSlice({
     user_roles: [],
     theme: 'modern', // 'modern' or 'legacy'
     secret_key: '1234', // Default cashier secret key
+    notifications: [], // Store inter-branch notifications
     message: {
       allowed_item_groups: [],
       allowed_customer_groups: [],
@@ -32,6 +33,7 @@ const userSlice = createSlice({
       state.user_roles = action.payload.user_roles || [];
       state.message = action.payload.message;
       state.secret_key = action.payload.secret_key || action.payload.user?.custom_secret_key || '1234';
+      state.notifications = [];
     },
     logout: (state) => {
       state.user = null;
@@ -42,6 +44,7 @@ const userSlice = createSlice({
       state.branchPrefix = null;
       state.theme = 'modern';
       state.secret_key = '1234';
+      state.notifications = [];
       state.message = {
         allowed_item_groups: [],
         allowed_customer_groups: [],
@@ -67,8 +70,36 @@ const userSlice = createSlice({
     setSecretKey: (state, action) => {
       state.secret_key = action.payload;
     },
+    setNotifications: (state, action) => {
+      state.notifications = action.payload;
+    },
+    addNotification: (state, action) => {
+      const exists = state.notifications.some(n => n.name === action.payload.name);
+      if (!exists) {
+        state.notifications = [action.payload, ...state.notifications];
+      }
+    },
+    markRead: (state, action) => {
+      state.notifications = state.notifications.map(n =>
+        n.name === action.payload ? { ...n, read: 1 } : n
+      );
+    },
+    markAllRead: (state) => {
+      state.notifications = state.notifications.map(n => ({ ...n, read: 1 }));
+    },
   },
 });
 
-export const { loginSuccess, logout, setWarehouse, toggleTheme, setTheme, setSecretKey } = userSlice.actions;
+export const {
+  loginSuccess,
+  logout,
+  setWarehouse,
+  toggleTheme,
+  setTheme,
+  setSecretKey,
+  setNotifications,
+  addNotification,
+  markRead,
+  markAllRead
+} = userSlice.actions;
 export default userSlice.reducer;

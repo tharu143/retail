@@ -2,10 +2,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import './NavBar.css';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { logout, toggleTheme } from "../../Redux/Slices/userSlice";
+import { logout, toggleTheme, markRead, markAllRead } from "../../Redux/Slices/userSlice";
 import { persistor } from "../../Redux/store";
 import { db } from "../../db";
-import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon, Palette, Search } from "lucide-react";
+import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon, Palette, Search, Bell } from "lucide-react";
 import Swal from 'sweetalert2';
 import { authFetchBase } from "../../utils/authFetch";
 function NavBar() {
@@ -23,6 +23,12 @@ function NavBar() {
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
   const searchContainerRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  // Notification States
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsContainerRef = useRef(null);
+  const notifications = useSelector((state) => state.user.notifications || []);
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const SEARCHABLE_PAGES = [
     { name: "Customer List", path: "/customerlist", keywords: ["customer", "client", "buyer", "customerlist"] },
@@ -100,11 +106,14 @@ function NavBar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [navigate]);
 
-  // Close search on click outside
+  // Close search and notifications on click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
         setShowSearchResults(false);
+      }
+      if (notificationsContainerRef.current && !notificationsContainerRef.current.contains(e.target)) {
+        setShowNotifications(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -321,6 +330,41 @@ function NavBar() {
     };
   }, [checkSyncCount, syncPending]);
 
+  const handleMarkAllRead = async () => {
+    try {
+      const response = await authFetchBase('kyle_retail.retail_api.api.mark_all_notifications_as_read', {
+        method: 'POST'
+      });
+      const resData = await response.json();
+      const data = resData.message || resData;
+      if (data && data.status === 'success') {
+        dispatch(markAllRead());
+      }
+    } catch (error) {
+      console.error("[NavBar] Failed to mark all notifications as read:", error);
+    }
+  };
+
+  const handleNotificationClick = async (notif) => {
+    try {
+      setShowNotifications(false);
+      // Mark as read in backend
+      const response = await authFetchBase('kyle_retail.retail_api.api.mark_notification_as_read', {
+        method: 'POST',
+        body: JSON.stringify({ notification_name: notif.name })
+      });
+      const resData = await response.json();
+      const data = resData.message || resData;
+      if (data && data.status === 'success') {
+        dispatch(markRead(notif.name));
+      }
+      navigate(`/interbranchrequest/${notif.document_name}`);
+    } catch (error) {
+      console.error("[NavBar] Failed to mark notification as read:", error);
+      navigate(`/interbranchrequest/${notif.document_name}`);
+    }
+  };
+
 
 
 
@@ -433,6 +477,62 @@ function NavBar() {
           >
             <Palette size={20} />
             <span style={{ fontSize: '10px', fontWeight: 800 }}>THEME: {(theme || 'modern').toUpperCase()}</span>
+          </div>
+
+          {/* Notification Bell Dropdown */}
+          <div className="nav-notification-container" ref={notificationsContainerRef}>
+            <div
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="cursor-pointer nav-icon position-relative flex items-center"
+              title="Notifications"
+              style={{ transition: 'all 0.2s ease', position: 'relative' }}
+            >
+              <Bell size={20} className={unreadCount > 0 ? "animate-pulse-subtle" : ""} />
+              {unreadCount > 0 && (
+                <span className="position-absolute translate-middle badge rounded-pill bg-danger" style={{ fontSize: '8px', padding: '2px 4px', top: '-2px', right: '-10px' }}>
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+
+            {showNotifications && (
+              <div className="nav-notification-dropdown">
+                <div className="nav-notification-header d-flex justify-content-between align-items-center">
+                  <span>NOTIFICATIONS</span>
+                  {unreadCount > 0 && (
+                    <button className="btn btn-link btn-sm p-0 text-decoration-none" style={{ fontSize: '10px', fontWeight: 800, color: '#3b82f6' }} onClick={handleMarkAllRead}>
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+                <div className="nav-notification-list" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                  {notifications.length === 0 ? (
+                    <div className="p-3 text-center text-muted" style={{ fontSize: '11px', fontWeight: 600 }}>No notifications</div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.name}
+                        onClick={() => handleNotificationClick(notif)}
+                        className={`nav-notification-item ${!notif.read ? 'unread' : ''}`}
+                        style={{ cursor: 'pointer', padding: '10px 12px', borderBottom: '1px solid #f1f5f9' }}
+                      >
+                        <div className="d-flex justify-content-between align-items-start gap-2">
+                          <span className="notif-title" style={{ fontWeight: !notif.read ? 800 : 600, fontSize: '11px', color: '#1e293b' }}>
+                            {notif.title}
+                          </span>
+                          <span className="notif-time text-muted" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
+                            {new Date(notif.creation).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="notif-message mb-0 text-muted" style={{ fontSize: '10.5px', marginTop: '2px', lineHeight: '1.3' }}>
+                          {notif.message}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div

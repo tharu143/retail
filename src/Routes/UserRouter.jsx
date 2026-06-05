@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import ScrollToTop from '../Components/ScrollToTop'
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import NavBar from '../Components/Nav/NavBar'
 import Swal from 'sweetalert2';
 import socket from '../utils/socket';
+import { setNotifications } from '../Redux/Slices/userSlice';
+import { authFetchBase } from '../utils/authFetch';
 import HomePage from '../Pages/HomePage'
 import LoginPage from '../Pages/LoginPage'
 import ClosingEntryPage from '../Pages/ClosingEntryPage'
@@ -48,15 +50,36 @@ import PurchaseReturnList from '../Components/Admin/PurchaseReturnList'
 import InterBranchTransferList from '../Components/Admin/InterBranchTransferList'
 import InterBranchTransferDetails from '../Components/Admin/InterBranchTransferDetails'
 
-
-
-
 function UserRouter() {
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const theme = useSelector((state) => state.user.theme);
   const warehouse = useSelector((state) => state.user.warehouse);
+  const user = useSelector((state) => state.user.user);
   const showNavBar = location.pathname !== '/' && location.pathname !== '/homepage';
+
+  // Fetch initial notifications list
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await authFetchBase('kyle_retail.retail_api.api.get_pos_notifications', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 50 })
+      });
+      const resData = await response.json();
+      const data = resData.message || resData;
+      if (data && data.status === 'success') {
+        dispatch(setNotifications(data.notifications || []));
+      }
+    } catch (error) {
+      console.error("[UserRouter] Failed to fetch notifications:", error);
+    }
+  }, [user, dispatch]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   // Global socket listener for real-time stock notifications
   useEffect(() => {
@@ -88,6 +111,7 @@ function UserRouter() {
       console.log("[Socket] New Inter-Branch Request Received:", data);
       // Only notify if we are the SOURCE warehouse (Case-insensitive check)
       if (data.from_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+        fetchNotifications();
         const description = data.item_code
           ? `is requesting <b>${data.qty}</b> of <b>${data.item_code}</b>.`
           : `is requesting <b>${data.item_count} items</b> (Total Qty: ${data.qty}).`;
@@ -113,6 +137,7 @@ function UserRouter() {
 
     const handleDecision = (data) => {
       console.log("[Socket] Inter-Branch Decision Received:", data);
+      fetchNotifications();
       // Show notification for decision (Accepted/Rejected)
       Swal.fire({
         title: `TRANSFER ${data.decision.toUpperCase()}`,
@@ -134,6 +159,7 @@ function UserRouter() {
       console.log("[Socket] Inter-Branch Dispatch Received:", data);
       // Only notify if we are the DESTINATION warehouse (Case-insensitive check)
       if (data.to_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+        fetchNotifications();
         Swal.fire({
           title: 'MATERIAL DISPATCHED',
           html: `Branch <b>${data.from_warehouse}</b> has dispatched stock. Please accept the items!`,
@@ -165,7 +191,7 @@ function UserRouter() {
       socket.off('inter_branch_decision', handleDecision);
       socket.off('inter_branch_dispatched', handleDispatched);
     };
-  }, [warehouse, navigate]);
+  }, [warehouse, navigate, fetchNotifications]);
 
   // Don't apply padding if the NavBar is hidden
   const applyPadding = showNavBar;
