@@ -8,15 +8,12 @@ import { db } from "../../db";
 import { RefreshCw, LayoutDashboard, ChevronLeft, Settings as SettingsIcon, Palette, Search } from "lucide-react";
 import Swal from 'sweetalert2';
 import { authFetchBase } from "../../utils/authFetch";
-import socket from "../../utils/socket";
-
 function NavBar() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.user);
   const theme = useSelector((state) => state.user.theme);
-  const warehouse = useSelector((state) => state.user.warehouse);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Navigation Search Bar States
@@ -324,89 +321,7 @@ function NavBar() {
     };
   }, [checkSyncCount, syncPending]);
 
-  // Real-time Stock Transfer Notifications
-  useEffect(() => {
-    if (!socket || !warehouse) return;
 
-    const handleNewRequest = (data) => {
-      console.log("[Socket] New Inter-Branch Request Received:", data);
-      // Only notify if we are the SOURCE warehouse (Case-insensitive check)
-      if (data.from_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
-        const description = data.item_code
-          ? `is requesting <b>${data.qty}</b> of <b>${data.item_code}</b>.`
-          : `is requesting <b>${data.item_count} items</b> (Total Qty: ${data.qty}).`;
-
-        Swal.fire({
-          title: 'NEW STOCK REQUEST',
-          html: `Branch <b>${data.to_warehouse}</b> ${description}`,
-          icon: 'info',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: true,
-          confirmButtonText: 'VIEW REQUEST',
-          confirmButtonColor: '#3b82f6',
-          timer: 15000,
-          timerProgressBar: true
-        }).then((result) => {
-          if (result.isConfirmed) {
-            navigate(`/interbranchrequest/${data.name}`);
-          }
-        });
-      }
-    };
-
-    const handleDecision = (data) => {
-      console.log("[Socket] Inter-Branch Decision Received:", data);
-      // Show notification for decision (Accepted/Rejected)
-      Swal.fire({
-        title: `TRANSFER ${data.decision.toUpperCase()}`,
-        text: `Request ${data.name} has been ${data.decision}. ${data.message || ''}`,
-        icon: data.decision === 'accepted' ? 'success' : 'error',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: true,
-        confirmButtonText: 'OPEN',
-        timer: 8000
-      }).then((result) => {
-        if (result.isConfirmed) {
-          navigate(`/interbranchrequest/${data.name}`);
-        }
-      });
-    };
-
-    const handleDispatched = (data) => {
-      console.log("[Socket] Inter-Branch Dispatch Received:", data);
-      // Only notify if we are the DESTINATION warehouse (Case-insensitive check)
-      if (data.to_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
-        Swal.fire({
-          title: 'MATERIAL DISPATCHED',
-          html: `Branch <b>${data.from_warehouse}</b> has dispatched stock. Please accept the items!`,
-          icon: 'success',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: true,
-          confirmButtonText: 'ACCEPT STOCK',
-          confirmButtonColor: '#10b981',
-          timer: 15000,
-          timerProgressBar: true
-        }).then((result) => {
-          if (result.isConfirmed) {
-            navigate(`/interbranchrequest/${data.name}`);
-          }
-        });
-      }
-    };
-
-    socket.on('inter_branch_request_created', handleNewRequest);
-    socket.on('inter_branch_decision', handleDecision);
-    socket.on('inter_branch_dispatched', handleDispatched);
-
-    return () => {
-      socket.off('inter_branch_request_created', handleNewRequest);
-      socket.off('inter_branch_decision', handleDecision);
-      socket.off('inter_branch_dispatched', handleDispatched);
-    };
-  }, [warehouse, navigate]);
 
 
   const handleLogout = async () => {

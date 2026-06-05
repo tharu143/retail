@@ -1,7 +1,10 @@
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { useEffect } from 'react';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import ScrollToTop from '../Components/ScrollToTop'
 import { useSelector } from 'react-redux';
 import NavBar from '../Components/Nav/NavBar'
+import Swal from 'sweetalert2';
+import socket from '../utils/socket';
 import HomePage from '../Pages/HomePage'
 import LoginPage from '../Pages/LoginPage'
 import ClosingEntryPage from '../Pages/ClosingEntryPage'
@@ -50,8 +53,119 @@ import InterBranchTransferDetails from '../Components/Admin/InterBranchTransferD
 
 function UserRouter() {
   const location = useLocation();
+  const navigate = useNavigate();
   const theme = useSelector((state) => state.user.theme);
+  const warehouse = useSelector((state) => state.user.warehouse);
   const showNavBar = location.pathname !== '/' && location.pathname !== '/homepage';
+
+  // Global socket listener for real-time stock notifications
+  useEffect(() => {
+    if (!socket || !warehouse) return;
+
+    // Force connection if disconnected (handles case where socket failed to connect initially before login)
+    if (!socket.connected) {
+      console.log("[Socket] Socket is not connected on UserRouter mount. Attempting connection...");
+      socket.connect();
+    }
+
+    const onConnect = () => {
+      console.log("[Socket] Connected successfully to server. Socket ID:", socket.id);
+    };
+
+    const onConnectError = (err) => {
+      console.error("[Socket] Connection error:", err.message);
+    };
+
+    const onDisconnect = (reason) => {
+      console.log("[Socket] Disconnected from server. Reason:", reason);
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('connect_error', onConnectError);
+    socket.on('disconnect', onDisconnect);
+
+    const handleNewRequest = (data) => {
+      console.log("[Socket] New Inter-Branch Request Received:", data);
+      // Only notify if we are the SOURCE warehouse (Case-insensitive check)
+      if (data.from_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+        const description = data.item_code
+          ? `is requesting <b>${data.qty}</b> of <b>${data.item_code}</b>.`
+          : `is requesting <b>${data.item_count} items</b> (Total Qty: ${data.qty}).`;
+
+        Swal.fire({
+          title: 'NEW STOCK REQUEST',
+          html: `Branch <b>${data.to_warehouse}</b> ${description}`,
+          icon: 'info',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: true,
+          confirmButtonText: 'VIEW REQUEST',
+          confirmButtonColor: '#3b82f6',
+          timer: 15000,
+          timerProgressBar: true
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate(`/interbranchrequest/${data.name}`);
+          }
+        });
+      }
+    };
+
+    const handleDecision = (data) => {
+      console.log("[Socket] Inter-Branch Decision Received:", data);
+      // Show notification for decision (Accepted/Rejected)
+      Swal.fire({
+        title: `TRANSFER ${data.decision.toUpperCase()}`,
+        text: `Request ${data.name} has been ${data.decision}. ${data.message || ''}`,
+        icon: data.decision === 'accepted' ? 'success' : 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: true,
+        confirmButtonText: 'OPEN',
+        timer: 8000
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate(`/interbranchrequest/${data.name}`);
+        }
+      });
+    };
+
+    const handleDispatched = (data) => {
+      console.log("[Socket] Inter-Branch Dispatch Received:", data);
+      // Only notify if we are the DESTINATION warehouse (Case-insensitive check)
+      if (data.to_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+        Swal.fire({
+          title: 'MATERIAL DISPATCHED',
+          html: `Branch <b>${data.from_warehouse}</b> has dispatched stock. Please accept the items!`,
+          icon: 'success',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: true,
+          confirmButtonText: 'ACCEPT STOCK',
+          confirmButtonColor: '#10b981',
+          timer: 15000,
+          timerProgressBar: true
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate(`/interbranchrequest/${data.name}`);
+          }
+        });
+      }
+    };
+
+    socket.on('inter_branch_request_created', handleNewRequest);
+    socket.on('inter_branch_decision', handleDecision);
+    socket.on('inter_branch_dispatched', handleDispatched);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('connect_error', onConnectError);
+      socket.off('disconnect', onDisconnect);
+      socket.off('inter_branch_request_created', handleNewRequest);
+      socket.off('inter_branch_decision', handleDecision);
+      socket.off('inter_branch_dispatched', handleDispatched);
+    };
+  }, [warehouse, navigate]);
 
   // Don't apply padding if the NavBar is hidden
   const applyPadding = showNavBar;
