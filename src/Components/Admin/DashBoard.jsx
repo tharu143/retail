@@ -65,7 +65,8 @@ const routeMap = {
   'New Transfer Request': { path: '/newinterbranchrequest', icon: PlusCircle },
 
   // Reports
-  'Sales Report': { path: '/salesreport', icon: BarChart3 },
+  'Daily Sales Report': { path: '/dailysalesreport', icon: BarChart3 },
+  'Sales Summary Report': { path: '/salesreport', icon: FileText },
   'Purchase Report': { path: '/purchasereport', icon: TrendingUp },
   'Item Wise Report': { path: '/itemwisereport', icon: PieChart },
 
@@ -105,14 +106,14 @@ function Dashboard() {
       icon: Monitor,
       colorClass: 'icon-pos',
       cardClass: 'card-pos',
-      items: ['POS Profile'],
+      items: ['POS Profile', 'Opening Entry', 'Closing Entry List'],
     },
     {
       title: 'Analytics',
       icon: BarChart3,
       colorClass: 'icon-reports',
       cardClass: 'card-reports',
-      items: ['Sales Report', 'Purchase Report', 'Item Wise Report'],
+      items: ['Daily Sales Report', 'Sales Summary Report', 'Purchase Report', 'Item Wise Report'],
     },
     {
       title: 'Inventory Logistics',

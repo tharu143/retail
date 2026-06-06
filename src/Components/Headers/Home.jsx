@@ -18,11 +18,12 @@ import {
     Building2,
     Award,
     Coins,
-    Barcode
+    Barcode,
+    Bell
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { logout, toggleTheme, setTheme } from '../../Redux/Slices/userSlice';
+import { logout, toggleTheme, setTheme, markRead, markAllRead } from '../../Redux/Slices/userSlice';
 import './Home.css';
 import './LegacyPOS.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
@@ -124,6 +125,12 @@ function Home() {
     // Classic Theme Settings menu dropdown states
     const [showSettingsMenu, setShowSettingsMenu] = useState(false);
     const settingsDropdownRef = useRef(null);
+
+    // Notification States
+    const [showNotifications, setShowNotifications] = useState(false);
+    const notificationsContainerRef = useRef(null);
+    const notifications = useSelector((state) => state.user.notifications || []);
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -376,11 +383,14 @@ function Home() {
         };
     }, []);
 
-    // Close classic settings menu on click outside
+    // Close classic settings menu and notifications on click outside
     useEffect(() => {
         const handleOutsideClick = (e) => {
             if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(e.target)) {
                 setShowSettingsMenu(false);
+            }
+            if (notificationsContainerRef.current && !notificationsContainerRef.current.contains(e.target)) {
+                setShowNotifications(false);
             }
         };
         document.addEventListener('mousedown', handleOutsideClick);
@@ -502,18 +512,23 @@ function Home() {
             {showPaymentModal && renderPaymentModal()}
             {showOpeningModal && (
                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
-                    <div className="home-modal" style={{ maxWidth: '900px', maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-                        <div className="home-modal-header bg-slate-900 border-b border-slate-800 p-5 flex justify-between items-center">
+                    <div className="home-modal" style={{ maxWidth: '950px', maxHeight: '95vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+                        <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-5 flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl shadow-inner">
+                                <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
                                     <DollarSign size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-black uppercase tracking-wider text-white m-0">Open POS Session</h3>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Initialize your cash register to begin</p>
+                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight m-0">Open POS Session</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Initialize your cash register to begin</p>
                                 </div>
                             </div>
-                            <button className="home-modal-close" onClick={handleLogout}>X</button>
+                            <button
+                                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
+                                onClick={handleLogout}
+                            >
+                                <X size={20} />
+                            </button>
                         </div>
                         <div className="home-modal-body" style={{ padding: 0, flex: 1, overflowY: 'auto', background: '#f8fafc' }}>
                             <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} isModal={true} onCancel={handleLogout} />
@@ -894,8 +909,10 @@ function Home() {
             navigate('/');
             return;
         }
-        // No POS Opening Entry is needed anymore; cashiers log in based on their branch.
-    }, [user, session, navigate]);
+        if (!posOpeningEntry) {
+            setShowOpeningModal(true);
+        }
+    }, [user, session, navigate, posOpeningEntry]);
 
     const handleOpeningSuccess = (entryId) => {
         localStorage.setItem('posOpeningEntry', entryId);
@@ -1015,6 +1032,8 @@ function Home() {
     // Authorization State
     const [secretKeyInput, setSecretKeyInput] = useState("");
     const userSecretKey = useSelector((state) => state.user.secret_key || '1234');
+    const [discountAuthorizedBy, setDiscountAuthorizedBy] = useState("");
+    const [loyaltyAuthorizedBy, setLoyaltyAuthorizedBy] = useState("");
 
     // Drafts & Themes
     const [showDraftsModal, setShowDraftsModal] = useState(false);
@@ -1345,6 +1364,14 @@ function Home() {
         setCustomerMobile(''); // Clear mobile search
         setShowDropdown(false);
         barcodeInputRef.current?.focus();
+
+        if (cust && cust.custom_default_discount > 0) {
+            setDiscount({ type: 'percent', value: cust.custom_default_discount });
+            setDiscountAuthorizedBy("Auto-applied (Customer Default)");
+        } else {
+            setDiscount({ type: 'amount', value: 0 });
+            setDiscountAuthorizedBy("");
+        }
 
         if (cust && cust.name !== 'Cash' && discount.value > 0 && cust.customer_group !== 'Discount Customer') {
             setTimeout(async () => {
@@ -2673,12 +2700,14 @@ function Home() {
                         Swal.fire('Unauthorized', 'Incorrect Secret Key (Offline Verification). Discount rejected.', 'error');
                         return;
                     }
+                    setDiscountAuthorizedBy("Manager (Offline)");
                 } else {
-                    const res = await POSService.verifySecretKey(secretKeyInput);
+                    const res = await POSService.verifyAuthorizationKey(secretKeyInput, 'discount', warehouse);
                     if (res && res.status === 'error') {
                         Swal.fire('Unauthorized', res.message || 'Incorrect Secret Key.', 'error');
                         return;
                     }
+                    setDiscountAuthorizedBy(res.authorized_by || "Authorized Cashier");
                 }
             } catch (err) {
                 if (err.message && err.message.includes("Incorrect Secret Key")) {
@@ -2689,6 +2718,7 @@ function Home() {
                     Swal.fire('Unauthorized', 'Incorrect Secret Key. Discount rejected.', 'error');
                     return;
                 }
+                setDiscountAuthorizedBy("Manager (Offline Fallback)");
             }
         }
         setDiscount(prev => ({ ...prev, value }));
@@ -2724,6 +2754,7 @@ function Home() {
         setDiscount({ type: 'amount', value: 0 });
         setDiscountInput("");
         setSecretKeyInput("");
+        setDiscountAuthorizedBy("");
         setShowDiscountModal(false);
     };
 
@@ -2733,9 +2764,11 @@ function Home() {
         setDiscount({ type: 'amount', value: 0 });
         setDiscountInput("");
         setSecretKeyInput("");
+        setDiscountAuthorizedBy("");
         setLoyaltyPointsToRedeem(0);
         setLoyaltyAmount(0);
         setLoyaltyInput("");
+        setLoyaltyAuthorizedBy("");
     }, []);
 
     // Loyalty Points
@@ -2756,7 +2789,7 @@ function Home() {
         setShowLoyaltyModal(true);
     };
 
-    const applyLoyaltyPoints = () => {
+    const applyLoyaltyPoints = async () => {
         const points = parseInt(loyaltyInput) || 0;
         if (points <= 0) {
             Swal.fire('Error', 'Please enter a valid points value.', 'error');
@@ -2767,8 +2800,37 @@ function Home() {
             Swal.fire('Error', 'Redemption amount cannot exceed subtotal.', 'error');
             return;
         }
+
+        try {
+            if (isOffline) {
+                if (secretKeyInput !== userSecretKey) {
+                    Swal.fire('Unauthorized', 'Incorrect Secret Key (Offline Verification). Loyalty redemption rejected.', 'error');
+                    return;
+                }
+                setLoyaltyAuthorizedBy("Manager (Offline)");
+            } else {
+                const res = await POSService.verifyAuthorizationKey(secretKeyInput, 'loyalty_redemption', warehouse);
+                if (res && res.status === 'error') {
+                    Swal.fire('Unauthorized', res.message || 'Incorrect Secret Key.', 'error');
+                    return;
+                }
+                setLoyaltyAuthorizedBy(res.authorized_by || "Authorized Cashier");
+            }
+        } catch (err) {
+            if (err.message && err.message.includes("Incorrect Secret Key")) {
+                Swal.fire('Unauthorized', err.message, 'error');
+                return;
+            }
+            if (secretKeyInput !== userSecretKey) {
+                Swal.fire('Unauthorized', 'Incorrect Secret Key. Loyalty redemption rejected.', 'error');
+                return;
+            }
+            setLoyaltyAuthorizedBy("Manager (Offline Fallback)");
+        }
+
         setLoyaltyPointsToRedeem(points);
         setLoyaltyAmount(redeemedValue);
+        setSecretKeyInput("");
         setShowLoyaltyModal(false);
     };
 
@@ -2776,6 +2838,8 @@ function Home() {
         setLoyaltyPointsToRedeem(0);
         setLoyaltyAmount(0);
         setLoyaltyInput("");
+        setSecretKeyInput("");
+        setLoyaltyAuthorizedBy("");
         setShowLoyaltyModal(false);
     };
 
@@ -2852,7 +2916,9 @@ function Home() {
             currency: 'AED',
             due_date: new Date().toISOString().slice(0, 10),
             docstatus: 0,
-            is_draft: true
+            is_draft: true,
+            custom_discount_authorized_by: discountAuthorizedBy || "",
+            custom_loyalty_authorized_by: loyaltyAuthorizedBy || ""
         };
 
         try {
@@ -2862,9 +2928,11 @@ function Home() {
 
                 setBillItems([]);
                 setDiscount({ type: 'amount', value: 0 });
+                setDiscountAuthorizedBy("");
                 setLoyaltyPointsToRedeem(0);
                 setLoyaltyAmount(0);
                 setLoyaltyInput("");
+                setLoyaltyAuthorizedBy("");
                 setCustomerName('Cash');
                 setPhoneNumber('');
                 setSelectedCustomer(null);
@@ -3092,7 +3160,9 @@ function Home() {
             due_date: new Date().toISOString().slice(0, 10),
             account_manager: user,
             docstatus: 1,
-            is_draft: false
+            is_draft: false,
+            custom_discount_authorized_by: discountAuthorizedBy || "",
+            custom_loyalty_authorized_by: loyaltyAuthorizedBy || ""
         };
 
         try {
@@ -3315,9 +3385,11 @@ function Home() {
         setDiscount({ type: 'amount', value: 0 });
         setDiscountInput("");
         setSecretKeyInput("");
+        setDiscountAuthorizedBy("");
         setLoyaltyPointsToRedeem(0);
         setLoyaltyAmount(0);
         setLoyaltyInput("");
+        setLoyaltyAuthorizedBy("");
         setCustomerName('Cash'); setSelectedCustomer(null); setPhoneNumber('');
         setSelectedPaymentMode(''); setTenderedAmount('');
         setPayments([]);
@@ -3801,6 +3873,24 @@ function Home() {
                             </div>
                         </div>
 
+                        {/* Cashier Secret Key Input for Loyalty Redemption */}
+                        {points > 0 && (
+                            <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Cashier Secret Key</label>
+                                <div className="relative flex items-center bg-slate-50 border-2 border-slate-100 rounded-3xl overflow-hidden focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-50 transition-all">
+                                    <input
+                                        id="loyalty-cashier-secret-key-input"
+                                        type="password"
+                                        placeholder="••••"
+                                        className="w-full px-6 py-4 bg-transparent text-lg font-black text-slate-900 outline-none placeholder:text-slate-300"
+                                        value={secretKeyInput}
+                                        onChange={e => setSecretKeyInput(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && applyLoyaltyPoints()}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Impact Summary */}
                         <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full -mr-12 -mt-12 blur-xl"></div>
@@ -4273,6 +4363,104 @@ function Home() {
         localStorage.clear(); dispatch(logout()); navigate('/');
     };
     // closingEntry bypassed
+
+    const handleMarkAllRead = async () => {
+        try {
+            const response = await authFetch('kyle_retail.retail_api.api.mark_all_notifications_as_read', {
+                method: 'POST'
+            });
+            const resData = await response.json();
+            const data = resData.message || resData;
+            if (data && data.status === 'success') {
+                dispatch(markAllRead());
+            }
+        } catch (error) {
+            console.error("[Home] Failed to mark all notifications as read:", error);
+        }
+    };
+
+    const handleNotificationClick = async (notif) => {
+        try {
+            setShowNotifications(false);
+            // Mark as read in backend
+            const response = await authFetch('kyle_retail.retail_api.api.mark_notification_as_read', {
+                method: 'POST',
+                body: JSON.stringify({ notification_name: notif.name })
+            });
+            const resData = await response.json();
+            const data = resData.message || resData;
+            if (data && data.status === 'success') {
+                dispatch(markRead(notif.name));
+            }
+            navigate(`/interbranchrequest/${notif.document_name}`);
+        } catch (error) {
+            console.error("[Home] Failed to mark notification as read:", error);
+            navigate(`/interbranchrequest/${notif.document_name}`);
+        }
+    };
+
+    const renderNotificationDropdown = () => {
+        if (!showNotifications) return null;
+        return (
+            <div className="nav-notification-dropdown" style={{ top: 'calc(100% + 8px)' }}>
+                <div className="nav-notification-header">
+                    <span>NOTIFICATIONS</span>
+                    {unreadCount > 0 && (
+                        <button
+                            onClick={handleMarkAllRead}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#3b82f6',
+                                cursor: 'pointer',
+                                fontSize: '10px',
+                                fontWeight: 800,
+                                padding: 0
+                            }}
+                            className="hover:underline"
+                        >
+                            Mark all read
+                        </button>
+                    )}
+                </div>
+                <div className="nav-notification-list" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                        <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '11px', fontWeight: 600 }}>
+                            No notifications
+                        </div>
+                    ) : (
+                        notifications.map((notif) => (
+                            <div
+                                key={notif.name}
+                                onClick={() => handleNotificationClick(notif)}
+                                className={`nav-notification-item ${!notif.read ? 'unread' : ''}`}
+                                style={{
+                                    cursor: 'pointer',
+                                    padding: '10px 12px',
+                                    borderBottom: '1px solid #f1f5f9',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px'
+                                }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                                    <span className="notif-title" style={{ fontWeight: !notif.read ? 800 : 600, fontSize: '11px', color: '#1e293b' }}>
+                                        {notif.title}
+                                    </span>
+                                    <span style={{ fontSize: '9px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                                        {new Date(notif.creation).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </div>
+                                <p className="notif-message" style={{ margin: 0, fontSize: '10.5px', color: '#64748b', lineHeight: '1.3', textAlign: 'left' }}>
+                                    {notif.message}
+                                </p>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     const handleBulkQtyUpdate = useCallback(() => {
         if (selectedBillIndex !== -1) {
@@ -5195,39 +5383,42 @@ function Home() {
 
                     {/* ── RIGHT: Fixed user info + actions (never overflow) ── */}
                     <div style={{
-                        display: 'flex', alignItems: 'center', gap: '8px',
-                        padding: '4px 10px 4px 8px', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', gap: '20px',
+                        padding: '4px 14px', flexShrink: 0,
                         borderLeft: '1px solid #e2e8f0', marginLeft: 'auto',
                         background: '#ffffff'
                     }}>
-                        {/* Dashboard */}
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="so-btn-primary active:scale-95"
-                            style={{ padding: '0 0.75rem', height: '1.85rem', borderRadius: '0.375rem', background: '#0f172a', border: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}
-                        >
-                            <LayoutDashboard size={11} /> Dashboard
-                        </button>
+                        {/* Group 1: Navigation & Shift */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {/* Dashboard */}
+                            <button
+                                onClick={() => navigate('/dashboard')}
+                                className="so-btn-primary active:scale-95"
+                                style={{ padding: '0 0.75rem', height: '1.85rem', borderRadius: '0.375rem', background: '#0f172a', border: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}
+                            >
+                                <LayoutDashboard size={11} /> Dashboard
+                            </button>
+
+                            {/* Active Orders */}
+                            <button
+                                onClick={() => setShowDraftsModal(true)}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                    padding: '0 0.65rem', height: '1.85rem', background: '#f0f9ff',
+                                    border: '1.5px solid #bae6fd', borderRadius: '0.375rem',
+                                    fontSize: '0.65rem', fontWeight: 850, color: '#0369a1',
+                                    cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                <Package size={11} /> Active Orders
+                            </button>
+                        </div>
 
                         {/* Separator */}
-                        <div style={{ width: '1px', height: '18px', background: '#e2e8f0', flexShrink: 0, margin: '0 2px' }} />
+                        <div style={{ width: '1px', height: '24px', background: '#e2e8f0', flexShrink: 0 }} />
 
-                        {/* Active Orders */}
-                        <button
-                            onClick={() => setShowDraftsModal(true)}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                padding: '0 0.65rem', height: '1.85rem', background: '#f0f9ff',
-                                border: '1.5px solid #bae6fd', borderRadius: '0.375rem',
-                                fontSize: '0.65rem', fontWeight: 850, color: '#0369a1',
-                                cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
-                                whiteSpace: 'nowrap'
-                            }}
-                        >
-                            <Package size={11} /> Active Orders
-                        </button>
-
-                        {/* User Info Card */}
+                        {/* Group 2: User Profile */}
                         <div
                             onClick={() => setShowThemeSidebar(true)}
                             style={{
@@ -5256,68 +5447,121 @@ function Home() {
                             </div>
                         </div>
 
-                        {/* New Tab */}
-                        <button
-                            onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
-                            style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', borderRadius: '50%', flexShrink: 0 }}
-                            title="Open POS in New Tab"
-                        >
-                            <ExternalLink size={16} />
-                        </button>
+                        {/* Separator */}
+                        <div style={{ width: '1px', height: '24px', background: '#e2e8f0', flexShrink: 0 }} />
 
-                        {/* Logout */}
-                        <button
-                            onClick={handleLogout}
-                            style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#f43f5e', borderRadius: '50%', flexShrink: 0 }}
-                            title="Logout"
-                        >
-                            <Power size={16} />
-                        </button>
+                        {/* Group 3: Quick Utilities */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            {/* Notification Bell Dropdown */}
+                            <div className="nav-notification-container" ref={notificationsContainerRef}>
+                                <button
+                                    onClick={() => setShowNotifications(!showNotifications)}
+                                    style={{
+                                        padding: '4px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        color: '#64748b',
+                                        borderRadius: '50%',
+                                        flexShrink: 0,
+                                        position: 'relative',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}
+                                    className={unreadCount > 0 ? "animate-pulse-subtle" : ""}
+                                    title="Notifications"
+                                >
+                                    <Bell size={16} />
+                                    {unreadCount > 0 && (
+                                        <span
+                                            style={{
+                                                position: 'absolute',
+                                                top: '-2px',
+                                                right: '-2px',
+                                                background: '#ef4444',
+                                                color: '#ffffff',
+                                                fontSize: '8px',
+                                                fontWeight: 900,
+                                                borderRadius: '9999px',
+                                                padding: '1px 4px',
+                                                lineHeight: '1',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                boxShadow: '0 0 0 2px #ffffff'
+                                            }}
+                                        >
+                                            {unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+                                {renderNotificationDropdown()}
+                            </div>
 
-                        {/* Dropdown Settings Button */}
-                        <div className="relative" ref={settingsDropdownRef}>
+                            {/* New Tab */}
                             <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowSettingsMenu(!showSettingsMenu);
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
-                                title="Settings"
-                                style={{ height: '1.85rem', width: '1.85rem', padding: 0 }}
+                                onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
+                                style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', borderRadius: '50%', flexShrink: 0 }}
+                                title="Open POS in New Tab"
                             >
-                                <Settings size={14} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
+                                <ExternalLink size={16} />
                             </button>
 
-                            {showSettingsMenu && (
-                                <div
-                                    className="absolute right-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-[9999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
-                                    style={{ borderTop: `4px solid var(--so-primary)` }}
-                                >
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
-                                        Configuration
-                                    </div>
+                            {/* Logout */}
+                            <button
+                                onClick={handleLogout}
+                                style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#f43f5e', borderRadius: '50%', flexShrink: 0 }}
+                                title="Logout"
+                            >
+                                <Power size={16} />
+                            </button>
 
-                                    {/* Theme Switcher Button */}
-                                    <button
-                                        onClick={() => {
-                                            setShowThemeSidebar(true);
-                                            setShowSettingsMenu(false);
-                                        }}
-                                        className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                            {/* Dropdown Settings Button */}
+                            <div className="relative" ref={settingsDropdownRef}>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowSettingsMenu(!showSettingsMenu);
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
+                                    title="Settings"
+                                    style={{ height: '1.85rem', width: '1.85rem', padding: 0 }}
+                                >
+                                    <Settings size={14} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
+                                </button>
+
+                                {showSettingsMenu && (
+                                    <div
+                                        className="absolute right-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-[9999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
+                                        style={{ borderTop: `4px solid var(--so-primary)` }}
                                     >
-                                        <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
-                                            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-500 group-hover:scale-110 transition-transform">
-                                                <Palette size={14} />
-                                            </div>
-                                            Theme Config
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
+                                            Configuration
                                         </div>
-                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
-                                            {legacySubTheme.toUpperCase()}
-                                        </span>
-                                    </button>
-                                </div>
-                            )}
+
+                                        {/* Theme Switcher Button */}
+                                        <button
+                                            onClick={() => {
+                                                setShowThemeSidebar(true);
+                                                setShowSettingsMenu(false);
+                                            }}
+                                            className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                        >
+                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
+                                                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-500 group-hover:scale-110 transition-transform">
+                                                    <Palette size={14} />
+                                                </div>
+                                                Theme Config
+                                            </div>
+                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                {legacySubTheme.toUpperCase()}
+                                            </span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -5918,8 +6162,8 @@ function Home() {
                         </span>
                     </div>
 
-                    <div className="ml-auto flex items-center gap-4 pr-4">
-                        {/* Dashboard Button */}
+                    <div className="ml-auto flex items-center pr-4" style={{ gap: '20px' }}>
+                        {/* Group 1: Navigation */}
                         <button
                             onClick={() => navigate('/dashboard')}
                             className={`font-black text-[12px] uppercase tracking-wider transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
@@ -5927,7 +6171,9 @@ function Home() {
                             DASHBOARD
                         </button>
 
-                        {/* User Info with Labels */}
+                        <div style={{ width: '1px', height: '24px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.5, flexShrink: 0 }} />
+
+                        {/* Group 2: User Info Card */}
                         <div
                             onClick={() => setShowThemeSidebar(true)}
                             className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
@@ -5952,71 +6198,119 @@ function Home() {
                             </div>
                         </div>
 
-                        {/* Open POS in New Tab */}
-                        <button
-                            onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
-                            className={`transition-all p-1.5 hover:bg-slate-100 rounded-full ${isGreen ? 'text-emerald-600 hover:text-emerald-800' : 'text-sky-600 hover:text-sky-800'}`}
-                            title="Open POS in New Tab"
-                        >
-                            <ExternalLink size={18} />
-                        </button>
+                        <div style={{ width: '1px', height: '24px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.5, flexShrink: 0 }} />
 
-                        {/* Connection Status Badge (Brought Outside) */}
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm select-none transition-all hover:bg-slate-50">
-                            <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-600' : 'text-sky-600')}`}>
-                                {isOffline ? 'OFFLINE' : 'ONLINE'}
-                            </span>
-                        </div>
+                        {/* Group 3: Utilities */}
+                        <div className="flex items-center gap-4">
+                            {/* Connection Status Badge */}
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm select-none transition-all hover:bg-slate-50">
+                                <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-600' : 'text-sky-600')}`}>
+                                    {isOffline ? 'OFFLINE' : 'ONLINE'}
+                                </span>
+                            </div>
 
-                        {/* Logout Button */}
-                        <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full" title="Logout">
-                            <Power size={20} />
-                        </button>
+                            {/* Notification Bell Dropdown */}
+                            <div className="nav-notification-container" ref={notificationsContainerRef}>
+                                <button
+                                    onClick={() => setShowNotifications(!showNotifications)}
+                                    className={`transition-all p-1.5 hover:bg-slate-100 rounded-full ${isGreen ? 'text-emerald-600 hover:text-emerald-800' : 'text-sky-600 hover:text-sky-800'} ${unreadCount > 0 ? "animate-pulse-subtle" : ""}`}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        position: 'relative',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}
+                                    title="Notifications"
+                                >
+                                    <Bell size={18} />
+                                    {unreadCount > 0 && (
+                                        <span
+                                            style={{
+                                                position: 'absolute',
+                                                top: '-2px',
+                                                right: '-2px',
+                                                background: '#ef4444',
+                                                color: '#ffffff',
+                                                fontSize: '8px',
+                                                fontWeight: 900,
+                                                borderRadius: '9999px',
+                                                padding: '1px 4px',
+                                                lineHeight: '1',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                boxShadow: '0 0 0 2px #ffffff'
+                                            }}
+                                        >
+                                            {unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+                                {renderNotificationDropdown()}
+                            </div>
 
-                        {/* Dropdown Settings Button (Very Last!) */}
-                        <div className="relative" ref={settingsDropdownRef}>
+                            {/* Open POS in New Tab */}
                             <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowSettingsMenu(!showSettingsMenu);
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
-                                title="Settings"
+                                onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
+                                className={`transition-all p-1.5 hover:bg-slate-100 rounded-full ${isGreen ? 'text-emerald-600 hover:text-emerald-800' : 'text-sky-600 hover:text-sky-800'}`}
+                                title="Open POS in New Tab"
                             >
-                                <Settings size={18} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
+                                <ExternalLink size={18} />
                             </button>
 
-                            {showSettingsMenu && (
-                                <div
-                                    className="absolute right-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-[9999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
-                                    style={{ borderTop: `4px solid ${isGreen ? '#10b981' : '#0ea5e9'}` }}
-                                >
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
-                                        Configuration
-                                    </div>
+                            {/* Logout Button */}
+                            <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full" title="Logout">
+                                <Power size={20} />
+                            </button>
 
-                                    {/* Theme Switcher Button */}
-                                    <button
-                                        onClick={() => {
-                                            setShowThemeSidebar(true);
-                                            setShowSettingsMenu(false);
-                                        }}
-                                        className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                            {/* Dropdown Settings Button */}
+                            <div className="relative" ref={settingsDropdownRef}>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowSettingsMenu(!showSettingsMenu);
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
+                                    title="Settings"
+                                >
+                                    <Settings size={18} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
+                                </button>
+
+                                {showSettingsMenu && (
+                                    <div
+                                        className="absolute right-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-[9999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
+                                        style={{ borderTop: `4px solid ${isGreen ? '#10b981' : '#0ea5e9'}` }}
                                     >
-                                        <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
-                                            <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-500'} group-hover:scale-110 transition-transform`}>
-                                                <Palette size={14} />
-                                            </div>
-                                            Theme Config
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
+                                            Configuration
                                         </div>
-                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
-                                            {legacySubTheme.toUpperCase()}
-                                        </span>
-                                    </button>
-                                </div>
-                            )}
+
+                                        {/* Theme Switcher Button */}
+                                        <button
+                                            onClick={() => {
+                                                setShowThemeSidebar(true);
+                                                setShowSettingsMenu(false);
+                                            }}
+                                            className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                        >
+                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
+                                                <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-500'} group-hover:scale-110 transition-transform`}>
+                                                    <Palette size={14} />
+                                                </div>
+                                                Theme Config
+                                            </div>
+                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                {legacySubTheme.toUpperCase()}
+                                            </span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </nav>

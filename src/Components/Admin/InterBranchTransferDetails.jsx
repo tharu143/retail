@@ -359,21 +359,31 @@ function InterBranchTransferDetails() {
   };
 
   const handleAcceptStock = async () => {
-    const result = await Swal.fire({
-      title: 'Accept stock transfer?',
-      text: "Accept and submit this inter-branch material transfer? This will update stock levels for this branch.",
-      icon: 'question',
+    const { value: secretKey } = await Swal.fire({
+      title: 'Enter Cashier PIN to Receive',
+      input: 'password',
+      inputLabel: 'Secret Key / Authorization PIN',
+      inputPlaceholder: 'Enter your PIN',
+      inputAttributes: {
+        autocapitalize: 'off',
+        autocorrect: 'off'
+      },
       showCancelButton: true,
-      confirmButtonColor: '#10b981',
-      confirmButtonText: 'Yes, Accept & Receive'
+      confirmButtonText: 'Verify & Receive',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'You need to enter your PIN!';
+        }
+      }
     });
 
-    if (!result.isConfirmed) return;
+    if (!secretKey) return;
 
     try {
         setAcceptingStock(true);
         const res = await axios.post(`/api/method/kyle_retail.retail_api.api.accept_and_submit_stock_transfer`, {
-            request_name: name
+            request_name: name,
+            secret_key: secretKey
         }, { withCredentials: true, headers: { 'X-Frappe-SID': getSession() } });
         
         if (res.data?.message?.status === 'success') {
@@ -384,7 +394,7 @@ function InterBranchTransferDetails() {
         }
     } catch (err) {
         console.error(err);
-        Swal.fire('Error', 'Failed to accept stock transfer.', 'error');
+        Swal.fire('Error', err.response?.data?.message || 'Failed to accept stock transfer.', 'error');
     } finally {
         setAcceptingStock(false);
     }
@@ -582,12 +592,36 @@ function InterBranchTransferDetails() {
     const comment = decision === 'reject' ? prompt("Please enter rejection reason:", "Stock currently unavailable at source.") : null;
     if (decision === 'reject' && comment === null) return;
 
+    let secretKey = null;
+    if (decision === 'accept') {
+      const { value: key } = await Swal.fire({
+        title: 'Enter Cashier PIN to Dispatch',
+        input: 'password',
+        inputLabel: 'Secret Key / Authorization PIN',
+        inputPlaceholder: 'Enter your PIN',
+        inputAttributes: {
+          autocapitalize: 'off',
+          autocorrect: 'off'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Verify & Dispatch',
+        inputValidator: (value) => {
+          if (!value) {
+            return 'You need to enter your PIN!';
+          }
+        }
+      });
+      if (!key) return;
+      secretKey = key;
+    }
+
     try {
       setDecisionLoading(decision);
       const res = await axios.post(`${API_PATH}.handle_inter_branch_decision`, {
         request_name: name,
         decision: decision,
-        comment: comment
+        comment: comment,
+        secret_key: secretKey
       }, { withCredentials: true, headers: { 'X-Frappe-SID': getSession() } });
 
       if (res.data?.message?.status === 'success') {
@@ -596,7 +630,10 @@ function InterBranchTransferDetails() {
       } else {
         Swal.fire('Action Failed', res.data?.message?.message || 'Action failed', 'error');
       }
-    } catch (err) { Swal.fire('Error', 'Request failed', 'error'); }
+    } catch (err) { 
+      console.error(err);
+      Swal.fire('Error', err.response?.data?.message || 'Request failed', 'error'); 
+    }
     finally { setDecisionLoading(null); }
   };
 

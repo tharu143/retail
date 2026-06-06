@@ -454,113 +454,151 @@ function NavBar() {
           )}
         </div>
 
-        <div className="d-flex align-items-center gap-4 pe-3">
+        <div className="d-flex align-items-center pe-3" style={{ gap: '28px' }}>
+          {/* Group 1: Network Status & Syncing info */}
           <div className="d-flex align-items-center gap-2">
             <div className={`status-dot ${isOnline ? 'online' : 'offline'}`} />
             <span className={`status-text ${isOnline ? 'text-online' : 'text-offline'}`}>{isOnline ? 'Online' : 'Offline'}</span>
-          </div>
 
-          {(pendingCount > 0 || isSyncInProgress) && (
-            <div
-              onClick={handleManualSync}
-              className={`pending-badge cursor-pointer ${isSyncInProgress ? 'syncing' : ''}`}
-            >
-              <RefreshCw size={12} className={isSyncInProgress ? "animate-spin" : ""} />
-              {isSyncInProgress ? "Syncing..." : `${pendingCount} Pending`}
-            </div>
-          )}
-
-          <div
-            onClick={() => dispatch(toggleTheme())}
-            className={`cursor-pointer nav-icon flex items-center gap-1 ${theme === 'legacy' ? 'text-indigo-600' : ''}`}
-            title="Switch POS Theme"
-          >
-            <Palette size={20} />
-            <span style={{ fontSize: '10px', fontWeight: 800 }}>THEME: {(theme || 'modern').toUpperCase()}</span>
-          </div>
-
-          {/* Notification Bell Dropdown */}
-          <div className="nav-notification-container" ref={notificationsContainerRef}>
-            <div
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="cursor-pointer nav-icon position-relative flex items-center"
-              title="Notifications"
-              style={{ transition: 'all 0.2s ease', position: 'relative' }}
-            >
-              <Bell size={20} className={unreadCount > 0 ? "animate-pulse-subtle" : ""} />
-              {unreadCount > 0 && (
-                <span className="position-absolute translate-middle badge rounded-pill bg-danger" style={{ fontSize: '8px', padding: '2px 4px', top: '-2px', right: '-10px' }}>
-                  {unreadCount}
-                </span>
-              )}
-            </div>
-
-            {showNotifications && (
-              <div className="nav-notification-dropdown">
-                <div className="nav-notification-header d-flex justify-content-between align-items-center">
-                  <span>NOTIFICATIONS</span>
-                  {unreadCount > 0 && (
-                    <button className="btn btn-link btn-sm p-0 text-decoration-none" style={{ fontSize: '10px', fontWeight: 800, color: '#3b82f6' }} onClick={handleMarkAllRead}>
-                      Mark all read
-                    </button>
-                  )}
-                </div>
-                <div className="nav-notification-list" style={{ maxHeight: '280px', overflowY: 'auto' }}>
-                  {notifications.length === 0 ? (
-                    <div className="p-3 text-center text-muted" style={{ fontSize: '11px', fontWeight: 600 }}>No notifications</div>
-                  ) : (
-                    notifications.map((notif) => (
-                      <div
-                        key={notif.name}
-                        onClick={() => handleNotificationClick(notif)}
-                        className={`nav-notification-item ${!notif.read ? 'unread' : ''}`}
-                        style={{ cursor: 'pointer', padding: '10px 12px', borderBottom: '1px solid #f1f5f9' }}
-                      >
-                        <div className="d-flex justify-content-between align-items-start gap-2">
-                          <span className="notif-title" style={{ fontWeight: !notif.read ? 800 : 600, fontSize: '11px', color: '#1e293b' }}>
-                            {notif.title}
-                          </span>
-                          <span className="notif-time text-muted" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
-                            {new Date(notif.creation).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <p className="notif-message mb-0 text-muted" style={{ fontSize: '10.5px', marginTop: '2px', lineHeight: '1.3' }}>
-                          {notif.message}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
+            {(pendingCount > 0 || isSyncInProgress) && (
+              <div
+                onClick={handleManualSync}
+                className={`pending-badge cursor-pointer ms-2 ${isSyncInProgress ? 'syncing' : ''}`}
+              >
+                <RefreshCw size={12} className={isSyncInProgress ? "animate-spin" : ""} />
+                {isSyncInProgress ? "Syncing..." : `${pendingCount} Pending`}
               </div>
             )}
           </div>
 
-          <div
-            onClick={() => navigate('/dashboard')}
-            className="cursor-pointer d-flex align-items-center justify-content-center"
-            style={{
-              background: '#f1f5f9',
-              color: '#475569',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '11px',
-              fontWeight: 800,
-              letterSpacing: '0.05em',
-              border: '1.5px solid #e2e8f0',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-            onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
-            onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
-          >
-            DASHBOARD
-          </div>
-          <LayoutDashboard className="cursor-pointer nav-icon" onClick={() => navigate('/syncmanager')} title="Sync Manager" />
-          <i className="bi bi-power cursor-pointer nav-icon logout" onClick={handleLogout} title="Logout"></i>
+          <div style={{ width: '1.5px', height: '22px', background: '#cbd5e1', opacity: 0.7 }} />
 
-          <div className="text-end">
-            <span className="user-name">{user || "Guest"}</span>
-            <small className="nav-time">{formattedDate} | {formattedTime}</small>
+          {/* Group 2: Key Navigation Buttons */}
+          <div className="d-flex align-items-center gap-3">
+            {localStorage.getItem('posOpeningEntry') && (
+              <div
+                onClick={() => navigate('/closingentry')}
+                className="cursor-pointer d-flex align-items-center justify-content-center"
+                style={{
+                  background: '#fef2f2',
+                  color: '#ef4444',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  border: '1.5px solid #fecaca',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.borderColor = '#fca5a5'; }}
+                onMouseOut={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#fecaca'; }}
+              >
+                CLOSE SHIFT
+              </div>
+            )}
+            <div
+              onClick={() => navigate('/dashboard')}
+              className="cursor-pointer d-flex align-items-center justify-content-center"
+              style={{
+                background: '#f1f5f9',
+                color: '#475569',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 800,
+                letterSpacing: '0.05em',
+                border: '1.5px solid #e2e8f0',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+            >
+              DASHBOARD
+            </div>
+            <LayoutDashboard className="cursor-pointer nav-icon" onClick={() => navigate('/syncmanager')} title="Sync Manager" />
+          </div>
+
+          <div style={{ width: '1.5px', height: '22px', background: '#cbd5e1', opacity: 0.7 }} />
+
+          {/* Group 3: Theme Preferences & Notifications */}
+          <div className="d-flex align-items-center gap-4">
+            <div
+              onClick={() => dispatch(toggleTheme())}
+              className={`cursor-pointer nav-icon flex items-center gap-1 ${theme === 'legacy' ? 'text-indigo-600' : ''}`}
+              title="Switch POS Theme"
+            >
+              <Palette size={20} />
+              <span style={{ fontSize: '10px', fontWeight: 800 }}>THEME: {(theme || 'modern').toUpperCase()}</span>
+            </div>
+
+            {/* Notification Bell Dropdown */}
+            <div className="nav-notification-container" ref={notificationsContainerRef}>
+              <div
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="cursor-pointer nav-icon position-relative flex items-center"
+                title="Notifications"
+                style={{ transition: 'all 0.2s ease', position: 'relative' }}
+              >
+                <Bell size={20} className={unreadCount > 0 ? "animate-pulse-subtle" : ""} />
+                {unreadCount > 0 && (
+                  <span className="position-absolute translate-middle badge rounded-pill bg-danger" style={{ fontSize: '8px', padding: '2px 4px', top: '-2px', right: '-10px' }}>
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
+
+              {showNotifications && (
+                <div className="nav-notification-dropdown">
+                  <div className="nav-notification-header d-flex justify-content-between align-items-center">
+                    <span>NOTIFICATIONS</span>
+                    {unreadCount > 0 && (
+                      <button className="btn btn-link btn-sm p-0 text-decoration-none" style={{ fontSize: '10px', fontWeight: 800, color: '#3b82f6' }} onClick={handleMarkAllRead}>
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="nav-notification-list" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <div className="p-3 text-center text-muted" style={{ fontSize: '11px', fontWeight: 600 }}>No notifications</div>
+                    ) : (
+                      notifications.map((notif) => (
+                        <div
+                          key={notif.name}
+                          onClick={() => handleNotificationClick(notif)}
+                          className={`nav-notification-item ${!notif.read ? 'unread' : ''}`}
+                          style={{ cursor: 'pointer', padding: '10px 12px', borderBottom: '1px solid #f1f5f9' }}
+                        >
+                          <div className="d-flex justify-content-between align-items-start gap-2">
+                            <span className="notif-title" style={{ fontWeight: !notif.read ? 800 : 600, fontSize: '11px', color: '#1e293b' }}>
+                              {notif.title}
+                            </span>
+                            <span className="notif-time text-muted" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
+                              {new Date(notif.creation).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="notif-message mb-0 text-muted" style={{ fontSize: '10.5px', marginTop: '2px', lineHeight: '1.3' }}>
+                            {notif.message}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ width: '1.5px', height: '22px', background: '#cbd5e1', opacity: 0.7 }} />
+
+          {/* Group 4: Cashier Profile & Logout Action */}
+          <div className="d-flex align-items-center gap-3">
+            <div className="text-end">
+              <span className="user-name">{user || "Guest"}</span>
+              <small className="nav-time">{formattedDate} | {formattedTime}</small>
+            </div>
+            <i className="bi bi-power cursor-pointer nav-icon logout fs-5" onClick={handleLogout} title="Logout"></i>
           </div>
         </div>
       </div>

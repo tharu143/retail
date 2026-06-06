@@ -101,6 +101,13 @@ const POSService = {
         });
     },
 
+    verifyAuthorizationKey: async (secretKey, action, warehouse) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.verify_authorization_key',
+            args: { secret_key: secretKey, action, warehouse }
+        });
+    },
+
     getLastOfflineId: async (prefix) => {
         return await frappeCall({
             method: 'kyle_retail.retail_api.api.get_last_offline_id_retail',

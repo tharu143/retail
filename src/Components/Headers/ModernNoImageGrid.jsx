@@ -79,7 +79,7 @@ const ModernNoImageGrid = ({
                                     }}
                                     className="w-full py-1 bg-slate-50 text-slate-400 rounded-lg border border-slate-200 text-[8px] font-bold uppercase tracking-tight hover:bg-slate-200 hover:text-slate-600 transition-all"
                                 >
-                                    Find in Branches
+                                    Request More Stock
                                 </button>
                             ) : (
                                 <div className={`so-item-instock-placeholder ${item.local_qty <= 10 ? 'low-stock' : ''}`} style={{ padding: '0.15rem 0' }}>

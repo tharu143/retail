@@ -8,6 +8,20 @@ import { useSelector } from 'react-redux';
 import { db } from '../../db';
 import '../Admin/SalesOrder.css';
 
+const UAE_DENOMINATIONS = [
+  { value: 1000, label: '1000 AED (Note)' },
+  { value: 500, label: '500 AED (Note)' },
+  { value: 200, label: '200 AED (Note)' },
+  { value: 100, label: '100 AED (Note)' },
+  { value: 50, label: '50 AED (Note)' },
+  { value: 20, label: '20 AED (Note)' },
+  { value: 10, label: '10 AED (Note)' },
+  { value: 5, label: '5 AED (Note)' },
+  { value: 1, label: '1 AED (Coin)' },
+  { value: 0.50, label: '0.50 AED (Coin)' },
+  { value: 0.25, label: '0.25 AED (Coin)' }
+];
+
 function ClosingEntry() {
   const currentUser = useSelector((state) => state.user.user);
   const currentPosProfile = useSelector((state) => state.user.posProfile);
@@ -23,6 +37,12 @@ function ClosingEntry() {
   const [noInvoicesMessage, setNoInvoicesMessage] = useState('');
   const [userRoles, setUserRoles] = useState([]);
   const closingAmountRefs = useRef([]);
+
+  // Denominations count
+  const [denomCounts, setDenomCounts] = useState(
+    UAE_DENOMINATIONS.reduce((acc, d) => ({ ...acc, [d.value]: 0 }), {})
+  );
+  const [discrepancyReason, setDiscrepancyReason] = useState('');
 
   const getCurrentISTDateTime = () => {
     const now = new Date();
@@ -62,7 +82,7 @@ function ClosingEntry() {
         if (res.ok) {
           const data = await res.json();
           const roles = data.data?.roles?.map(r => r.role) || [];
-          console.log("User Roles Debug:", roles); // Log roles to console for verification
+          console.log("User Roles Debug:", roles);
           setUserRoles(roles);
         }
       } catch (err) {
@@ -74,14 +94,11 @@ function ClosingEntry() {
 
   useEffect(() => {
     const fetchOpeningEntries = async () => {
-      if (!company) return; // Wait for company to be available
+      if (!company) return;
       try {
         setLoading(true);
         if (!navigator.onLine) {
           const offlineOpening = await db.opening_entries.where('is_synced').equals(0).toArray();
-          const syncedOpening = await db.opening_entries.where('is_synced').equals(1).toArray(); // We might need previously synced ones too
-
-          // Fallback: If we are offline, we only show what we have in Dexie
           setOpeningEntries(offlineOpening.map(e => ({
             name: e.offline_id,
             period_start_date: e.period_start_date,
@@ -146,7 +163,6 @@ function ClosingEntry() {
         let payload = {};
 
         if (!navigator.onLine) {
-          // Fetch invoices from Dexie for this opening entry
           const offlineInvoices = await db.invoices
             .where('pos_opening_entry').equals(selectedOpeningEntry)
             .toArray();
@@ -158,13 +174,12 @@ function ClosingEntry() {
             return;
           }
 
-          // Construct a payload similar to what the server returns
           payload = {
             invoices: offlineInvoices.map(inv => ({
               name: inv.offline_id,
               customer_name: inv.customer,
               posting_date: inv.posting_date,
-              net_total: inv.grand_total / 1.05, // Approximation for offline
+              net_total: inv.grand_total / 1.05,
               total_taxes_and_charges: inv.grand_total - (inv.grand_total / 1.05),
               grand_total: inv.grand_total,
               payments: inv.payments
@@ -172,14 +187,13 @@ function ClosingEntry() {
             pos_transactions: offlineInvoices.map(inv => ({
               offline_id: inv.offline_id
             })),
-            payment_reconciliation: [], // We will build this below
-            taxes: [], // We will build this below
+            payment_reconciliation: [],
+            taxes: [],
             grand_total: offlineInvoices.reduce((sum, inv) => sum + inv.grand_total, 0),
             net_total: offlineInvoices.reduce((sum, inv) => sum + (inv.grand_total / 1.05), 0),
             total_quantity: offlineInvoices.reduce((sum, inv) => sum + inv.items.reduce((s, it) => s + it.quantity, 0), 0)
           };
 
-          // Get modes of payment from Opening Entry
           const openingEntry = await db.opening_entries.where('offline_id').equals(selectedOpeningEntry).first();
           if (openingEntry && openingEntry.balance_details) {
             payload.payment_reconciliation = openingEntry.balance_details.map(bd => ({
@@ -215,7 +229,6 @@ function ClosingEntry() {
         if (payload.invoices && payload.invoices.length > 0) {
           setInvoicesData(payload);
 
-          // Compute paid_amount per mode from invoices payments
           const paidAmounts = {};
           payload.invoices.forEach(inv => {
             if (inv.payments && Array.isArray(inv.payments)) {
@@ -228,19 +241,21 @@ function ClosingEntry() {
             }
           });
 
-          // Fix reconciliation: expected_amount = opening + paid from invoices
           const fixedReconciliation = (payload.payment_reconciliation || []).map(pr => {
             const expected = flt(pr.opening_amount + (paidAmounts[pr.mode_of_payment] || 0));
             return {
               ...pr,
               paid_amount: paidAmounts[pr.mode_of_payment] || 0,
               expected_amount: expected,
-              closing_amount: expected,
-              difference: 0
+              closing_amount: pr.mode_of_payment === 'Cash' ? 0.0 : expected,
+              difference: pr.mode_of_payment === 'Cash' ? expected : 0
             };
           });
           setPaymentReconciliation(fixedReconciliation);
           setNoInvoicesMessage('');
+          // Reset denomination counts
+          setDenomCounts(UAE_DENOMINATIONS.reduce((acc, d) => ({ ...acc, [d.value]: 0 }), {}));
+          setDiscrepancyReason('');
         } else {
           setInvoicesData(null);
           setPaymentReconciliation([]);
@@ -258,12 +273,11 @@ function ClosingEntry() {
 
   useEffect(() => {
     if (invoicesData && paymentReconciliation.length > 0 && closingAmountRefs.current[0]) {
-      // Use a small timeout to ensure DOM is ready
       setTimeout(() => {
         closingAmountRefs.current[0]?.focus();
       }, 100);
     }
-  }, [invoicesData]); // Only focus when new data is first loaded, NOT on every keystroke
+  }, [invoicesData]);
 
   const handleClosingAmountChange = (index, value) => {
     const amt = parseFloat(value) || 0;
@@ -276,6 +290,31 @@ function ClosingEntry() {
       updated[index].closing_amount = amt;
       updated[index].difference = flt(updated[index].expected_amount) - amt;
       return updated;
+    });
+  };
+
+  const handleDenomChange = (val, countStr) => {
+    const count = parseInt(countStr) || 0;
+    const newCounts = { ...denomCounts, [val]: count };
+    setDenomCounts(newCounts);
+
+    const totalCash = Object.keys(newCounts).reduce((sum, k) => {
+      return sum + (parseFloat(k) * (newCounts[k] || 0));
+    }, 0);
+
+    setPaymentReconciliation((prev) => {
+      return prev.map((pr) => {
+        if (pr.mode_of_payment === 'Cash') {
+          const expected = flt(pr.expected_amount);
+          const diff = expected - totalCash;
+          return {
+            ...pr,
+            closing_amount: totalCash,
+            difference: diff
+          };
+        }
+        return pr;
+      });
     });
   };
 
@@ -299,18 +338,34 @@ function ClosingEntry() {
       return;
     }
 
+    const cashReconciliation = paymentReconciliation.find(p => p.mode_of_payment === 'Cash');
+    if (cashReconciliation && flt(cashReconciliation.difference) !== 0 && !discrepancyReason.trim()) {
+      alert('A discrepancy reason is required when counted cash does not match expected cash.');
+      return;
+    }
+
+    const formattedClosingDenoms = Object.keys(denomCounts)
+      .filter((k) => (denomCounts[k] || 0) > 0)
+      .map((k) => ({
+        denomination: parseFloat(k),
+        count: parseInt(denomCounts[k]) || 0,
+        amount: parseFloat(k) * (parseInt(denomCounts[k]) || 0)
+      }));
+
     const payload = {
       pos_opening_entry: selectedOpeningEntry,
       posting_date: postingDate,
       period_end_date: periodEndDate,
-      pos_transactions: JSON.stringify(invoicesData.pos_transactions),
+      pos_transactions: JSON.stringify(invoicesData.pos_transactions || []),
       payment_reconciliation: JSON.stringify(paymentReconciliation),
-      taxes: JSON.stringify(invoicesData.taxes),
+      taxes: JSON.stringify(invoicesData.taxes || []),
       grand_total: flt(invoicesData.grand_total),
       net_total: flt(invoicesData.net_total),
       total_quantity: flt(invoicesData.total_quantity),
       company,
       save_as_draft: saveAsDraft,
+      closing_denominations: JSON.stringify(formattedClosingDenoms),
+      discrepancy_reason: discrepancyReason
     };
 
     try {
@@ -330,7 +385,7 @@ function ClosingEntry() {
 
         alert(`Offline Closing Entry saved! It will be synced automatically when online. Logging out...`);
         localStorage.clear();
-        window.location.hash = '/'; // Using hash router
+        window.location.hash = '/';
         return;
       }
 
@@ -357,7 +412,7 @@ function ClosingEntry() {
           const msgs = JSON.parse(data._server_messages);
           const latest = JSON.parse(msgs[msgs.length - 1]);
           if (latest && latest.message) sysError = latest.message;
-        } catch (e) { } // Ignore parse failures
+        } catch (e) { }
       }
 
       if (!res.ok || apiResponse.status === 'error') {
@@ -379,7 +434,6 @@ function ClosingEntry() {
         alert(`POS Closing Entry submitted successfully! Logging out...`);
       }
 
-      // Use standard Frappe logout instead of non-existent retail_api logout
       await fetch('/api/method/logout', {
         method: 'POST',
         credentials: 'include',
@@ -395,6 +449,8 @@ function ClosingEntry() {
       setLoading(false);
     }
   };
+
+  const cashReconciliation = paymentReconciliation.find(p => p.mode_of_payment === 'Cash');
 
   if (loading && openingEntries.length === 0) {
     return (
@@ -463,7 +519,6 @@ function ClosingEntry() {
 
           <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
 
-          {/* Action Buttons in Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {userRoles.includes('Administrator') || userRoles.includes('System Manager') ? (
               <>
@@ -501,11 +556,10 @@ function ClosingEntry() {
         </div>
       </div>
 
-      {/* 2. SCROLLABLE CONTENT */}
       <div className="ce-scroll-area">
         <div style={{ width: '100%' }}>
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 animate-in fade-in duration-300">
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="text-red-900 font-semibold text-sm caps">System Error</h3>
@@ -515,7 +569,7 @@ function ClosingEntry() {
           )}
 
           {successMessage && (
-            <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3 animate-in zoom-in duration-300">
+            <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="text-emerald-900 font-semibold text-sm">Operation Success</h3>
@@ -533,7 +587,7 @@ function ClosingEntry() {
             </div>
           )}
 
-          {/* Session Selector Card */}
+          {/* Shift Details Selector Card */}
           <div className="so-card" style={{ marginBottom: '1.5rem' }}>
             <div className="so-card-header">
               <span className="so-card-title flex items-center gap-2">
@@ -617,79 +671,142 @@ function ClosingEntry() {
                 </div>
               </div>
 
+              {/* Two Column Layout for Denominations, Reconciliation and Details */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* Reconciliation Table */}
-                <div className="so-card">
-                  <div className="so-card-header">
-                    <span className="so-card-title flex items-center gap-2">
-                      <CreditCard size={16} /> Payment Reconciliation
-                    </span>
-                  </div>
-                  <div className="so-items-table-wrap">
-                    <table className="so-items-table">
-                      <thead>
-                        <tr>
-                          <th>Payment Mode</th>
-                          <th style={{ textAlign: 'right' }}>Expected</th>
-                          <th style={{ textAlign: 'right', width: '30%' }}>Closing Amount</th>
-                          <th style={{ textAlign: 'right' }}>Diff</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paymentReconciliation.map((pr, idx) => (
-                          <tr key={pr.mode_of_payment}>
-                            <td style={{ fontWeight: 600 }}>{pr.mode_of_payment}</td>
-                            <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{flt(pr.expected_amount).toFixed(2)}</td>
-                            <td>
-                              <input
-                                type="number"
-                                className="so-td-input"
-                                style={{ textAlign: 'right', fontStyle: 'normal', fontWeight: 800 }}
-                                value={pr.closing_amount || ''}
-                                onChange={(e) => handleClosingAmountChange(idx, e.target.value)}
-                                ref={(el) => (closingAmountRefs.current[idx] = el)}
-                              />
-                            </td>
-                            <td style={{ textAlign: 'right', fontWeight: 700, color: pr.difference > 0 ? '#ef4444' : pr.difference < 0 ? '#10b981' : '#64748b' }}>
-                              {flt(pr.difference).toFixed(2)}
-                            </td>
-                          </tr>
+                <div className="space-y-6">
+                  {/* UAE Cash Denomination counting grid */}
+                  <div className="so-card">
+                    <div className="so-card-header">
+                      <span className="so-card-title flex items-center gap-2">
+                        <DollarSign size={16} style={{ color: themeColor }} />
+                        Counted UAE Cash Denominations
+                      </span>
+                    </div>
+                    <div className="p-5 bg-slate-50">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {UAE_DENOMINATIONS.map((d) => (
+                          <div key={d.value} className="bg-white rounded-lg p-2.5 shadow-xs border border-slate-200/60 flex flex-col justify-between">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                              {d.label}
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={denomCounts[d.value] || ''}
+                              onChange={(e) => handleDenomChange(d.value, e.target.value)}
+                              className="mt-1 w-full px-2 py-1 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-slate-500 focus:border-slate-500 transition-all outline-none font-semibold text-slate-800"
+                            />
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reconciliation Table */}
+                  <div className="so-card">
+                    <div className="so-card-header">
+                      <span className="so-card-title flex items-center gap-2">
+                        <CreditCard size={16} /> Payment Reconciliation
+                      </span>
+                    </div>
+                    <div className="so-items-table-wrap">
+                      <table className="so-items-table">
+                        <thead>
+                          <tr>
+                            <th>Payment Mode</th>
+                            <th style={{ textAlign: 'right' }}>Expected</th>
+                            <th style={{ textAlign: 'right', width: '30%' }}>Closing Amount</th>
+                            <th style={{ textAlign: 'right' }}>Diff</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paymentReconciliation.map((pr, idx) => (
+                            <tr key={pr.mode_of_payment}>
+                              <td style={{ fontWeight: 600 }}>{pr.mode_of_payment}</td>
+                              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{flt(pr.expected_amount).toFixed(2)}</td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className={`so-td-input ${pr.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-black' : ''}`}
+                                  style={{ textAlign: 'right', fontStyle: 'normal', fontWeight: 800 }}
+                                  value={pr.closing_amount !== undefined ? pr.closing_amount : ''}
+                                  onChange={(e) => handleClosingAmountChange(idx, e.target.value)}
+                                  disabled={pr.mode_of_payment === 'Cash'}
+                                  ref={(el) => (closingAmountRefs.current[idx] = el)}
+                                />
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: pr.difference > 0 ? '#ef4444' : pr.difference < 0 ? '#10b981' : '#64748b' }}>
+                                {flt(pr.difference).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
-                {/* Tax Breakdown Card */}
-                <div className="so-card">
-                  <div className="so-card-header">
-                    <span className="so-card-title flex items-center gap-2">
-                      <TrendingUp size={16} /> Tax Statistics
-                    </span>
-                  </div>
-                  <div className="so-items-table-wrap">
-                    <table className="so-items-table">
-                      <thead>
-                        <tr>
-                          <th>Account</th>
-                          <th style={{ textAlign: 'right' }}>Rate</th>
-                          <th style={{ textAlign: 'right' }}>Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {invoicesData.taxes.map((tax) => (
-                          <tr key={tax.account_head}>
-                            <td style={{ fontSize: '0.75rem' }}>{tax.account_head}</td>
-                            <td style={{ textAlign: 'right' }}>{tax.rate}%</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                              <span className="flex items-center justify-end gap-1">
-                                <DirhamIcon size={12} className="text-slate-400" /> {flt(tax.amount).toFixed(2)}
-                              </span>
-                            </td>
+                <div className="space-y-6">
+                  {/* Discrepancy Warnings & Input */}
+                  {cashReconciliation && flt(cashReconciliation.difference) !== 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col gap-3 animate-in fade-in duration-300">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h3 className="text-amber-900 font-semibold text-sm caps">Cash Discrepancy Warning</h3>
+                          <p className="text-amber-700 text-sm mt-1">
+                            The counted cash (AED {flt(cashReconciliation.closing_amount).toFixed(2)}) does not match the expected cash (AED {flt(cashReconciliation.expected_amount).toFixed(2)}). 
+                            Difference/Variance: AED {flt(-cashReconciliation.difference).toFixed(2)}.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                          Please explain the discrepancy: <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          value={discrepancyReason}
+                          onChange={(e) => setDiscrepancyReason(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none bg-white font-medium"
+                          placeholder="Explain the reason for this cash variance..."
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tax Statistics */}
+                  <div className="so-card">
+                    <div className="so-card-header">
+                      <span className="so-card-title flex items-center gap-2">
+                        <TrendingUp size={16} /> Tax Statistics
+                      </span>
+                    </div>
+                    <div className="so-items-table-wrap">
+                      <table className="so-items-table">
+                        <thead>
+                          <tr>
+                            <th>Account</th>
+                            <th style={{ textAlign: 'right' }}>Rate</th>
+                            <th style={{ textAlign: 'right' }}>Amount</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {invoicesData.taxes && invoicesData.taxes.map((tax) => (
+                            <tr key={tax.account_head}>
+                              <td style={{ fontSize: '0.75rem' }}>{tax.account_head}</td>
+                              <td style={{ textAlign: 'right' }}>{tax.rate}%</td>
+                              <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                                <span className="flex items-center justify-end gap-1">
+                                  <DirhamIcon size={12} className="text-slate-400" /> {flt(tax.amount).toFixed(2)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -712,7 +829,7 @@ function ClosingEntry() {
                       </tr>
                     </thead>
                     <tbody>
-                      {invoicesData.invoices.map((inv) => (
+                      {invoicesData.invoices && invoicesData.invoices.map((inv) => (
                         <tr key={inv.name}>
                           <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{inv.name}</td>
                           <td>{inv.customer_name}</td>
@@ -731,7 +848,6 @@ function ClosingEntry() {
             </>
           )}
 
-          {/* Footer removed, actions moved to header */}
           <div className="mb-20"></div>
         </div>
       </div>

@@ -6,6 +6,20 @@ import { Calendar, DollarSign, User, Building2, CreditCard, Plus, Trash2, Check,
 import { db } from '../../db';
 import POSService from '../../utils/posService';
 
+const UAE_DENOMINATIONS = [
+    { value: 1000, label: '1000 AED (Note)' },
+    { value: 500, label: '500 AED (Note)' },
+    { value: 200, label: '200 AED (Note)' },
+    { value: 100, label: '100 AED (Note)' },
+    { value: 50, label: '50 AED (Note)' },
+    { value: 20, label: '20 AED (Note)' },
+    { value: 10, label: '10 AED (Note)' },
+    { value: 5, label: '5 AED (Note)' },
+    { value: 1, label: '1 AED (Coin)' },
+    { value: 0.50, label: '0.50 AED (Coin)' },
+    { value: 0.25, label: '0.25 AED (Coin)' }
+];
+
 function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: propUser, onOpeningEntrySuccess, isModal, onCancel }) {
     const navigate = useNavigate();
     const location = useLocation();
@@ -23,8 +37,13 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
     const [company, setCompany] = useState(propCompany || '');
     const [user, setUser] = useState(propUser || '');
     const [posProfile, setPosProfile] = useState(propPosProfile || '');
-    const [balanceDetails, setBalanceDetails] = useState([{ mode_of_payment: '', opening_amount: '' }]);
+    const [balanceDetails, setBalanceDetails] = useState([{ mode_of_payment: 'Cash', opening_amount: '0.00' }]);
     const [loading, setLoading] = useState(false);
+
+    // UAE Denominations counts
+    const [denomCounts, setDenomCounts] = useState(
+        UAE_DENOMINATIONS.reduce((acc, d) => ({ ...acc, [d.value]: 0 }), {})
+    );
 
     useEffect(() => {
         const { user: navUser, pos_profile: navPosProfile, company: navCompany } = location.state || {};
@@ -52,6 +71,27 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         setBalanceDetails((prev) => prev.filter((_, i) => i !== index));
     };
 
+    const handleDenomChange = (val, countStr) => {
+        const count = parseInt(countStr) || 0;
+        const newCounts = { ...denomCounts, [val]: count };
+        setDenomCounts(newCounts);
+
+        const totalCash = Object.keys(newCounts).reduce((sum, k) => {
+            return sum + (parseFloat(k) * (newCounts[k] || 0));
+        }, 0);
+
+        setBalanceDetails((prev) => {
+            const hasCash = prev.some((d) => d.mode_of_payment === 'Cash');
+            if (hasCash) {
+                return prev.map((d) =>
+                    d.mode_of_payment === 'Cash' ? { ...d, opening_amount: totalCash.toFixed(2) } : d
+                );
+            } else {
+                return [{ mode_of_payment: 'Cash', opening_amount: totalCash.toFixed(2) }, ...prev];
+            }
+        });
+    };
+
     const handleSubmit = async () => {
         const missingFields = [];
         if (!periodStartDate) missingFields.push('Period Start Date');
@@ -59,7 +99,12 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         if (!company) missingFields.push('Company');
         if (!user) missingFields.push('User');
         if (!posProfile) missingFields.push('POS Profile');
-        if (balanceDetails.length === 0 || balanceDetails.some((d) => !d.mode_of_payment || !d.opening_amount || parseFloat(d.opening_amount) < 0)) {
+        if (
+            balanceDetails.length === 0 ||
+            balanceDetails.some(
+                (d) => !d.mode_of_payment || d.opening_amount === '' || parseFloat(d.opening_amount) < 0
+            )
+        ) {
             missingFields.push('Balance Details (complete all rows with valid amounts)');
         }
 
@@ -70,15 +115,28 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
 
         setLoading(true);
         const livePeriodStartDate = getCurrentISTDateTime();
+
+        const formattedDenoms = Object.keys(denomCounts)
+            .filter((k) => (denomCounts[k] || 0) > 0)
+            .map((k) => ({
+                denomination: parseFloat(k),
+                count: parseInt(denomCounts[k]) || 0,
+                amount: parseFloat(k) * (parseInt(denomCounts[k]) || 0)
+            }));
+
         const payload = {
             period_start_date: livePeriodStartDate,
             posting_date: postingDate,
             company,
             user,
             pos_profile: posProfile,
-            balance_details: balanceDetails,
+            balance_details: balanceDetails.map((d) => ({
+                mode_of_payment: d.mode_of_payment,
+                opening_amount: parseFloat(d.opening_amount)
+            })),
+            opening_denominations: JSON.stringify(formattedDenoms),
             status: 'Open',
-            docstatus: 1,
+            docstatus: 1
         };
         console.log('OpeningEntry - Payload:', payload);
 
@@ -102,7 +160,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                     localStorage.setItem('pos_profile', posProfile);
                     alert(`Offline Shift Started: ${dummyId}. It will be synced automatically when online.`);
                     navigate('/homepage', {
-                        state: { posOpeningEntry: dummyId, company, pos_profile: posProfile },
+                        state: { posOpeningEntry: dummyId, company, pos_profile: posProfile }
                     });
                 }
                 setLoading(false);
@@ -124,8 +182,8 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                         state: {
                             posOpeningEntry,
                             company,
-                            pos_profile: posProfile,
-                        },
+                            pos_profile: posProfile
+                        }
                     });
                 }
             } else {
@@ -145,70 +203,106 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
     if (isModal) {
         return (
             <div className="p-6 md:p-8 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <div className="space-y-1.5">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            Period Start Date
-                        </label>
-                        <input
-                            type="datetime-local"
-                            value={periodStartDate}
-                            onChange={(e) => setPeriodStartDate(e.target.value)}
-                            className="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none bg-white font-medium"
-                        />
+                {/* Session Metadata Bar */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4.5 grid grid-cols-2 md:grid-cols-4 gap-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                            <User className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">Cashier</span>
+                            <span className="block text-xs font-bold text-slate-700">{user || 'N/A'}</span>
+                        </div>
                     </div>
-
-                    <div className="space-y-1.5">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            Posting Date
-                        </label>
-                        <input
-                            type="datetime-local"
-                            value={postingDate}
-                            onChange={(e) => setPostingDate(e.target.value)}
-                            className="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none bg-white font-medium"
-                        />
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                            <Building2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">Company</span>
+                            <span className="block text-xs font-bold text-slate-700">{company || 'N/A'}</span>
+                        </div>
                     </div>
-
-                    <div className="space-y-1.5">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                            Company
-                        </label>
-                        <input
-                            type="text"
-                            value={company}
-                            disabled
-                            className="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl bg-slate-100/80 text-slate-500 cursor-not-allowed font-medium"
-                        />
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                            <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">POS Profile</span>
+                            <span className="block text-xs font-bold text-slate-700">{posProfile || 'N/A'}</span>
+                        </div>
                     </div>
-
-                    <div className="space-y-1.5">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                            Cashier / User
-                        </label>
-                        <input
-                            type="text"
-                            value={user}
-                            disabled
-                            className="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl bg-slate-100/80 text-slate-500 cursor-not-allowed font-medium"
-                        />
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                            <Calendar className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">Posting Date</span>
+                            <span className="block text-xs font-bold text-slate-700">
+                                {postingDate ? new Date(postingDate).toLocaleDateString() : 'N/A'}
+                            </span>
+                        </div>
                     </div>
+                </div>
 
-                    <div className="space-y-1.5 md:col-span-2">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                            POS Profile
-                        </label>
-                        <input
-                            type="text"
-                            value={posProfile}
-                            disabled
-                            className="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl bg-slate-100/80 text-slate-500 cursor-not-allowed font-medium"
-                        />
+                {/* UAE Cash Denominations Counting Grid */}
+                <div className="border-t border-slate-100 pt-6">
+                    <h2 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-blue-500" />
+                        UAE Cash Denomination Count
+                    </h2>
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
+                            {UAE_DENOMINATIONS.map((d) => {
+                                const count = denomCounts[d.value] || 0;
+                                const total = d.value * count;
+                                const isNote = d.value >= 5;
+                                return (
+                                    <div 
+                                        key={d.value} 
+                                        className={`bg-white rounded-2xl p-3 border-2 transition-all flex flex-col justify-between relative overflow-hidden group ${
+                                            count > 0 
+                                                ? 'border-blue-500 shadow-md shadow-blue-500/5' 
+                                                : 'border-slate-100 hover:border-slate-300 shadow-sm'
+                                        }`}
+                                    >
+                                        <div className="absolute -right-3 -top-3 w-10 h-10 bg-slate-50 rounded-full group-hover:scale-125 transition-transform duration-300"></div>
+                                        
+                                        <div className="relative">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-[14px] font-black text-slate-800 tracking-tight">
+                                                    {d.value} <span className="text-[9px] text-slate-400 font-bold">AED</span>
+                                                </span>
+                                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                                    isNote ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                                                }`}>
+                                                    {isNote ? 'Note' : 'Coin'}
+                                                </span>
+                                            </div>
+
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="0"
+                                                    value={denomCounts[d.value] || ''}
+                                                    onChange={(e) => handleDenomChange(d.value, e.target.value)}
+                                                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none font-bold text-slate-800 text-center"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {count > 0 && (
+                                            <div className="mt-2.5 pt-2 border-t border-slate-50 flex items-center justify-center">
+                                                <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full tracking-wider">
+                                                    Total: {(total).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
@@ -229,10 +323,10 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                         <select
                                             value={detail.mode_of_payment}
                                             onChange={(e) => handleBalanceDetailChange(index, 'mode_of_payment', e.target.value)}
-                                            className="w-full px-4 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none bg-white font-medium"
+                                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none bg-white font-medium"
                                         >
                                             <option value="">Select payment mode</option>
-                                            <option value="Cash">Cash</option>
+                                            <option value="Cash" disabled={index > 0 || detail.mode_of_payment === 'Cash'}>Cash</option>
                                             <option value="Credit Card">Credit Card</option>
                                             <option value="UPI">UPI</option>
                                         </select>
@@ -251,15 +345,16 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                                     type="number"
                                                     value={detail.opening_amount}
                                                     onChange={(e) => handleBalanceDetailChange(index, 'opening_amount', e.target.value)}
+                                                    disabled={detail.mode_of_payment === 'Cash'}
                                                     min="0"
                                                     step="0.01"
                                                     placeholder="0.00"
-                                                    className="w-full pl-12 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none font-semibold text-slate-800"
+                                                    className={`w-full pl-12 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none font-semibold text-slate-800 ${detail.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-black' : ''}`}
                                                 />
                                             </div>
                                             <button
                                                 onClick={() => handleRemoveBalanceDetail(index)}
-                                                disabled={balanceDetails.length === 1}
+                                                disabled={balanceDetails.length === 1 || detail.mode_of_payment === 'Cash'}
                                                 className="px-3 py-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center font-medium border border-rose-100"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -398,9 +493,38 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                             </div>
                         </div>
 
+                        {/* UAE Cash Denominations Counting Grid */}
+                        <div className="border-t border-slate-200 pt-6 mb-8">
+                            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <DollarSign className="w-5 h-5 text-blue-500" />
+                                UAE Cash Denomination Count
+                            </h2>
+                            <div className="bg-slate-50 rounded-xl p-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                    {UAE_DENOMINATIONS.map((d) => (
+                                        <div key={d.value} className="bg-white rounded-lg p-3 shadow-sm border border-slate-200 flex flex-col justify-between">
+                                            <span className="text-xs font-semibold text-slate-500">
+                                                {d.label}
+                                            </span>
+                                            <div className="mt-2">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="0"
+                                                    value={denomCounts[d.value] || ''}
+                                                    onChange={(e) => handleDenomChange(d.value, e.target.value)}
+                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none font-semibold"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="mb-8">
                             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <DollarSign className="w-5 h-5" />
+                                <DollarSign className="w-5 h-5 text-emerald-500" />
                                 Payment Mode Balances
                             </h2>
 
@@ -418,7 +542,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                                     className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
                                                 >
                                                     <option value="">Select payment mode</option>
-                                                    <option value="Cash">Cash</option>
+                                                    <option value="Cash" disabled={index > 0 || detail.mode_of_payment === 'Cash'}>Cash</option>
                                                     <option value="Credit Card">Credit Card</option>
                                                     <option value="UPI">UPI</option>
                                                 </select>
@@ -430,20 +554,20 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                                 </label>
                                                 <div className="flex gap-2">
                                                     <div className="flex-1 relative">
-
                                                         <input
                                                             type="number"
                                                             value={detail.opening_amount}
                                                             onChange={(e) => handleBalanceDetailChange(index, 'opening_amount', e.target.value)}
+                                                            disabled={detail.mode_of_payment === 'Cash'}
                                                             min="0"
                                                             step="0.01"
                                                             placeholder="0.00"
-                                                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
+                                                            className={`w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none font-semibold ${detail.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
                                                         />
                                                     </div>
                                                     <button
                                                         onClick={() => handleRemoveBalanceDetail(index)}
-                                                        disabled={balanceDetails.length === 1}
+                                                        disabled={balanceDetails.length === 1 || detail.mode_of_payment === 'Cash'}
                                                         className="px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
                                                     >
                                                         <Trash2 className="w-4 h-4" />

@@ -3,14 +3,57 @@ import {
     ShoppingCart, Package, MapPin, Phone, Mail, ChevronLeft, Loader2,
     AlertCircle, Globe, Tag, Receipt, Layers, CreditCard,
     ArrowRight, Settings, Edit2, Save, X, CheckCircle2, Clock,
-    Plus, Search, ScanLine, Trash2, Calendar, User, FileText, Info, Palette
+    Plus, Search, ScanLine, Trash2, Calendar, User, FileText, Info, Palette, Camera
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+
+const DEFAULT_SO_COLUMNS = [
+    { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
+    { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+    { id: 'uom', label: 'UOM', visible: true, width: 90 },
+    { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
+    { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
+    { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
+    { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
+    { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
+];
+
+const SOItemModel = {
+    item_code: '',
+    item_name: '',
+    rate: 0,
+    amount: 0,
+    custom_box_qty: 0,
+    custom_pieces_per_box: 1,
+    custom_box_price: 0,
+    use_box_entry: false,
+    uom_list: []
+};
+
+const loadColumnConfig = () => {
+    try {
+        const saved = localStorage.getItem('sales_matrix_config');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            const defaultIds = DEFAULT_SO_COLUMNS.map(c => c.id);
+            const savedIds = parsed.map(c => c.id);
+            const existing = parsed.filter(c => defaultIds.includes(c.id));
+            const missing = DEFAULT_SO_COLUMNS.filter(c => !savedIds.includes(c.id));
+            return [...existing, ...missing];
+        }
+    } catch (e) {
+        console.error("SO Matrix Config Error:", e);
+    }
+    return DEFAULT_SO_COLUMNS;
+};
+
 
 /* ==================== CORE LOGIC ==================== */
 function recalcForm(form) {
@@ -79,7 +122,7 @@ const emptyForm = () => {
         po_date: today,
         company: localStorage.getItem('company') || '',
         set_source_warehouse: localStorage.getItem('warehouse') || '',
-        items: [{ item_code: '', delivery_date: today, qty: 1, rate: 0, amount: 0 }],
+        items: [{ ...SOItemModel, delivery_date: today, qty: 1, rate: 0, amount: 0 }],
         taxes: [],
         total_qty: 0,
         base_total: 0,
@@ -173,6 +216,120 @@ export default function SalesOrderDetails() {
     const [linkedDocs, setLinkedDocs] = useState({});
     const [loadingLinks, setLoadingLinks] = useState(false);
 
+    // Matrix Columns Configuration
+    const [soColumns, setSoColumns] = useState(loadColumnConfig);
+    const [showColConfig, setShowColConfig] = useState(false);
+
+    const handleColConfigUpdate = (newConfig) => {
+        if (newConfig === null) {
+            setSoColumns(DEFAULT_SO_COLUMNS);
+            localStorage.removeItem('sales_matrix_config');
+        } else {
+            setSoColumns(newConfig);
+            localStorage.setItem('sales_matrix_config', JSON.stringify(newConfig));
+        }
+        setShowColConfig(false);
+    };
+
+    const getSession = () => localStorage.getItem('session') || '';
+
+    const fetchItemUOMs = async (item_code) => {
+        try {
+            const res = await fetch(`/api/resource/Item/${encodeURIComponent(item_code)}?fields=["uoms","stock_uom"]`, {
+                headers: { 'X-Frappe-SID': getSession() },
+                credentials: 'include'
+            });
+            if (!res.ok) return [{ uom: 'Nos', conversion_factor: 1 }, { uom: 'Box', conversion_factor: 0 }];
+            const data = await res.json();
+            const doc = data.data || {};
+            const uomRows = doc.uoms || [];
+            const list = uomRows.map(u => ({ uom: u.uom, conversion_factor: parseFloat(u.conversion_factor) || 1 }));
+
+            const stockUom = doc.stock_uom || 'Nos';
+            if (!list.find(u => u.uom === stockUom)) {
+                list.unshift({ uom: stockUom, conversion_factor: 1 });
+            }
+
+            if (!list.find(u => (u.uom || '').toLowerCase() === "nos")) {
+                list.push({ uom: "Nos", conversion_factor: 1 });
+            }
+            if (!list.find(u => (u.uom || '').toLowerCase() === "box")) {
+                list.push({ uom: "Box", conversion_factor: 0 });
+            }
+            return list;
+        } catch (err) {
+            return [{ uom: 'Nos', conversion_factor: 1 }, { uom: 'Box', conversion_factor: 0 }];
+        }
+    };
+
+    const handleUOMChangeDetails = (uomValue, rowIndex) => {
+        setForm(prev => {
+            const items = [...prev.items];
+            const item = { ...items[rowIndex] };
+            const isBox = uomValue.toLowerCase() === 'box';
+            item.uom = uomValue;
+            item.use_box_entry = isBox;
+
+            if (isBox) {
+                const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
+                item.custom_pieces_per_box = pPerBox;
+                item.qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
+                item.custom_box_price = parseFloat(((item.rate || 0) * pPerBox).toFixed(2));
+            } else {
+                item.custom_pieces_per_box = 1;
+                item.qty = parseFloat(item.custom_box_qty) || 0;
+                item.custom_box_price = item.rate || 0;
+            }
+            item.amount = (item.qty || 0) * (item.rate || 0);
+            items[rowIndex] = item;
+            return recalcForm({ ...prev, items });
+        });
+    };
+
+    const handleInputChangeDetails = (e, rowIndex) => {
+        const { name, value } = e.target;
+        setForm(prev => {
+            const newState = { ...prev };
+            const items = [...prev.items];
+            const item = { ...items[rowIndex] };
+            item[name] = value;
+
+            const val = (value === '' || value === '.') ? 0 : parseFloat(value);
+            const isBoxMode = item.use_box_entry;
+
+            if (name === 'qty' || name === 'rate') {
+                const q = name === 'qty' ? val : (parseFloat(item.qty) || 0);
+                const r = name === 'rate' ? val : (parseFloat(item.rate) || 0);
+                item.amount = parseFloat((q * r).toFixed(2));
+
+                if (name === 'rate') {
+                    item.custom_box_price = parseFloat((val * (item.custom_pieces_per_box || 1)).toFixed(2));
+                } else if (name === 'qty') {
+                    item.custom_box_qty = (item.custom_pieces_per_box > 0) ? parseFloat((val / item.custom_pieces_per_box).toFixed(2)) : 0;
+                }
+            } else if (name === 'custom_box_qty') {
+                if (isBoxMode) {
+                    item.qty = parseFloat((val * (item.custom_pieces_per_box || 1)).toFixed(2));
+                } else {
+                    item.qty = val;
+                }
+                item.amount = parseFloat(((item.qty || 0) * (parseFloat(item.rate) || 0)).toFixed(2));
+            } else if (name === 'custom_pieces_per_box') {
+                const pPerBox = Math.max(1, isNaN(val) ? 1 : val);
+                item.qty = parseFloat(((parseFloat(item.custom_box_qty) || 0) * pPerBox).toFixed(2));
+                item.custom_box_price = parseFloat(((parseFloat(item.rate) || 0) * pPerBox).toFixed(2));
+                item.amount = parseFloat(((item.qty || 0) * (parseFloat(item.rate) || 0)).toFixed(2));
+            } else if (name === 'custom_box_price') {
+                item.rate = parseFloat((val / (item.custom_pieces_per_box || 1)).toFixed(2));
+                item.amount = parseFloat(((parseFloat(item.qty) || 0) * item.rate).toFixed(2));
+            }
+
+            items[rowIndex] = item;
+            newState.items = items;
+            return recalcForm(newState);
+        });
+    };
+
     // Dropdowns
     const [customers, setCustomers] = useState([]);
     const [taxTemplates, setTaxTemplates] = useState([]);
@@ -184,6 +341,10 @@ export default function SalesOrderDetails() {
     const [showItemDropdowns, setShowItemDropdowns] = useState({});
     const [barcodeInput, setBarcodeInput] = useState('');
     const barcodeRef = useRef(null);
+    const [showCamera, setShowCamera] = useState(false);
+    const html5QrcodeRef = useRef(null);
+    const scannerBuffer = useRef("");
+    const lastKeyTime = useRef(0);
 
     // Fetch Initial Data
     useEffect(() => {
@@ -201,9 +362,38 @@ export default function SalesOrderDetails() {
                 axios.get('/api/method/kyle_retail.retail_api.api.get_sales_taxes_templates_so', { withCredentials: true }),
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_warehouses', { params: { is_group: 0 }, withCredentials: true })
             ]);
+            const templates = (taxRes.data.message || []).filter(t => t.name.toUpperCase().includes('NS'));
             setCustomers(custRes.data.message || []);
-            setTaxTemplates(taxRes.data.message || []);
+            setTaxTemplates(templates);
             setWarehouses(whRes.data.message || []);
+
+            if (isNew && templates.length > 0) {
+                const defaultTax = templates.find(t => t.name.toUpperCase().includes('VAT 5% - NS')) ||
+                    templates.find(t => t.name.toUpperCase().includes('VAT 5% - KSPL')) ||
+                    templates.find(t => t.name.toUpperCase().includes('UAE VAT 5%')) ||
+                    templates.find(t => t.name.toUpperCase().includes('VAT 5%')) ||
+                    templates.find(t => t.name.toUpperCase().includes('5%'));
+                const defaultTaxName = defaultTax ? defaultTax.name : 'UAE VAT 5% - NS';
+                try {
+                    const encodedVal = encodeURIComponent(defaultTaxName);
+                    const res = await axios.get(`/api/resource/Sales Taxes and Charges Template/${encodedVal}`, { withCredentials: true });
+                    const rows = (res.data.data?.taxes || []).map(t => ({
+                        charge_type: t.charge_type,
+                        account_head: t.account_head,
+                        description: t.description || t.account_head || 'VAT',
+                        rate: t.rate,
+                        tax_amount: 0,
+                        total: 0
+                    }));
+                    setForm(prev => recalcForm({
+                        ...prev,
+                        taxes_and_charges: defaultTaxName,
+                        taxes: rows
+                    }));
+                } catch (err) {
+                    console.error('Failed to auto-load default tax template details:', err);
+                }
+            }
         } catch (err) { console.error(err); }
     };
 
@@ -212,11 +402,61 @@ export default function SalesOrderDetails() {
             setLoading(true);
             const res = await axios.get(`/api/resource/Sales Order/${name}`, { withCredentials: true });
             const d = res.data.data;
+            const loadedItems = (d.items || []).map(it => {
+                const isBox = (it.uom || '').toLowerCase() === 'box';
+                const cf = parseFloat(it.conversion_factor) || parseFloat(it.custom_pieces_per_box) || 1.0;
+                
+                let custom_box_qty = parseFloat(it.custom_box_qty || 0);
+                let custom_pieces_per_box = parseFloat(it.custom_pieces_per_box || cf || 1.0);
+                let custom_box_price = parseFloat(it.custom_box_price || 0);
+                let qty = parseFloat(it.qty || 0);
+                let rate = parseFloat(it.rate || 0);
+
+                if (isBox) {
+                    if (!custom_box_qty || custom_box_qty === 0) {
+                        custom_box_qty = it.qty || 0;
+                    }
+                    if (!custom_box_price || custom_box_price === 0) {
+                        custom_box_price = it.rate || 0;
+                    }
+                    qty = custom_box_qty * custom_pieces_per_box;
+                    rate = custom_pieces_per_box > 0 ? (custom_box_price / custom_pieces_per_box) : custom_box_price;
+                }
+
+                return {
+                    ...SOItemModel,
+                    ...it,
+                    custom_box_qty: parseFloat(custom_box_qty.toFixed(2)),
+                    custom_pieces_per_box: parseFloat(custom_pieces_per_box.toFixed(2)),
+                    default_pieces_per_box: parseFloat(custom_pieces_per_box.toFixed(2)),
+                    custom_box_price: parseFloat(custom_box_price.toFixed(2)),
+                    qty: parseFloat(qty.toFixed(2)),
+                    rate: parseFloat(rate.toFixed(2)),
+                    amount: parseFloat((qty * rate).toFixed(2)),
+                    use_box_entry: isBox
+                };
+            });
+
             setForm({
                 ...d,
-                items: d.items || [],
+                set_source_warehouse: d.set_warehouse || (loadedItems[0] && loadedItems[0].warehouse) || '',
+                items: loadedItems,
                 taxes: d.taxes || []
             });
+
+            // Async UOM fetch for each item
+            loadedItems.forEach((it, idx) => {
+                if (it.item_code) {
+                    fetchItemUOMs(it.item_code).then(fetchedUoms => {
+                        setForm(p => {
+                            const its = [...p.items];
+                            if (its[idx]) its[idx].uom_list = fetchedUoms;
+                            return { ...p, items: its };
+                        });
+                    });
+                }
+            });
+
             setSearchCustomer(d.customer_name || d.customer);
         } catch (err) {
             Swal.fire({ icon: 'error', title: 'Load Failed', text: 'Could not retrieve Sales Order' });
@@ -243,12 +483,24 @@ export default function SalesOrderDetails() {
             setSaving(true);
             const payload = {
                 ...form,
+                set_warehouse: form.set_source_warehouse,
                 docstatus: submit ? 1 : 0,
                 delivery_date: form.delivery_date || form.transaction_date,
-                items: form.items.filter(i => i.item_code).map(i => ({
-                    ...i,
-                    delivery_date: i.delivery_date || form.delivery_date || form.transaction_date
-                })),
+                items: form.items.filter(i => i.item_code).map(i => {
+                    const isBox = (i.uom || '').toLowerCase() === 'box';
+                    return {
+                        ...i,
+                        qty: isBox ? (parseFloat(i.custom_box_qty) || 0) : (parseFloat(i.qty) || 0),
+                        rate: isBox ? (parseFloat(i.custom_box_price) || 0) : (parseFloat(i.rate) || 0),
+                        conversion_factor: isBox ? (parseFloat(i.custom_pieces_per_box) || 1) : 1.0,
+                        stock_qty: parseFloat(i.qty) || 0,
+                        stock_uom_rate: parseFloat(i.rate) || 0,
+                        custom_box_qty: parseFloat(i.custom_box_qty) || 0,
+                        custom_pieces_per_box: parseFloat(i.custom_pieces_per_box) || 1,
+                        custom_box_price: parseFloat(i.custom_box_price) || 0,
+                        delivery_date: i.delivery_date || form.delivery_date || form.transaction_date
+                    };
+                }),
                 taxes: (form.taxes || []).map(t => ({
                     ...t,
                     description: t.description || t.account_head || 'VAT'
@@ -299,7 +551,7 @@ export default function SalesOrderDetails() {
     const addItemRow = () => {
         setForm(prev => ({
             ...prev,
-            items: [...prev.items, { item_code: '', item_name: '', qty: 1, rate: 0, amount: 0, uom: 'Nos' }]
+            items: [...prev.items, { ...SOItemModel, delivery_date: prev.delivery_date || prev.transaction_date, qty: 1, rate: 0, amount: 0 }]
         }));
     };
 
@@ -342,54 +594,615 @@ export default function SalesOrderDetails() {
         }
     };
 
-    const handleBarcodeSearch = async (e) => {
-        if (e.key !== 'Enter' || !barcodeInput.trim()) return;
-        const val = barcodeInput.trim();
+    const handleBarcodeSearchDirect = async (val) => {
+        if (!val.trim()) return;
+        const activeWarehouse = form.set_source_warehouse || localStorage.getItem('warehouse') || '';
         try {
-            const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_by_barcode_retail', {
-                params: { barcode: val },
+            const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
+                params: { search_term: val, warehouse: activeWarehouse },
                 withCredentials: true
             });
-            const item = Array.isArray(res.data.message) ? res.data.message[0] : res.data.message;
-            if (!item || item.status === 'error' || (!item.item_code && !item.name)) {
-                throw new Error(item?.message || 'Item not found');
+            const apiItem = (res.data.message || [])[0];
+
+            if (apiItem) {
+                let rate = apiItem.price_list_rate || 0;
+                try {
+                    const rateRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_selling_rate_so', {
+                        params: {
+                            item_code: apiItem.name,
+                            price_list: form.selling_price_list || 'Standard Selling'
+                        },
+                        withCredentials: true
+                    });
+                    const fetchedRate = rateRes.data?.message?.message?.rate || rateRes.data?.message?.rate || rateRes.data?.rate;
+                    if (fetchedRate !== undefined) {
+                        rate = fetchedRate;
+                    }
+                } catch (err) {
+                    console.warn('Failed to fetch selling rate, using fallback rate', err);
+                }
+
+                setForm(prev => {
+                    const items = [...prev.items];
+                    const emptyIdx = items.findIndex(i => !i.item_code);
+                    const targetIdx = emptyIdx !== -1 ? emptyIdx : items.length;
+
+                    const pPerBox = parseFloat(apiItem.custom_pieces_per_box || 1);
+                    const uomList = apiItem.uom_list || [];
+
+                    const newRow = {
+                        ...SOItemModel,
+                        item_code: apiItem.name,
+                        item_name: apiItem.item_name,
+                        stock_uom: apiItem.stock_uom || 'Nos',
+                        uom: apiItem.stock_uom || 'Nos',
+                        uom_list: uomList,
+                        use_box_entry: false,
+                        qty: 1,
+                        rate,
+                        amount: rate,
+                        custom_pieces_per_box: 1,
+                        default_pieces_per_box: pPerBox,
+                        custom_box_qty: 1,
+                        custom_box_price: rate,
+                        warehouse: prev.set_source_warehouse || localStorage.getItem('warehouse') || ''
+                    };
+
+                    if (emptyIdx !== -1) {
+                        items[emptyIdx] = newRow;
+                    } else {
+                        items.push(newRow);
+                    }
+
+                    // Async fetch UOMs
+                    fetchItemUOMs(apiItem.name).then(fetchedUoms => {
+                        setForm(p => {
+                            const its = [...p.items];
+                            const ri = its.findIndex(i => i.item_code === apiItem.name);
+                            if (ri !== -1) its[ri] = { ...its[ri], uom_list: fetchedUoms };
+                            return { ...p, items: its };
+                        });
+                    });
+
+                    if (items.every(i => i.item_code)) {
+                        items.push({ ...SOItemModel, delivery_date: prev.delivery_date || prev.transaction_date, qty: 1, rate: 0, amount: 0 });
+                    }
+
+                    return recalcForm({ ...prev, items });
+                });
+                setBarcodeInput('');
+                setTimeout(() => barcodeRef.current?.focus(), 100);
+            } else {
+                // Global Discovery Fallback
+                try {
+                    const globalRes = await axios.post('/api/method/kyle_retail.retail_api.api.find_item_globally_retail', {
+                        search_term: val
+                    }, { withCredentials: true });
+                    const it = globalRes.data?.message?.[0] || globalRes.data?.[0] || null;
+
+                    if (it) {
+                        const availableBranches = (it.warehouse_details || it.branch_availability || [])
+                            .filter(b => (b.actual_qty || b.qty || 0) > 0)
+                            .map(b => b.warehouse_name || b.warehouse)
+                            .filter((v, i, a) => a.indexOf(v) === i)
+                            .join(", ");
+
+                        Swal.fire({
+                            title: 'Item Found in Other Branches',
+                            html: `<div style="font-size: 15px; font-weight: 600; color: #475569; text-align: left; line-height: 1.5; margin-bottom: 8px;">
+                                This item is not enabled for <span style="font-weight: 800; color: #0f172a;">${activeWarehouse}</span>.
+                            </div>
+                            <div style="font-size: 16px; font-weight: 700; color: #1e293b; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #4f46e5; text-align: left; line-height: 1.4; margin-bottom: 12px;">
+                                ${it.item_name || it.name}
+                            </div>
+                            <div style="text-align: left; font-size: 14px; color: #475569;">
+                                <p style="font-weight: 600; margin-bottom: 4px;">Stock available in:</p>
+                                <p style="color: #059669; font-weight: 700;">${availableBranches || 'None (No physical stock)'}</p>
+                            </div>`,
+                            icon: 'info',
+                            confirmButtonColor: '#4f46e5'
+                        });
+                        setBarcodeInput('');
+                        setTimeout(() => barcodeRef.current?.focus(), 100);
+                    } else {
+                        Swal.fire('Not Found', 'Item not found in local or global database.', 'error');
+                        setBarcodeInput('');
+                        setTimeout(() => barcodeRef.current?.focus(), 100);
+                    }
+                } catch (globalErr) {
+                    console.error("Global search failed:", globalErr);
+                    Swal.fire('Not Found', 'Item not found in database.', 'error');
+                    setBarcodeInput('');
+                    setTimeout(() => barcodeRef.current?.focus(), 100);
+                }
             }
-
-            // Add to a new row or find the first empty row
-            setForm(prev => {
-                const items = [...prev.items];
-                const emptyIdx = items.findIndex(i => !i.item_code);
-                const targetIdx = emptyIdx !== -1 ? emptyIdx : items.length;
-
-                const rate = item.rate || item.last_selling_rate || item.standard_rate || 0;
-                const newRow = {
-                    item_code: item.item_code,
-                    item_name: item.item_name,
-                    uom: item.stock_uom || 'Nos',
-                    qty: 1,
-                    rate,
-                    amount: rate,
-                    warehouse: prev.set_source_warehouse || localStorage.getItem('warehouse') || ''
-                };
-
-                if (emptyIdx !== -1) {
-                    items[emptyIdx] = newRow;
-                } else {
-                    items.push(newRow);
-                }
-
-                // Append an extra blank row if needed
-                if (items.every(i => i.item_code)) {
-                    items.push({ item_code: '', delivery_date: prev.delivery_date || prev.transaction_date, qty: 1, rate: 0, amount: 0 });
-                }
-
-                return recalcForm({ ...prev, items });
-            });
-            setBarcodeInput('');
         } catch (err) {
-            Swal.fire('Scan Error', err.message, 'error');
+            Swal.fire('Scan Error', err.response?.data?.message || err.message || 'Unknown error', 'error');
         }
     };
+
+    const handleBarcodeSearch = async (e) => {
+        if (e.key !== 'Enter' || !barcodeInput.trim()) return;
+        handleBarcodeSearchDirect(barcodeInput.trim());
+    };
+
+    // Camera scanner start/stop logic
+    useEffect(() => {
+        if (showCamera) {
+            const html5Qrcode = new Html5Qrcode("sodetails-scanner-reader");
+            html5QrcodeRef.current = html5Qrcode;
+
+            const config = {
+                fps: 15,
+                qrbox: (width, height) => {
+                    const boxWidth = Math.min(width * 0.8, 450);
+                    const boxHeight = Math.min(height * 0.6, 250);
+                    return { width: boxWidth, height: boxHeight };
+                },
+                aspectRatio: 1.777778
+            };
+
+            const formats = [
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.EAN_8,
+                Html5QrcodeSupportedFormats.UPC_A,
+                Html5QrcodeSupportedFormats.UPC_E,
+                Html5QrcodeSupportedFormats.CODE_128,
+                Html5QrcodeSupportedFormats.QR_CODE
+            ];
+
+            html5Qrcode.start(
+                { facingMode: "environment" },
+                { ...config, formatsToSupport: formats },
+                (decodedText) => {
+                    if (showCamera) {
+                        handleBarcodeSearchDirect(decodedText.trim());
+                        setShowCamera(false);
+                        html5Qrcode.stop().catch(err => console.error("Error stopping camera on success:", err));
+                    }
+                },
+                () => { }
+            ).catch(err => {
+                console.error("Camera start failed, trying fallback:", err);
+                html5Qrcode.start(
+                    { deviceId: undefined },
+                    { ...config, formatsToSupport: formats },
+                    (decodedText) => {
+                        if (showCamera) {
+                            handleBarcodeSearchDirect(decodedText.trim());
+                            setShowCamera(false);
+                            html5Qrcode.stop().catch(fallbackErr => console.error("Error stopping fallback camera success:", fallbackErr));
+                        }
+                    },
+                    () => { }
+                ).catch(finalErr => {
+                    console.error("All startup options failed:", finalErr);
+                    Swal.fire('Camera Error', 'Could not start camera barcode scanner.', 'error');
+                    setShowCamera(false);
+                });
+            });
+        }
+
+        return () => {
+            if (html5QrcodeRef.current) {
+                if (html5QrcodeRef.current.isScanning) {
+                    html5QrcodeRef.current.stop().catch(err => console.error("Error during stop cleanup:", err));
+                }
+            }
+        };
+    }, [showCamera]);
+
+    // Global hardware barcode scanner interceptor
+    useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+            const now = Date.now();
+            const activeEl = document.activeElement;
+            const isInputFocused = activeEl && ['INPUT', 'TEXTAREA'].includes(activeEl.tagName);
+
+            // Barcode scanner interceptor
+            if (now - lastKeyTime.current > 150) {
+                scannerBuffer.current = "";
+            }
+            lastKeyTime.current = now;
+
+            if (e.key.length === 1 && /^[0-9]$/.test(e.key) && !isInputFocused) {
+                scannerBuffer.current += e.key;
+                return;
+            } else if (e.key === 'Enter' && scannerBuffer.current.length >= 6 && !isInputFocused) {
+                e.preventDefault();
+                const scanValue = scannerBuffer.current;
+                scannerBuffer.current = "";
+                if (isEditing) {
+                    handleBarcodeSearchDirect(scanValue);
+                }
+                return;
+            }
+
+            // Keyboard Shortcuts when editing is active
+            if (!isEditing) return;
+
+            const inItemsTable = activeEl && activeEl.closest('table.so-table');
+            let activeRowIndex = -1;
+            if (inItemsTable && activeEl) {
+                const tr = activeEl.closest('tr');
+                if (tr) {
+                    const rowIndexAttr = tr.getAttribute('data-row-index');
+                    if (rowIndexAttr !== null) {
+                        activeRowIndex = parseInt(rowIndexAttr, 10);
+                    }
+                }
+            }
+
+            // F2: Focus Customer Search input
+            if (e.key === 'F2') {
+                e.preventDefault();
+                const customerInput = document.querySelector('input[placeholder="Search customer..."]');
+                if (customerInput) {
+                    customerInput.focus();
+                    customerInput.select?.();
+                }
+            }
+
+            // F3: Focus Item Search input
+            if (e.key === 'F3') {
+                e.preventDefault();
+                const itemInputs = document.querySelectorAll('input[placeholder="SKU or Name..."]');
+                if (itemInputs.length > 0) {
+                    const firstInput = itemInputs[0];
+                    const targetInput = (firstInput && !firstInput.value) ? firstInput : itemInputs[itemInputs.length - 1];
+                    if (targetInput) {
+                        targetInput.focus();
+                        targetInput.select?.();
+                    }
+                }
+            }
+
+            // F4: Focus Barcode/Scan input
+            if (e.key === 'F4') {
+                e.preventDefault();
+                const scanInput = document.querySelector('input[placeholder="Focus here to scan..."]');
+                if (scanInput) {
+                    scanInput.focus();
+                    scanInput.select?.();
+                }
+            }
+
+            // F6: Bulk Quantity Update popup
+            if (e.key === 'F6') {
+                e.preventDefault();
+                let rowIndex = inItemsTable ? activeRowIndex : ((form.items || []).length - 1);
+                if (rowIndex >= 0 && rowIndex < (form.items || []).length) {
+                    const item = (form.items || [])[rowIndex];
+                    if (item && item.item_code) {
+                        Swal.fire({
+                            title: 'Bulk Quantity',
+                            html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
+                                ${item.item_name || item.item_code}
+                            </div>`,
+                            input: 'number',
+                            inputPlaceholder: 'Enter quantity...',
+                            inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || ''),
+                            showCancelButton: true,
+                            confirmButtonText: 'Update',
+                            confirmButtonColor: '#10b981',
+                            cancelButtonColor: '#64748b'
+                        }).then(result => {
+                            if (result.isConfirmed && result.value !== undefined) {
+                                const newQty = result.value || '';
+                                const name = item.use_box_entry ? 'custom_box_qty' : 'qty';
+                                handleInputChangeDetails({ target: { name, value: newQty } }, rowIndex);
+                            }
+                        });
+                    }
+                }
+            }
+
+            // F8: Toggle UOM
+            if (e.key === 'F8') {
+                e.preventDefault();
+                let rowIndex = inItemsTable ? activeRowIndex : ((form.items || []).length - 1);
+                if (rowIndex >= 0 && rowIndex < (form.items || []).length) {
+                    const item = (form.items || [])[rowIndex];
+                    if (item && item.item_code) {
+                        let nextUom = '';
+                        const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
+                        const uomList = item.uom_list || [];
+                        if (uomList.length > 1) {
+                            const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
+                            const nextIndex = (currentIndex + 1) % uomList.length;
+                            nextUom = uomList[nextIndex].uom;
+                        } else {
+                            nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
+                        }
+                        handleUOMChangeDetails(nextUom, rowIndex);
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'UOM Switched',
+                            text: `Row ${rowIndex + 1}: Switched UOM to ${nextUom}`,
+                            toast: true,
+                            position: 'top-end',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                }
+            }
+
+            // F7 or Ctrl+S: Save Draft
+            if (e.key === 'F7' || (e.ctrlKey && e.key.toLowerCase() === 's')) {
+                e.preventDefault();
+                if (!saving) {
+                    handleSave(false);
+                }
+            }
+
+            // F10 or Alt+A: Add Item Row
+            if (e.key === 'F10' || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
+                e.preventDefault();
+                addItemRow();
+                setTimeout(() => {
+                    const itemInputs = document.querySelectorAll('table.so-table tbody tr input[placeholder="SKU or Name..."]');
+                    if (itemInputs.length > 0) {
+                        const lastInput = itemInputs[itemInputs.length - 1];
+                        if (lastInput) {
+                            lastInput.focus();
+                            lastInput.select?.();
+                        }
+                    }
+                }, 100);
+            }
+
+            // F9: Focus Source Warehouse Select
+            if (e.key === 'F9') {
+                e.preventDefault();
+                const warehouseSelect = document.querySelector('select[name="set_source_warehouse"]');
+                if (warehouseSelect) {
+                    warehouseSelect.focus();
+                }
+            }
+
+            // F12 or Ctrl+Enter: Submit sales order
+            if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
+                e.preventDefault();
+                if (!saving && !isNew) {
+                    handleSave(true);
+                }
+            }
+
+            // Escape: Close modals/menus or blur active input
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                if (showColConfig) setShowColConfig(false);
+                else if (isEditing && isNew) {
+                    navigate('/salesorderlist');
+                } else if (isEditing) {
+                    setIsEditing(false);
+                } else if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+                    activeEl.blur();
+                }
+            }
+
+            // Tab Key Navigation Inside Table (Do not close or leave)
+            if (e.key === 'Tab') {
+                if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+                    const td = activeEl.closest('td');
+                    const tr = activeEl.closest('tr');
+                    if (td && tr && tr.parentNode) {
+                        const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+                        const inputIndex = rowInputs.indexOf(activeEl);
+
+                        if (inputIndex === rowInputs.length - 1 && !e.shiftKey) {
+                            e.preventDefault();
+                            const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+                            const isLastRow = rowIndex === (form.items || []).length - 1;
+
+                            if (isLastRow) {
+                                addItemRow();
+                                setTimeout(() => {
+                                    const tableBody = tr.parentNode;
+                                    const newTr = tableBody.lastElementChild;
+                                    if (newTr) {
+                                        const firstInput = newTr.querySelector('input:not([disabled]), select:not([disabled])');
+                                        if (firstInput) {
+                                            firstInput.focus();
+                                            firstInput.select?.();
+                                        }
+                                    }
+                                }, 50);
+                            } else {
+                                const nextTr = tr.nextElementSibling;
+                                if (nextTr) {
+                                    const firstInput = nextTr.querySelector('input:not([disabled]), select:not([disabled])');
+                                    if (firstInput) {
+                                        firstInput.focus();
+                                        firstInput.select?.();
+                                    }
+                                }
+                            }
+                        } else if (inputIndex === 0 && e.shiftKey) {
+                            const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+                            if (rowIndex > 0) {
+                                e.preventDefault();
+                                const prevTr = tr.previousElementSibling;
+                                if (prevTr) {
+                                    const prevInputs = Array.from(prevTr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+                                    if (prevInputs.length > 0) {
+                                        const lastInput = prevInputs[prevInputs.length - 1];
+                                        lastInput.focus();
+                                        lastInput.select?.();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Enter key inside table inputs: add row or navigate down
+            if (e.key === 'Enter') {
+                if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+                    const isSearchInput = activeEl.placeholder === 'SKU or Name...';
+                    const isDropdownOpen = document.querySelector('.so-dropdown');
+                    if (isSearchInput && isDropdownOpen) return; // Let search dropdown handle it
+
+                    const td = activeEl.closest('td');
+                    const tr = activeEl.closest('tr');
+                    if (td && tr && tr.parentNode) {
+                        e.preventDefault();
+                        const colIndex = Array.from(tr.children).indexOf(td);
+                        const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+                        const isLastRow = rowIndex === (form.items || []).length - 1;
+                        const isRateField = activeEl.name === 'rate' || activeEl.name === 'custom_box_price';
+
+                        if (isRateField) {
+                            if (isLastRow) {
+                                addItemRow();
+                                setTimeout(() => {
+                                    const tableBody = tr.parentNode;
+                                    const newTr = tableBody.lastElementChild;
+                                    if (newTr) {
+                                        const firstInput = newTr.querySelector('input[placeholder="SKU or Name..."]');
+                                        if (firstInput) {
+                                            firstInput.focus();
+                                            firstInput.select?.();
+                                        }
+                                    }
+                                }, 50);
+                            } else {
+                                const nextTr = tr.nextElementSibling;
+                                if (nextTr) {
+                                    const firstInput = nextTr.querySelector('input[placeholder="SKU or Name..."]');
+                                    if (firstInput) {
+                                        firstInput.focus();
+                                        firstInput.select?.();
+                                    }
+                                }
+                            }
+                        } else {
+                            if (isLastRow) {
+                                addItemRow();
+                                setTimeout(() => {
+                                    const tableBody = tr.parentNode;
+                                    const newTr = tableBody.lastElementChild;
+                                    if (newTr) {
+                                        const targetTd = newTr.children[colIndex];
+                                        if (targetTd) {
+                                            const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                                            if (targetInput) {
+                                                targetInput.focus();
+                                                targetInput.select?.();
+                                            }
+                                        }
+                                    }
+                                }, 50);
+                            } else {
+                                const nextTr = tr.nextElementSibling;
+                                if (nextTr) {
+                                    const targetTd = nextTr.children[colIndex];
+                                    if (targetTd) {
+                                        const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                                        if (targetInput) {
+                                            targetInput.focus();
+                                            targetInput.select?.();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Escape key inside table input to select/focus the parent row (TR) itself
+            if (e.key === 'Escape') {
+                if (inItemsTable && activeEl && activeEl.tagName !== 'TR') {
+                    const tr = activeEl.closest('tr');
+                    if (tr) {
+                        e.preventDefault();
+                        tr.focus();
+                        return;
+                    }
+                }
+            }
+
+            // Keyboard actions when the row itself is focused
+            if (activeEl && activeEl.tagName === 'TR' && activeEl.closest('table.so-table')) {
+                const tr = activeEl;
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const targetTr = e.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling;
+                    if (targetTr && targetTr.tagName === 'TR') {
+                        targetTr.focus();
+                    }
+                }
+
+                if (e.key === 'Enter' || e.key === 'F3' || e.key === ' ') {
+                    e.preventDefault();
+                    const firstInput = tr.querySelector('input:not([disabled]), select:not([disabled])');
+                    if (firstInput) {
+                        firstInput.focus();
+                        firstInput.select?.();
+                    }
+                }
+
+                if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+                    const isPlus = e.key === '+' || e.key === '=';
+                    const qtyInput = tr.querySelector('input[name="qty"]:not([disabled])') || tr.querySelector('input[name="custom_box_qty"]:not([disabled])');
+                    if (qtyInput && activeRowIndex !== -1) {
+                        e.preventDefault();
+                        const currentVal = parseFloat(qtyInput.value) || 0;
+                        const diff = isPlus ? 1 : -1;
+                        const newVal = Math.max(0, currentVal + diff);
+                        handleInputChangeDetails({ target: { name: qtyInput.name, value: newVal.toString() } }, activeRowIndex);
+                    }
+                }
+            }
+
+            // Arrow Up/Down navigation inside table inputs
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
+                    const isSearchInput = activeEl.placeholder === 'SKU or Name...';
+                    const isDropdownOpen = document.querySelector('.so-dropdown');
+                    if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+
+                    const td = activeEl.closest('td');
+                    const tr = activeEl.closest('tr');
+                    if (td && tr) {
+                        e.preventDefault();
+                        const colIndex = Array.from(tr.children).indexOf(td);
+                        const targetTr = e.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling;
+                        if (targetTr) {
+                            const targetTd = targetTr.children[colIndex];
+                            if (targetTd) {
+                                const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                                if (targetInput) {
+                                    targetInput.focus();
+                                    targetInput.select?.();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // + / -: Increase / Decrease focused row quantity
+            if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+                if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
+                    const isQtyField = activeEl.name === 'qty' || activeEl.name === 'custom_box_qty';
+                    if (isQtyField && activeRowIndex !== -1) {
+                        e.preventDefault();
+                        const currentVal = parseFloat(activeEl.value) || 0;
+                        const diff = (e.key === '+' || e.key === '=') ? 1 : -1;
+                        const newVal = Math.max(0, currentVal + diff);
+                        handleInputChangeDetails({ target: { name: activeEl.name, value: newVal.toString() } }, activeRowIndex);
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [isEditing, form, saving, showColConfig]);
 
     const selectItem = async (idx, item) => {
         try {
@@ -399,21 +1212,42 @@ export default function SalesOrderDetails() {
             });
             const rate = rateRes.data?.message?.message?.rate || rateRes.data?.message?.rate || 0;
 
+            const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
+            const uomList = item.uom_list || [];
+
             setForm(prev => {
                 const items = [...prev.items];
                 items[idx] = {
+                    ...items[idx],
                     item_code: item.item_code,
                     item_name: item.item_name,
+                    stock_uom: item.stock_uom || 'Nos',
                     uom: item.stock_uom || 'Nos',
+                    uom_list: uomList,
+                    use_box_entry: false,
                     qty: 1,
                     rate,
                     amount: rate,
+                    custom_pieces_per_box: 1,
+                    default_pieces_per_box: pPerBox,
+                    custom_box_qty: 1,
+                    custom_box_price: rate,
                     warehouse: prev.set_source_warehouse || ''
                 };
 
+                // Async fetch UOMs
+                fetchItemUOMs(item.item_code).then(fetchedUoms => {
+                    setForm(p => {
+                        const its = [...p.items];
+                        const ri = its.findIndex(i => i.item_code === item.item_code);
+                        if (ri !== -1) its[ri] = { ...its[ri], uom_list: fetchedUoms };
+                        return { ...p, items: its };
+                    });
+                });
+
                 // Auto-add next row
                 if (idx === items.length - 1) {
-                    items.push({ item_code: '', delivery_date: prev.delivery_date || prev.transaction_date, qty: 1, rate: 0, amount: 0 });
+                    items.push({ ...SOItemModel, delivery_date: prev.delivery_date || prev.transaction_date, qty: 1, rate: 0, amount: 0 });
                 }
 
                 return recalcForm({ ...prev, items });
@@ -488,12 +1322,22 @@ export default function SalesOrderDetails() {
                     ) : (
                         <>
                             {form.docstatus === 0 && (
-                                <button
-                                    onClick={() => setIsEditing(true)}
-                                    className="so-btn-primary"
-                                >
-                                    <Edit2 size={16} /> Modify Detail
-                                </button>
+                                <>
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="so-btn-primary"
+                                    >
+                                        <Edit2 size={16} /> Modify Detail
+                                    </button>
+                                    <button
+                                        onClick={() => handleSave(true)}
+                                        disabled={saving}
+                                        className="so-btn-primary"
+                                        style={{ background: '#4f46e5', borderColor: '#4f46e5' }}
+                                    >
+                                        {saving ? <Loader2 size={16} className="so-spinner" /> : <CheckCircle2 size={16} />} Submit Order
+                                    </button>
+                                </>
                             )}
                             {form.docstatus === 1 && (
                                 <>
@@ -567,6 +1411,7 @@ export default function SalesOrderDetails() {
                                                     className="so-input"
                                                     type="date"
                                                     value={form.transaction_date}
+                                                    onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
                                                     onChange={e => setForm({ ...form, transaction_date: e.target.value })}
                                                 />
                                             </div>
@@ -576,6 +1421,7 @@ export default function SalesOrderDetails() {
                                                     className="so-input"
                                                     type="date"
                                                     value={form.delivery_date}
+                                                    onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
                                                     onChange={e => setForm({ ...form, delivery_date: e.target.value })}
                                                 />
                                             </div>
@@ -585,23 +1431,50 @@ export default function SalesOrderDetails() {
                             </div>
 
                             <div className="so-card">
-                                <div className="so-card-header">
-                                    <h5 className="so-card-title">Orchestration Itemized Bill</h5>
+                                <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <h5 className="so-card-title">Orchestration Itemized Bill</h5>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowColConfig(true)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                                            title="Column Configuration"
+                                        >
+                                            <Settings size={14} style={{ color: '#94a3b8' }} />
+                                        </button>
+                                    </div>
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
                                             <label className="so-label" style={{ marginBottom: '0.25rem', color: themeColor }}>Scan Barcode / SKU</label>
-                                            <div style={{ position: 'relative' }}>
-                                                <input
-                                                    className="so-select"
-                                                    style={{ height: '2.5rem', fontSize: '0.75rem', fontWeight: 700, paddingRight: '2.5rem' }}
-                                                    placeholder="Focus here to scan..."
-                                                    ref={barcodeRef}
-                                                    value={barcodeInput}
-                                                    onChange={e => setBarcodeInput(e.target.value)}
-                                                    onKeyDown={handleBarcodeSearch}
-                                                />
-                                                <ScanLine size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                <div style={{ position: 'relative', flex: 1 }}>
+                                                    <input
+                                                        className="so-select"
+                                                        style={{ height: '2.5rem', fontSize: '0.75rem', fontWeight: 700, paddingRight: '2.5rem', width: '100%' }}
+                                                        placeholder="Focus here to scan..."
+                                                        ref={barcodeRef}
+                                                        value={barcodeInput}
+                                                        onChange={e => setBarcodeInput(e.target.value)}
+                                                        onKeyDown={handleBarcodeSearch}
+                                                    />
+                                                    <ScanLine size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCamera(true)}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        width: '2.5rem', height: '2.5rem',
+                                                        background: themeColor, color: '#fff',
+                                                        border: 'none', borderRadius: '0.375rem',
+                                                        cursor: 'pointer', transition: 'background 0.2s',
+                                                        flexShrink: 0
+                                                    }}
+                                                    title="Start Camera Scanner"
+                                                >
+                                                    <Camera size={16} />
+                                                </button>
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
@@ -634,93 +1507,238 @@ export default function SalesOrderDetails() {
                                     <table className="so-table">
                                         <thead>
                                             <tr>
-                                                <th style={{ width: '35%' }}>Product SKU / Description</th>
-                                                <th style={{ width: '15%' }}>UOM</th>
-                                                <th style={{ width: '10%', textAlign: 'center' }}>Qty</th>
-                                                <th style={{ width: '20%', textAlign: 'right' }}>Unit Rate</th>
-                                                <th style={{ width: '20%', textAlign: 'right' }}>Line Total</th>
+                                                {(() => {
+                                                    const hasAnyBox = form.items.some(i => i.use_box_entry);
+                                                    const activeCols = soColumns.filter(c => {
+                                                        if (!c.visible) return false;
+                                                        if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                                        return true;
+                                                    });
+
+                                                    return activeCols.map(col => {
+                                                        let finalLabel = col.label;
+
+                                                        if (!hasAnyBox) {
+                                                            if (col.id === 'custom_box_qty') finalLabel = 'Qty';
+                                                            if (col.id === 'custom_box_price') finalLabel = 'Price';
+                                                            if (col.id === 'custom_pieces_per_box') finalLabel = '';
+                                                        }
+
+                                                        let alignClass = "text-center";
+                                                        if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
+                                                            alignClass = "text-left pl-3";
+                                                        } else if (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id)) {
+                                                            alignClass = "text-right pr-3";
+                                                        }
+
+                                                        return (
+                                                            <th
+                                                                key={col.id}
+                                                                className={alignClass}
+                                                                style={{ width: col.width, minWidth: col.id === 'item_code' ? 120 : undefined }}
+                                                            >
+                                                                {finalLabel}
+                                                            </th>
+                                                        );
+                                                    });
+                                                })()}
                                                 <th style={{ width: '50px' }}></th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {form.items.map((item, idx) => (
-                                                <tr key={idx}>
-                                                    <td>
-                                                        <div style={{ position: 'relative' }}>
-                                                            <input
-                                                                className="so-td-input"
-                                                                type="text"
-                                                                value={item.item_code}
-                                                                placeholder="SKU or Name..."
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    const itms = [...form.items];
-                                                                    itms[idx].item_code = val;
-                                                                    setForm({ ...form, items: itms });
-                                                                    searchItems(val, idx);
-                                                                }}
-                                                            />
-                                                            {showItemDropdowns[idx] && (
-                                                                <div className="so-dropdown">
-                                                                    {itemsList.map(it => (
-                                                                        <div key={it.item_code} onClick={() => selectItem(idx, it)} className="so-dropdown-item">
-                                                                            <div className="so-dropdown-item-name">{it.item_name}</div>
-                                                                            <div className="so-dropdown-item-code">{it.item_code}</div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <select
-                                                            className="so-td-input"
-                                                            value={item.uom || 'Nos'}
-                                                            onChange={e => {
-                                                                const itms = [...form.items];
-                                                                itms[idx].uom = e.target.value;
-                                                                setForm({ ...form, items: itms });
-                                                            }}
-                                                        >
-                                                            <option value="Nos">Nos</option>
-                                                            <option value="Box">Box</option>
-                                                            {item.uom && item.uom !== 'Nos' && item.uom !== 'Box' && (
-                                                                <option value={item.uom}>{item.uom}</option>
-                                                            )}
-                                                        </select>
-                                                    </td>
-                                                    <td>
-                                                        <input
-                                                            className="so-td-input"
-                                                            style={{ textAlign: 'center' }}
-                                                            type="number"
-                                                            value={item.qty}
-                                                            onChange={e => {
-                                                                const itms = [...form.items];
-                                                                itms[idx].qty = e.target.value;
-                                                                itms[idx].amount = (parseFloat(e.target.value) || 0) * (parseFloat(itms[idx].rate) || 0);
-                                                                setForm(recalcForm({ ...form, items: itms }));
-                                                            }}
-                                                        />
-                                                    </td>
-                                                    <td>
-                                                        <input
-                                                            className="so-td-input"
-                                                            style={{ textAlign: 'right' }}
-                                                            type="number"
-                                                            value={item.rate}
-                                                            onChange={e => {
-                                                                const itms = [...form.items];
-                                                                itms[idx].rate = e.target.value;
-                                                                itms[idx].amount = (parseFloat(itms[idx].qty) || 0) * (parseFloat(e.target.value) || 0);
-                                                                setForm(recalcForm({ ...form, items: itms }));
-                                                            }}
-                                                        />
-                                                    </td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                                                        {(parseFloat(item.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                    </td>
-                                                    <td style={{ textAlign: 'center' }}>
+                                                <tr key={idx} data-row-index={idx}>
+                                                    {(() => {
+                                                        const hasAnyBox = form.items.some(i => i.use_box_entry);
+                                                        const activeCols = soColumns.filter(c => {
+                                                            if (!c.visible) return false;
+                                                            if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                                            return true;
+                                                        });
+
+                                                        return activeCols.map(col => {
+                                                            switch (col.id) {
+                                                                case 'item_code':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <div style={{ position: 'relative' }}>
+                                                                                <input
+                                                                                    className="so-td-input"
+                                                                                    type="text"
+                                                                                    value={item.item_code}
+                                                                                    placeholder="SKU or Name..."
+                                                                                    onChange={(e) => {
+                                                                                        const val = e.target.value;
+                                                                                        const itms = [...form.items];
+                                                                                        itms[idx].item_code = val;
+                                                                                        setForm({ ...form, items: itms });
+                                                                                        searchItems(val, idx);
+                                                                                    }}
+                                                                                />
+                                                                                {showItemDropdowns[idx] && (
+                                                                                    <div className="so-dropdown">
+                                                                                        {itemsList.map(it => (
+                                                                                            <div key={it.item_code} onClick={() => selectItem(idx, it)} className="so-dropdown-item">
+                                                                                                <div className="so-dropdown-item-name">{it.item_name}</div>
+                                                                                                <div className="so-dropdown-item-code">{it.item_code}</div>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+
+                                                                case 'custom_box_qty':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                                                                <input
+                                                                                    className="so-td-input"
+                                                                                    style={{ textAlign: 'left', paddingLeft: '10px', paddingRight: '45px', fontWeight: 'bold', color: item.use_box_entry ? '#0284c7' : '#334155' }}
+                                                                                    type="text"
+                                                                                    inputMode="decimal"
+                                                                                    name={item.use_box_entry ? "custom_box_qty" : "qty"}
+                                                                                    value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                                    onFocus={(e) => e.target.select()}
+                                                                                />
+                                                                                {item.item_code && (
+                                                                                    <span style={{
+                                                                                        position: 'absolute', right: '8px', fontSize: '8px', fontWeight: 'extrabold',
+                                                                                        color: item.use_box_entry ? '#0284c7' : '#64748b',
+                                                                                        background: item.use_box_entry ? 'rgba(2, 132, 199, 0.08)' : '#f8fafc',
+                                                                                        border: `1px solid ${item.use_box_entry ? 'rgba(2, 132, 199, 0.15)' : '#e2e8f0'}`,
+                                                                                        borderRadius: '3px', padding: '1px 4px', pointerEvents: 'none'
+                                                                                    }}>
+                                                                                        {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                case 'uom':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <select
+                                                                                className="so-td-input"
+                                                                                value={item.uom || 'Nos'}
+                                                                                onChange={e => handleUOMChangeDetails(e.target.value, idx)}
+                                                                            >
+                                                                                {(() => {
+                                                                                    const uniqueUoms = [];
+                                                                                    const seen = new Set();
+                                                                                    const candidates = [];
+                                                                                    if (item.uom_list && Array.isArray(item.uom_list)) {
+                                                                                        item.uom_list.forEach(u => { if (u && u.uom) candidates.push(u.uom); });
+                                                                                    }
+                                                                                    candidates.push(item.stock_uom || 'Nos');
+                                                                                    candidates.push(item.uom || 'Nos');
+                                                                                    candidates.push('Nos');
+                                                                                    candidates.push('Box');
+
+                                                                                    candidates.forEach(u => {
+                                                                                        const norm = u.trim().toLowerCase();
+                                                                                        let display = u.trim();
+                                                                                        if (norm === 'box') display = 'Box';
+                                                                                        else if (norm === 'nos') display = 'Nos';
+
+                                                                                        if (!seen.has(norm)) {
+                                                                                            seen.add(norm);
+                                                                                            uniqueUoms.push(display);
+                                                                                        }
+                                                                                    });
+                                                                                    return uniqueUoms.map(uomVal => (
+                                                                                        <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                                                                    ));
+                                                                                })()}
+                                                                            </select>
+                                                                        </td>
+                                                                    );
+                                                                case 'custom_pieces_per_box':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            {item.use_box_entry ? (
+                                                                                <input
+                                                                                    className="so-td-input"
+                                                                                    style={{ textAlign: 'left', paddingLeft: '10px' }}
+                                                                                    type="text"
+                                                                                    inputMode="decimal"
+                                                                                    name="custom_pieces_per_box"
+                                                                                    value={item.custom_pieces_per_box || ''}
+                                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                                    onFocus={(e) => e.target.select()}
+                                                                                />
+                                                                            ) : (
+                                                                                <div style={{ padding: '0 10px', fontSize: '0.75rem', opacity: 0.4, textAlign: 'left' }}>—</div>
+                                                                            )}
+                                                                        </td>
+                                                                    );
+                                                                case 'custom_box_price':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            {item.use_box_entry ? (
+                                                                                <input
+                                                                                    className="so-td-input"
+                                                                                    style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 'bold' }}
+                                                                                    type="text"
+                                                                                    inputMode="decimal"
+                                                                                    name="custom_box_price"
+                                                                                    value={item.custom_box_price || ''}
+                                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                                    onFocus={(e) => e.target.select()}
+                                                                                />
+                                                                            ) : (
+                                                                                <div style={{ padding: '0 10px', fontSize: '0.75rem', opacity: 0.4, textAlign: 'center' }}>—</div>
+                                                                            )}
+                                                                        </td>
+                                                                    );
+                                                                case 'rate':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <input
+                                                                                className="so-td-input"
+                                                                                style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 'bold' }}
+                                                                                type="text"
+                                                                                inputMode="decimal"
+                                                                                name="rate"
+                                                                                value={item.rate || ''}
+                                                                                onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                                onFocus={(e) => e.target.select()}
+                                                                            />
+                                                                        </td>
+                                                                    );
+                                                                case 'qty':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                                                                <div style={{ padding: '0 10px', fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', height: '38px', display: 'flex', alignItems: 'center', width: '100%' }}>
+                                                                                    {item.qty || 0}
+                                                                                </div>
+                                                                                {item.use_box_entry && (
+                                                                                    <span style={{
+                                                                                        position: 'absolute', right: '8px', fontSize: '8px', fontWeight: 'extrabold',
+                                                                                        color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0',
+                                                                                        borderRadius: '3px', padding: '1px 4px', pointerEvents: 'none'
+                                                                                    }}>
+                                                                                        NOS
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                case 'amount':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, verticalAlign: 'middle', paddingRight: '10px' }}>
+                                                                            {(parseFloat(item.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                        </td>
+                                                                    );
+                                                                default:
+                                                                    return null;
+                                                            }
+                                                        });
+                                                    })()}
+                                                    <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                                                         <button onClick={() => removeItemRow(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
                                                             <Trash2 size={14} />
                                                         </button>
@@ -987,7 +2005,7 @@ export default function SalesOrderDetails() {
 
                             {/* Items Table Presentation */}
                             <div className="so-table-card">
-                                <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+                                <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <h5 className="so-card-title">Orchestration Itemized Bill</h5>
                                     <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>{form.items.length} ACTIVE ITEMS</span>
                                 </div>
@@ -995,11 +2013,23 @@ export default function SalesOrderDetails() {
                                     <table className="so-table">
                                         <thead>
                                             <tr>
-                                                <th>Product SKU / Description</th>
-                                                <th style={{ textAlign: 'center' }}>UOM</th>
-                                                <th style={{ textAlign: 'center' }}>Qty Authorized</th>
-                                                <th style={{ textAlign: 'right' }}>Authorized Rate</th>
-                                                <th style={{ textAlign: 'right' }}>Line Total</th>
+                                                <th style={{ width: '45%' }}>Item Code</th>
+                                                <th style={{ width: '12%', textAlign: 'left', paddingLeft: '10px' }}>Quantity</th>
+                                                <th style={{ width: '12%', textAlign: 'center' }}>UOM</th>
+                                                <th style={{ width: '15%', textAlign: 'right', paddingRight: '10px' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                                        <span>Rate (</span>
+                                                        <DirhamIcon size={10} />
+                                                        <span>)</span>
+                                                    </div>
+                                                </th>
+                                                <th style={{ width: '16%', textAlign: 'right', paddingRight: '10px' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                                        <span>Amount (</span>
+                                                        <DirhamIcon size={10} />
+                                                        <span>)</span>
+                                                    </div>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1009,18 +2039,22 @@ export default function SalesOrderDetails() {
                                                         <div style={{ fontWeight: 700, color: '#1e293b' }}>{i.item_code}</div>
                                                         <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{i.item_name}</div>
                                                     </td>
-                                                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{i.uom}</td>
-                                                    <td style={{ textAlign: 'center', fontWeight: 800, color: '#475569' }}>{i.qty}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>
+                                                    <td style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 600 }}>
+                                                        {i.use_box_entry ? i.custom_box_qty : i.qty}
+                                                    </td>
+                                                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
+                                                        {i.use_box_entry ? 'Box' : (i.uom || 'Nos')}
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 600 }}>
                                                         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
                                                             <DirhamIcon size={12} />
-                                                            <span>{parseFloat(i.rate || 0).toLocaleString()}</span>
+                                                            <span>{parseFloat(i.use_box_entry ? i.custom_box_price : i.rate).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                                         </div>
                                                     </td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>
+                                                    <td style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 800, color: '#1e293b' }}>
                                                         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
                                                             <DirhamIcon size={13} />
-                                                            <span>{parseFloat(i.amount || 0).toLocaleString()}</span>
+                                                            <span>{parseFloat(i.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1033,6 +2067,44 @@ export default function SalesOrderDetails() {
                     )}
                 </div>
             </div>
+            {showCamera && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                    <div style={{ background: '#fff', borderRadius: '1.5rem', width: '100%', maxWidth: '600px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: 0 }}>
+                        <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ padding: '0.5rem', background: '#e0f2fe', color: '#0284c7', borderRadius: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                                    <Camera size={20} />
+                                </div>
+                                <span style={{ fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', fontSize: '0.85rem' }}>Sales Order Camera Scanner</span>
+                            </div>
+                            <button onClick={() => setShowCamera(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={{ padding: '1.5rem' }}>
+                            <div style={{ position: 'relative', aspectRatio: '1.77778', borderRadius: '1rem', overflow: 'hidden', background: '#0f172a' }}>
+                                <div id="sodetails-scanner-reader" style={{ width: '100%', height: '100%' }}></div>
+                            </div>
+                            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+                                <button
+                                    onClick={() => setShowCamera(false)}
+                                    style={{ padding: '0.6rem 2rem', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '0.5rem', fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                    Cancel Scan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <ColumnConfigModal
+                isOpen={showColConfig}
+                onClose={() => setShowColConfig(false)}
+                config={soColumns}
+                onUpdate={handleColConfigUpdate}
+                doctype="Sales Order"
+                themeColor={themeColor}
+            />
         </div>
     );
 }
