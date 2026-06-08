@@ -16,11 +16,13 @@ import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 
 const DEFAULT_SO_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
+    { id: 'custom_ref_sl_no', label: 'Ref / Customer SL #', visible: true, width: 120 },
     { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
     { id: 'uom', label: 'UOM', visible: true, width: 90 },
     { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
     { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
     { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
+    { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 90 },
     { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
     { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
 ];
@@ -30,11 +32,13 @@ const SOItemModel = {
     item_name: '',
     rate: 0,
     amount: 0,
+    custom_ref_sl_no: '',
     custom_box_qty: 0,
     custom_pieces_per_box: 1,
     custom_box_price: 0,
     use_box_entry: false,
-    uom_list: []
+    uom_list: [],
+    custom_selling_price: 0
 };
 
 const loadColumnConfig = () => {
@@ -426,10 +430,12 @@ export default function SalesOrderDetails() {
                 return {
                     ...SOItemModel,
                     ...it,
+                    custom_ref_sl_no: it.custom_ref_sl_no || it.custom_supplier_sl_num || '',
                     custom_box_qty: parseFloat(custom_box_qty.toFixed(2)),
                     custom_pieces_per_box: parseFloat(custom_pieces_per_box.toFixed(2)),
                     default_pieces_per_box: parseFloat(custom_pieces_per_box.toFixed(2)),
                     custom_box_price: parseFloat(custom_box_price.toFixed(2)),
+                    custom_selling_price: parseFloat(parseFloat(it.custom_selling_price || 0).toFixed(2)),
                     qty: parseFloat(qty.toFixed(2)),
                     rate: parseFloat(rate.toFixed(2)),
                     amount: parseFloat((qty * rate).toFixed(2)),
@@ -645,6 +651,8 @@ export default function SalesOrderDetails() {
                         default_pieces_per_box: pPerBox,
                         custom_box_qty: 1,
                         custom_box_price: rate,
+                        custom_selling_price: parseFloat(apiItem.selling_price || 0),
+                        custom_ref_sl_no: apiItem.custom_ref_sl_no || apiItem.custom_supplier_sl_num || '',
                         warehouse: prev.set_source_warehouse || localStorage.getItem('warehouse') || ''
                     };
 
@@ -1232,6 +1240,8 @@ export default function SalesOrderDetails() {
                     default_pieces_per_box: pPerBox,
                     custom_box_qty: 1,
                     custom_box_price: rate,
+                    custom_selling_price: parseFloat(item.selling_price || 0),
+                    custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
                     warehouse: prev.set_source_warehouse || ''
                 };
 
@@ -1588,7 +1598,21 @@ export default function SalesOrderDetails() {
                                                                             </div>
                                                                         </td>
                                                                     );
-
+                                                                case 'custom_ref_sl_no':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <input
+                                                                                className="so-td-input"
+                                                                                style={{ textAlign: 'center' }}
+                                                                                type="text"
+                                                                                name="custom_ref_sl_no"
+                                                                                value={item.custom_ref_sl_no || ''}
+                                                                                onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                                onFocus={(e) => e.target.select()}
+                                                                                placeholder="Serial..."
+                                                                            />
+                                                                        </td>
+                                                                    );
                                                                 case 'custom_box_qty':
                                                                     return (
                                                                         <td key={col.id}>
@@ -1703,6 +1727,21 @@ export default function SalesOrderDetails() {
                                                                                 inputMode="decimal"
                                                                                 name="rate"
                                                                                 value={item.rate || ''}
+                                                                                onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                                onFocus={(e) => e.target.select()}
+                                                                            />
+                                                                        </td>
+                                                                    );
+                                                                case 'custom_selling_price':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <input
+                                                                                className="so-td-input"
+                                                                                style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 'bold', color: themeColor }}
+                                                                                type="text"
+                                                                                inputMode="decimal"
+                                                                                name="custom_selling_price"
+                                                                                value={item.custom_selling_price || ''}
                                                                                 onChange={(e) => handleInputChangeDetails(e, idx)}
                                                                                 onFocus={(e) => e.target.select()}
                                                                             />
@@ -2006,57 +2045,148 @@ export default function SalesOrderDetails() {
                             {/* Items Table Presentation */}
                             <div className="so-table-card">
                                 <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <h5 className="so-card-title">Orchestration Itemized Bill</h5>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <h5 className="so-card-title">Orchestration Itemized Bill</h5>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowColConfig(true)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                                            title="Column Configuration"
+                                        >
+                                            <Settings size={14} style={{ color: '#94a3b8' }} />
+                                        </button>
+                                    </div>
                                     <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>{form.items.length} ACTIVE ITEMS</span>
                                 </div>
                                 <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
                                     <table className="so-table">
                                         <thead>
                                             <tr>
-                                                <th style={{ width: '45%' }}>Item Code</th>
-                                                <th style={{ width: '12%', textAlign: 'left', paddingLeft: '10px' }}>Quantity</th>
-                                                <th style={{ width: '12%', textAlign: 'center' }}>UOM</th>
-                                                <th style={{ width: '15%', textAlign: 'right', paddingRight: '10px' }}>
-                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
-                                                        <span>Rate (</span>
-                                                        <DirhamIcon size={10} />
-                                                        <span>)</span>
-                                                    </div>
-                                                </th>
-                                                <th style={{ width: '16%', textAlign: 'right', paddingRight: '10px' }}>
-                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
-                                                        <span>Amount (</span>
-                                                        <DirhamIcon size={10} />
-                                                        <span>)</span>
-                                                    </div>
-                                                </th>
+                                                {(() => {
+                                                    const hasAnyBox = form.items.some(i => i.use_box_entry);
+                                                    const activeCols = soColumns.filter(c => {
+                                                        if (!c.visible) return false;
+                                                        if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                                        return true;
+                                                    });
+
+                                                    return activeCols.map(col => {
+                                                        let finalLabel = col.label;
+
+                                                        if (!hasAnyBox) {
+                                                            if (col.id === 'custom_box_qty') finalLabel = 'Qty';
+                                                            if (col.id === 'custom_box_price') finalLabel = 'Price';
+                                                            if (col.id === 'custom_pieces_per_box') finalLabel = '';
+                                                        }
+
+                                                        let alignClass = "text-center";
+                                                        if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
+                                                            alignClass = "text-left pl-3";
+                                                        } else if (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id)) {
+                                                            alignClass = "text-right pr-3";
+                                                        }
+
+                                                        return (
+                                                            <th
+                                                                key={col.id}
+                                                                className={alignClass}
+                                                                style={{ width: col.width }}
+                                                            >
+                                                                {finalLabel}
+                                                            </th>
+                                                        );
+                                                    });
+                                                })()}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {form.items.map((i, idx) => (
                                                 <tr key={idx} style={{ cursor: 'default' }}>
-                                                    <td>
-                                                        <div style={{ fontWeight: 700, color: '#1e293b' }}>{i.item_code}</div>
-                                                        <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{i.item_name}</div>
-                                                    </td>
-                                                    <td style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 600 }}>
-                                                        {i.use_box_entry ? i.custom_box_qty : i.qty}
-                                                    </td>
-                                                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
-                                                        {i.use_box_entry ? 'Box' : (i.uom || 'Nos')}
-                                                    </td>
-                                                    <td style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 600 }}>
-                                                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
-                                                            <DirhamIcon size={12} />
-                                                            <span>{parseFloat(i.use_box_entry ? i.custom_box_price : i.rate).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 800, color: '#1e293b' }}>
-                                                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
-                                                            <DirhamIcon size={13} />
-                                                            <span>{parseFloat(i.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                                        </div>
-                                                    </td>
+                                                    {(() => {
+                                                        const hasAnyBox = form.items.some(item => item.use_box_entry);
+                                                        const activeCols = soColumns.filter(c => {
+                                                            if (!c.visible) return false;
+                                                            if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                                            return true;
+                                                        });
+
+                                                        return activeCols.map(col => {
+                                                            switch (col.id) {
+                                                                case 'item_code':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <div style={{ fontWeight: 700, color: '#1e293b' }}>{i.item_code}</div>
+                                                                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{i.item_name}</div>
+                                                                        </td>
+                                                                    );
+                                                                case 'custom_ref_sl_no':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'center', fontWeight: 600 }}>
+                                                                            {i.custom_ref_sl_no || '—'}
+                                                                        </td>
+                                                                    );
+                                                                case 'custom_box_qty':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 600 }}>
+                                                                            {i.use_box_entry ? `${i.custom_box_qty} Box` : `${i.qty} Nos`}
+                                                                        </td>
+                                                                    );
+                                                                case 'uom':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
+                                                                            {i.use_box_entry ? 'Box' : (i.uom || 'Nos')}
+                                                                        </td>
+                                                                    );
+                                                                case 'custom_pieces_per_box':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 600 }}>
+                                                                            {i.use_box_entry ? i.custom_pieces_per_box : '—'}
+                                                                        </td>
+                                                                    );
+                                                                case 'custom_box_price':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 600 }}>
+                                                                            {i.use_box_entry ? i.custom_box_price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}
+                                                                        </td>
+                                                                    );
+                                                                case 'rate':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 600 }}>
+                                                                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                                                                                <DirhamIcon size={12} />
+                                                                                <span>{parseFloat(i.rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                case 'custom_selling_price':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 600, color: themeColor }}>
+                                                                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                                                                                <DirhamIcon size={12} />
+                                                                                <span>{parseFloat(i.custom_selling_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                case 'qty':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 800 }}>
+                                                                            {i.qty} Nos
+                                                                        </td>
+                                                                    );
+                                                                case 'amount':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>
+                                                                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                                                                                <DirhamIcon size={13} />
+                                                                                <span>{parseFloat(i.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                default:
+                                                                    return null;
+                                                            }
+                                                        });
+                                                    })()}
                                                 </tr>
                                             ))}
                                         </tbody>

@@ -1196,7 +1196,7 @@ const DeliveryNoteDetails = () => {
                                                 onChange={e => setForm(prev => ({ ...prev, posting_date: e.target.value }))}
                                             />
                                         </div>
-                                    </div>
+                            </div>
                                 </div>
                             </div>
 

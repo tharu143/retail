@@ -2851,10 +2851,11 @@ function PurchaseInvoiceList() {
                               {(() => {
                                 const activeCols = columnConfig.filter(c => c.visible);
                                 const isNosUom = (item.uom || '').toLowerCase() !== 'box';
+                                const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
 
                                 return activeCols.map(col => {
-                                  // Skip Selling Price (Box) cell entirely when UOM is Nos
-                                  if (col.id === 'custom_box_selling_price' && isNosUom) return null;
+                                  // Skip Selling Price (Box) cell entirely when NO items have UOM=Box (matching header logic)
+                                  if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
                                   switch (col.id) {
                                     case 'custom_box_qty':
                                       return (
@@ -2907,7 +2908,9 @@ function PurchaseInvoiceList() {
                                         <td key={col.id}>
                                           <div className="premium-cell-container">
                                             <div className="premium-cell-box">
-                                              {isViewMode ? (
+                                              {isNosUom ? (
+                                                <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                              ) : isViewMode ? (
                                                 <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800">
                                                   {(item.custom_pieces_per_box || 1)}
                                                 </div>
@@ -3089,7 +3092,7 @@ function PurchaseInvoiceList() {
                                         <td key={col.id}>
                                           <div className="premium-cell-container">
                                             <div className="premium-cell-box">
-                                              {!item.use_box_entry ? (
+                                              {isNosUom ? (
                                                 <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
                                               ) : isViewMode ? (
                                                 <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
