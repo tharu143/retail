@@ -283,8 +283,8 @@ const getUpdatedPhone = (currentPhone, newCode) => {
 
 /* ==================== KEY-VALUE ROW COMPONENT ==================== */
 const DetailRow = ({ label, value, icon: Icon, themeColor }) => (
-  <div className="flex items-start gap-4 py-3 hover:bg-slate-50/50 px-3 rounded-lg transition-colors border-b border-slate-100 last:border-none">
-    <div className="p-2 bg-slate-50 rounded-lg shrink-0 mt-0.5">
+  <div className="flex items-start gap-4 py-3 hover:bg-slate-50/50 px-3 rounded-xl transition-colors border-b border-slate-100/50 last:border-none">
+    <div className="p-2 rounded-lg shrink-0 mt-0.5" style={{ backgroundColor: `${themeColor}08` }}>
       <Icon size={14} style={{ color: themeColor || '#475569' }} />
     </div>
     <div className="space-y-0.5 min-w-0 flex-1">
@@ -294,12 +294,13 @@ const DetailRow = ({ label, value, icon: Icon, themeColor }) => (
   </div>
 );
 
-const SectionHeader = ({ num, text }) => (
-  <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
-    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-slate-900">{num}</div>
+const SectionHeader = ({ text, themeColor }) => (
+  <div className="px-6 py-4 border-b border-slate-100/50 flex items-center gap-3 bg-white/50 backdrop-blur-sm">
+    <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: themeColor || '#0f172a' }} />
     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">{text}</h3>
   </div>
 );
+
 
 /* ==================== MAIN COMPONENT ==================== */
 const CustomerDetails = () => {
@@ -314,6 +315,16 @@ const CustomerDetails = () => {
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'loyalty'
   const [loyaltyLedger, setLoyaltyLedger] = useState([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
+
+  const getInputStyle = (fieldId) => ({
+    borderColor: focusedField === fieldId ? themeColor : '#e2e8f0',
+    boxShadow: focusedField === fieldId ? `0 0 0 3px ${themeColor}15` : 'none',
+    backgroundColor: '#ffffff',
+    transition: 'all 0.2s ease-in-out',
+    outline: 'none'
+  });
+
 
   // Data States
   const [customer, setCustomer] = useState(null);
@@ -523,14 +534,14 @@ const CustomerDetails = () => {
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-24">
       {/* Header Bar */}
-      <div className="bg-white border-b border-gray-100 px-8 py-6 sticky top-0 z-40">
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5">
         <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-5">
-            <button onClick={() => viewMode === 'edit' && !isNew ? setViewMode('view') : navigate('/customerlist')} className="px-3.5 py-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 transition-all border border-gray-100 flex items-center gap-1.5 shadow-xs">
+            <button onClick={() => viewMode === 'edit' && !isNew ? setViewMode('view') : navigate('/customerlist')} className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all border border-slate-100 flex items-center gap-1.5 shadow-sm">
               <ChevronLeft size={16} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
             </button>
-            <div className="h-10 w-10 bg-slate-900 rounded-lg flex items-center justify-center shadow-md overflow-hidden">
+            <div className="h-10 w-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-md overflow-hidden">
               {customer?.image ? (
                 <img src={customer.image} alt={customer.customer_name} className="w-full h-full object-cover" />
               ) : (
@@ -554,11 +565,11 @@ const CustomerDetails = () => {
           <div>
             {viewMode === 'view' ? (
               <div className="flex items-center gap-3">
-                <button onClick={() => navigate(`/generalledgerreport?party_type=Customer&party=${customer?.name}`)} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
+                <button onClick={() => navigate(`/generalledgerreport?party_type=Customer&party=${customer?.name}`)} className="px-5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all">
                   <FileText size={13} /> General Ledger
                 </button>
-                <button onClick={() => setViewMode('edit')} className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
-                  <Edit2 size={13} /> Edit Customer Details
+                <button onClick={() => setViewMode('edit')} className="px-5 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all" style={{ backgroundColor: themeColor }}>
+                  <Edit2 size={13} /> Edit Customer
                 </button>
               </div>
             ) : (
@@ -568,7 +579,7 @@ const CustomerDetails = () => {
                     Discard
                   </button>
                 )}
-                <button onClick={handleSave} disabled={saving} className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
+                <button onClick={handleSave} disabled={saving} className="px-7 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all" style={{ backgroundColor: themeColor }}>
                   {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                   {saving ? 'Saving...' : 'Save Profile'}
                 </button>
@@ -576,21 +587,23 @@ const CustomerDetails = () => {
             )}
           </div>
         </div>
-      </div>      {/* Main Content Layout containing ONLY form specs */}
+      </div>
+
+      {/* Main Content Layout containing ONLY form specs */}
       <div className="w-full mt-8 px-8">
         {viewMode === 'view' && !isNew && (
-          <div className="flex border-b border-slate-200 mb-6 gap-2">
+          <div className="flex bg-slate-100/80 p-1 rounded-xl mb-6 w-fit gap-1">
             <button
               onClick={() => setActiveTab('profile')}
-              className={`px-5 py-3 font-black uppercase tracking-wider text-xs border-b-2 transition-all flex items-center gap-2 ${activeTab === 'profile' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              className={`px-5 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${activeTab === 'profile' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
             >
-              <User className="w-4 h-4" /> Profile Details
+              <User className="w-4 h-4" style={{ color: activeTab === 'profile' ? themeColor : undefined }} /> Profile Details
             </button>
             <button
               onClick={() => setActiveTab('loyalty')}
-              className={`px-5 py-3 font-black uppercase tracking-wider text-xs border-b-2 transition-all flex items-center gap-2 ${activeTab === 'loyalty' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              className={`px-5 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${activeTab === 'loyalty' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
             >
-              <Award className="w-4 h-4" /> Loyalty Points Ledger ({customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts)
+              <Award className="w-4 h-4" style={{ color: activeTab === 'loyalty' ? themeColor : undefined }} /> Loyalty Ledger ({customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts)
             </button>
           </div>
         )}
@@ -600,9 +613,9 @@ const CustomerDetails = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300 pb-12">
 
               {/* Card 1: Legal Identity Details */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-                <SectionHeader num="1" text="Legal Identity Profile" />
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Legal Identity Profile" themeColor={themeColor} />
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                   <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
                   <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
                   <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
@@ -619,9 +632,9 @@ const CustomerDetails = () => {
               </div>
 
               {/* Card 2: Deal Information & Primary Address */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-                <SectionHeader num="2" text="Deal & Spatial Information" />
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Deal & Spatial Information" themeColor={themeColor} />
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                   <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
                   <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
                   <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
@@ -638,9 +651,9 @@ const CustomerDetails = () => {
               </div>
 
               {/* Card 3: Source & Assignment */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-                <SectionHeader num="3" text="Source & Assignment Protocols" />
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Source & Assignment Protocols" themeColor={themeColor} />
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                   <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
                   <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
                   <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
@@ -654,9 +667,9 @@ const CustomerDetails = () => {
               </div>
 
               {/* Card 4: Additional Information & Contact Person */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-                <SectionHeader num="4" text="Additional Information & Primary Contact" />
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Additional Information & Primary Contact" themeColor={themeColor} />
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                   <DetailRow label="Disabled Status" value={customer?.disabled === 1 ? 'Disabled' : 'Active'} icon={Shield} themeColor={themeColor} />
                   <DetailRow label="Is Frozen Status" value={customer?.is_frozen === 1 ? 'Frozen State' : 'Normal State'} icon={Shield} themeColor={themeColor} />
                   <DetailRow label="Internal Customer Status" value={customer?.is_internal_customer === 1 ? 'Yes, Internal' : 'No, External'} icon={Shield} themeColor={themeColor} />
@@ -674,14 +687,14 @@ const CustomerDetails = () => {
               </div>
 
               {/* Card 5: Branch Availability Visibility */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden lg:col-span-2">
-                <SectionHeader num="5" text="Regional Branch Availability" />
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 lg:col-span-2">
+                <SectionHeader text="Regional Branch Availability" themeColor={themeColor} />
                 <div className="p-6">
                   {customer?.branch_availability?.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {customer.branch_availability.map((b, idx) => (
-                        <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                          <div className="w-8 h-8 rounded bg-white flex items-center justify-center shadow-xs">
+                        <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100/50">
+                          <div className="w-8 h-8 rounded bg-white flex items-center justify-center shadow-xs border border-slate-100">
                             <Warehouse size={14} className="text-slate-400" />
                           </div>
                           <span className="text-xs font-bold text-slate-700">{b.warehouse}</span>
@@ -689,7 +702,7 @@ const CustomerDetails = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <div className="text-center py-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
                       <Warehouse size={32} className="mx-auto text-slate-300 mb-2 opacity-50" />
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available in all branches (Global Access)</p>
                     </div>
@@ -700,19 +713,19 @@ const CustomerDetails = () => {
             </div>
           ) : (
             /* Loyalty Point Ledger Tab content */
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden pb-12 animate-in fade-in duration-300">
-              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden pb-12 animate-in fade-in duration-300">
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white/50 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-xs">
-                    <Award size={18} />
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50/50 text-indigo-600 flex items-center justify-center border border-indigo-100/50">
+                    <Award size={18} style={{ color: themeColor }} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Loyalty Points Balance Ledger</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Historical record of point credits and redemptions</p>
+                    <h3 className="text-sm font-bold text-slate-800">Loyalty Points Balance Ledger</h3>
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Historical record of point credits and redemptions</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Balance:</span>
+                <div className="flex items-center gap-4 bg-slate-50/80 border border-slate-100/50 rounded-xl px-4 py-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Balance:</span>
                   <span className="text-base font-black text-slate-800">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts</span>
                 </div>
               </div>
@@ -731,7 +744,7 @@ const CustomerDetails = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         <th className="py-3.5 px-6">Posting Date</th>
                         <th className="py-3.5 px-6">Transaction Type</th>
                         <th className="py-3.5 px-6">Purchase Value</th>
@@ -742,12 +755,12 @@ const CustomerDetails = () => {
                     </thead>
                     <tbody>
                       {loyaltyLedger.map((row, idx) => (
-                        <tr key={idx} className="border-b border-slate-100/80 hover:bg-slate-50/40 text-xs font-medium text-slate-700 transition-colors">
+                        <tr key={idx} className="border-b border-slate-100/50 hover:bg-slate-50/40 text-xs font-medium text-slate-700 transition-colors">
                           <td className="py-3.5 px-6 font-semibold text-slate-500">
                             {row.posting_date}
                           </td>
                           <td className="py-3.5 px-6">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${row.type === 'Earned' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${row.type === 'Earned' ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50' : 'bg-rose-50 text-rose-600 border-rose-100/50'}`}>
                               {row.type}
                             </span>
                           </td>
@@ -785,19 +798,16 @@ const CustomerDetails = () => {
           /* Full Screen Edit Form */
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-300 pb-12">
             {/* Quadrant 1: Registration Details */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>1</div>
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Identity Details</h3>
-                </div>
-              </div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
+              <SectionHeader text="Identity Details" themeColor={themeColor} />
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Legal Identity Name</label>
                   <input
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('customer_name')}
+                    onFocus={() => setFocusedField('customer_name')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.customer_name}
                     onChange={e => setForm({ ...form, customer_name: e.target.value })}
                     placeholder="Company or Individual Name"
@@ -807,8 +817,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Salutation</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('salutation'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('salutation')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.salutation}
                     onChange={e => setForm({ ...form, salutation: e.target.value })}
                   >
@@ -820,8 +836,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Corporate Type</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('customer_type'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('customer_type')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.customer_type}
                     onChange={e => setForm({ ...form, customer_type: e.target.value })}
                   >
@@ -832,8 +854,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Group</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('customer_group'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('customer_group')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.customer_group}
                     onChange={e => setForm({ ...form, customer_group: e.target.value })}
                   >
@@ -844,8 +872,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Territory Domain</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('territory'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('territory')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.territory}
                     onChange={e => setForm({ ...form, territory: e.target.value })}
                   >
@@ -856,8 +890,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Gender</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('gender'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('gender')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.gender}
                     onChange={e => setForm({ ...form, gender: e.target.value })}
                   >
@@ -872,15 +912,17 @@ const CustomerDetails = () => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Profile Image Reference</label>
                   <div className="flex gap-2">
                     <input
-                      className="flex-1 h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      className="flex-1 h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('image')}
+                      onFocus={() => setFocusedField('image')}
+                      onBlur={() => setFocusedField(null)}
                       value={form.image}
                       onChange={e => setForm({ ...form, image: e.target.value })}
                       placeholder="Image URL link"
                     />
                     <button
                       onClick={() => document.getElementById('customer-image-upload')?.click()}
-                      className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200 transition-all"
+                      className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-bold uppercase tracking-wider border border-slate-200/50 transition-all"
                     >
                       Upload
                     </button>
@@ -898,8 +940,10 @@ const CustomerDetails = () => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Registry Specs Details</label>
                   <textarea
                     rows={2}
-                    className="w-full px-4 py-2 border rounded-lg text-xs font-medium text-slate-700 bg-white focus:ring-0 resize-none"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full px-4 py-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 resize-none focus:ring-0"
+                    style={getInputStyle('customer_details')}
+                    onFocus={() => setFocusedField('customer_details')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.customer_details}
                     onChange={e => setForm({ ...form, customer_details: e.target.value })}
                     placeholder="Internal description notes"
@@ -912,14 +956,14 @@ const CustomerDetails = () => {
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Branch Hub Availability</label>
                     <button
                       onClick={() => setForm({ ...form, branch_availability: [...form.branch_availability, { warehouse: '' }] })}
-                      className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors flex items-center gap-1.5"
+                      className="text-[10px] font-bold text-blue-600 uppercase tracking-wider hover:text-blue-800 transition-colors flex items-center gap-1.5"
                     >
                       <Plus size={12} /> Add Branch Hub
                     </button>
                   </div>
 
                   {form.branch_availability.length === 0 ? (
-                    <div className="py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center">
+                    <div className="py-6 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center justify-center">
                       <Warehouse size={24} className="text-slate-300 mb-2 opacity-60" />
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Global access (All Branches)</p>
                     </div>
@@ -928,8 +972,14 @@ const CustomerDetails = () => {
                       {form.branch_availability.map((b, idx) => (
                         <div key={idx} className="flex items-center gap-2">
                           <select
-                            className="flex-1 h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                            className="flex-1 h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                            style={{
+                              ...getInputStyle(`branch_${idx}`),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                            }}
+                            onFocus={() => setFocusedField(`branch_${idx}`)}
+                            onBlur={() => setFocusedField(null)}
                             value={b.warehouse}
                             onChange={e => {
                               const newB = [...form.branch_availability];
@@ -945,7 +995,7 @@ const CustomerDetails = () => {
                               const newB = form.branch_availability.filter((_, i) => i !== idx);
                               setForm({ ...form, branch_availability: newB });
                             }}
-                            className="w-11 h-11 flex items-center justify-center bg-rose-50 text-rose-500 rounded-lg border border-rose-100 hover:bg-rose-100 transition-all"
+                            className="w-11 h-11 flex items-center justify-center bg-rose-50/50 text-rose-500 rounded-xl border border-rose-100/50 hover:bg-rose-100 transition-all"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -958,20 +1008,17 @@ const CustomerDetails = () => {
             </div>
 
             {/* Quadrant 2: Contact Info & Address */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>2</div>
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Deal Information</h3>
-                </div>
-              </div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
+              <SectionHeader text="Deal Information" themeColor={themeColor} />
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Email Id</label>
                   <input
                     type="email"
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('email_id')}
+                    onFocus={() => setFocusedField('email_id')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.email_id}
                     onChange={e => setForm({ ...form, email_id: e.target.value })}
                     placeholder="email@example.com"
@@ -981,8 +1028,10 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Mobile No</label>
                   <input
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('mobile_no')}
+                    onFocus={() => setFocusedField('mobile_no')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.mobile_no}
                     onChange={e => setForm({ ...form, mobile_no: e.target.value })}
                     placeholder="+971 -- --- ----"
@@ -992,8 +1041,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Type</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('address_type'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('address_type')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.address_type}
                     onChange={e => setForm({ ...form, address_type: e.target.value })}
                   >
@@ -1004,18 +1059,27 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">City Station</label>
                   <input
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('city')}
+                    onFocus={() => setFocusedField('city')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.city}
                     onChange={e => setForm({ ...form, city: e.target.value })}
+                    placeholder="City"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Emirate Hub</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('emirate'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('emirate')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.emirate}
                     onChange={e => setForm({ ...form, emirate: e.target.value })}
                   >
@@ -1027,8 +1091,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Country</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('country'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('country')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.country}
                     onChange={e => {
                       const selectedCountry = e.target.value;
@@ -1049,49 +1119,59 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5 col-span-1 md:col-span-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Building / Street Line 1</label>
                   <input
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('address_line1')}
+                    onFocus={() => setFocusedField('address_line1')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.address_line1}
                     onChange={e => setForm({ ...form, address_line1: e.target.value })}
+                    placeholder="Building / Street Line 1"
                   />
                 </div>
 
                 <div className="space-y-1.5 col-span-1 md:col-span-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Line 2</label>
                   <input
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('address_line2')}
+                    onFocus={() => setFocusedField('address_line2')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.address_line2}
                     onChange={e => setForm({ ...form, address_line2: e.target.value })}
+                    placeholder="Address Line 2"
                   />
                 </div>
               </div>
             </div>
 
             {/* Quadrant 3: Currency & Price List */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>3</div>
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Source & Assignment</h3>
-                </div>
-              </div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
+              <SectionHeader text="Source & Assignment" themeColor={themeColor} />
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Id</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Id / TRN</label>
                   <input
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('tax_id')}
+                    onFocus={() => setFocusedField('tax_id')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.tax_id}
                     onChange={e => setForm({ ...form, tax_id: e.target.value })}
+                    placeholder="TRN Number"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Category</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('tax_category'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('tax_category')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.tax_category}
                     onChange={e => setForm({ ...form, tax_category: e.target.value })}
                   >
@@ -1103,8 +1183,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Pricing Matrix</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('default_price_list'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('default_price_list')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.default_price_list}
                     onChange={e => setForm({ ...form, default_price_list: e.target.value })}
                   >
@@ -1116,8 +1202,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Payment Terms Protocol</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('payment_terms'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('payment_terms')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.payment_terms}
                     onChange={e => setForm({ ...form, payment_terms: e.target.value })}
                   >
@@ -1129,8 +1221,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Loyalty Hub Link</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('loyalty_program'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('loyalty_program')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.loyalty_program}
                     onChange={e => setForm({ ...form, loyalty_program: e.target.value })}
                   >
@@ -1143,8 +1241,10 @@ const CustomerDetails = () => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Allowed Discount (%)</label>
                   <input
                     type="number"
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('custom_default_discount')}
+                    onFocus={() => setFocusedField('custom_default_discount')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.custom_default_discount}
                     onChange={e => setForm({ ...form, custom_default_discount: parseFloat(e.target.value) || 0 })}
                     placeholder="Allowed discount percent"
@@ -1154,8 +1254,14 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Account Supervisor</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('account_manager'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('account_manager')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.account_manager}
                     onChange={e => setForm({ ...form, account_manager: e.target.value })}
                   >
@@ -1167,18 +1273,27 @@ const CustomerDetails = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Customer POS Ident</label>
                   <input
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                    style={getInputStyle('customer_pos_id')}
+                    onFocus={() => setFocusedField('customer_pos_id')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.customer_pos_id}
                     onChange={e => setForm({ ...form, customer_pos_id: e.target.value })}
+                    placeholder="POS ID"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Prospect Alias</label>
                   <select
-                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                    style={{
+                      ...getInputStyle('prospect_name'),
+                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                      backgroundSize: '1.25rem'
+                    }}
+                    onFocus={() => setFocusedField('prospect_name')}
+                    onBlur={() => setFocusedField(null)}
                     value={form.prospect_name}
                     onChange={e => setForm({ ...form, prospect_name: e.target.value })}
                   >
@@ -1190,13 +1305,8 @@ const CustomerDetails = () => {
             </div>
 
             {/* Quadrant 4: Settings & Controls */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden flex flex-col h-full">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ backgroundColor: themeColor }}>4</div>
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Additional Information</h3>
-                </div>
-              </div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
+              <SectionHeader text="Additional Information" themeColor={themeColor} />
               <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                   {[
@@ -1204,79 +1314,88 @@ const CustomerDetails = () => {
                     { id: 'is_frozen', label: 'Is Frozen' },
                     { id: 'is_internal_customer', label: 'Internal Customer' }
                   ].map(check => (
-                    <label key={check.id} className="flex items-center px-3 py-2.5 bg-slate-50/50 hover:bg-slate-100/50 border border-slate-100 rounded-lg cursor-pointer transition-all select-none group">
+                    <label key={check.id} className="flex items-center px-4 py-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-100 rounded-xl cursor-pointer transition-all select-none group">
                       <input
                         type="checkbox"
-                        className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0"
+                        className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0 mr-3 w-4 h-4"
                         style={{
-                          accentColor: themeColor,
-                          width: '16px',
-                          height: '16px',
-                          minWidth: '16px',
-                          minHeight: '16px',
-                          position: 'static',
-                          display: 'inline-block',
-                          margin: '0 10px 0 0',
-                          flexShrink: 0,
-                          cursor: 'pointer'
+                          accentColor: themeColor
                         }}
                         checked={form[check.id] === 1 || form[check.id] === true}
                         onChange={e => setForm({ ...form, [check.id]: e.target.checked ? 1 : 0 })}
                       />
-                      <span className="text-[9px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
+                      <span className="text-[10px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
                     </label>
                   ))}
                 </div>
 
                 {/* Personnel Profile (Primary Contact) */}
-                <div className="space-y-3">
+                <div className="space-y-3 pt-4 border-t border-slate-100">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Primary Contact Person Profile</label>
                   <div className="grid grid-cols-2 gap-3">
                     <input
                       placeholder="First Name"
-                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('first_name')}
+                      onFocus={() => setFocusedField('first_name')}
+                      onBlur={() => setFocusedField(null)}
                       value={form.first_name}
                       onChange={e => setForm({ ...form, first_name: e.target.value })}
                     />
                     <input
                       placeholder="Middle Name"
-                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('middle_name')}
+                      onFocus={() => setFocusedField('middle_name')}
+                      onBlur={() => setFocusedField(null)}
                       value={form.middle_name}
                       onChange={e => setForm({ ...form, middle_name: e.target.value })}
                     />
                     <input
                       placeholder="Last Name"
-                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('last_name')}
+                      onFocus={() => setFocusedField('last_name')}
+                      onBlur={() => setFocusedField(null)}
                       value={form.last_name}
                       onChange={e => setForm({ ...form, last_name: e.target.value })}
                     />
                     <input
                       placeholder="Designation"
-                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('designation')}
+                      onFocus={() => setFocusedField('designation')}
+                      onBlur={() => setFocusedField(null)}
                       value={form.designation}
                       onChange={e => setForm({ ...form, designation: e.target.value })}
                     />
                     <input
                       placeholder="Contact Email"
-                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white col-span-2"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 col-span-2"
+                      style={getInputStyle('contact_email')}
+                      onFocus={() => setFocusedField('contact_email')}
+                      onBlur={() => setFocusedField(null)}
                       value={form.contact_email}
                       onChange={e => setForm({ ...form, contact_email: e.target.value })}
                     />
                     <input
                       placeholder="Contact Mobile"
-                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('contact_mobile')}
+                      onFocus={() => setFocusedField('contact_mobile')}
+                      onBlur={() => setFocusedField(null)}
                       value={form.contact_mobile}
                       onChange={e => setForm({ ...form, contact_mobile: e.target.value })}
                     />
                     <select
-                      className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('status'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('status')}
+                      onBlur={() => setFocusedField(null)}
                       value={form.status}
                       onChange={e => setForm({ ...form, status: e.target.value })}
                     >
@@ -1296,3 +1415,4 @@ const CustomerDetails = () => {
 };
 
 export default CustomerDetails;
+

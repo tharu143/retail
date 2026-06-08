@@ -274,14 +274,14 @@
     position: sticky;
     top: 0;
     z-index: 5;
-    border-bottom: 2px solid #e2e8f0;
+    border: 1px solid #e2e8f0;
 }
 
 .premium-stock-table td {
     padding: 0.95rem 0.85rem;
     font-size: 0.825rem;
     color: #334155;
-    border-bottom: 1px solid #f1f5f9;
+    border: 1px solid #e2e8f0;
     vertical-align: middle;
 }
 

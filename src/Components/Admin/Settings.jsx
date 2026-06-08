@@ -25,13 +25,7 @@ const Settings = () => {
     const [selectedWarehouse, setSelectedWarehouse] = useState(activeWarehouse);
     const [loading, setLoading] = useState(true);
 
-    // POS Loyalty Rules States
-    const [items, setItems] = useState([]);
-    const [rules, setRules] = useState([]);
-    const [newWarehouse, setNewWarehouse] = useState('');
-    const [newItemCode, setNewItemCode] = useState('');
-    const [newPoints, setNewPoints] = useState(1.0);
-    const [rulesLoading, setRulesLoading] = useState(false);
+
 
     // Theme Hook
     const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
@@ -54,124 +48,12 @@ const Settings = () => {
             }
         };
 
-        const fetchRules = async () => {
-            try {
-                setRulesLoading(true);
-                const res = await fetch('/api/method/kyle_retail.retail_api.api.get_pos_loyalty_settings', {
-                    headers: { 'X-Frappe-SID': session },
-                    credentials: 'include'
-                });
-                const data = await res.json();
-                setRules(data.message || []);
-            } catch (err) {
-                console.error("Failed to fetch loyalty rules:", err);
-            } finally {
-                setRulesLoading(false);
-            }
-        };
-
-        const fetchItemsList = async () => {
-            try {
-                const res = await fetch('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
-                    headers: { 'X-Frappe-SID': session },
-                    credentials: 'include'
-                });
-                const data = await res.json();
-                setItems(data.message || []);
-            } catch (err) {
-                console.error("Failed to fetch items list:", err);
-            }
-        };
-
         if (company && session) {
             fetchWarehouses();
-            fetchRules();
-            fetchItemsList();
         }
     }, [company, session]);
 
-    const handleAddRule = async () => {
-        if (!session) return;
-        try {
-            const res = await fetch('/api/method/kyle_retail.retail_api.api.save_pos_loyalty_setting', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Frappe-SID': session
-                },
-                body: JSON.stringify({
-                    warehouse: newWarehouse,
-                    item_code: newItemCode,
-                    points_per_100_aed: newPoints
-                }),
-                credentials: 'include'
-            });
-            const data = await res.json();
-            if (data.message?.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Rule Added',
-                    text: 'Loyalty points multiplier updated.',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-                setNewWarehouse('');
-                setNewItemCode('');
-                setNewPoints(1.0);
-                // Refetch rules
-                const rulesRes = await fetch('/api/method/kyle_retail.retail_api.api.get_pos_loyalty_settings', {
-                    headers: { 'X-Frappe-SID': session },
-                    credentials: 'include'
-                });
-                const rulesData = await rulesRes.json();
-                setRules(rulesData.message || []);
-            } else {
-                Swal.fire('Error', data.message?.message || 'Failed to save rule', 'error');
-            }
-        } catch (err) {
-            Swal.fire('Error', err.message, 'error');
-        }
-    };
 
-    const handleDeleteRule = async (name) => {
-        const result = await Swal.fire({
-            title: 'Delete Loyalty Rule?',
-            text: 'Are you sure you want to delete this custom points multiplier?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, Delete',
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#94a3b8'
-        });
-        if (!result.isConfirmed) return;
-
-        try {
-            const res = await fetch(`/api/method/kyle_retail.retail_api.api.delete_pos_loyalty_setting?name=${encodeURIComponent(name)}`, {
-                headers: { 'X-Frappe-SID': session },
-                credentials: 'include'
-            });
-            const data = await res.json();
-            if (data.message?.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Rule Deleted',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-                // Refetch rules
-                const rulesRes = await fetch('/api/method/kyle_retail.retail_api.api.get_pos_loyalty_settings', {
-                    headers: { 'X-Frappe-SID': session },
-                    credentials: 'include'
-                });
-                const rulesData = await rulesRes.json();
-                setRules(rulesData.message || []);
-            } else {
-                Swal.fire('Error', data.message?.message || 'Failed to delete rule', 'error');
-            }
-        } catch (err) {
-            Swal.fire('Error', err.message, 'error');
-        }
-    };
 
     const handleSave = () => {
         if (!selectedWarehouse) {
@@ -341,108 +223,6 @@ const Settings = () => {
                             </div>
                         </div>
 
-                        {/* Dynamic Loyalty Settings Card */}
-                        <div className="so-table-card" style={{ padding: '1.5rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
-                                <div style={{ background: `${themeColor}15`, color: themeColor, padding: '8px', borderRadius: '10px' }}>
-                                    <Award size={18} />
-                                </div>
-                                <div>
-                                    <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0 }}>POS Loyalty Settings</h3>
-                                    <p style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', margin: 0 }}>Configure branch and item specific points earned per 100 AED.</p>
-                                </div>
-                            </div>
-
-                            {/* Rules Table */}
-                            {rulesLoading ? (
-                                <div style={{ textAlign: 'center', padding: '1rem' }}>
-                                    <Loader2 className="animate-spin" size={20} style={{ color: themeColor, margin: '0 auto' }} />
-                                </div>
-                            ) : (
-                                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '1.5rem' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
-                                        <thead>
-                                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 800 }}>
-                                                <th style={{ padding: '8px 12px' }}>Branch</th>
-                                                <th style={{ padding: '8px 12px' }}>Item Code</th>
-                                                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Multiplier</th>
-                                                <th style={{ padding: '8px 12px', textAlign: 'center' }}>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {rules.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="4" style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
-                                                        No custom multipliers configured. (Default: 1.0)
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                rules.map((rule) => (
-                                                    <tr key={rule.name} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{rule.warehouse ? rule.warehouse.split(" - ")[0] : "All Branches"}</td>
-                                                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{rule.item_code || "All Items"}</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 800, color: themeColor }}>{parseFloat(rule.points_per_100_aed).toFixed(2)} pts</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                                                            <button 
-                                                                onClick={() => handleDeleteRule(rule.name)}
-                                                                style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-
-                            {/* Add Rule Form */}
-                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                <h4 style={{ fontSize: '0.75rem', fontWeight: 800, margin: '0 0 10px 0', textTransform: 'uppercase', color: '#475569' }}>Add Custom Multiplier</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '10px' }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Branch</label>
-                                        <select
-                                            value={newWarehouse}
-                                            onChange={e => setNewWarehouse(e.target.value)}
-                                            style={{ width: '100%', height: '36px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.7rem', padding: '0 8px', outline: 'none', background: 'white' }}
-                                        >
-                                            <option value="">All Branches</option>
-                                            {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Item</label>
-                                        <select
-                                            value={newItemCode}
-                                            onChange={e => setNewItemCode(e.target.value)}
-                                            style={{ width: '100%', height: '36px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.7rem', padding: '0 8px', outline: 'none', background: 'white' }}
-                                        >
-                                            <option value="">All Items</option>
-                                            {items.map(item => <option key={item.item_code} value={item.item_code}>{item.item_name} ({item.item_code})</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Points / 100 AED</label>
-                                        <input
-                                            type="number"
-                                            value={newPoints}
-                                            onChange={e => setNewPoints(parseFloat(e.target.value) || 0)}
-                                            step="0.01"
-                                            style={{ width: '100%', height: '36px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.7rem', padding: '0 8px', outline: 'none', background: 'white' }}
-                                        />
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={handleAddRule}
-                                    style={{ width: '100%', height: '36px', background: themeColor, color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
-                                >
-                                    Add Custom Loyalty Rule
-                                </button>
-                            </div>
-                        </div>
 
                         {/* System Summary Card */}
                         <div className="so-table-card" style={{ padding: '1.5rem', background: '#f8fafc' }}>

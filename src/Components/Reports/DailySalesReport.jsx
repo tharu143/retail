@@ -376,23 +376,23 @@ function DailySalesReport() {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse text-xs">
                                     <thead>
-                                        <tr className="border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/50">
-                                            <th className="py-3 px-4">Invoice ID</th>
-                                            <th className="py-3 px-4">Customer</th>
-                                            <th className="py-3 px-4">Cashier</th>
-                                            <th className="py-3 px-4">Time</th>
-                                            <th className="py-3 px-4">Payment Breakdown</th>
-                                            <th className="py-3 px-4 text-right">Grand Total</th>
+                                        <tr className="border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/50">
+                                            <th className="py-3 px-4 border border-slate-200">Invoice ID</th>
+                                            <th className="py-3 px-4 border border-slate-200">Customer</th>
+                                            <th className="py-3 px-4 border border-slate-200">Cashier</th>
+                                            <th className="py-3 px-4 border border-slate-200">Time</th>
+                                            <th className="py-3 px-4 border border-slate-200">Payment Breakdown</th>
+                                            <th className="py-3 px-4 text-right border border-slate-200">Grand Total</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {data.invoices?.map((inv) => (
                                             <tr key={inv.name} className="hover:bg-slate-50/40 text-slate-700">
-                                                <td className="py-3 px-4 font-bold text-slate-900">{inv.name}</td>
-                                                <td className="py-3 px-4 font-semibold">{inv.customer_name}</td>
-                                                <td className="py-3 px-4">{inv.owner?.split('@')[0]}</td>
-                                                <td className="py-3 px-4 text-slate-500">{inv.posting_time}</td>
-                                                <td className="py-3 px-4">
+                                                <td className="py-3 px-4 font-bold text-slate-900 border border-slate-200">{inv.name}</td>
+                                                <td className="py-3 px-4 font-semibold border border-slate-200">{inv.customer_name}</td>
+                                                <td className="py-3 px-4 border border-slate-200">{inv.owner?.split('@')[0]}</td>
+                                                <td className="py-3 px-4 text-slate-500 border border-slate-200">{inv.posting_time}</td>
+                                                <td className="py-3 px-4 border border-slate-200">
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {inv.payments?.map((p, pIdx) => (
                                                             <span key={pIdx} className="bg-slate-50 border border-slate-200/60 rounded-full px-2 py-0.5 text-[10px] font-bold text-slate-600">
@@ -401,19 +401,19 @@ function DailySalesReport() {
                                                         ))}
                                                     </div>
                                                 </td>
-                                                <td className="py-3 px-4 text-right font-black text-slate-900">
+                                                <td className="py-3 px-4 text-right font-black text-slate-900 border border-slate-200">
                                                     AED {inv.grand_total.toFixed(2)}
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr className="border-t-2 border-slate-200 font-black text-slate-800 bg-slate-50/50">
-                                            <td className="py-3 px-4 text-[10px] font-black uppercase">Total</td>
-                                            <td className="py-3 px-4"></td>
-                                            <td className="py-3 px-4"></td>
-                                            <td className="py-3 px-4"></td>
-                                            <td className="py-3 px-4">
+                                        <tr className="border-2 border-slate-200 font-black text-slate-800 bg-slate-50/50">
+                                            <td className="py-3 px-4 text-[10px] font-black uppercase border border-slate-200">Total</td>
+                                            <td className="py-3 px-4 border border-slate-200"></td>
+                                            <td className="py-3 px-4 border border-slate-200"></td>
+                                            <td className="py-3 px-4 border border-slate-200"></td>
+                                            <td className="py-3 px-4 border border-slate-200">
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {totals.cash > 0 && <span className="bg-emerald-50 border border-emerald-200/60 rounded-full px-2 py-0.5 text-[9px] font-bold text-emerald-700">Cash: {totals.cash.toFixed(2)}</span>}
                                                     {totals.card > 0 && <span className="bg-blue-50 border border-blue-200/60 rounded-full px-2 py-0.5 text-[9px] font-bold text-blue-700">Card: {totals.card.toFixed(2)}</span>}
@@ -422,7 +422,7 @@ function DailySalesReport() {
                                                     {totals.credit > 0 && <span className="bg-rose-50 border border-rose-200/60 rounded-full px-2 py-0.5 text-[9px] font-bold text-rose-700">Credit: {totals.credit.toFixed(2)}</span>}
                                                 </div>
                                             </td>
-                                            <td className="py-3 px-4 text-right font-black text-slate-900 text-sm">
+                                            <td className="py-3 px-4 text-right font-black text-slate-900 text-sm border border-slate-200">
                                                 AED {totalRevenue.toFixed(2)}
                                             </td>
                                         </tr>
@@ -560,22 +560,22 @@ function DailySalesReport() {
                                                 <div className="overflow-x-auto bg-white border border-slate-100 rounded-xl shadow-sm">
                                                     <table className="w-full text-left border-collapse text-[11px]">
                                                         <thead>
-                                                            <tr className="bg-slate-50/80 border-b border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                                                                <th className="py-2.5 px-3">Mode</th>
-                                                                <th className="py-2.5 px-3 text-right">Opening Float</th>
-                                                                <th className="py-2.5 px-3 text-right">Expected Total</th>
-                                                                <th className="py-2.5 px-3 text-right">Counted Actual</th>
-                                                                <th className="py-2.5 px-3 text-right">Variance</th>
+                                                            <tr className="bg-slate-50/80 border border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                                                <th className="py-2.5 px-3 border border-slate-200">Mode</th>
+                                                                <th className="py-2.5 px-3 text-right border border-slate-200">Opening Float</th>
+                                                                <th className="py-2.5 px-3 text-right border border-slate-200">Expected Total</th>
+                                                                <th className="py-2.5 px-3 text-right border border-slate-200">Counted Actual</th>
+                                                                <th className="py-2.5 px-3 text-right border border-slate-200">Variance</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y divide-slate-100 text-slate-700">
                                                             {cl.reconciliation?.map((r, rIdx) => (
                                                                 <tr key={rIdx}>
-                                                                    <td className="py-2.5 px-3 font-bold">{r.mode_of_payment}</td>
-                                                                    <td className="py-2.5 px-3 text-right">{(r.opening_amount || 0).toFixed(2)}</td>
-                                                                    <td className="py-2.5 px-3 text-right font-semibold">{(r.expected_amount || 0).toFixed(2)}</td>
-                                                                    <td className="py-2.5 px-3 text-right font-black text-slate-800">{(r.closing_amount || 0).toFixed(2)}</td>
-                                                                    <td className={`py-2.5 px-3 text-right font-black ${
+                                                                    <td className="py-2.5 px-3 font-bold border border-slate-200">{r.mode_of_payment}</td>
+                                                                    <td className="py-2.5 px-3 text-right border border-slate-200">{(r.opening_amount || 0).toFixed(2)}</td>
+                                                                    <td className="py-2.5 px-3 text-right font-semibold border border-slate-200">{(r.expected_amount || 0).toFixed(2)}</td>
+                                                                    <td className="py-2.5 px-3 text-right font-black text-slate-800 border border-slate-200">{(r.closing_amount || 0).toFixed(2)}</td>
+                                                                    <td className={`py-2.5 px-3 text-right font-black border border-slate-200 ${
                                                                         r.difference > 0 ? 'text-rose-600' : r.difference < 0 ? 'text-emerald-600' : 'text-slate-400'
                                                                     }`}>
                                                                         {r.difference !== 0 ? (r.difference > 0 ? `-${r.difference.toFixed(2)}` : `+${Math.abs(r.difference).toFixed(2)}`) : '0.00'}

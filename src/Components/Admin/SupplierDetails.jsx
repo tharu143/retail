@@ -19,50 +19,48 @@ import { ChevronDown } from "lucide-react";
 /* ==================== UI COMPONENTS ==================== */
 const StatCard = ({ label, value, currency, icon: Icon, themeColor, isGreen }) => (
   <div
-    className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group"
+    className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group"
   >
     <div className="space-y-1">
-      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">{label}</p>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
       <div className="flex items-baseline gap-1.5">
-        {currency && <span className="text-[11px] font-bold text-gray-500 uppercase">{currency}</span>}
-        <h4 className="text-2xl font-black text-gray-900 tracking-tight">
+        {currency && <span className="text-[11px] font-bold text-slate-500 uppercase">{currency}</span>}
+        <h4 className="text-2xl font-black text-slate-800 tracking-tight">
           {value}
         </h4>
       </div>
     </div>
-    <div className="p-3.5 rounded-xl bg-gray-50 group-hover:bg-opacity-10 transition-colors" style={{ backgroundColor: isGreen ? '#f0fdf4' : '#f0f9ff' }}>
-      <Icon size={22} className="text-gray-500 group-hover:opacity-100" style={{ color: themeColor }} strokeWidth={2.5} />
+    <div className="p-3.5 rounded-xl transition-colors" style={{ backgroundColor: `${themeColor}0c` }}>
+      <Icon size={22} style={{ color: themeColor }} strokeWidth={2.5} />
     </div>
   </div>
 );
 
 const ConnectionCard = ({ title, links, navigate, supplierName, icon: Icon, themeColor }) => (
-  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
-    <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <Icon size={16} style={{ color: themeColor }} strokeWidth={2.5} />
-        <h5 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">{title}</h5>
-      </div>
+  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
+    <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-2.5 bg-slate-50/20">
+      <Icon size={16} style={{ color: themeColor }} />
+      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</h5>
     </div>
-    <div className="p-3 flex-1">
-      <div className="space-y-1">
+    <div className="p-4 flex-1">
+      <div className="space-y-1.5">
         {links.map((link, idx) => (
           <div
             key={idx}
             onClick={() => navigate(`/${link.doctype.toLowerCase().replace(/ /g, '')}list?supplier=${encodeURIComponent(supplierName)}`)}
-            className="flex items-center justify-between p-3.5 rounded-lg hover:bg-gray-50 transition-all cursor-pointer group"
+            className="flex items-center justify-between p-3.5 rounded-xl hover:bg-slate-50 transition-all cursor-pointer group border border-transparent hover:border-slate-100/60"
           >
-            <span className="text-xs font-bold text-gray-700 transition-colors" style={{ color: undefined }}>{link.doctype}</span>
+            <span className="text-xs font-semibold text-slate-700">{link.doctype}</span>
             <div className="flex items-center gap-3">
-              <span className="text-[10px] font-bold px-2.5 py-0.5 bg-gray-100 text-gray-500 rounded-full group-hover:text-white transition-all" style={{ backgroundColor: undefined }}>{link.count}</span>
-              <ArrowRight size={12} className="text-gray-500 transition-all" />
+              <span className="text-[10px] font-bold px-2.5 py-0.5 bg-slate-100/80 text-slate-500 rounded-full group-hover:bg-slate-200 transition-all">{link.count}</span>
+              <ArrowRight size={12} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
             </div>
           </div>
         ))}
         {links.length === 0 && (
           <div className="py-8 flex flex-col items-center justify-center text-center opacity-40">
-            <Layers size={32} className="mb-2 text-gray-300" />
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-600">Registry Empty</p>
+            <Layers size={32} className="mb-2 text-slate-300" />
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Registry Empty</p>
           </div>
         )}
       </div>
@@ -71,12 +69,12 @@ const ConnectionCard = ({ title, links, navigate, supplierName, icon: Icon, them
 );
 
 const InfoSection = ({ title, children, icon: Icon, themeColor }) => (
-  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
-      <Icon size={18} style={{ color: themeColor }} strokeWidth={2.5} />
-      <h5 className="text-[10px] font-bold text-gray-700 uppercase tracking-widest">{title}</h5>
+  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 hover:shadow-md transition-all duration-300">
+    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/20 flex items-center gap-3">
+      <Icon size={16} style={{ color: themeColor }} />
+      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</h5>
     </div>
-    <div className="p-8">
+    <div className="p-6">
       {children}
     </div>
   </div>
@@ -367,200 +365,93 @@ const SupplierDetails = () => {
 
   return (
     <>
-      <div className="so-page" style={{ height: 'auto', minHeight: '100vh', overflow: 'visible', position: 'relative', zIndex: 1 }}>
+      <div className="min-h-screen bg-[#f8fafc] pb-24">
 
         {/* Page Header */}
-        <div className="so-page-header" style={{ position: 'relative', zIndex: 1, borderBottom: `1px solid ${themeColor}12`, padding: '1.25rem 2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => navigate(-1)}
-              className="so-btn-ghost"
-              style={{
-                padding: '0.5rem 0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                color: themeColor,
-                backgroundColor: `${themeColor}08`,
-                border: `1px solid ${themeColor}15`,
-                borderRadius: '0.5rem',
-                transition: 'all 0.2s',
-                height: '36px'
-              }}
-            >
-              <ChevronLeft size={16} />
-              <span style={{ fontSize: '0.7rem', fontWeight: 800 }}>BACK</span>
-            </button>
+        <div className="sticky top-0 z-45 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5">
+          <div className="w-full flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-5">
+              <button
+                onClick={() => navigate(-1)}
+                className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all border border-slate-100 flex items-center gap-1.5 shadow-sm"
+              >
+                <ChevronLeft size={16} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">BACK</span>
+              </button>
 
-            <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>
-                  <Building2 size={20} style={{ color: themeColor }} />
-                  <span>{supplier.supplier_name}</span>
-                </h1>
+              <div className="h-10 w-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-md overflow-hidden text-white">
+                <Building2 size={20} style={{ color: themeColor }} />
               </div>
 
-              {/* Dynamic Metadata Row in Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.675rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Supplier Info:
-                </span>
-
-                {/* Status Pill */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    backgroundColor: isActive ? '#f0fdf4' : '#fdf2f2',
-                    border: `1.5px solid ${isActive ? '#bbf7d0' : '#fecaca'}`,
-                    padding: '0.15rem 0.6rem',
-                    borderRadius: '9999px',
-                    height: '22px'
-                  }}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                  <span style={{ fontSize: '0.675rem', fontWeight: 800, color: isActive ? '#15803d' : '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-xl font-black text-slate-800 tracking-tight">
+                    {supplier.supplier_name}
+                  </h1>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                     {isActive ? 'Operational' : 'Restricted'}
                   </span>
                 </div>
-
-                {/* Supplier Group Pill */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    backgroundColor: '#f8fafc',
-                    border: '1.5px solid #e2e8f0',
-                    padding: '0.15rem 0.6rem',
-                    borderRadius: '9999px',
-                    height: '22px'
-                  }}
-                >
-                  <Tag size={10} style={{ color: themeColor }} />
-                  <span style={{ fontSize: '0.675rem', color: '#475569', fontWeight: 700 }}>Group:</span>
-                  <span style={{ fontSize: '0.675rem', fontWeight: 800, color: '#0f172a' }}>{supplier.supplier_group}</span>
-                </div>
-
-                {/* Country Pill */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    backgroundColor: '#f8fafc',
-                    border: '1.5px solid #e2e8f0',
-                    padding: '0.15rem 0.6rem',
-                    borderRadius: '9999px',
-                    height: '22px'
-                  }}
-                >
-                  <Globe size={10} style={{ color: themeColor }} />
-                  <span style={{ fontSize: '0.675rem', color: '#475569', fontWeight: 700 }}>Country:</span>
-                  <span style={{ fontSize: '0.675rem', fontWeight: 800, color: '#0f172a' }}>{supplier.country || 'Global Site'}</span>
-                </div>
-
-                {/* Price List Pill */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    backgroundColor: '#f8fafc',
-                    border: '1.5px solid #e2e8f0',
-                    padding: '0.15rem 0.6rem',
-                    borderRadius: '9999px',
-                    height: '22px'
-                  }}
-                >
-                  <CreditCard size={10} style={{ color: themeColor }} />
-                  <span style={{ fontSize: '0.675rem', color: '#475569', fontWeight: 700 }}>Price List:</span>
-                  <span style={{ fontSize: '0.675rem', fontWeight: 800, color: '#0f172a' }}>{supplier.default_price_list || 'Standard Buying'}</span>
+                {/* Dynamic Metadata Row in Header */}
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-md text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <Tag size={10} style={{ color: themeColor }} />
+                    <span>Group: {supplier.supplier_group}</span>
+                  </div>
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-md text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <Globe size={10} style={{ color: themeColor }} />
+                    <span>Country: {supplier.country || 'Global Site'}</span>
+                  </div>
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-md text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <CreditCard size={10} style={{ color: themeColor }} />
+                    <span>Price List: {supplier.default_price_list || 'Standard Buying'}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button
-              onClick={toggleTheme}
-              className="so-btn-secondary"
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                border: `1.5px solid ${themeColor}`,
-                color: themeColor,
-                backgroundColor: `${themeColor}05`,
-                padding: '0.5rem 0.9rem',
-                fontSize: '0.7rem',
-                fontWeight: 800,
-                borderRadius: '0.5rem'
-              }}
-              title={`Switch to ${isGreen ? 'Blue' : 'Green'} Theme`}
-            >
-              <Palette size={13} />
-              {isGreen ? 'BLUE' : 'GREEN'}
-            </button>
-            <button
-              onClick={() => {
-                setLoading(true);
-                fetchData();
-              }}
-              className="so-btn-secondary"
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                border: '1.5px solid #e2e8f0',
-                color: '#64748b',
-                backgroundColor: '#fff',
-                padding: '0.5rem 0.9rem',
-                fontSize: '0.7rem',
-                fontWeight: 800,
-                borderRadius: '0.5rem'
-              }}
-              title="Sync Dashboard Data"
-            >
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-              REFRESH
-            </button>
-            <button
-              onClick={() => navigate(`/generalledgerreport?party_type=Supplier&party=${name}`)}
-              className="so-btn-secondary"
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                border: '1.5px solid #e2e8f0',
-                color: '#64748b',
-                backgroundColor: '#fff',
-                padding: '0.5rem 0.9rem',
-                fontSize: '0.7rem',
-                fontWeight: 800,
-                borderRadius: '0.5rem'
-              }}
-              title="View General Ledger"
-            >
-              <FileText size={13} />
-              GENERAL LEDGER
-            </button>
-            <button
-              className="so-btn-primary"
-              onClick={() => setShowEditModal(true)}
-              style={{
-                backgroundColor: themeColor,
-                borderColor: themeColor,
-                padding: '0.5rem 1rem',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                borderRadius: '0.5rem'
-              }}
-            >
-              <Edit2 size={15} /> Edit
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleTheme}
+                className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
+                title={`Switch to ${isGreen ? 'Blue' : 'Green'} Theme`}
+              >
+                <Palette size={13} style={{ color: themeColor }} />
+                <span>{isGreen ? 'BLUE' : 'GREEN'}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  fetchData();
+                }}
+                className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
+                title="Sync Dashboard Data"
+              >
+                <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                <span>REFRESH</span>
+              </button>
+              <button
+                onClick={() => navigate(`/generalledgerreport?party_type=Supplier&party=${name}`)}
+                className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
+                title="View General Ledger"
+              >
+                <FileText size={13} />
+                <span>GENERAL LEDGER</span>
+              </button>
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="px-5 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Edit2 size={13} />
+                <span>EDIT PROFILE</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Intelligence Navigation Tabs */}
-        <div style={{ padding: '1.5rem 2rem 1rem', position: 'relative', zIndex: 1 }}>
-          <div className="inline-flex p-1 bg-gray-100/80 rounded-xl">
+        <div className="px-8 py-4 sticky top-[77px] z-30 bg-[#f8fafc]/90 backdrop-blur-md border-b border-slate-100/60">
+          <div className="inline-flex p-1 bg-slate-100/80 rounded-xl gap-1">
             {[
               { id: 'Dashboard', icon: Activity },
               { id: 'General', icon: FileText },
@@ -572,25 +463,24 @@ const SupplierDetails = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2.5 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all duration-300 rounded-lg ${activeTab === tab.id
-                  ? 'bg-white shadow-sm border border-gray-100'
-                  : 'text-gray-500 hover:text-gray-900'
+                className={`flex items-center gap-2 px-5 py-2 text-xs font-semibold uppercase tracking-wider transition-all duration-200 rounded-lg ${activeTab === tab.id
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
                   }`}
-                style={{ color: activeTab === tab.id ? themeColor : undefined }}
               >
-                <tab.icon size={14} style={{ color: activeTab === tab.id ? themeColor : undefined }} strokeWidth={activeTab === tab.id ? 3 : 2} />
-                {tab.id}
+                <tab.icon size={14} style={{ color: activeTab === tab.id ? themeColor : undefined }} />
+                <span>{tab.id}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Content Shard */}
-        <div style={{ padding: '0 2rem' }}>
+        <div className="px-8 mt-8">
           {activeTab === 'Dashboard' && dashboardData && (
             <div className="space-y-10 animate-in slide-in-from-bottom-6 duration-700 pb-20">
               {/* Highlights Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <StatCard
                   label="Annual Billing"
                   value={parseFloat(dashboardData.stats?.annual_billing || 0).toLocaleString()}
@@ -604,13 +494,6 @@ const SupplierDetails = () => {
                   value={parseFloat(dashboardData.stats?.total_unpaid || 0).toLocaleString()}
                   currency={dashboardData.stats?.currency || 'AED'}
                   icon={Activity}
-                  themeColor={themeColor}
-                  isGreen={isGreen}
-                />
-                <StatCard
-                  label="Graph Connectivity"
-                  value={Object.values(dashboardData.counts || {}).reduce((a, b) => a + b, 0)}
-                  icon={Layers}
                   themeColor={themeColor}
                   isGreen={isGreen}
                 />
@@ -640,80 +523,80 @@ const SupplierDetails = () => {
             <div className="space-y-8 pb-20 animate-in slide-in-from-bottom-4 duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <InfoSection title="General Information" icon={Hash} themeColor={themeColor}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Legal Name</label>
-                      <p className="text-sm font-black text-gray-900">{supplier.supplier_name}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Legal Name</label>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.supplier_name}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Industrial Cluster</label>
-                      <p className="text-sm font-black text-gray-900">{supplier.supplier_group}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Industrial Cluster</label>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.supplier_group}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Structural Format</label>
-                      <p className="text-sm font-black text-gray-900">{supplier.supplier_type}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Structural Format</label>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.supplier_type}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Tax Identity (TRN)</label>
-                      <p className="text-sm font-bold text-gray-900 font-mono tracking-tight bg-gray-50 px-3 py-1 rounded inline-block">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tax Identity (TRN)</label>
+                      <p className="text-xs font-bold text-slate-800 font-mono tracking-tight bg-slate-50 border border-slate-100 px-3 py-1 rounded-lg inline-block mt-0.5">
                         {supplier.tax_id || 'NOT REGISTERED'}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Tax Category</label>
-                      <p className="text-sm font-black text-gray-900">{supplier.tax_category || 'General'}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tax Category</label>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.tax_category || 'General'}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Withholding Category</label>
-                      <p className="text-sm font-black text-gray-900">{supplier.tax_withholding_category || 'None'}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Withholding Category</label>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.tax_withholding_category || 'None'}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Payment Terms</label>
-                      <p className="text-sm font-black text-gray-900">{supplier.payment_terms || 'Not Set'}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</label>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.payment_terms || 'Not Set'}</p>
                     </div>
                   </div>
                 </InfoSection>
 
                 <InfoSection title="Deal Information" icon={Tag} themeColor={themeColor}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         Email Id
                         {!supplier.email_id && supplier.contact_details?.email_id && (
                           <span className="text-[8px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full lowercase">linked</span>
                         )}
                       </label>
-                      <p className="text-sm font-black text-gray-900">{supplier.email_id || supplier.contact_details?.email_id || 'N/A'}</p>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.email_id || supplier.contact_details?.email_id || '—'}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         Mobile No
                         {!supplier.mobile_no && supplier.contact_details?.mobile_no && (
                           <span className="text-[8px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full lowercase">linked</span>
                         )}
                       </label>
-                      <p className="text-sm font-black text-gray-900">{supplier.mobile_no || supplier.contact_details?.mobile_no || 'N/A'}</p>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.mobile_no || supplier.contact_details?.mobile_no || '—'}</p>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Linked Contact</label>
-                      <p className="text-sm font-black text-gray-900 text-blue-600">
+                    <div className="space-y-1 col-span-1 sm:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Linked Contact</label>
+                      <p className="text-sm font-semibold text-blue-600">
                         {supplier.contact_details?.name ? (
                           <span className="flex items-center gap-1.5">
                             {supplier.contact_details.first_name} {supplier.contact_details.last_name}
-                            <span className="text-[9px] text-gray-400 font-medium">({supplier.contact_details.name})</span>
+                            <span className="text-[9px] text-slate-400 font-medium">({supplier.contact_details.name})</span>
                           </span>
                         ) : (
-                          'N/A'
+                          '—'
                         )}
                       </p>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Primary Address</label>
-                      <div className="text-sm font-bold text-gray-900 leading-snug">
-                        {supplier.address_details?.address_line1 || 'N/A'}<br />
+                    <div className="space-y-1 col-span-1 sm:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Primary Address</label>
+                      <div className="text-xs font-medium text-slate-700 leading-relaxed bg-slate-50/50 border border-slate-100/50 rounded-xl p-3.5 mt-1">
+                        {supplier.address_details?.address_line1 || '—'}<br />
                         {supplier.address_details?.address_line2 && <>{supplier.address_details.address_line2}<br /></>}
                         {supplier.address_details?.city && (
-                          <span className="text-[11px] text-gray-500">
+                          <span className="text-[11px] text-slate-500">
                             {supplier.address_details.city}
                             {supplier.address_details.emirate ? `, ${supplier.address_details.emirate}` : (supplier.address_details.county ? `, ${supplier.address_details.county}` : '')}
                             {supplier.address_details.country ? `, ${supplier.address_details.country}` : ''}
@@ -726,29 +609,29 @@ const SupplierDetails = () => {
 
 
                 <InfoSection title="Supplier Registry" icon={Calendar} themeColor={themeColor}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">System Key</label>
-                      <p className="text-xs font-black font-mono bg-blue-50/50 px-2 py-1 rounded" style={{ color: themeColor }}>{supplier.name}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">System Key</label>
+                      <p className="text-xs font-semibold font-mono bg-blue-50/30 px-2 py-1 rounded inline-block mt-0.5" style={{ color: themeColor }}>{supplier.name}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Billing Currency</label>
-                      <p className="text-sm font-black text-gray-900">{supplier.default_currency || 'AED'}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Billing Currency</label>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.default_currency || 'AED'}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Price List</label>
-                      <p className="text-sm font-black text-gray-900">{supplier.default_price_list || 'Standard Buying'}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Price List</label>
+                      <p className="text-sm font-semibold text-slate-800">{supplier.default_price_list || 'Standard Buying'}</p>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Creation Vector</label>
-                      <p className="text-[11px] font-bold text-gray-700">{new Date(supplier.creation).toLocaleDateString()}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Creation Vector</label>
+                      <p className="text-xs font-semibold text-slate-700 mt-0.5">{new Date(supplier.creation).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </InfoSection>
               </div>
 
               <InfoSection title="Supplier Intelligence Bio" icon={FileText} themeColor={themeColor}>
-                <p className="text-sm font-medium text-gray-700 leading-relaxed italic whitespace-pre-wrap">
+                <p className="text-xs font-medium text-slate-600 leading-relaxed italic whitespace-pre-wrap">
                   {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
                 </p>
               </InfoSection>
@@ -757,49 +640,49 @@ const SupplierDetails = () => {
 
           {activeTab === 'Addresses' && (
             <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Geospatial Registry</h3>
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-8 py-5 bg-slate-50/20 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Geospatial Registry</h3>
                   <div className="flex-1 max-w-md mx-8 relative">
-                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
-                      className="w-full pl-11 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:outline-none"
+                      className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-300 transition-colors"
                       placeholder="Search addresses..."
                       value={linkedSearch}
                       onChange={e => setLinkedSearch(e.target.value)}
                     />
                   </div>
                 </div>
-                <div className="p-0 overflow-x-auto">
-                  <table className="so-table">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Registry Vector</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Metrics</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100 text-right">Controls</th>
+                      <tr className="bg-slate-50/30 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <th className="px-8 py-3.5">Registry Vector</th>
+                        <th className="px-8 py-3.5">Metrics</th>
+                        <th className="px-8 py-3.5 text-right">Controls</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-50">
                       {linkedAddresses.filter(a => !linkedSearch || a.address_title?.toLowerCase().includes(linkedSearch.toLowerCase()) || a.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(addr => (
-                        <tr key={addr.name} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} className="group hover:bg-slate-50 transition-all border-b border-slate-50 cursor-pointer">
-                          <td className="px-8 py-6">
+                        <tr key={addr.name} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} className="group hover:bg-slate-50/50 transition-colors cursor-pointer">
+                          <td className="px-8 py-4">
                             <div className="flex items-center gap-4">
-                              <div className="p-3 bg-gray-50 rounded-xl"><MapPin size={18} className="text-gray-600" /></div>
+                              <div className="p-2.5 bg-slate-100/50 border border-slate-200/50 text-slate-600 rounded-xl"><MapPin size={16} /></div>
                               <div>
-                                <h6 className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{addr.address_title}</h6>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{addr.name}</p>
+                                <h6 className="text-xs font-bold text-slate-800">{addr.address_title}</h6>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{addr.name}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-8 py-6">
+                          <td className="px-8 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="px-3 py-1 bg-gray-50 rounded-lg text-[9px] font-black text-slate-700 uppercase tracking-widest">{addr.address_type}</div>
-                              <div className="text-[10px] font-black text-slate-900">{addr.city}, {addr.country}</div>
+                              <div className="px-2.5 py-0.5 bg-slate-100 text-[9px] font-bold text-slate-600 rounded-md uppercase tracking-wider">{addr.address_type}</div>
+                              <div className="text-xs font-semibold text-slate-700">{addr.city}, {addr.country}</div>
                             </div>
                           </td>
-                          <td className="px-8 py-6 text-right">
-                            <button className="px-5 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm">Access Stream</button>
+                          <td className="px-8 py-4 text-right">
+                            <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-colors">Access Stream</button>
                           </td>
                         </tr>
                       ))}
@@ -812,52 +695,52 @@ const SupplierDetails = () => {
 
           {activeTab === 'Contacts' && (
             <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Personnel Registry</h3>
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-8 py-5 bg-slate-50/20 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Personnel Registry</h3>
                   <div className="flex-1 max-w-md mx-8 relative">
-                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
-                      className="w-full pl-11 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:outline-none"
+                      className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-300 transition-colors"
                       placeholder="Search contacts..."
                       value={linkedSearch}
                       onChange={e => setLinkedSearch(e.target.value)}
                     />
                   </div>
                 </div>
-                <div className="p-0 overflow-x-auto">
-                  <table className="so-table">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Personnel Identity</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100">Connectivity Meta</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-100 text-right">Controls</th>
+                      <tr className="bg-slate-50/30 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <th className="px-8 py-3.5">Personnel Identity</th>
+                        <th className="px-8 py-3.5">Connectivity Meta</th>
+                        <th className="px-8 py-3.5 text-right">Controls</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-50">
                       {linkedContacts.filter(c => !linkedSearch || `${c.first_name} ${c.last_name}`.toLowerCase().includes(linkedSearch.toLowerCase()) || c.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(con => (
-                        <tr key={con.name} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} className="group hover:bg-slate-50 transition-all border-b border-slate-50 cursor-pointer">
-                          <td className="px-8 py-6">
+                        <tr key={con.name} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} className="group hover:bg-slate-50/50 transition-colors cursor-pointer">
+                          <td className="px-8 py-4">
                             <div className="flex items-center gap-4">
-                              <div className="p-3 bg-emerald-50 rounded-xl"><User size={18} className="text-emerald-600" /></div>
+                              <div className="p-2.5 bg-slate-100/50 border border-slate-200/50 text-slate-600 rounded-xl"><User size={16} /></div>
                               <div>
-                                <h6 className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{con.first_name} {con.last_name}</h6>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{con.name}</p>
+                                <h6 className="text-xs font-bold text-slate-800">{con.first_name} {con.last_name}</h6>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{con.name}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-8 py-6">
+                          <td className="px-8 py-4">
                             <div className="flex flex-col gap-1">
-                              <div className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{con.designation || 'Personnel'}</div>
-                              <div className="flex items-center gap-3 opacity-60">
-                                <Mail size={12} /> <span className="text-[9px] font-bold">{con.email_id}</span>
-                                <Phone size={12} className="ml-2" /> <span className="text-[9px] font-bold">{con.mobile_no}</span>
+                              <div className="text-xs font-bold text-slate-700">{con.designation || 'Personnel'}</div>
+                              <div className="flex items-center gap-3 text-[10px] text-slate-400 font-medium">
+                                <span className="flex items-center gap-1"><Mail size={10} /> {con.email_id || '—'}</span>
+                                <span className="flex items-center gap-1"><Phone size={10} /> {con.mobile_no || '—'}</span>
                               </div>
                             </div>
                           </td>
-                          <td className="px-8 py-6 text-right">
-                            <button className="px-5 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm">Access Stream</button>
+                          <td className="px-8 py-4 text-right">
+                            <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-colors">Access Stream</button>
                           </td>
                         </tr>
                       ))}
@@ -870,29 +753,29 @@ const SupplierDetails = () => {
 
           {activeTab === 'Branches' && (
             <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Branch Availability</h3>
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/20">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Branch Availability</h3>
                 </div>
                 <div className="p-8">
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {(supplier?.branch_availability || []).length > 0 ? (
                       supplier.branch_availability.map((branch, idx) => (
-                        <div key={idx} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                          <div className="p-2 bg-white rounded-lg shadow-sm">
+                        <div key={idx} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100/50 rounded-2xl hover:bg-slate-100/20 transition-all">
+                          <div className="p-2 bg-white rounded-xl shadow-xs border border-slate-100">
                             <Building2 size={16} style={{ color: themeColor }} />
                           </div>
                           <div>
-                            <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{branch.warehouse}</p>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Authorized Branch</p>
+                            <p className="text-xs font-bold text-slate-800">{branch.warehouse}</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Authorized Branch</p>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="col-span-full py-12 flex flex-col items-center justify-center text-center opacity-40">
-                        <Building2 size={48} className="mb-4 text-gray-300" />
-                        <p className="text-sm font-bold uppercase tracking-widest text-gray-600">No Branch Restrictions</p>
-                        <p className="text-xs text-gray-400 mt-2">This supplier is available across all operational zones.</p>
+                      <div className="col-span-full py-12 flex flex-col items-center justify-center text-center opacity-60">
+                        <Building2 size={48} className="mb-4 text-slate-300" />
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">No Branch Restrictions</p>
+                        <p className="text-[11px] text-slate-400 mt-1">This supplier is available across all operational zones.</p>
                       </div>
                     )}
                   </div>
@@ -902,62 +785,52 @@ const SupplierDetails = () => {
           )}
 
           {activeTab === 'Settings' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-24">
               <InfoSection title="Policy Controls" icon={ShieldCheck} themeColor={themeColor}>
-                <div className="flex items-center justify-between bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between bg-slate-50/50 p-6 rounded-2xl border border-slate-100 shadow-xs">
                   <div className="space-y-1">
-                    <h5 className="text-base font-bold text-gray-900 uppercase tracking-tight">Lifecycle Permissions</h5>
-                    <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Current operational authorization</p>
+                    <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Lifecycle Permissions</h5>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current operational authorization</p>
                   </div>
                   <div
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg border border-transparent"
+                    className="flex items-center gap-3 px-4 py-2 rounded-xl border border-transparent text-xs font-bold uppercase tracking-wider"
                     style={{
                       backgroundColor: isActive ? `${themeColor}15` : '#fff1f2',
                       color: isActive ? themeColor : '#e11d48'
                     }}
                   >
                     <Activity size={16} className={isActive ? 'animate-pulse' : ''} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">{isActive ? 'Authorized' : 'Restricted'}</span>
+                    <span>{isActive ? 'Authorized' : 'Restricted'}</span>
                   </div>
                 </div>
               </InfoSection>
 
               <InfoSection title="Settings & Status" icon={ShieldCheck} themeColor={themeColor}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-600">Transporter</span>
-                    {supplier.is_transporter ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-600">Internal Supplier</span>
-                    {supplier.is_internal_supplier ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-600">Frozen</span>
-                    {supplier.is_frozen ? <Activity size={16} className="text-rose-500" /> : <Square size={16} className="text-gray-200" />}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-600">On Hold</span>
-                    {supplier.on_hold ? <Activity size={16} className="text-rose-500 animate-pulse" /> : <Square size={16} className="text-gray-200" />}
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { label: 'Transporter', active: supplier.is_transporter },
+                    { label: 'Internal Supplier', active: supplier.is_internal_supplier },
+                    { label: 'Frozen', active: supplier.is_frozen },
+                    { label: 'On Hold', active: supplier.on_hold },
+                    { label: 'Disabled', active: supplier.disabled },
+                    { label: 'Bill without PO', active: supplier.allow_purchase_invoice_creation_without_purchase_order },
+                    { label: 'Bill without Receipt', active: supplier.allow_purchase_invoice_creation_without_purchase_receipt }
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between px-4 py-3 bg-slate-50/50 border border-slate-100 rounded-xl">
+                      <span className="text-xs font-bold text-slate-600">{item.label}</span>
+                      {item.active ? (
+                        <CheckSquare size={16} className="text-emerald-500" />
+                      ) : (
+                        <Square size={16} className="text-slate-300" />
+                      )}
+                    </div>
+                  ))}
                   {supplier.on_hold && (
-                    <div className="pt-2 border-t border-gray-200">
-                      <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-1">Hold Logic</p>
-                      <p className="text-[11px] font-bold text-rose-600 italic">"{supplier.hold_type || 'Manual Hold'}"</p>
+                    <div className="col-span-full p-4 bg-rose-50/50 border border-rose-100 rounded-2xl">
+                      <p className="text-[9px] font-bold text-rose-500 uppercase tracking-wider mb-1">Hold Logic</p>
+                      <p className="text-xs font-bold text-rose-700 italic">"{supplier.hold_type || 'Manual Hold'}"</p>
                     </div>
                   )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-600">Disabled</span>
-                    {supplier.disabled ? <X size={16} className="text-rose-500" /> : <CheckSquare size={16} className="text-emerald-500" />}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-600">Bill without PO</span>
-                    {supplier.allow_purchase_invoice_creation_without_purchase_order ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-600">Bill without Receipt</span>
-                    {supplier.allow_purchase_invoice_creation_without_purchase_receipt ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
-                  </div>
                 </div>
               </InfoSection>
             </div>

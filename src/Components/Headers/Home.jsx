@@ -1412,8 +1412,8 @@ function Home() {
             setSelectedPaymentMode('Credit');
         }
     };
-
-    const pickCustomer = (cust) => {
+    
+    const pickCustomer = async (cust) => {
         setSelectedCustomer(cust);
         setCustomerName(cust.customer_name);
         setPhoneNumber(cust.mobile_no || '');
@@ -1421,15 +1421,39 @@ function Home() {
         setShowDropdown(false);
         barcodeInputRef.current?.focus();
 
+        let appliedDiscountValue = 0;
+
         if (cust && cust.custom_default_discount > 0) {
-            setDiscount({ type: 'percent', value: cust.custom_default_discount });
+            appliedDiscountValue = cust.custom_default_discount;
+            setDiscount({ type: 'percent', value: appliedDiscountValue });
             setDiscountAuthorizedBy("Auto-applied (Customer Default)");
+        } else if (cust && cust.customer_group) {
+            try {
+                const cgRes = await frappeCall({
+                    method: 'kyle_retail.kyle_retail.api.get_customer_group_discount',
+                    args: {
+                        customer_group: cust.customer_group
+                    }
+                });
+                if (cgRes && cgRes > 0) {
+                    appliedDiscountValue = cgRes;
+                    setDiscount({ type: 'percent', value: appliedDiscountValue });
+                    setDiscountAuthorizedBy(`Auto-applied (${cust.customer_group})`);
+                } else {
+                    setDiscount({ type: 'amount', value: 0 });
+                    setDiscountAuthorizedBy("");
+                }
+            } catch (err) {
+                console.error("Error fetching customer group discount", err);
+                setDiscount({ type: 'amount', value: 0 });
+                setDiscountAuthorizedBy("");
+            }
         } else {
             setDiscount({ type: 'amount', value: 0 });
             setDiscountAuthorizedBy("");
         }
 
-        if (cust && cust.name !== 'Cash' && discount.value > 0 && cust.customer_group !== 'Discount Customer') {
+        if (cust && cust.name !== 'Cash' && appliedDiscountValue > 0 && cust.customer_group !== 'Discount Customer') {
             setTimeout(async () => {
                 const result = await Swal.fire({
                     title: 'Promote to Discount Customer?',
@@ -1484,6 +1508,12 @@ function Home() {
             if (createForm.address) formData.append("address", createForm.address);
             if (createForm.email) formData.append("email", createForm.email);
             if (warehouse) formData.append("warehouse", warehouse);
+            
+            const hostname = window.location.hostname.toLowerCase();
+            if (hostname.includes('retailpos') || hostname.includes('kyleretail') || hostname.includes('retail.kylesolutions.com')) {
+                formData.append("country", "United Arab Emirates");
+                formData.append("territory", "United Arab Emirates");
+            }
 
             const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
                 method: 'POST',
