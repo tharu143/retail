@@ -141,7 +141,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             supplier_name: '', supplier_name_in_arabic: '', supplier_group: '', supplier_type: 'Company',
             country: 'United Arab Emirates',
             disabled: false, tax_id: '', tax_category: '', tax_withholding_category: '',
-            website: '', 
+            website: '',
             address_title: '', address_type: 'Office', address_line1: '', address_line2: '', city: '', emirate: 'Dubai', state: '', postal_code: '', address_email: '', address_phone: '',
             salutation: '', first_name: '', middle_name: '', last_name: '', email_id: '', mobile_no: '', designation: '', gender: '', is_primary_contact: true,
             supplier_details: '', default_currency: 'AED',
@@ -407,18 +407,18 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                            placeholder="https://www.example.com"
                         />
                      </div>
-                      <div className="space-y-1.5 col-span-1 md:col-span-2">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Branch (Warehouse)
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-slate-100 cursor-not-allowed"
-                            style={getInputStyle('custom_branch')}
-                            value={form.custom_branch}
-                            readOnly
-                            placeholder="Current Login Branch"
-                         />
-                      </div>
+                     <div className="space-y-1.5 col-span-1 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Branch (Warehouse)
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-slate-100 cursor-not-allowed"
+                           style={getInputStyle('custom_branch')}
+                           value={form.custom_branch}
+                           readOnly
+                           placeholder="Current Login Branch"
+                        />
+                     </div>
                   </div>
                </div>
                {/* Row 1 - Col 2: Section 2 (Address Information) */}
@@ -436,177 +436,177 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                   </div>
                   <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Address Title
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('address_title')}
-                            onFocus={() => setFocusedField('address_title')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.address_title}
-                            onChange={e => setForm({ ...form, address_title: e.target.value })}
-                            placeholder="e.g. Head Office"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Address Title
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('address_title')}
+                           onFocus={() => setFocusedField('address_title')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.address_title}
+                           onChange={e => setForm({ ...form, address_title: e.target.value })}
+                           placeholder="e.g. Head Office"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Address Type
-                         </label>
-                         <select
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                            style={{
-                               ...getInputStyle('address_type'),
-                               backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                               backgroundSize: '1.25rem'
-                            }}
-                            onFocus={() => setFocusedField('address_type')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.address_type}
-                            onChange={e => setForm({ ...form, address_type: e.target.value })}
-                         >
-                            <option value="Office">Office</option>
-                            <option value="Personal">Personal</option>
-                            <option value="Billing">Billing</option>
-                            <option value="Shipping">Shipping</option>
-                            <option value="Shop">Shop</option>
-                            <option value="Warehouse">Warehouse</option>
-                            <option value="Other">Other</option>
-                         </select>
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Address Type
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('address_type'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('address_type')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.address_type}
+                           onChange={e => setForm({ ...form, address_type: e.target.value })}
+                        >
+                           <option value="Office">Office</option>
+                           <option value="Personal">Personal</option>
+                           <option value="Billing">Billing</option>
+                           <option value="Shipping">Shipping</option>
+                           <option value="Shop">Shop</option>
+                           <option value="Warehouse">Warehouse</option>
+                           <option value="Other">Other</option>
+                        </select>
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Address Line 1
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('address_line1')}
-                            onFocus={() => setFocusedField('address_line1')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.address_line1}
-                            onChange={e => setForm({ ...form, address_line1: e.target.value })}
-                            placeholder="Building No, Street Name"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Address Line 1
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('address_line1')}
+                           onFocus={() => setFocusedField('address_line1')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.address_line1}
+                           onChange={e => setForm({ ...form, address_line1: e.target.value })}
+                           placeholder="Building No, Street Name"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Address Line 2
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('address_line2')}
-                            onFocus={() => setFocusedField('address_line2')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.address_line2}
-                            onChange={e => setForm({ ...form, address_line2: e.target.value })}
-                            placeholder="Area, Landmark"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Address Line 2
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('address_line2')}
+                           onFocus={() => setFocusedField('address_line2')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.address_line2}
+                           onChange={e => setForm({ ...form, address_line2: e.target.value })}
+                           placeholder="Area, Landmark"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            City
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('city')}
-                            onFocus={() => setFocusedField('city')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.city}
-                            onChange={e => setForm({ ...form, city: e.target.value })}
-                            placeholder="City"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           City
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('city')}
+                           onFocus={() => setFocusedField('city')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.city}
+                           onChange={e => setForm({ ...form, city: e.target.value })}
+                           placeholder="City"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Emirate
-                         </label>
-                         <select
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                            style={{
-                               ...getInputStyle('emirate'),
-                               backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                               backgroundSize: '1.25rem'
-                            }}
-                            onFocus={() => setFocusedField('emirate')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.emirate}
-                            onChange={e => setForm({ ...form, emirate: e.target.value })}
-                         >
-                            <option value="Dubai">Dubai</option>
-                            <option value="Abu Dhabi">Abu Dhabi</option>
-                            <option value="Sharjah">Sharjah</option>
-                            <option value="Ajman">Ajman</option>
-                            <option value="Umm Al Quwain">Umm Al Quwain</option>
-                            <option value="Ras Al Khaimah">Ras Al Khaimah</option>
-                            <option value="Fujairah">Fujairah</option>
-                         </select>
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Emirate
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('emirate'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('emirate')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.emirate}
+                           onChange={e => setForm({ ...form, emirate: e.target.value })}
+                        >
+                           <option value="Dubai">Dubai</option>
+                           <option value="Abu Dhabi">Abu Dhabi</option>
+                           <option value="Sharjah">Sharjah</option>
+                           <option value="Ajman">Ajman</option>
+                           <option value="Umm Al Quwain">Umm Al Quwain</option>
+                           <option value="Ras Al Khaimah">Ras Al Khaimah</option>
+                           <option value="Fujairah">Fujairah</option>
+                        </select>
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            State / Region
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('state')}
-                            onFocus={() => setFocusedField('state')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.state}
-                            onChange={e => setForm({ ...form, state: e.target.value })}
-                            placeholder="State"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           State / Region
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('state')}
+                           onFocus={() => setFocusedField('state')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.state}
+                           onChange={e => setForm({ ...form, state: e.target.value })}
+                           placeholder="State"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Postal Code / Zip
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('postal_code')}
-                            onFocus={() => setFocusedField('postal_code')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.postal_code}
-                            onChange={e => setForm({ ...form, postal_code: e.target.value })}
-                            placeholder="00000"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Postal Code / Zip
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('postal_code')}
+                           onFocus={() => setFocusedField('postal_code')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.postal_code}
+                           onChange={e => setForm({ ...form, postal_code: e.target.value })}
+                           placeholder="00000"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Email Address (Address)
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('address_email')}
-                            onFocus={() => setFocusedField('address_email')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.address_email}
-                            onChange={e => setForm({ ...form, address_email: e.target.value })}
-                            placeholder="email@example.com"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Email Address (Address)
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('address_email')}
+                           onFocus={() => setFocusedField('address_email')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.address_email}
+                           onChange={e => setForm({ ...form, address_email: e.target.value })}
+                           placeholder="email@example.com"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Phone (Address)
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('address_phone')}
-                            onFocus={() => setFocusedField('address_phone')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.address_phone}
-                            onChange={e => setForm({ ...form, address_phone: e.target.value })}
-                            placeholder="+00 000 0000"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Phone (Address)
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('address_phone')}
+                           onFocus={() => setFocusedField('address_phone')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.address_phone}
+                           onChange={e => setForm({ ...form, address_phone: e.target.value })}
+                           placeholder="+00 000 0000"
+                        />
+                     </div>
                   </div>
                </div>
 
@@ -624,145 +624,145 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                      </div>
                   </div>
                   <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                      {/* Contact Section */}
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Salutation
-                         </label>
-                         <select
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                            style={{
-                               ...getInputStyle('salutation'),
-                               backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                               backgroundSize: '1.25rem'
-                            }}
-                            onFocus={() => setFocusedField('salutation')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.salutation}
-                            onChange={e => setForm({ ...form, salutation: e.target.value })}
-                         >
-                            <option value="">Select Salutation</option>
-                            {meta.salutations.map(s => <option key={s} value={s}>{s}</option>)}
-                         </select>
-                      </div>
+                     {/* Contact Section */}
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Salutation
+                        </label>
+                        <select
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                           style={{
+                              ...getInputStyle('salutation'),
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundSize: '1.25rem'
+                           }}
+                           onFocus={() => setFocusedField('salutation')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.salutation}
+                           onChange={e => setForm({ ...form, salutation: e.target.value })}
+                        >
+                           <option value="">Select Salutation</option>
+                           {meta.salutations.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            First Name
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('first_name')}
-                            onFocus={() => setFocusedField('first_name')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.first_name}
-                            onChange={e => setForm({ ...form, first_name: e.target.value })}
-                            placeholder="First Name"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           First Name
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('first_name')}
+                           onFocus={() => setFocusedField('first_name')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.first_name}
+                           onChange={e => setForm({ ...form, first_name: e.target.value })}
+                           placeholder="First Name"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Middle Name
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('middle_name')}
-                            onFocus={() => setFocusedField('middle_name')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.middle_name}
-                            onChange={e => setForm({ ...form, middle_name: e.target.value })}
-                            placeholder="Middle Name"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Middle Name
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('middle_name')}
+                           onFocus={() => setFocusedField('middle_name')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.middle_name}
+                           onChange={e => setForm({ ...form, middle_name: e.target.value })}
+                           placeholder="Middle Name"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Last Name
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('last_name')}
-                            onFocus={() => setFocusedField('last_name')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.last_name}
-                            onChange={e => setForm({ ...form, last_name: e.target.value })}
-                            placeholder="Last Name"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Last Name
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('last_name')}
+                           onFocus={() => setFocusedField('last_name')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.last_name}
+                           onChange={e => setForm({ ...form, last_name: e.target.value })}
+                           placeholder="Last Name"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Email Id
-                         </label>
-                         <input
-                            type="email"
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('email_id')}
-                            onFocus={() => setFocusedField('email_id')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.email_id}
-                            onChange={e => setForm({ ...form, email_id: e.target.value })}
-                            placeholder="email@example.com"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Email Id
+                        </label>
+                        <input
+                           type="email"
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('email_id')}
+                           onFocus={() => setFocusedField('email_id')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.email_id}
+                           onChange={e => setForm({ ...form, email_id: e.target.value })}
+                           placeholder="email@example.com"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Mobile No
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('mobile_no')}
-                            onFocus={() => setFocusedField('mobile_no')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.mobile_no}
-                            onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                            placeholder="+00 000 0000"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Mobile No
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('mobile_no')}
+                           onFocus={() => setFocusedField('mobile_no')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.mobile_no}
+                           onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                           placeholder="+00 000 0000"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Designation
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('designation')}
-                            onFocus={() => setFocusedField('designation')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.designation}
-                            onChange={e => setForm({ ...form, designation: e.target.value })}
-                            placeholder="e.g. Manager"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Designation
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('designation')}
+                           onFocus={() => setFocusedField('designation')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.designation}
+                           onChange={e => setForm({ ...form, designation: e.target.value })}
+                           placeholder="e.g. Manager"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                            Company Name
-                         </label>
-                         <input
-                            className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                            style={getInputStyle('company_name')}
-                            onFocus={() => setFocusedField('company_name')}
-                            onBlur={() => setFocusedField(null)}
-                            value={form.company_name}
-                            onChange={e => setForm({ ...form, company_name: e.target.value })}
-                            placeholder="Defaults to Supplier Name"
-                         />
-                      </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                           Company Name
+                        </label>
+                        <input
+                           className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                           style={getInputStyle('company_name')}
+                           onFocus={() => setFocusedField('company_name')}
+                           onBlur={() => setFocusedField(null)}
+                           value={form.company_name}
+                           onChange={e => setForm({ ...form, company_name: e.target.value })}
+                           placeholder="Defaults to Supplier Name"
+                        />
+                     </div>
 
-                      <div className="space-y-1.5 flex items-center pt-6">
-                         <label className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg cursor-pointer transition-all hover:bg-slate-100/80">
-                            <input
-                               type="checkbox"
-                               className="rounded border-slate-300 text-slate-800 focus:ring-0 w-4 h-4"
-                               checked={form.is_primary_contact}
-                               onChange={e => setForm({ ...form, is_primary_contact: e.target.checked })}
-                            />
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Is Primary Contact</span>
-                         </label>
-                      </div>
+                     <div className="space-y-1.5 flex items-center pt-6">
+                        <label className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg cursor-pointer transition-all hover:bg-slate-100/80">
+                           <input
+                              type="checkbox"
+                              className="rounded border-slate-300 text-slate-800 focus:ring-0 w-4 h-4"
+                              checked={form.is_primary_contact}
+                              onChange={e => setForm({ ...form, is_primary_contact: e.target.checked })}
+                           />
+                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Is Primary Contact</span>
+                        </label>
+                     </div>
 
                   </div>
                </div>
@@ -996,7 +996,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                                  style={{ accentColor: themeColor }}
                                  checked={form.branch_availability.some(b => b.warehouse === wh)}
                                  onChange={e => {
-                                    const updated = e.target.checked 
+                                    const updated = e.target.checked
                                        ? [...form.branch_availability, { warehouse: wh }]
                                        : form.branch_availability.filter(b => b.warehouse !== wh);
                                     setForm({ ...form, branch_availability: updated });

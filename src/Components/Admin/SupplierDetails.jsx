@@ -710,15 +710,15 @@ const SupplierDetails = () => {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Primary Address</label>
                       <div className="text-sm font-bold text-gray-900 leading-snug">
-                         {supplier.address_details?.address_line1 || 'N/A'}<br/>
-                         {supplier.address_details?.address_line2 && <>{supplier.address_details.address_line2}<br/></>}
-                         {supplier.address_details?.city && (
-                           <span className="text-[11px] text-gray-500">
-                             {supplier.address_details.city}
-                             {supplier.address_details.emirate ? `, ${supplier.address_details.emirate}` : (supplier.address_details.county ? `, ${supplier.address_details.county}` : '')}
-                             {supplier.address_details.country ? `, ${supplier.address_details.country}` : ''}
-                           </span>
-                         )}
+                        {supplier.address_details?.address_line1 || 'N/A'}<br />
+                        {supplier.address_details?.address_line2 && <>{supplier.address_details.address_line2}<br /></>}
+                        {supplier.address_details?.city && (
+                          <span className="text-[11px] text-gray-500">
+                            {supplier.address_details.city}
+                            {supplier.address_details.emirate ? `, ${supplier.address_details.emirate}` : (supplier.address_details.county ? `, ${supplier.address_details.county}` : '')}
+                            {supplier.address_details.country ? `, ${supplier.address_details.country}` : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -747,13 +747,13 @@ const SupplierDetails = () => {
                 </InfoSection>
               </div>
 
-                <InfoSection title="Supplier Intelligence Bio" icon={FileText} themeColor={themeColor}>
-                  <p className="text-sm font-medium text-gray-700 leading-relaxed italic whitespace-pre-wrap">
-                    {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
-                  </p>
-                </InfoSection>
-              </div>
-            )}
+              <InfoSection title="Supplier Intelligence Bio" icon={FileText} themeColor={themeColor}>
+                <p className="text-sm font-medium text-gray-700 leading-relaxed italic whitespace-pre-wrap">
+                  {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
+                </p>
+              </InfoSection>
+            </div>
+          )}
 
           {activeTab === 'Addresses' && (
             <div className="space-y-6 pb-20 animate-in fade-in duration-500">
@@ -870,34 +870,34 @@ const SupplierDetails = () => {
 
           {activeTab === 'Branches' && (
             <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-               <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="px-8 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Branch Availability</h3>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-8 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Branch Availability</h3>
+                </div>
+                <div className="p-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {(supplier?.branch_availability || []).length > 0 ? (
+                      supplier.branch_availability.map((branch, idx) => (
+                        <div key={idx} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                          <div className="p-2 bg-white rounded-lg shadow-sm">
+                            <Building2 size={16} style={{ color: themeColor }} />
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{branch.warehouse}</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Authorized Branch</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-full py-12 flex flex-col items-center justify-center text-center opacity-40">
+                        <Building2 size={48} className="mb-4 text-gray-300" />
+                        <p className="text-sm font-bold uppercase tracking-widest text-gray-600">No Branch Restrictions</p>
+                        <p className="text-xs text-gray-400 mt-2">This supplier is available across all operational zones.</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="p-8">
-                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {(supplier?.branch_availability || []).length > 0 ? (
-                           supplier.branch_availability.map((branch, idx) => (
-                              <div key={idx} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                                 <div className="p-2 bg-white rounded-lg shadow-sm">
-                                    <Building2 size={16} style={{ color: themeColor }} />
-                                 </div>
-                                 <div>
-                                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{branch.warehouse}</p>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Authorized Branch</p>
-                                 </div>
-                              </div>
-                           ))
-                        ) : (
-                           <div className="col-span-full py-12 flex flex-col items-center justify-center text-center opacity-40">
-                              <Building2 size={48} className="mb-4 text-gray-300" />
-                              <p className="text-sm font-bold uppercase tracking-widest text-gray-600">No Branch Restrictions</p>
-                              <p className="text-xs text-gray-400 mt-2">This supplier is available across all operational zones.</p>
-                           </div>
-                        )}
-                     </div>
-                  </div>
-               </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -923,43 +923,43 @@ const SupplierDetails = () => {
               </InfoSection>
 
               <InfoSection title="Settings & Status" icon={ShieldCheck} themeColor={themeColor}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-600">Transporter</span>
-                      {supplier.is_transporter ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-600">Internal Supplier</span>
-                      {supplier.is_internal_supplier ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-600">Frozen</span>
-                      {supplier.is_frozen ? <Activity size={16} className="text-rose-500" /> : <Square size={16} className="text-gray-200" />}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-600">On Hold</span>
-                      {supplier.on_hold ? <Activity size={16} className="text-rose-500 animate-pulse" /> : <Square size={16} className="text-gray-200" />}
-                    </div>
-                    {supplier.on_hold && (
-                      <div className="pt-2 border-t border-gray-200">
-                        <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-1">Hold Logic</p>
-                        <p className="text-[11px] font-bold text-rose-600 italic">"{supplier.hold_type || 'Manual Hold'}"</p>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-600">Disabled</span>
-                      {supplier.disabled ? <X size={16} className="text-rose-500" /> : <CheckSquare size={16} className="text-emerald-500" />}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-600">Bill without PO</span>
-                      {supplier.allow_purchase_invoice_creation_without_purchase_order ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-600">Bill without Receipt</span>
-                      {supplier.allow_purchase_invoice_creation_without_purchase_receipt ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-600">Transporter</span>
+                    {supplier.is_transporter ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
                   </div>
-                </InfoSection>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-600">Internal Supplier</span>
+                    {supplier.is_internal_supplier ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-600">Frozen</span>
+                    {supplier.is_frozen ? <Activity size={16} className="text-rose-500" /> : <Square size={16} className="text-gray-200" />}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-600">On Hold</span>
+                    {supplier.on_hold ? <Activity size={16} className="text-rose-500 animate-pulse" /> : <Square size={16} className="text-gray-200" />}
+                  </div>
+                  {supplier.on_hold && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-1">Hold Logic</p>
+                      <p className="text-[11px] font-bold text-rose-600 italic">"{supplier.hold_type || 'Manual Hold'}"</p>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-600">Disabled</span>
+                    {supplier.disabled ? <X size={16} className="text-rose-500" /> : <CheckSquare size={16} className="text-emerald-500" />}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-600">Bill without PO</span>
+                    {supplier.allow_purchase_invoice_creation_without_purchase_order ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-600">Bill without Receipt</span>
+                    {supplier.allow_purchase_invoice_creation_without_purchase_receipt ? <CheckSquare size={16} className="text-emerald-500" /> : <Square size={16} className="text-gray-200" />}
+                  </div>
+                </div>
+              </InfoSection>
             </div>
           )}
         </div>

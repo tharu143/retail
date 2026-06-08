@@ -599,105 +599,105 @@ const CustomerDetails = () => {
           activeTab === 'profile' ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300 pb-12">
 
-            {/* Card 1: Legal Identity Details */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-              <SectionHeader num="1" text="Legal Identity Profile" />
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
-                <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
-                <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
-                <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
-                <DetailRow label="Identity Group" value={customer?.customer_group} icon={Layers} themeColor={themeColor} />
-                <DetailRow label="Territory Domain" value={customer?.territory} icon={Globe} themeColor={themeColor} />
-                <DetailRow label="Gender" value={customer?.gender} icon={Users} themeColor={themeColor} />
-                <div className="md:col-span-2">
-                  <DetailRow label="Profile Image Reference" value={customer?.image} icon={Tag} themeColor={themeColor} />
-                </div>
-                <div className="md:col-span-2">
-                  <DetailRow label="Identity Registry Specs Details" value={customer?.customer_details} icon={FileText} themeColor={themeColor} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Deal Information & Primary Address */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-              <SectionHeader num="2" text="Deal & Spatial Information" />
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
-                <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
-                <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
-                <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
-                <DetailRow label="City Station" value={activeAddr.city} icon={MapPin} themeColor={themeColor} />
-                <DetailRow label="Emirate Hub / State" value={activeAddr.state || activeAddr.emirate} icon={MapPin} themeColor={themeColor} />
-                <DetailRow label="Country" value={activeAddr.country} icon={Globe} themeColor={themeColor} />
-                <div className="md:col-span-2">
-                  <DetailRow label="Building / Street Line 1" value={activeAddr.address_line1} icon={MapPin} themeColor={themeColor} />
-                </div>
-                <div className="md:col-span-2">
-                  <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
+              {/* Card 1: Legal Identity Details */}
+              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
+                <SectionHeader num="1" text="Legal Identity Profile" />
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+                  <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
+                  <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
+                  <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
+                  <DetailRow label="Identity Group" value={customer?.customer_group} icon={Layers} themeColor={themeColor} />
+                  <DetailRow label="Territory Domain" value={customer?.territory} icon={Globe} themeColor={themeColor} />
+                  <DetailRow label="Gender" value={customer?.gender} icon={Users} themeColor={themeColor} />
+                  <div className="md:col-span-2">
+                    <DetailRow label="Profile Image Reference" value={customer?.image} icon={Tag} themeColor={themeColor} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <DetailRow label="Identity Registry Specs Details" value={customer?.customer_details} icon={FileText} themeColor={themeColor} />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Card 3: Source & Assignment */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-              <SectionHeader num="3" text="Source & Assignment Protocols" />
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
-                <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
-                <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
-                <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
-                <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
-                <DetailRow label="Loyalty Hub Link" value={customer?.loyalty_program} icon={Award} themeColor={themeColor} />
-                <DetailRow label="Allowed Discount (%)" value={customer?.custom_default_discount ? `${customer.custom_default_discount}%` : '0%'} icon={Percent} themeColor={themeColor} />
-                <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
-                <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
-                <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
-              </div>
-            </div>
-
-            {/* Card 4: Additional Information & Contact Person */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
-              <SectionHeader num="4" text="Additional Information & Primary Contact" />
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
-                <DetailRow label="Disabled Status" value={customer?.disabled === 1 ? 'Disabled' : 'Active'} icon={Shield} themeColor={themeColor} />
-                <DetailRow label="Is Frozen Status" value={customer?.is_frozen === 1 ? 'Frozen State' : 'Normal State'} icon={Shield} themeColor={themeColor} />
-                <DetailRow label="Internal Customer Status" value={customer?.is_internal_customer === 1 ? 'Yes, Internal' : 'No, External'} icon={Shield} themeColor={themeColor} />
-                <div className="md:col-span-2 my-2 border-t border-dashed border-slate-100" />
-
-                <div className="md:col-span-2">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3">Primary Contact Profile</p>
+              {/* Card 2: Deal Information & Primary Address */}
+              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
+                <SectionHeader num="2" text="Deal & Spatial Information" />
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+                  <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
+                  <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
+                  <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
+                  <DetailRow label="City Station" value={activeAddr.city} icon={MapPin} themeColor={themeColor} />
+                  <DetailRow label="Emirate Hub / State" value={activeAddr.state || activeAddr.emirate} icon={MapPin} themeColor={themeColor} />
+                  <DetailRow label="Country" value={activeAddr.country} icon={Globe} themeColor={themeColor} />
+                  <div className="md:col-span-2">
+                    <DetailRow label="Building / Street Line 1" value={activeAddr.address_line1} icon={MapPin} themeColor={themeColor} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
+                  </div>
                 </div>
-                <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
-                <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
-                <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
-                <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
-                <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
               </div>
-            </div>
 
-            {/* Card 5: Branch Availability Visibility */}
-            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden lg:col-span-2">
-              <SectionHeader num="5" text="Regional Branch Availability" />
-              <div className="p-6">
-                {customer?.branch_availability?.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {customer.branch_availability.map((b, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                        <div className="w-8 h-8 rounded bg-white flex items-center justify-center shadow-xs">
-                          <Warehouse size={14} className="text-slate-400" />
+              {/* Card 3: Source & Assignment */}
+              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
+                <SectionHeader num="3" text="Source & Assignment Protocols" />
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+                  <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
+                  <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
+                  <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
+                  <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
+                  <DetailRow label="Loyalty Hub Link" value={customer?.loyalty_program} icon={Award} themeColor={themeColor} />
+                  <DetailRow label="Allowed Discount (%)" value={customer?.custom_default_discount ? `${customer.custom_default_discount}%` : '0%'} icon={Percent} themeColor={themeColor} />
+                  <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
+                  <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
+                  <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
+                </div>
+              </div>
+
+              {/* Card 4: Additional Information & Contact Person */}
+              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
+                <SectionHeader num="4" text="Additional Information & Primary Contact" />
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 bg-white">
+                  <DetailRow label="Disabled Status" value={customer?.disabled === 1 ? 'Disabled' : 'Active'} icon={Shield} themeColor={themeColor} />
+                  <DetailRow label="Is Frozen Status" value={customer?.is_frozen === 1 ? 'Frozen State' : 'Normal State'} icon={Shield} themeColor={themeColor} />
+                  <DetailRow label="Internal Customer Status" value={customer?.is_internal_customer === 1 ? 'Yes, Internal' : 'No, External'} icon={Shield} themeColor={themeColor} />
+                  <div className="md:col-span-2 my-2 border-t border-dashed border-slate-100" />
+
+                  <div className="md:col-span-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3">Primary Contact Profile</p>
+                  </div>
+                  <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
+                  <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
+                  <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
+                  <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
+                  <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
+                </div>
+              </div>
+
+              {/* Card 5: Branch Availability Visibility */}
+              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden lg:col-span-2">
+                <SectionHeader num="5" text="Regional Branch Availability" />
+                <div className="p-6">
+                  {customer?.branch_availability?.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {customer.branch_availability.map((b, idx) => (
+                        <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                          <div className="w-8 h-8 rounded bg-white flex items-center justify-center shadow-xs">
+                            <Warehouse size={14} className="text-slate-400" />
+                          </div>
+                          <span className="text-xs font-bold text-slate-700">{b.warehouse}</span>
                         </div>
-                        <span className="text-xs font-bold text-slate-700">{b.warehouse}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    <Warehouse size={32} className="mx-auto text-slate-300 mb-2 opacity-50" />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available in all branches (Global Access)</p>
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      <Warehouse size={32} className="mx-auto text-slate-300 mb-2 opacity-50" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available in all branches (Global Access)</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-          </div>
+            </div>
           ) : (
             /* Loyalty Point Ledger Tab content */
             <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden pb-12 animate-in fade-in duration-300">
@@ -910,14 +910,14 @@ const CustomerDetails = () => {
                 <div className="space-y-3 col-span-1 md:col-span-2 mt-4 pt-4 border-t border-slate-100">
                   <div className="flex items-center justify-between px-0.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Branch Hub Availability</label>
-                    <button 
+                    <button
                       onClick={() => setForm({ ...form, branch_availability: [...form.branch_availability, { warehouse: '' }] })}
                       className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors flex items-center gap-1.5"
                     >
                       <Plus size={12} /> Add Branch Hub
                     </button>
                   </div>
-                  
+
                   {form.branch_availability.length === 0 ? (
                     <div className="py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center">
                       <Warehouse size={24} className="text-slate-300 mb-2 opacity-60" />
@@ -940,7 +940,7 @@ const CustomerDetails = () => {
                             <option value="">Select Branch / Warehouse</option>
                             {meta.warehouses?.map(w => <option key={w} value={w}>{w}</option>)}
                           </select>
-                          <button 
+                          <button
                             onClick={() => {
                               const newB = form.branch_availability.filter((_, i) => i !== idx);
                               setForm({ ...form, branch_availability: newB });
