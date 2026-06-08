@@ -68,7 +68,13 @@ export default function ItemGroupList() {
         },
         withCredentials: true
       });
-      setGroups(res.data.data || []);
+      const raw = res.data.data || [];
+      // Ensure item_group_name is always populated (API may return only `name`)
+      const normalized = raw.map(g => ({
+        ...g,
+        item_group_name: g.item_group_name || g.name
+      }));
+      setGroups(normalized);
       
       // Auto-expand root level
       const rootLevel = (res.data.data || []).filter(g => !g.parent_item_group || g.parent_item_group === 'All Item Groups');

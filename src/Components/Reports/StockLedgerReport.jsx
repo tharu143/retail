@@ -14,7 +14,8 @@ import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './StockLedgerReport.css';
 
 const DEFAULT_LEDGER_COLUMNS = [
-  { id: 'date', label: 'Date', visible: true, width: 160 },
+  { id: 'date', label: 'Date', visible: true, width: 120 },
+  { id: 'time', label: 'Time', visible: true, width: 100 },
   { id: 'item_code', label: 'Item Code', visible: true, width: 130 },
   { id: 'item_name', label: 'Item Name', visible: true, width: 170 },
   { id: 'warehouse', label: 'Warehouse', visible: true, width: 160 },
@@ -24,7 +25,7 @@ const DEFAULT_LEDGER_COLUMNS = [
   { id: 'out_qty', label: 'Out Qty', visible: true, width: 100 },
   { id: 'qty_after_transaction', label: 'Balance Qty', visible: true, width: 110 },
   { id: 'valuation_rate', label: 'Avg Rate', visible: true, width: 120 },
-  { id: 'stock_value', label: 'Balance Value', visible: true, width: 130 },
+  { id: 'stock_value', label: 'Amount', visible: true, width: 130 },
   { id: 'stock_value_difference', label: 'Value Change', visible: true, width: 130 }
 ];
 
@@ -338,7 +339,8 @@ function StockLedgerReport() {
     const rows = data.map(row => {
       return activeCols.map(col => {
         let val = '';
-        if (col.id === 'date') val = row.date;
+        if (col.id === 'date') val = row.date ? row.date.replace('T', ' ').substring(0, 10) : '';
+        else if (col.id === 'time') val = row.date ? row.date.replace('T', ' ').substring(11, 19) : '';
         else if (col.id === 'item_code') val = row.item_code;
         else if (col.id === 'item_name') val = row.item_name;
         else if (col.id === 'warehouse') val = row.warehouse;
@@ -633,7 +635,13 @@ function StockLedgerReport() {
                               case 'date':
                                 return (
                                   <td key={col.id} style={{ fontWeight: 500 }}>
-                                    {row.date ? row.date.replace('T', ' ').substring(0, 19) : ''}
+                                    {row.date ? row.date.replace('T', ' ').substring(0, 10) : ''}
+                                  </td>
+                                );
+                              case 'time':
+                                return (
+                                  <td key={col.id} style={{ fontWeight: 500, color: '#64748b', fontFamily: 'monospace', fontSize: '11px' }}>
+                                    {row.date ? row.date.replace('T', ' ').substring(11, 19) : ''}
                                   </td>
                                 );
                               case 'item_code':

@@ -69,6 +69,7 @@ const routeMap = {
   'Sales Summary Report': { path: '/salesreport', icon: FileText },
   'Purchase Report': { path: '/purchasereport', icon: TrendingUp },
   'Item Wise Report': { path: '/itemwisereport', icon: PieChart },
+  'General Ledger': { path: '/generalledgerreport', icon: Receipt },
 
   // System
   'POS Health': { path: '/poshealth', icon: TrendingUp },
@@ -113,7 +114,7 @@ function Dashboard() {
       icon: BarChart3,
       colorClass: 'icon-reports',
       cardClass: 'card-reports',
-      items: ['Daily Sales Report', 'Sales Summary Report', 'Purchase Report', 'Item Wise Report'],
+      items: ['Daily Sales Report', 'Sales Summary Report', 'Purchase Report', 'Item Wise Report', 'General Ledger'],
     },
     {
       title: 'Inventory Logistics',

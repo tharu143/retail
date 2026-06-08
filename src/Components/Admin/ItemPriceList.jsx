@@ -41,6 +41,13 @@ function ItemPriceList() {
    const [pageSize, setPageSize] = useState(20);
    const [currentPage, setCurrentPage] = useState(1);
 
+   /* Role & Branch Access Control */
+   const user_roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
+   const isAdmin = user_roles.includes('Administrator') || user_roles.includes('System Manager');
+   const userWarehouse = localStorage.getItem('warehouse') || '';
+   // Derive branch name from warehouse (e.g. "Shamkha Warehouse" → "Shamkha")
+   const userBranch = userWarehouse ? userWarehouse.replace(/\s*Warehouse\s*$/i, '').trim() : '';
+
    /* Theme */
    const [pollTheme, setPollTheme] = useState(localStorage.getItem('legacySubTheme') || 'blue');
    const isGreen = pollTheme === 'green';
@@ -60,8 +67,8 @@ function ItemPriceList() {
    const [branchGroups, setBranchGroups] = useState([]);     // unique branch names derived from price lists
    const [branchColorMap, setBranchColorMap] = useState({});
 
-   /* Filters */
-   const [selectedBranch, setSelectedBranch] = useState(''); // e.g. "Shamkha"
+   /* Filters — non-admins are locked to their branch */
+   const [selectedBranch, setSelectedBranch] = useState(!isAdmin ? userBranch : ''); // e.g. "Shamkha"
    const [selectedType, setSelectedType] = useState('');     // '' | 'Selling' | 'Buying'
    const [searchTerm, setSearchTerm] = useState('');
    const [itemCodeFilter, setItemCodeFilter] = useState(searchParams.get('item_code') || '');
@@ -334,51 +341,70 @@ function ItemPriceList() {
             {/* ── Branch Quick-filter pills ───────────────── */}
             <div style={{ marginBottom: '1rem' }}>
                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.07em' }}>
-                  Filter by Branch
+                  {isAdmin ? 'Filter by Branch' : `Branch: ${userBranch || 'Default'}`}
                </div>
                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-                  {/* All pill */}
-                  <button
-                     onClick={() => { handleBranchPill(''); handleFilterChange(setSelectedType, ''); }}
-                     style={{
-                        padding: '0.3rem 0.85rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
-                        border: `2px solid ${!selectedBranch ? themeColor : '#e2e8f0'}`,
-                        background: !selectedBranch ? themeColor : 'white',
-                        color: !selectedBranch ? 'white' : '#64748b',
-                        cursor: 'pointer', transition: 'all 0.15s'
-                     }}
-                  >
-                     All Branches
-                  </button>
-
-                  {branchGroups.map((b, idx) => {
-                     const col = branchColorMap[b] || getBranchColor(idx);
-                     const isActive = selectedBranch === b;
-                     // Count in current filtered result
-                     const cnt = branchSummary[b];
-                     return (
+                  {isAdmin && (
+                     <>
+                        {/* All pill — admin only */}
                         <button
-                           key={b}
-                           onClick={() => handleBranchPill(b)}
+                           onClick={() => { handleBranchPill(''); handleFilterChange(setSelectedType, ''); }}
                            style={{
                               padding: '0.3rem 0.85rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
-                              border: `2px solid ${isActive ? col.text : col.border}`,
-                              background: isActive ? col.text : col.bg,
-                              color: isActive ? 'white' : col.text,
-                              cursor: 'pointer', transition: 'all 0.15s',
-                              display: 'flex', alignItems: 'center', gap: '0.35rem'
+                              border: `2px solid ${!selectedBranch ? themeColor : '#e2e8f0'}`,
+                              background: !selectedBranch ? themeColor : 'white',
+                              color: !selectedBranch ? 'white' : '#64748b',
+                              cursor: 'pointer', transition: 'all 0.15s'
                            }}
                         >
-                           <Building2 size={11} />
-                           {b}
-                           {cnt && (
-                              <span style={{ fontSize: '0.65rem', fontWeight: 800, opacity: 0.85 }}>
-                                 {cnt.selling ? `S:${cnt.selling}` : ''}{cnt.selling && cnt.buying ? ' ' : ''}{cnt.buying ? `B:${cnt.buying}` : ''}
-                              </span>
-                           )}
+                           All Branches
                         </button>
-                     );
-                  })}
+
+                        {branchGroups.map((b, idx) => {
+                           const col = branchColorMap[b] || getBranchColor(idx);
+                           const isActive = selectedBranch === b;
+                           const cnt = branchSummary[b];
+                           return (
+                              <button
+                                 key={b}
+                                 onClick={() => handleBranchPill(b)}
+                                 style={{
+                                    padding: '0.3rem 0.85rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                                    border: `2px solid ${isActive ? col.text : col.border}`,
+                                    background: isActive ? col.text : col.bg,
+                                    color: isActive ? 'white' : col.text,
+                                    cursor: 'pointer', transition: 'all 0.15s',
+                                    display: 'flex', alignItems: 'center', gap: '0.35rem'
+                                 }}
+                              >
+                                 <Building2 size={11} />
+                                 {b}
+                                 {cnt && (
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, opacity: 0.85 }}>
+                                       {cnt.selling ? `S:${cnt.selling}` : ''}{cnt.selling && cnt.buying ? ' ' : ''}{cnt.buying ? `B:${cnt.buying}` : ''}
+                                    </span>
+                                 )}
+                              </button>
+                           );
+                        })}
+                     </>
+                  )}
+
+                  {/* Non-admin: show locked branch indicator */}
+                  {!isAdmin && userBranch && (
+                     <span
+                        style={{
+                           padding: '0.3rem 0.85rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                           border: `2px solid ${themeColor}`,
+                           background: themeColor,
+                           color: 'white',
+                           display: 'flex', alignItems: 'center', gap: '0.35rem'
+                        }}
+                     >
+                        <Building2 size={11} />
+                        {userBranch}
+                     </span>
+                  )}
 
                   {/* Buying / Selling type toggle */}
                   <div style={{ marginLeft: '0.75rem', display: 'flex', gap: '0.4rem' }}>
@@ -433,7 +459,7 @@ function ItemPriceList() {
                   />
                </div>
                <button
-                  onClick={() => { setSearchTerm(''); setItemCodeFilter(''); setSelectedBranch(''); setSelectedType(''); setCurrentPage(1); }}
+                  onClick={() => { setSearchTerm(''); setItemCodeFilter(''); setSelectedBranch(isAdmin ? '' : userBranch); setSelectedType(''); setCurrentPage(1); }}
                   style={{ background: '#fef2f2', color: '#ef4444', height: '2.4rem', padding: '0 1rem', border: '1px solid #fecdd3', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                >
                   <X size={13} /> Clear All
@@ -690,7 +716,9 @@ function ItemPriceList() {
                            <label className="so-label">Price List</label>
                            <select className="so-select" value={form.price_list}
                               onChange={e => setForm(f => ({ ...f, price_list: e.target.value, buying: e.target.value.includes('Buying') ? 1 : 0, selling: e.target.value.includes('Selling') ? 1 : 0 }))}>
-                              {priceLists.map(pl => <option key={pl.name} value={pl.name}>{pl.name}</option>)}
+                              {priceLists
+                                 .filter(pl => isAdmin || !userBranch || branchFromPriceList(pl.name) === userBranch)
+                                 .map(pl => <option key={pl.name} value={pl.name}>{pl.name}</option>)}
                            </select>
                         </div>
                         <div className="so-field">
