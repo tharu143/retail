@@ -1467,7 +1467,7 @@ function PurchaseReceiptList() {
           account_head: t.account_head,
           description: t.account_head,
           rate: parseFloat(t.rate || 0),
-          tax_amount: t.charge_type === 'Actual' ? parseFloat(t.tax_amount || 0) : 0,
+          tax_amount: parseFloat(t.tax_amount || 0),
           add_deduct_tax: t.add_row ? "Add" : "Deduct",
           category: "Total"
         })),
@@ -1541,7 +1541,7 @@ function PurchaseReceiptList() {
           account_head: t.account_head,
           description: t.account_head, // ← This fixes the mandatory error
           rate: parseFloat(t.rate || 0),
-          tax_amount: t.charge_type === 'Actual' ? parseFloat(t.tax_amount || 0) : 0,
+          tax_amount: parseFloat(t.tax_amount || 0),
           add_deduct_tax: t.add_row ? "Add" : "Deduct",
           category: "Total"
         })),

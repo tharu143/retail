@@ -19,11 +19,13 @@ const API_PATH_C = '/api/method/custom_retailpos.custom_retailpos.retail_api.ret
 
 const DEFAULT_SO_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
+  { id: 'custom_ref_sl_no', label: 'Ref / Customer SL #', visible: true, width: 120 },
   { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
+  { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 90 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
   { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
 ];
@@ -33,11 +35,13 @@ const SOItemModel = {
   item_name: '',
   rate: 0,
   amount: 0,
+  custom_ref_sl_no: '',
   custom_box_qty: 0,
   custom_pieces_per_box: 1,
   custom_box_price: 0,
   use_box_entry: false,
-  uom_list: []
+  uom_list: [],
+  custom_selling_price: 0
 };
 
 const loadColumnConfig = () => {
@@ -663,6 +667,8 @@ export default function SalesOrderList() {
             default_pieces_per_box: pPerBox,
             custom_box_qty: 1,
             custom_box_price: rate,
+            custom_selling_price: parseFloat(apiItem.selling_price || 0),
+            custom_ref_sl_no: apiItem.custom_ref_sl_no || apiItem.custom_supplier_sl_num || '',
             warehouse: apiItem.warehouse || prev.set_source_warehouse || localStorage.getItem('warehouse') || ''
           };
 
@@ -1273,6 +1279,8 @@ export default function SalesOrderList() {
           default_pieces_per_box: pPerBox,
           custom_box_qty: 1,
           custom_box_price: rate,
+          custom_selling_price: parseFloat(item.selling_price || 0),
+          custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
           warehouse: item.warehouse || prev.set_source_warehouse || localStorage.getItem('warehouse') || ''
         };
 
@@ -1346,12 +1354,15 @@ export default function SalesOrderList() {
             ...i,
             qty: isBox ? (parseFloat(i.custom_box_qty) || 0) : (parseFloat(i.qty) || 0),
             rate: isBox ? (parseFloat(i.custom_box_price) || 0) : (parseFloat(i.rate) || 0),
+            amount: parseFloat(i.amount) || 0,
             conversion_factor: isBox ? (parseFloat(i.custom_pieces_per_box) || 1) : 1.0,
             stock_qty: parseFloat(i.qty) || 0,
             stock_uom_rate: parseFloat(i.rate) || 0,
+            custom_ref_sl_no: i.custom_ref_sl_no || '',
             custom_box_qty: parseFloat(i.custom_box_qty) || 0,
             custom_pieces_per_box: parseFloat(i.custom_pieces_per_box) || 1,
             custom_box_price: parseFloat(i.custom_box_price) || 0,
+            custom_selling_price: parseFloat(i.custom_selling_price) || 0,
             warehouse: i.warehouse || formData.set_source_warehouse || localStorage.getItem('warehouse')
           };
         });
@@ -1844,7 +1855,7 @@ export default function SalesOrderList() {
                                   let alignClass = "text-center";
                                   if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
                                     alignClass = "text-left pl-3";
-                                  } else if (['custom_box_price', 'rate', 'amount'].includes(col.id)) {
+                                  } else if (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id)) {
                                     alignClass = "text-right pr-3";
                                   }
 
@@ -1938,7 +1949,21 @@ export default function SalesOrderList() {
                                             </div>
                                           </td>
                                         );
-
+                                      case 'custom_ref_sl_no':
+                                        return (
+                                          <td key={col.id}>
+                                            <input
+                                              className="so-table-input"
+                                              style={{ textAlign: 'center' }}
+                                              type="text"
+                                              name="custom_ref_sl_no"
+                                              value={item.custom_ref_sl_no || ''}
+                                              onChange={(e) => handleInputChangeList(e, idx)}
+                                              onFocus={(e) => e.target.select()}
+                                              placeholder="Serial..."
+                                            />
+                                          </td>
+                                        );
                                       case 'custom_box_qty':
                                         return (
                                           <td key={col.id}>
@@ -2053,6 +2078,21 @@ export default function SalesOrderList() {
                                               inputMode="decimal"
                                               name="rate"
                                               value={item.rate || ''}
+                                              onChange={(e) => handleInputChangeList(e, idx)}
+                                              onFocus={(e) => e.target.select()}
+                                            />
+                                          </td>
+                                        );
+                                      case 'custom_selling_price':
+                                        return (
+                                          <td key={col.id}>
+                                            <input
+                                              className="so-table-input"
+                                              style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 'bold', color: themeColor }}
+                                              type="text"
+                                              inputMode="decimal"
+                                              name="custom_selling_price"
+                                              value={item.custom_selling_price || ''}
                                               onChange={(e) => handleInputChangeList(e, idx)}
                                               onFocus={(e) => e.target.select()}
                                             />

@@ -459,7 +459,6 @@ function NavBar() {
           <div className="d-flex align-items-center gap-2">
             <div className={`status-dot ${isOnline ? 'online' : 'offline'}`} />
             <span className={`status-text ${isOnline ? 'text-online' : 'text-offline'}`}>{isOnline ? 'Online' : 'Offline'}</span>
-
             {(pendingCount > 0 || isSyncInProgress) && (
               <div
                 onClick={handleManualSync}

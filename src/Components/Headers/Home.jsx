@@ -248,49 +248,49 @@ function Home() {
         border-radius: 6px !important;
       }
       .classic-shortcut-guide.horizontal .classic-shortcut-key {
-        font-size: 8.5px !important;
-        padding: 1px 4px !important;
+        font-size: 9.5px !important;
+        padding: 1px 4.5px !important;
       }
       .classic-shortcut-guide.horizontal .classic-shortcut-label {
-        font-size: 9px !important;
+        font-size: 9.5px !important;
       }
       .classic-shortcut-badge {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 4px 10px !important;
-        background: ${isGreen ? '#11523c' : '#11385c'} !important;
-        border: 1.5px solid ${isGreen ? '#2e8b6b' : '#2a6fa8'} !important;
+        background: ${isGreen ? '#083325' : '#081e33'} !important;
+        border: 2px solid ${isGreen ? '#34d399' : '#38bdf8'} !important;
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.25);
       }
       .classic-shortcut-badge:hover {
         background: ${isGreen ? '#1a6b52' : '#1e4f7a'} !important;
         border-color: ${accentColor} !important;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.25), 0 0 8px ${accentColor}44;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.35), 0 0 10px ${accentColor}66;
       }
       .classic-shortcut-badge:active {
         transform: translateY(1px);
         box-shadow: 0 1px 2px rgba(0,0,0,0.15);
       }
       .classic-shortcut-key {
-        font-size: 10px;
-        font-weight: 900;
+        font-size: 11px;
+        font-weight: 950;
         font-family: 'Share Tech Mono', monospace;
         color: #000000;
         background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%) !important;
         border-bottom: 3px solid #94a3b8;
         border-right: 1px solid #cbd5e1;
         border-left: 1px solid #cbd5e1;
-        padding: 2px 6px !important;
+        padding: 2.5px 6.5px !important;
         border-radius: 4px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+        box-shadow: 0 1.5px 0 rgba(0,0,0,0.25);
         transition: all 0.1s ease;
       }
       .classic-shortcut-badge:active .classic-shortcut-key {
@@ -298,17 +298,38 @@ function Home() {
         transform: translateY(1px);
       }
       .classic-shortcut-label {
-        font-size: 9.5px;
-        font-weight: 800;
-        color: ${isGreen ? '#a3d9c9' : '#aaccff'} !important;
+        font-size: 10px;
+        font-weight: 950;
+        color: #ffffff !important;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
         font-family: 'Share Tech Mono', monospace;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
       }
       .classic-shortcut-icon {
         color: ${accentColor} !important;
         display: inline-flex;
         align-items: center;
+      }
+      .btn-shortcut-key {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Share Tech Mono', 'Courier New', monospace;
+        font-size: 10px;
+        font-weight: 900;
+        color: #ffffff !important;
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+        border: 1px solid #0f172a !important;
+        border-bottom: 3px solid #020617 !important;
+        padding: 1.5px 6px !important;
+        border-radius: 4px !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25) !important;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5) !important;
+        margin-left: 6px;
+        vertical-align: middle;
+        line-height: 1;
+        letter-spacing: 0.02em;
       }
       .classic-action-bar {
         background: ${isGreen ? '#156047' : '#154070'}; padding: 5px 10px;
@@ -4181,7 +4202,7 @@ function Home() {
                         ) : (
                             <span className="flex items-center gap-1.5">
                                 Complete Payment
-                                <kbd className="px-1.5 py-0.5 text-[9px] font-black bg-white/20 rounded border border-white/10 uppercase tracking-normal">Enter</kbd>
+                                <kbd className="px-1.5 py-0.5 text-[9px] font-black bg-white/20 rounded border border-white/10 uppercase tracking-normal">Space</kbd>
                             </span>
                         )}
                     </button>
@@ -4528,6 +4549,85 @@ function Home() {
             }
 
             // 2. KEYBOARD SHORTCUTS
+            // A. Discount Modal Shortcuts
+            if (showDiscountModal) {
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    setDiscount(prev => ({ ...prev, type: 'amount' }));
+                    return;
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    setDiscount(prev => ({ ...prev, type: 'percentage' }));
+                    return;
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowDiscountModal(false);
+                    return;
+                }
+            }
+
+            // B. Payment Modal Shortcuts
+            if (showPaymentModal) {
+                // Enter / F12 / Ctrl+Enter: Smart Handling in Payment Modal
+                if (e.key === 'F12' || (e.key === 'Enter' && e.ctrlKey)) {
+                    if (balanceRemaining <= 0 && !paymentLoading) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        completePayment();
+                        return;
+                    }
+                }
+
+                if (e.key === 'Enter') {
+                    if (selectedPaymentMode && parseFloat(tenderedAmount) > 0) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        addPayment();
+                        return;
+                    }
+                }
+
+                // Space: Complete Payment when balance is zero
+                if (e.key === ' ') {
+                    if (balanceRemaining <= 0 && !paymentLoading) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        completePayment();
+                        return;
+                    }
+                }
+
+                if (!selectedPaymentMode) {
+                    if (e.key === '1') {
+                        e.preventDefault();
+                        setSelectedPaymentMode('Cash');
+                    } else if (e.key === '2') {
+                        e.preventDefault();
+                        setSelectedPaymentMode('Card');
+                    } else if (e.key === '3') {
+                        e.preventDefault();
+                        setSelectedPaymentMode('InstaPay');
+                    } else if (e.key === '4') {
+                        e.preventDefault();
+                        handleCreditPaymentSelection();
+                    } else if (e.key === '5') {
+                        e.preventDefault();
+                        setSelectedPaymentMode('Bank');
+                    }
+                }
+
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (selectedPaymentMode) setSelectedPaymentMode('');
+                    else {
+                        setShowPaymentModal(false);
+                        setPayments([]);
+                    }
+                }
+                return; // Prioritize payment modal keys
+            }
+
             // F1 / Alt+D: Discount Modal Toggle
             if (e.key === 'F1' || (e.key.toLowerCase() === 'd' && e.altKey)) {
                 e.preventDefault();
@@ -4599,37 +4699,6 @@ function Home() {
                 }
             }
 
-            // Payment Modal Shortcuts
-            if (showPaymentModal) {
-                if (!selectedPaymentMode) {
-                    if (e.key === '1') {
-                        e.preventDefault();
-                        setSelectedPaymentMode('Cash');
-                    } else if (e.key === '2') {
-                        e.preventDefault();
-                        setSelectedPaymentMode('Card');
-                    } else if (e.key === '3') {
-                        e.preventDefault();
-                        setSelectedPaymentMode('InstaPay');
-                    } else if (e.key === '4') {
-                        e.preventDefault();
-                        handleCreditPaymentSelection();
-                    } else if (e.key === '5') {
-                        e.preventDefault();
-                        setSelectedPaymentMode('Bank');
-                    }
-                }
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    if (selectedPaymentMode) setSelectedPaymentMode('');
-                    else {
-                        setShowPaymentModal(false);
-                        setPayments([]);
-                    }
-                }
-                // Enter is already handled by the input field in the modal
-                return; // Prioritize payment modal keys
-            }
 
             // F6: Quick Price Update
             if (e.key === 'F11') {
@@ -4680,9 +4749,9 @@ function Home() {
                 handleSaveDraft();
             }
 
-            // Arrow Keys for Bill Navigation & Tax Toggle
+            // Arrow Keys for Bill Navigation & Tax Toggle (Ignored when payment or discount modal is open)
             const isSearchDropdownOpen = showItemDropdown || showDropdown;
-            if (billItems.length > 0 && !isSearchDropdownOpen) {
+            if (billItems.length > 0 && !isSearchDropdownOpen && !showDiscountModal && !showPaymentModal) {
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     setSelectedBillIndex(prev => prev === -1 ? 0 : Math.min(prev + 1, billItems.length - 1));
@@ -4715,38 +4784,9 @@ function Home() {
                 setShowDraftsModal(prev => !prev);
             }
 
-            // Enter / F12 / Ctrl+Enter: Smart Handling in Payment Modal
-            if (showPaymentModal) {
-                if (e.key === 'F12' || (e.key === 'Enter' && e.ctrlKey)) {
-                    if (balanceRemaining <= 0 && !paymentLoading) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        completePayment();
-                        return;
-                    }
-                }
-
-                if (e.key === 'Enter') {
-                    if (selectedPaymentMode && tenderedAmount > 0) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        addPayment();
-                    } else if (balanceRemaining <= 0 && !paymentLoading) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        completePayment();
-                    }
-                }
-            }
-
-            // Esc: Close Modals
+            // Esc: Close Modals (Fallbacks)
             if (e.key === 'Escape') {
-                if (showPaymentModal) {
-                    setShowPaymentModal(false);
-                    setSelectedPaymentMode('');
-                } else if (showDiscountModal) {
-                    setShowDiscountModal(false);
-                } else if (showLoyaltyModal) {
+                if (showLoyaltyModal) {
                     setShowLoyaltyModal(false);
                 } else if (showItemDropdown) {
                     setShowItemDropdown(false);
@@ -4790,7 +4830,9 @@ function Home() {
         countryCodePrefix,
         showCreateModal,
         handleBulkQtyUpdate,
-        handleSaveDraft
+        handleSaveDraft,
+        discount,
+        setDiscount
     ]);
 
     if (loadingItems && Items.length === 0) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
@@ -6065,14 +6107,14 @@ function Home() {
                                         className="so-btn-secondary flex-1"
                                         style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2' } : {}}
                                     >
-                                        <Palette size={14} /> % Discount <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm select-none">F1</span>
+                                        <Palette size={14} /> % Discount <span className="btn-shortcut-key">F1</span>
                                     </button>
                                     <button
                                         onClick={handleLoyaltyPointsClick}
                                         className="so-btn-secondary flex-1"
                                         style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5' } : {}}
                                     >
-                                        <Award size={14} /> Loyalty <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm select-none">F12</span>
+                                        <Award size={14} /> Loyalty <span className="btn-shortcut-key">F12</span>
                                     </button>
                                 </div>
                                 <div className="flex gap-1.5 mb-4">
@@ -6082,14 +6124,14 @@ function Home() {
                                         style={{ color: '#d97706', borderColor: '#fef3c7' }}
                                         disabled={billItems.length === 0}
                                     >
-                                        <Package size={14} /> Save Draft <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200/60 font-mono shadow-sm select-none">F10</span>
+                                        <Package size={14} /> Save Draft <span className="btn-shortcut-key">F10</span>
                                     </button>
                                     <button
                                         onClick={clearBillHandler}
                                         className="so-btn-secondary flex-1"
                                         style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
                                     >
-                                        <Trash2 size={14} /> Reset <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200/60 font-mono shadow-sm select-none">Alt+C</span>
+                                        <Trash2 size={14} /> Reset <span className="btn-shortcut-key">Alt+C</span>
                                     </button>
                                 </div>
 
@@ -6105,7 +6147,7 @@ function Home() {
                                         </div>
                                     ) : (
                                         <>
-                                            <CreditCard size={18} /> Confirm & Pay <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-emerald-700 text-white rounded border border-emerald-500 font-mono shadow-sm select-none">Space / F7</span>
+                                            <CreditCard size={18} /> Confirm & Pay <span className="btn-shortcut-key">Space / F7</span>
                                         </>
                                     )}
                                 </button>
@@ -6713,33 +6755,33 @@ function Home() {
                                 className={`px-6 py-2.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
                                 onClick={() => setShowDiscountModal(true)}
                             >
-                                <Palette size={14} /> % DISCOUNT <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">F1</span>
+                                <Palette size={14} /> % DISCOUNT <span className="btn-shortcut-key">F1</span>
                             </button>
                             <button
                                 className={`px-6 py-2.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
                                 onClick={handleLoyaltyPointsClick}
                             >
-                                <Award size={14} /> LOYALTY <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">F12</span>
+                                <Award size={14} /> LOYALTY <span className="btn-shortcut-key">F12</span>
                             </button>
                             <button
                                 className={`px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
                                 onClick={clearBillHandler}
                             >
-                                <Trash2 size={14} /> CLEAR BILL <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">Alt+C</span>
+                                <Trash2 size={14} /> CLEAR BILL <span className="btn-shortcut-key">Alt+C</span>
                             </button>
                             <button
                                 className={`px-8 py-2.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[13px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center gap-2 ml-4`}
                                 onClick={handleSaveDraft}
                                 disabled={billItems.length === 0}
                             >
-                                <Package size={16} /> SAVE DRAFT <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-amber-600 text-white rounded border border-amber-500 font-mono shadow-sm normal-case select-none">F10</span>
+                                <Package size={16} /> SAVE DRAFT <span className="btn-shortcut-key">F10</span>
                             </button>
                             <button
                                 className={`px-12 py-2.5 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[14px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center gap-2`}
                                 onClick={handleCheckout}
                                 disabled={grandTotal <= 0}
                             >
-                                <CreditCard size={18} /> PROCESS PAYMENT <span className="ml-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-white/20 text-white rounded border border-white/30 font-mono shadow-sm normal-case select-none">Space / F7</span>
+                                <CreditCard size={18} /> PROCESS PAYMENT <span className="btn-shortcut-key">Space / F7</span>
                             </button>
                         </div>
 
@@ -7210,8 +7252,8 @@ function Home() {
                                     <div className="row">
                                         <div className="col-12">
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? (discount.type === 'percent' ? `Edit (${discount.value}%)` : <span className="flex items-center justify-center gap-0.5">Edit (<DirhamIcon size={10} />{discount.value})</span>) : 'Add Discount'} <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-600 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">F1</span></button>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'} <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-600 rounded border border-slate-200 font-mono shadow-sm normal-case select-none">F12</span></button>
+                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? (discount.type === 'percent' ? `Edit (${discount.value}%)` : <span className="flex items-center justify-center gap-0.5">Edit (<DirhamIcon size={10} />{discount.value})</span>) : 'Add Discount'} <span className="btn-shortcut-key">F1</span></button>
+                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'} <span className="btn-shortcut-key">F12</span></button>
                                                 {grandTotal > 0 && <button className="home-bill-pay-btn" style={{ flex: 1 }} onClick={handleCheckout}>Pay</button>}
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
