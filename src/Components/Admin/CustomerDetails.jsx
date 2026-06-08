@@ -311,6 +311,9 @@ const CustomerDetails = () => {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState(isNew ? 'edit' : 'view'); // 'view' or 'edit'
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'loyalty'
+  const [loyaltyLedger, setLoyaltyLedger] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
 
   // Data States
   const [customer, setCustomer] = useState(null);
@@ -332,7 +335,7 @@ const CustomerDetails = () => {
     default_price_list: '', is_internal_customer: 0, customer_pos_id: '',
     customer_details: '', tax_category: '', payment_terms: '',
     loyalty_program: '', loyalty_program_tier: '',
-    disabled: 0, is_frozen: 0,
+    disabled: 0, is_frozen: 0, custom_default_discount: 0,
     address_type: 'Billing', address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
     address_name: '', // Added to track existing address
     first_name: '', middle_name: '', last_name: '', designation: '',
@@ -342,8 +345,27 @@ const CustomerDetails = () => {
     branch_availability: []
   });
 
+  const fetchLoyaltyLedger = async () => {
+    try {
+      setLedgerLoading(true);
+      const res = await axios.get(`${API_BASE}.get_customer_loyalty_ledger`, { params: { customer: id } });
+      setLoyaltyLedger(res.data.message || []);
+    } catch (err) {
+      console.error("Ledger fetch failed", err);
+    } finally {
+      setLedgerLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'loyalty' && id && id !== 'new') {
+      fetchLoyaltyLedger();
+    }
+  }, [activeTab, id]);
+
   useEffect(() => {
     fetchMeta();
+    setActiveTab('profile');
     if (!isNew && id && id !== 'undefined') {
       fetchCustomerData();
     }
@@ -411,7 +433,8 @@ const CustomerDetails = () => {
         status: cont.status || 'Passive',
         contact_name: cont.name || '',
         custom_phone_code: cust.custom_phone_code || derivedCode,
-        branch_availability: cust.branch_availability || []
+        branch_availability: cust.branch_availability || [],
+        custom_default_discount: cust.custom_default_discount || 0
       });
     } catch (err) { Swal.fire('Error', 'Failed to retrieve profile data', 'error'); }
     finally { setTimeout(() => setLoading(false), 300); }
@@ -530,9 +553,14 @@ const CustomerDetails = () => {
           </div>
           <div>
             {viewMode === 'view' ? (
-              <button onClick={() => setViewMode('edit')} className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
-                <Edit2 size={13} /> Edit Customer Details
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => navigate(`/generalledgerreport?party_type=Customer&party=${customer?.name}`)} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
+                  <FileText size={13} /> General Ledger
+                </button>
+                <button onClick={() => setViewMode('edit')} className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md transition-all">
+                  <Edit2 size={13} /> Edit Customer Details
+                </button>
+              </div>
             ) : (
               <div className="flex items-center gap-3">
                 {!isNew && (
@@ -550,8 +578,26 @@ const CustomerDetails = () => {
         </div>
       </div>      {/* Main Content Layout containing ONLY form specs */}
       <div className="w-full mt-8 px-8">
+        {viewMode === 'view' && !isNew && (
+          <div className="flex border-b border-slate-200 mb-6 gap-2">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`px-5 py-3 font-black uppercase tracking-wider text-xs border-b-2 transition-all flex items-center gap-2 ${activeTab === 'profile' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            >
+              <User className="w-4 h-4" /> Profile Details
+            </button>
+            <button
+              onClick={() => setActiveTab('loyalty')}
+              className={`px-5 py-3 font-black uppercase tracking-wider text-xs border-b-2 transition-all flex items-center gap-2 ${activeTab === 'loyalty' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            >
+              <Award className="w-4 h-4" /> Loyalty Points Ledger ({customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts)
+            </button>
+          </div>
+        )}
+
         {viewMode === 'view' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300 pb-12">
+          activeTab === 'profile' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300 pb-12">
 
             {/* Card 1: Legal Identity Details */}
             <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden">
@@ -600,6 +646,7 @@ const CustomerDetails = () => {
                 <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
                 <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
                 <DetailRow label="Loyalty Hub Link" value={customer?.loyalty_program} icon={Award} themeColor={themeColor} />
+                <DetailRow label="Allowed Discount (%)" value={customer?.custom_default_discount ? `${customer.custom_default_discount}%` : '0%'} icon={Percent} themeColor={themeColor} />
                 <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
                 <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
                 <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
@@ -651,6 +698,89 @@ const CustomerDetails = () => {
             </div>
 
           </div>
+          ) : (
+            /* Loyalty Point Ledger Tab content */
+            <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden pb-12 animate-in fade-in duration-300">
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-xs">
+                    <Award size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Loyalty Points Balance Ledger</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Historical record of point credits and redemptions</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Balance:</span>
+                  <span className="text-base font-black text-slate-800">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts</span>
+                </div>
+              </div>
+
+              {ledgerLoading ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                  <Loader2 className="animate-spin text-indigo-600" size={24} />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Retrieving ledger entries...</span>
+                </div>
+              ) : loyaltyLedger.length === 0 ? (
+                <div className="text-center py-20 bg-white">
+                  <Award size={40} className="mx-auto text-slate-300 mb-3 opacity-60" />
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">No loyalty ledger activity recorded for this profile.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        <th className="py-3.5 px-6">Posting Date</th>
+                        <th className="py-3.5 px-6">Transaction Type</th>
+                        <th className="py-3.5 px-6">Purchase Value</th>
+                        <th className="py-3.5 px-6">Points Ledger</th>
+                        <th className="py-3.5 px-6">Reference ID</th>
+                        <th className="py-3.5 px-6">Source/Redeem Entry</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loyaltyLedger.map((row, idx) => (
+                        <tr key={idx} className="border-b border-slate-100/80 hover:bg-slate-50/40 text-xs font-medium text-slate-700 transition-colors">
+                          <td className="py-3.5 px-6 font-semibold text-slate-500">
+                            {row.posting_date}
+                          </td>
+                          <td className="py-3.5 px-6">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${row.type === 'Earned' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                              {row.type}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-6 font-bold text-slate-800">
+                            AED {parseFloat(row.purchase_amount || 0).toFixed(2)}
+                          </td>
+                          <td className={`py-3.5 px-6 font-black ${row.loyalty_points > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {row.loyalty_points > 0 ? '+' : ''}{parseFloat(row.loyalty_points).toFixed(2)} pts
+                          </td>
+                          <td className="py-3.5 px-6 font-bold text-indigo-600">
+                            <a href={`/app/sales-invoice/${row.invoice}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1 select-all">
+                              <FileText size={12} className="opacity-60" /> {row.invoice}
+                            </a>
+                          </td>
+                          <td className="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase">
+                            {row.type === 'Redeemed' && row.original_invoice ? (
+                              <span className="text-slate-600 flex items-center gap-1 select-all">
+                                Used against: <b className="text-indigo-600">{row.original_invoice}</b>
+                              </span>
+                            ) : row.type === 'Earned' ? (
+                              <span className="text-emerald-600">Credit Credited</span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )
         ) : (
           /* Full Screen Edit Form */
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-300 pb-12">
@@ -1007,6 +1137,18 @@ const CustomerDetails = () => {
                     <option value="">None</option>
                     {meta.loyalty_programs?.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Allowed Discount (%)</label>
+                  <input
+                    type="number"
+                    className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
+                    style={{ borderColor: '#cbd5e1', outline: 'none' }}
+                    value={form.custom_default_discount}
+                    onChange={e => setForm({ ...form, custom_default_discount: parseFloat(e.target.value) || 0 })}
+                    placeholder="Allowed discount percent"
+                  />
                 </div>
 
                 <div className="space-y-1.5">

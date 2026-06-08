@@ -108,12 +108,41 @@ function DailySalesReport() {
     const totalInvoicesCount = data.invoices?.length || 0;
     const totalRevenue = data.invoices?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;
     
-    const totalCashCollected = data.invoices?.reduce((sum, inv) => {
-        const cashPay = inv.payments?.find(p => p.mode_of_payment === 'Cash');
-        return sum + (cashPay ? cashPay.amount : 0);
-    }, 0) || 0;
+    // Detailed payment modes calculation
+    const getPaymentTotals = (invoices) => {
+        let cash = 0;
+        let card = 0;
+        let instapay = 0;
+        let bank = 0;
+        let credit = 0;
+        let total = 0;
 
-    const totalOtherCollected = totalRevenue - totalCashCollected;
+        invoices?.forEach(inv => {
+            inv.payments?.forEach(p => {
+                const mode = (p.mode_of_payment || '').toLowerCase().trim();
+                const amt = p.amount || 0;
+                total += amt;
+                
+                if (mode === 'cash') {
+                    cash += amt;
+                } else if (mode.includes('card')) {
+                    card += amt;
+                } else if (mode.includes('insta')) {
+                    instapay += amt;
+                } else if (mode.includes('bank') || mode.includes('transfer') || mode.includes('wire')) {
+                    bank += amt;
+                } else if (mode.includes('credit')) {
+                    credit += amt;
+                } else {
+                    cash += amt; // default fallback
+                }
+            });
+        });
+
+        return { cash, card, instapay, bank, credit, total };
+    };
+
+    const totals = getPaymentTotals(data.invoices);
 
     const handlePrint = () => {
         window.print();
@@ -239,44 +268,64 @@ function DailySalesReport() {
             )}
 
             {/* Metrics cards bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between border-l-4 border-l-indigo-600">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-indigo-600">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">POS Sales Volume</span>
-                    <span className="text-2xl font-black text-slate-800 mt-2 flex items-center gap-1.5">
-                        <DirhamIcon size={16} /> {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    <span className="text-lg font-black text-slate-800 mt-2 flex items-center gap-1">
+                        <DirhamIcon size={13} /> {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        Across {totalInvoicesCount} transactions
+                        {totalInvoicesCount} Invoices
                     </span>
                 </div>
 
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cash Payments Collected</span>
-                    <span className="text-2xl font-black text-emerald-600 mt-2 flex items-center gap-1.5">
-                        <DirhamIcon size={16} /> {totalCashCollected.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cash Collected</span>
+                    <span className="text-lg font-black text-emerald-600 mt-2 flex items-center gap-1">
+                        <DirhamIcon size={13} /> {totals.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        Physical Cash Drawer
+                        Physical Cash
                     </span>
                 </div>
 
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between border-l-4 border-l-blue-500">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Non-Cash (Card/Other)</span>
-                    <span className="text-2xl font-black text-blue-600 mt-2 flex items-center gap-1.5">
-                        <DirhamIcon size={16} /> {totalOtherCollected.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-blue-500">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Card Payments</span>
+                    <span className="text-lg font-black text-blue-600 mt-2 flex items-center gap-1">
+                        <DirhamIcon size={13} /> {totals.card.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        Bank / Card Terminal Sales
+                        Card Terminal
                     </span>
                 </div>
 
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Register Sessions</span>
-                    <span className="text-2xl font-black text-amber-600 mt-2">
-                        {data.openings?.length || 0}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-purple-500">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bank Transfer</span>
+                    <span className="text-lg font-black text-purple-600 mt-2 flex items-center gap-1">
+                        <DirhamIcon size={13} /> {totals.bank.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        Opened Register Cashiers
+                        Direct to Bank
+                    </span>
+                </div>
+
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">InstaPay Cash</span>
+                    <span className="text-lg font-black text-amber-600 mt-2 flex items-center gap-1">
+                        <DirhamIcon size={13} /> {totals.instapay.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                        InstaPay
+                    </span>
+                </div>
+
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-rose-500">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Customer Credit</span>
+                    <span className="text-lg font-black text-rose-600 mt-2 flex items-center gap-1">
+                        <DirhamIcon size={13} /> {totals.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                        Outstanding Debt
                     </span>
                 </div>
             </div>
@@ -358,7 +407,54 @@ function DailySalesReport() {
                                             </tr>
                                         ))}
                                     </tbody>
+                                    <tfoot>
+                                        <tr className="border-t-2 border-slate-200 font-black text-slate-800 bg-slate-50/50">
+                                            <td className="py-3 px-4 text-[10px] font-black uppercase">Total</td>
+                                            <td className="py-3 px-4"></td>
+                                            <td className="py-3 px-4"></td>
+                                            <td className="py-3 px-4"></td>
+                                            <td className="py-3 px-4">
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {totals.cash > 0 && <span className="bg-emerald-50 border border-emerald-200/60 rounded-full px-2 py-0.5 text-[9px] font-bold text-emerald-700">Cash: {totals.cash.toFixed(2)}</span>}
+                                                    {totals.card > 0 && <span className="bg-blue-50 border border-blue-200/60 rounded-full px-2 py-0.5 text-[9px] font-bold text-blue-700">Card: {totals.card.toFixed(2)}</span>}
+                                                    {totals.bank > 0 && <span className="bg-purple-50 border border-purple-200/60 rounded-full px-2 py-0.5 text-[9px] font-bold text-purple-700">Bank: {totals.bank.toFixed(2)}</span>}
+                                                    {totals.instapay > 0 && <span className="bg-amber-50 border border-amber-200/60 rounded-full px-2 py-0.5 text-[9px] font-bold text-amber-700">InstaPay: {totals.instapay.toFixed(2)}</span>}
+                                                    {totals.credit > 0 && <span className="bg-rose-50 border border-rose-200/60 rounded-full px-2 py-0.5 text-[9px] font-bold text-rose-700">Credit: {totals.credit.toFixed(2)}</span>}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-4 text-right font-black text-slate-900 text-sm">
+                                                AED {totalRevenue.toFixed(2)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
+                                
+                                {/* Summary of Payment Modes */}
+                                <div className="mt-6 border-t border-slate-100 pt-6">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Daily Payment Mode Summary</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                                        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 text-center">
+                                            <span className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Cash</span>
+                                            <span className="block text-sm font-black text-emerald-600 mt-1">AED {totals.cash.toFixed(2)}</span>
+                                        </div>
+                                        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 text-center">
+                                            <span className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Card</span>
+                                            <span className="block text-sm font-black text-blue-600 mt-1">AED {totals.card.toFixed(2)}</span>
+                                        </div>
+                                        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 text-center">
+                                            <span className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Bank Transfer</span>
+                                            <span className="block text-sm font-black text-purple-600 mt-1">AED {totals.bank.toFixed(2)}</span>
+                                        </div>
+                                        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 text-center">
+                                            <span className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">InstaPay Cash</span>
+                                            <span className="block text-sm font-black text-amber-600 mt-1">AED {totals.instapay.toFixed(2)}</span>
+                                        </div>
+                                        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 text-center col-span-2 sm:col-span-1">
+                                            <span className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Credit</span>
+                                            <span className="block text-sm font-black text-rose-600 mt-1">AED {totals.credit.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>

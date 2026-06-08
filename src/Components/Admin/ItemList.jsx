@@ -1644,6 +1644,22 @@ export default function ItemList() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     className="il-btn il-btn-secondary"
+                    style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}
+                    onClick={() => navigate(`/stockledgerreport?item_code=${editingItemCode}`)}
+                    title="Stock Ledger Report"
+                  >
+                    <Activity size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>Stock Ledger</span>
+                  </button>
+                  <button
+                    className="il-btn il-btn-secondary"
+                    style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}
+                    onClick={() => navigate(`/stockbalancereport?item_code=${editingItemCode}`)}
+                    title="Stock Balance Report"
+                  >
+                    <Warehouse size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>Stock Balance</span>
+                  </button>
+                  <button
+                    className="il-btn il-btn-secondary"
                     style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff' }}
                     onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
                   >

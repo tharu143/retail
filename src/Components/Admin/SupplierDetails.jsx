@@ -524,6 +524,24 @@ const SupplierDetails = () => {
               REFRESH
             </button>
             <button
+              onClick={() => navigate(`/generalledgerreport?party_type=Supplier&party=${name}`)}
+              className="so-btn-secondary"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                border: '1.5px solid #e2e8f0',
+                color: '#64748b',
+                backgroundColor: '#fff',
+                padding: '0.5rem 0.9rem',
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                borderRadius: '0.5rem'
+              }}
+              title="View General Ledger"
+            >
+              <FileText size={13} />
+              GENERAL LEDGER
+            </button>
+            <button
               className="so-btn-primary"
               onClick={() => setShowEditModal(true)}
               style={{

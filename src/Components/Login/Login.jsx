@@ -100,8 +100,8 @@ function Login() {
       localStorage.setItem("branch_prefix", branch_prefix || "");
       localStorage.setItem("is_manager", resp.is_manager || false);
       localStorage.setItem("user_roles", JSON.stringify(resp.user_roles || []));
-      // Clear any stale opening entry (shifts are bypassed)
-      localStorage.setItem("posOpeningEntry", "");
+      // Set active opening entry from login response (if exists)
+      localStorage.setItem("posOpeningEntry", resp.active_pos_opening || "");
 
       Swal.fire({
         icon: 'success',

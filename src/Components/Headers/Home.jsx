@@ -1357,6 +1357,41 @@ function Home() {
         return null;
     };
 
+    const handleCreditPaymentSelection = async () => {
+        if (!selectedCustomer || selectedCustomer.name === 'Cash') {
+            Swal.fire({
+                title: 'Select Named Customer',
+                text: 'Credit payments can only be processed for named customers. Please select or create a customer first.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        if (selectedCustomer.customer_group !== 'Credit Customer') {
+            const result = await Swal.fire({
+                title: 'Promote to Credit Customer?',
+                text: `Only Credit Customers can check out on Credit. Do you want to promote "${selectedCustomer.customer_name}" to Credit Customer?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Promote',
+                cancelButtonText: 'Cancel'
+            });
+            if (result.isConfirmed) {
+                Swal.showLoading();
+                const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
+                if (updated) {
+                    setSelectedPaymentMode('Credit');
+                    Swal.fire({
+                        toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
+                        icon: 'success', title: 'Customer group updated to Credit Customer'
+                    });
+                }
+            }
+        } else {
+            setSelectedPaymentMode('Credit');
+        }
+    };
+
     const pickCustomer = (cust) => {
         setSelectedCustomer(cust);
         setCustomerName(cust.customer_name);
@@ -4053,7 +4088,7 @@ function Home() {
                                         </button>
                                         <button
                                             className="payment-method-btn group p-3 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
-                                            onClick={() => setSelectedPaymentMode('Credit Card')}
+                                            onClick={() => setSelectedPaymentMode('Card')}
                                         >
                                             <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-sky-600 text-white text-[9px] font-black rounded shadow-sm">2</div>
                                             <div className="w-9 h-9 bg-white text-sky-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
@@ -4062,61 +4097,35 @@ function Home() {
                                             <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white text-[9px]">Card</span>
                                         </button>
                                         <button
-                                            className="payment-method-btn group p-3 bg-purple-50 border-2 border-purple-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
-                                            onClick={() => setSelectedPaymentMode('InstaPay Cash')}
+                                            className="payment-method-btn group p-3 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            onClick={() => setSelectedPaymentMode('InstaPay')}
                                         >
-                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-purple-600 text-white text-[9px] font-black rounded shadow-sm">3</div>
-                                            <div className="w-9 h-9 bg-white text-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-indigo-600 text-white text-[9px] font-black rounded shadow-sm">3</div>
+                                            <div className="w-9 h-9 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
                                                 <Banknote size={18} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-purple-700 group-hover:text-white text-[9px] text-center">Insta Cash</span>
+                                            <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[9px] text-center">InstaPay</span>
                                         </button>
                                         <button
-                                            className="payment-method-btn group p-3 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
-                                            onClick={() => setSelectedPaymentMode('InstaPay Bank')}
+                                            className="payment-method-btn group p-3 bg-amber-50 border-2 border-amber-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            onClick={handleCreditPaymentSelection}
                                         >
-                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-indigo-600 text-white text-[9px] font-black rounded shadow-sm">4</div>
-                                            <div className="w-9 h-9 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-amber-600 text-white text-[9px] font-black rounded shadow-sm">4</div>
+                                            <div className="w-9 h-9 bg-white text-amber-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <Coins size={18} />
+                                            </div>
+                                            <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-[9px]">Credit</span>
+                                        </button>
+                                        <button
+                                            className="payment-method-btn group p-3 bg-purple-50 border-2 border-purple-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            onClick={() => setSelectedPaymentMode('Bank')}
+                                        >
+                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-purple-600 text-white text-[9px] font-black rounded shadow-sm">5</div>
+                                            <div className="w-9 h-9 bg-white text-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
                                                 <Building2 size={18} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[9px] text-center">Insta Bank</span>
+                                            <span className="font-black uppercase tracking-widest text-purple-700 group-hover:text-white text-[9px] text-center">Bank</span>
                                         </button>
-                                        {selectedCustomer && selectedCustomer.name !== 'Cash' && (
-                                            <button
-                                                className="payment-method-btn group p-3 bg-amber-50 border-2 border-amber-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative"
-                                                onClick={async () => {
-                                                    if (selectedCustomer.customer_group !== 'Credit Customer') {
-                                                        const result = await Swal.fire({
-                                                            title: 'Promote to Credit Customer?',
-                                                            text: `Only Credit Customers can check out on Credit. Do you want to promote "${selectedCustomer.customer_name}" to Credit Customer?`,
-                                                            icon: 'question',
-                                                            showCancelButton: true,
-                                                            confirmButtonText: 'Yes, Promote',
-                                                            cancelButtonText: 'Cancel'
-                                                        });
-                                                        if (result.isConfirmed) {
-                                                            Swal.showLoading();
-                                                            const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
-                                                            if (updated) {
-                                                                setSelectedPaymentMode('Credit');
-                                                                Swal.fire({
-                                                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                                                    icon: 'success', title: 'Customer group updated to Credit Customer'
-                                                                });
-                                                            }
-                                                        }
-                                                    } else {
-                                                        setSelectedPaymentMode('Credit');
-                                                    }
-                                                }}
-                                            >
-                                                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-amber-600 text-white text-[9px] font-black rounded shadow-sm">5</div>
-                                                <div className="w-9 h-9 bg-white text-amber-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                    <Coins size={18} />
-                                                </div>
-                                                <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-[9px]">Credit</span>
-                                            </button>
-                                        )}
                                     </div>
 
                                 </>
@@ -4598,40 +4607,16 @@ function Home() {
                         setSelectedPaymentMode('Cash');
                     } else if (e.key === '2') {
                         e.preventDefault();
-                        setSelectedPaymentMode('Credit Card');
+                        setSelectedPaymentMode('Card');
                     } else if (e.key === '3') {
                         e.preventDefault();
-                        setSelectedPaymentMode('InstaPay Cash');
+                        setSelectedPaymentMode('InstaPay');
                     } else if (e.key === '4') {
                         e.preventDefault();
-                        setSelectedPaymentMode('InstaPay Bank');
-                    } else if (e.key === '5' && selectedCustomer && selectedCustomer.name !== 'Cash') {
+                        handleCreditPaymentSelection();
+                    } else if (e.key === '5') {
                         e.preventDefault();
-                        if (selectedCustomer.customer_group !== 'Credit Customer') {
-                            (async () => {
-                                const result = await Swal.fire({
-                                    title: 'Promote to Credit Customer?',
-                                    text: `Only Credit Customers can check out on Credit. Do you want to promote "${selectedCustomer.customer_name}" to Credit Customer?`,
-                                    icon: 'question',
-                                    showCancelButton: true,
-                                    confirmButtonText: 'Yes, Promote',
-                                    cancelButtonText: 'Cancel'
-                                });
-                                if (result.isConfirmed) {
-                                    Swal.showLoading();
-                                    const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
-                                    if (updated) {
-                                        setSelectedPaymentMode('Credit');
-                                        Swal.fire({
-                                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                            icon: 'success', title: 'Customer group updated to Credit Customer'
-                                        });
-                                    }
-                                }
-                            })();
-                        } else {
-                            setSelectedPaymentMode('Credit');
-                        }
+                        setSelectedPaymentMode('Bank');
                     }
                 }
                 if (e.key === 'Escape') {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
     Loader2, FileText, AlertCircle, Calendar, Search, 
     Filter, Palette, RefreshCw, Download, Printer, 
@@ -73,20 +74,42 @@ function StockBalanceReport() {
     return d.toISOString().split('T')[0];
   };
 
+  const [searchParams] = useSearchParams();
   const defaultUserWh = localStorage.getItem('warehouse') || '';
 
   // Role Validation (Critical Access Control)
   const user_roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
   const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
 
-  const [filters, setFilters] = useState({ 
-    from_date: getDate30DaysAgo(),
-    to_date: getTodayDate(),
-    warehouse: defaultUserWh,
-    all_warehouses: isAdmin ? !defaultUserWh : false, // If no default and admin, show all
-    item_code: '',
-    item_group: ''
-  });
+  const getInitialFilters = () => {
+    let item_code = '';
+    const itemCodeParam = searchParams.get('item_code');
+    if (itemCodeParam) {
+      try {
+        if (itemCodeParam.startsWith('[') && itemCodeParam.endsWith(']')) {
+          const parsed = JSON.parse(itemCodeParam);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            item_code = parsed[0];
+          }
+        } else {
+          item_code = itemCodeParam;
+        }
+      } catch (e) {
+        item_code = itemCodeParam;
+      }
+    }
+
+    return {
+      from_date: searchParams.get('from_date') || getDate30DaysAgo(),
+      to_date: searchParams.get('to_date') || getTodayDate(),
+      warehouse: searchParams.get('warehouse') || defaultUserWh,
+      all_warehouses: isAdmin ? !searchParams.get('warehouse') : false,
+      item_code,
+      item_group: searchParams.get('item_group') || ''
+    };
+  };
+
+  const [filters, setFilters] = useState(getInitialFilters());
 
   const [warehouses, setWarehouses] = useState([]);
   const [itemGroups, setItemGroups] = useState([]);
@@ -95,8 +118,26 @@ function StockBalanceReport() {
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
+  const resolveInitialItem = async (code) => {
+    try {
+      const dbItem = await db.items.get(code);
+      if (dbItem) {
+        setSelectedItemObj({ name: dbItem.id, item_name: dbItem.name || dbItem.id });
+      } else {
+        setSelectedItemObj({ name: code, item_name: code });
+      }
+    } catch (e) {
+      setSelectedItemObj({ name: code, item_name: code });
+    }
+  };
+
   useEffect(() => {
     fetchWarehousesAndGroups();
+    
+    if (filters.item_code) {
+      resolveInitialItem(filters.item_code);
+    }
+    
     fetchReport(filters);
   }, []);
 
