@@ -4301,9 +4301,11 @@ function Home() {
                     .info { margin: 12px 0; font-size: 11px; }
                     .info-row { display: flex; justify-content: space-between; }
                     .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                    .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; font-size: 11px; }
-                    .items-table td { padding: 4px 0; vertical-align: top; font-size: 11px; }
-                    .text-right { text-align: right; }
+                    .items-table th { border-bottom: 1px dashed #000; padding: 4px 0; font-size: 9px; font-weight: bold; }
+                    .items-table td { padding: 4px 0; vertical-align: top; font-size: 8.5px; }
+                    .text-left { text-align: left !important; }
+                    .text-center { text-align: center !important; }
+                    .text-right { text-align: right !important; }
                     .totals { margin: 8px 0; }
                     .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 12px; }
                     .grand-total { font-size: 16px; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
@@ -4325,17 +4327,17 @@ function Home() {
                     <div class="info-row"><span>TIME:</span> <span>${invoiceData.posting_time || 'N/A'}</span></div>
                     <div class="info-row"><span>INV NO:</span> <span class="bold">${invoiceData.name}</span></div>
                 </div>
-                <table class="items-table" style="width: 100%; border-collapse: collapse; font-size: 8px;">
+                <table class="items-table">
                     <thead>
                         <tr style="border-bottom: 1px dashed #000; border-top: 1px dashed #000;">
-                            <th class="text-left" style="width: 5%; padding: 3px 0;">SL</th>
-                            <th class="text-left" style="width: 25%; padding: 3px 2px;">ITEM</th>
-                            <th class="text-center" style="width: 7%; padding: 3px 0;">QTY</th>
+                            <th class="text-left" style="width: 6%; padding: 3px 0;">SL</th>
+                            <th class="text-left" style="width: 28%; padding: 3px 2px;">ITEM</th>
+                            <th class="text-center" style="width: 8%; padding: 3px 0;">QTY</th>
                             <th class="text-center" style="width: 8%; padding: 3px 0;">UOM</th>
                             <th class="text-right" style="width: 14%; padding: 3px 0;">PRICE</th>
                             <th class="text-center" style="width: 10%; padding: 3px 0;">VAT</th>
-                            <th class="text-right" style="width: 12%; padding: 3px 0;">V.VAL</th>
-                            <th class="text-right" style="width: 19%; padding: 3px 0;">AMOUNT</th>
+                            <th class="text-right" style="width: 11%; padding: 3px 0;">V.VAL</th>
+                            <th class="text-right" style="width: 15%; padding: 3px 0;">AMOUNT</th>
                         </tr>
                     </thead>
                     <tbody>
