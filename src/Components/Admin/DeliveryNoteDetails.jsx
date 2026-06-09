@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import {
@@ -19,13 +20,11 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const DEFAULT_DN_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
-    { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
     { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
     { id: 'uom', label: 'UOM', visible: true, width: 90 },
     { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
     { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
     { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
-    { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 90 },
     { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
     { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
 ];
@@ -251,6 +250,7 @@ const DeliveryNoteDetails = () => {
     const location = useLocation();
     const customerInputRef = useRef(null);
     const itemInputRefs = useRef({});
+    const loggedWarehouse = useSelector(state => state.user?.warehouse || '');
 
     const [showModal, setShowModal] = useState(false);
     const [isViewOnly, setIsViewOnly] = useState(true);
@@ -525,7 +525,11 @@ const DeliveryNoteDetails = () => {
             setWarehouses(whRes.data.message || []);
             setTaxTemplates(filteredTemplates);
             setNamingSeriesOptions(nsRes.data.message?.options || []);
-        } catch (err) { console.error(err); }
+            return filteredTemplates;
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
     };
 
     const loadDeliveryNote = async (dnName) => {
@@ -584,13 +588,21 @@ const DeliveryNoteDetails = () => {
         } catch (err) { navigate('/deliverynote'); }
     };
 
-    const openCreateModal = () => {
+    const openCreateModal = (templates = []) => {
+        const defaultWh = loggedWarehouse || localStorage.getItem('warehouse') || '';
+        const list = templates.length > 0 ? templates : taxTemplates;
+        const defaultTax = list.find(t =>
+            t.name.toUpperCase().includes('VAT 5%') ||
+            t.name.toUpperCase().includes('5%') ||
+            t.name.toUpperCase().includes('VAT 5')
+        )?.name || '';
+
         setForm({
             name: '', title: '',
             naming_series: namingSeriesOptions[0] || 'MAT-DN-.YYYY.-',
             posting_date: new Date().toISOString().split('T')[0],
             posting_time: new Date().toTimeString().slice(0, 5),
-            customer: '', customer_name: '', set_warehouse: '',
+            customer: '', customer_name: '', set_warehouse: defaultWh,
             docstatus: 0, is_return: 0, return_against: '', currency: 'AED',
             selling_price_list: 'Standard Selling', items: [],
             taxes_and_charges: '', taxes: [],
@@ -602,13 +614,18 @@ const DeliveryNoteDetails = () => {
         });
         setIsViewOnly(false);
         setLoading(false);
-        setDefaultBranch();
+        if (!defaultWh) {
+            setDefaultBranch();
+        }
+        if (defaultTax) {
+            applyTaxTemplate(defaultTax);
+        }
     };
 
     useEffect(() => {
-        loadMetadata().then(() => {
+        loadMetadata().then((templates) => {
             if (name) loadDeliveryNote(name);
-            else if (location.pathname.includes('/create')) openCreateModal();
+            else if (location.pathname.includes('/create')) openCreateModal(templates);
         });
     }, [name, location.pathname]);
 
@@ -1118,28 +1135,31 @@ const DeliveryNoteDetails = () => {
             <div className="so-layout">
                 <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     {isEditing ? (
-                        /* EDIT MODE LAYOUT */
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
-                            <div className="so-card">
-                                <div className="so-card-header">
-                                    <h5 className="so-card-title">Delivery Context & Timeline</h5>
+                        /* PREMIUM DELIVERY NOTE EDIT FORM */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }} className="animate-in fade-in duration-300">
+
+                            {/* Basic Info Card */}
+                            <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                                <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0' }}>
+                                    <h5 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Basic Delivery Context</h5>
                                 </div>
-                                <div className="so-card-body">
-                                    <div className="so-form-grid">
+                                <div style={{ padding: '1.5rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
                                         <div className="so-field">
-                                            <label className="so-label">Series *</label>
+                                            <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Naming Series *</label>
                                             <select
                                                 className="so-select"
                                                 disabled={form.name}
                                                 value={form.naming_series}
                                                 onChange={e => setForm(prev => ({ ...prev, naming_series: e.target.value }))}
+                                                style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                             >
                                                 {namingSeriesOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                             </select>
                                         </div>
 
                                         <div className="so-field">
-                                            <label className="so-label">Target Customer *</label>
+                                            <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Target Customer *</label>
                                             <div style={{ position: 'relative' }}>
                                                 <input
                                                     ref={customerInputRef}
@@ -1152,6 +1172,7 @@ const DeliveryNoteDetails = () => {
                                                         setShowCustomerDropdown(true);
                                                     }}
                                                     onFocus={() => setShowCustomerDropdown(true)}
+                                                    style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                                 />
                                                 {showCustomerDropdown && (
                                                     <CustomerDropdown
@@ -1169,7 +1190,7 @@ const DeliveryNoteDetails = () => {
                                         </div>
 
                                         <div className="so-field">
-                                            <label className="so-label">Warehouse</label>
+                                            <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Branch / Warehouse *</label>
                                             <select
                                                 className="so-select"
                                                 value={form.set_warehouse}
@@ -1181,6 +1202,7 @@ const DeliveryNoteDetails = () => {
                                                         items: prev.items.map(item => ({ ...item, warehouse: wh }))
                                                     }));
                                                 }}
+                                                style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                             >
                                                 <option value="">Select Branch</option>
                                                 {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
@@ -1188,30 +1210,57 @@ const DeliveryNoteDetails = () => {
                                         </div>
 
                                         <div className="so-field">
-                                            <label className="so-label">Posting Date *</label>
+                                            <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Posting Date *</label>
                                             <input
                                                 className="so-input"
                                                 type="date"
                                                 value={form.posting_date}
                                                 onChange={e => setForm(prev => ({ ...prev, posting_date: e.target.value }))}
+                                                style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                             />
                                         </div>
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Barcode Area */}
+                            <div style={{ background: isGreen ? '#f0fdf4' : '#f0f9ff', border: `2px dashed ${themeColor}`, borderRadius: '0.75rem', padding: '1.25rem' }}>
+                                <div style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', padding: '0.75rem 1rem', gap: '1rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                    <ScanLine size={20} style={{ color: themeColor }} />
+                                    <input
+                                        ref={barcodeRef}
+                                        type="text"
+                                        placeholder="Scan Barcode SKU / Supplier Code directly here..."
+                                        value={barcodeInput}
+                                        onChange={e => setBarcodeInput(e.target.value)}
+                                        onKeyDown={handleBarcodeSearch}
+                                        onFocus={() => setIsInputFocused(true)}
+                                        onBlur={() => setIsInputFocused(false)}
+                                        style={{ width: '100%', border: 'none', outline: 'none', fontSize: '0.875rem', fontWeight: 600, color: '#1e293b' }}
+                                    />
+                                    {barcodeInput.trim() && (
+                                        <button
+                                            onClick={() => handleBarcodeSearchDirect(barcodeInput.trim())}
+                                            style={{ padding: '0.4rem 1rem', background: themeColor, color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                        >
+                                            Add
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Items Card */}
-                            <div className="so-table-card">
-                                <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                                <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <h5 className="so-card-title">Items</h5>
+                                        <h5 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Delivery Matrix Items</h5>
                                         <button
                                             type="button"
                                             onClick={() => setShowColConfig(true)}
                                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                                             title="Column Configuration"
                                         >
-                                            <Settings size={14} style={{ color: '#94a3b8' }} />
+                                            <Settings size={15} style={{ color: '#94a3b8' }} />
                                         </button>
                                         <button
                                             type="button"
@@ -1219,39 +1268,22 @@ const DeliveryNoteDetails = () => {
                                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                                             title="Camera Barcode Scanner"
                                         >
-                                            <Camera size={14} style={{ color: '#94a3b8' }} />
+                                            <Camera size={15} style={{ color: '#94a3b8' }} />
                                         </button>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                        <div style={{ position: 'relative', width: '250px' }}>
-                                            <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                                            <input
-                                                ref={barcodeRef}
-                                                className="so-input"
-                                                style={{ paddingLeft: '2.25rem', height: '2.25rem', fontSize: '0.75rem' }}
-                                                type="text"
-                                                placeholder="Scan Barcode..."
-                                                value={barcodeInput}
-                                                onChange={e => setBarcodeInput(e.target.value)}
-                                                onKeyDown={handleBarcodeSearch}
-                                                onFocus={() => setIsInputFocused(true)}
-                                                onBlur={() => setIsInputFocused(false)}
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={addItemRow}
-                                            className="so-btn-primary"
-                                            style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem' }}
-                                        >
-                                            <Plus size={14} /> Add Row
-                                        </button>
-                                    </div>
+                                    <button
+                                        onClick={addItemRow}
+                                        className="px-4 py-2 text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:shadow-md transition-all active:scale-95 duration-150"
+                                        style={{ backgroundColor: themeColor }}
+                                    >
+                                        <Plus size={14} /> Add Row
+                                    </button>
                                 </div>
 
-                                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                                    <table className="so-table">
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }} className="so-table">
                                         <thead>
-                                            <tr>
+                                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                                                 {(() => {
                                                     const hasAnyBox = form.items.some(i => i.use_box_entry);
                                                     const activeCols = dnColumns.filter(c => {
@@ -1269,39 +1301,38 @@ const DeliveryNoteDetails = () => {
                                                             if (col.id === 'custom_pieces_per_box') finalLabel = '';
                                                         }
 
-                                                        let alignClass = "text-center";
-                                                        if (['item_code', 'custom_ref_sl_no', 'uom'].includes(col.id)) {
-                                                            alignClass = "text-left pl-3";
+                                                        let alignStyle = { padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' };
+                                                        if (['item_code', 'uom'].includes(col.id)) {
+                                                            alignStyle.textAlign = 'left';
                                                         } else if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
-                                                            alignClass = "text-center";
-                                                        } else if (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id)) {
-                                                            alignClass = "text-right pr-3";
+                                                            alignStyle.textAlign = 'center';
+                                                        } else if (['custom_box_price', 'rate', 'amount'].includes(col.id)) {
+                                                            alignStyle.textAlign = 'right';
                                                         }
 
                                                         return (
                                                             <th
                                                                 key={col.id}
-                                                                className={alignClass}
-                                                                style={{ width: col.width, minWidth: col.id === 'item_code' ? 120 : undefined }}
+                                                                style={{ ...alignStyle, width: col.width, minWidth: col.id === 'item_code' ? 140 : undefined }}
                                                             >
                                                                 {finalLabel}
                                                             </th>
                                                         );
                                                     });
                                                 })()}
-                                                <th style={{ width: '50px' }}></th>
+                                                <th style={{ width: '60px', padding: '0.75rem 1rem' }}></th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {form.items.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={10} style={{ textAlign: 'center', padding: '2rem 0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
-                                                        No items added. Click "Add Row" or scan barcode.
+                                                    <td colSpan={12} style={{ textAlign: 'center', padding: '3rem 0', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }}>
+                                                        No items added. Click "Add Row" or scan barcode above.
                                                     </td>
                                                 </tr>
                                             ) : (
                                                 form.items.map((item, idx) => (
-                                                    <tr key={idx} data-row-index={idx}>
+                                                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                                         {(() => {
                                                             const hasAnyBox = form.items.some(i => i.use_box_entry);
                                                             const activeCols = dnColumns.filter(c => {
@@ -1314,14 +1345,14 @@ const DeliveryNoteDetails = () => {
                                                                 switch (col.id) {
                                                                     case 'item_code':
                                                                         return (
-                                                                            <td key={col.id}>
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
                                                                                 <div style={{ position: 'relative' }}>
                                                                                     <input
                                                                                         ref={el => itemInputRefs.current[idx] = el}
                                                                                         className="so-td-input"
-                                                                                        style={{ fontWeight: 700 }}
+                                                                                        style={{ fontWeight: 700, padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
                                                                                         type="text"
-                                                                                        placeholder="Type item SKU or code..."
+                                                                                        placeholder="SKU Code..."
                                                                                         value={item.item_code}
                                                                                         onChange={e => {
                                                                                             const val = e.target.value;
@@ -1338,32 +1369,18 @@ const DeliveryNoteDetails = () => {
                                                                                             onSelect={(selected) => selectItem(idx, selected)}
                                                                                         />
                                                                                     )}
-                                                                                    <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, paddingLeft: '0.5rem', marginTop: '0.2rem' }}>{item.item_name}</div>
+                                                                                    {item.item_name && <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginTop: '0.2rem', paddingLeft: '0.25rem' }}>{item.item_name}</div>}
                                                                                 </div>
                                                                             </td>
                                                                         );
-                                                                    case 'custom_ref_sl_no':
-                                                                        return (
-                                                                            <td key={col.id}>
-                                                                                <input
-                                                                                    className="so-td-input"
-                                                                                    style={{ textAlign: 'center' }}
-                                                                                    type="text"
-                                                                                    name="custom_ref_sl_no"
-                                                                                    value={item.custom_ref_sl_no || ''}
-                                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
-                                                                                    onFocus={(e) => e.target.select()}
-                                                                                    placeholder="Serial..."
-                                                                                />
-                                                                            </td>
-                                                                        );
+
                                                                     case 'custom_box_qty':
                                                                         return (
-                                                                            <td key={col.id}>
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
                                                                                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                                                                                     <input
                                                                                         className="so-td-input"
-                                                                                        style={{ textAlign: 'center', fontWeight: 'bold', color: item.use_box_entry ? '#0284c7' : '#334155' }}
+                                                                                        style={{ textAlign: 'center', fontWeight: 'bold', color: item.use_box_entry ? '#0284c7' : '#334155', padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
                                                                                         type="text"
                                                                                         inputMode="decimal"
                                                                                         name={item.use_box_entry ? "custom_box_qty" : "qty"}
@@ -1373,13 +1390,13 @@ const DeliveryNoteDetails = () => {
                                                                                     />
                                                                                     {item.item_code && (
                                                                                         <span style={{
-                                                                                            position: 'absolute', right: '8px', fontSize: '8px', fontWeight: 'extrabold',
+                                                                                            position: 'absolute', right: '6px', fontSize: '8px', fontWeight: 'extrabold',
                                                                                             color: item.use_box_entry ? '#0284c7' : '#64748b',
                                                                                             background: item.use_box_entry ? 'rgba(2, 132, 199, 0.08)' : '#f8fafc',
                                                                                             border: `1px solid ${item.use_box_entry ? 'rgba(2, 132, 199, 0.15)' : '#e2e8f0'}`,
-                                                                                            borderRadius: '3px', padding: '1px 4px', pointerEvents: 'none'
+                                                                                            borderRadius: '3px', padding: '1px 3px', pointerEvents: 'none'
                                                                                         }}>
-                                                                                            {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                                                                            {item.use_box_entry ? 'BOX' : 'NOS'}
                                                                                         </span>
                                                                                     )}
                                                                                 </div>
@@ -1387,11 +1404,12 @@ const DeliveryNoteDetails = () => {
                                                                         );
                                                                     case 'uom':
                                                                         return (
-                                                                            <td key={col.id}>
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
                                                                                 <select
                                                                                     className="so-td-input"
                                                                                     value={item.uom || 'Nos'}
                                                                                     onChange={e => handleUOMChangeDetails(e.target.value, idx)}
+                                                                                    style={{ padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
                                                                                 >
                                                                                     {(() => {
                                                                                         const uniqueUoms = [];
@@ -1425,11 +1443,11 @@ const DeliveryNoteDetails = () => {
                                                                         );
                                                                     case 'custom_pieces_per_box':
                                                                         return (
-                                                                            <td key={col.id}>
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
                                                                                 {item.use_box_entry ? (
                                                                                     <input
                                                                                         className="so-td-input"
-                                                                                        style={{ textAlign: 'center' }}
+                                                                                        style={{ textAlign: 'center', padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
                                                                                         type="text"
                                                                                         inputMode="decimal"
                                                                                         name="custom_pieces_per_box"
@@ -1438,17 +1456,17 @@ const DeliveryNoteDetails = () => {
                                                                                         onFocus={(e) => e.target.select()}
                                                                                     />
                                                                                 ) : (
-                                                                                    <div style={{ padding: '0 10px', fontSize: '0.75rem', opacity: 0.4, textAlign: 'center' }}>—</div>
+                                                                                    <div style={{ textAlign: 'center', fontSize: '0.75rem', opacity: 0.3 }}>—</div>
                                                                                 )}
                                                                             </td>
                                                                         );
                                                                     case 'custom_box_price':
                                                                         return (
-                                                                            <td key={col.id}>
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
                                                                                 {item.use_box_entry ? (
                                                                                     <input
                                                                                         className="so-td-input"
-                                                                                        style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 'bold' }}
+                                                                                        style={{ textAlign: 'right', fontWeight: 'bold', padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
                                                                                         type="text"
                                                                                         inputMode="decimal"
                                                                                         name="custom_box_price"
@@ -1457,16 +1475,16 @@ const DeliveryNoteDetails = () => {
                                                                                         onFocus={(e) => e.target.select()}
                                                                                     />
                                                                                 ) : (
-                                                                                    <div style={{ padding: '0 10px', fontSize: '0.75rem', opacity: 0.4, textAlign: 'center' }}>—</div>
+                                                                                    <div style={{ textAlign: 'center', fontSize: '0.75rem', opacity: 0.3 }}>—</div>
                                                                                 )}
                                                                             </td>
                                                                         );
                                                                     case 'rate':
                                                                         return (
-                                                                            <td key={col.id}>
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
                                                                                 <input
                                                                                     className="so-td-input"
-                                                                                    style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 'bold' }}
+                                                                                    style={{ textAlign: 'right', fontWeight: 'bold', padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
                                                                                     type="text"
                                                                                     inputMode="decimal"
                                                                                     name="rate"
@@ -1476,33 +1494,19 @@ const DeliveryNoteDetails = () => {
                                                                                 />
                                                                             </td>
                                                                         );
-                                                                    case 'custom_selling_price':
-                                                                        return (
-                                                                            <td key={col.id}>
-                                                                                <input
-                                                                                    className="so-td-input"
-                                                                                    style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 'bold', color: themeColor }}
-                                                                                    type="text"
-                                                                                    inputMode="decimal"
-                                                                                    name="custom_selling_price"
-                                                                                    value={item.custom_selling_price || ''}
-                                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
-                                                                                    onFocus={(e) => e.target.select()}
-                                                                                />
-                                                                            </td>
-                                                                        );
+
                                                                     case 'qty':
                                                                         return (
-                                                                            <td key={col.id}>
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
                                                                                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                                                                    <div style={{ padding: '0 10px', fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', height: '38px', display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+                                                                                    <div style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', height: '36px', display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
                                                                                         {item.qty || 0}
                                                                                     </div>
                                                                                     {item.use_box_entry && (
                                                                                         <span style={{
                                                                                             position: 'absolute', right: '8px', fontSize: '8px', fontWeight: 'extrabold',
                                                                                             color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0',
-                                                                                            borderRadius: '3px', padding: '1px 4px', pointerEvents: 'none'
+                                                                                            borderRadius: '3px', padding: '1px 3px', pointerEvents: 'none'
                                                                                         }}>
                                                                                             NOS
                                                                                         </span>
@@ -1512,8 +1516,8 @@ const DeliveryNoteDetails = () => {
                                                                         );
                                                                     case 'amount':
                                                                         return (
-                                                                            <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, verticalAlign: 'middle', paddingRight: '10px' }}>
-                                                                                {(parseFloat(item.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                            <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, padding: '0.5rem 0.75rem', verticalAlign: 'middle' }}>
+                                                                                {getCurrencySymbol()}{(parseFloat(item.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                                             </td>
                                                                         );
                                                                     default:
@@ -1521,9 +1525,9 @@ const DeliveryNoteDetails = () => {
                                                                 }
                                                             });
                                                         })()}
-                                                        <td style={{ textAlign: 'center' }}>
-                                                            <button onClick={() => removeItem(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                                                <Trash2 size={14} />
+                                                        <td style={{ textAlign: 'center', padding: '0.5rem 0.75rem' }}>
+                                                            <button onClick={() => removeItem(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}>
+                                                                <Trash2 size={16} />
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -1535,18 +1539,19 @@ const DeliveryNoteDetails = () => {
                             </div>
 
                             {/* Discounts & Taxes Card */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                                <div className="so-card">
-                                    <div className="so-card-header">
-                                        <h5 className="so-card-title">Discounts</h5>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                                <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                                    <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #cbd5e1' }}>
+                                        <h5 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discounts & Allowances</h5>
                                     </div>
-                                    <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                         <div className="so-field">
-                                            <label className="so-label">Apply Discount On</label>
+                                            <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Apply Discount On</label>
                                             <select
                                                 className="so-select"
                                                 value={form.apply_discount_on}
                                                 onChange={e => setForm(prev => ({ ...prev, apply_discount_on: e.target.value }))}
+                                                style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                             >
                                                 <option value="Grand Total">Grand Total</option>
                                                 <option value="Net Total">Net Total</option>
@@ -1554,38 +1559,41 @@ const DeliveryNoteDetails = () => {
                                         </div>
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
                                             <div className="so-field">
-                                                <label className="so-label">Discount %</label>
+                                                <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Discount %</label>
                                                 <input
                                                     className="so-input"
                                                     type="number"
                                                     value={form.additional_discount_percentage}
                                                     onChange={e => setForm(prev => ({ ...prev, additional_discount_percentage: parseFloat(e.target.value) || 0, discount_amount: 0 }))}
+                                                    style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                                 />
                                             </div>
                                             <div className="so-field">
-                                                <label className="so-label">Discount Amount</label>
+                                                <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Discount Amount</label>
                                                 <input
                                                     className="so-input"
                                                     type="number"
                                                     value={form.discount_amount}
                                                     onChange={e => setForm(prev => ({ ...prev, discount_amount: parseFloat(e.target.value) || 0, additional_discount_percentage: 0 }))}
+                                                    style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                                 />
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="so-card">
-                                    <div className="so-card-header">
-                                        <h5 className="so-card-title">Sales Taxes and Charges</h5>
+                                <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                                    <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #cbd5e1' }}>
+                                        <h5 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sales Taxes & Template</h5>
                                     </div>
-                                    <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                         <div className="so-field">
-                                            <label className="so-label">Tax Template</label>
+                                            <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Tax Template</label>
                                             <select
                                                 className="so-select"
                                                 value={form.taxes_and_charges || ''}
                                                 onChange={e => applyTaxTemplate(e.target.value)}
+                                                style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                             >
                                                 <option value="">No Tax Template Applied</option>
                                                 {taxTemplates.map(t => (
@@ -1600,7 +1608,7 @@ const DeliveryNoteDetails = () => {
                                                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
                                                         <span style={{ color: '#64748b', fontWeight: 600 }}>{t.account_head} ({t.rate}%)</span>
                                                         <span style={{ fontWeight: 700, color: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                                            <DirhamIcon size={12} /> {((t.rate / 100) * form.base_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {getCurrencySymbol()}{((t.rate / 100) * form.base_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </span>
                                                     </div>
                                                 ))}
@@ -1611,157 +1619,150 @@ const DeliveryNoteDetails = () => {
                             </div>
 
                             {/* Summary Bar */}
-                            <div className="so-summary-bar" style={{ alignSelf: 'flex-end', minWidth: '350px' }}>
-                                <div className="so-summary-item">
-                                    <span className="so-summary-label">Base Total</span>
-                                    <span className="so-summary-value" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {form.base_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <div className="so-summary-bar" style={{ alignSelf: 'flex-end', minWidth: '350px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem 1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div className="so-summary-item" style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span className="so-summary-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Base Total</span>
+                                    <span className="so-summary-value" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '1rem', fontWeight: 700, color: '#334155' }}>{getCurrencySymbol()}{form.base_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
-                                <div className="so-summary-divider" />
-                                <div className="so-summary-item" style={{ textAlign: 'right' }}>
-                                    <span className="so-summary-label">Net Payable</span>
-                                    <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={14} /> {form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <div className="so-summary-divider" style={{ width: '1px', height: '30px', background: '#e2e8f0' }} />
+                                <div className="so-summary-item" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
+                                    <span className="so-summary-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Net Payable</span>
+                                    <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '1.4rem', fontWeight: 900, color: themeColor }}>{getCurrencySymbol()}{form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                         </div>
-                    ) : (
-                        /* VIEW MODE LAYOUT */
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-                            {/* Summary Bar for Stats */}
-                            <div className="so-summary-bar">
-                                <div className="so-summary-item">
-                                    <span className="so-summary-label">Artifact Valuation</span>
-                                    <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={14} /> {form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                                <div className="so-summary-divider" />
-                                <div className="so-summary-item">
-                                    <span className="so-summary-label">Quantity Delivered</span>
-                                    <span className="so-summary-value">{form.total_qty} Units</span>
-                                </div>
-                                <div className="so-summary-divider" />
-                                <div className="so-summary-item">
-                                    <span className="so-summary-label">Lifecycle Status</span>
-                                    <span className="so-badge" style={{
-                                        background: form.docstatus === 1 ? '#dcfce7' : (form.docstatus === 2 ? '#fee2fee2' : '#fef9c3'),
-                                        color: form.docstatus === 1 ? '#156534' : (form.docstatus === 2 ? '#b91c1c' : '#854d0e'),
-                                        fontSize: '0.65rem',
-                                        fontWeight: 800,
-                                        padding: '0.25rem 0.6rem',
-                                        borderRadius: '9999px',
-                                        textTransform: 'uppercase'
-                                    }}>
-                                        {form.docstatus === 1 ? 'Submitted' : (form.docstatus === 2 ? 'Cancelled' : 'Draft')}
-                                    </span>
-                                </div>
-                                <div className="so-summary-divider" />
-                                <div className="so-summary-item" style={{ textAlign: 'right' }}>
-                                    <span className="so-summary-label">Posting Date</span>
-                                    <span className="so-summary-value" style={{ fontSize: '0.85rem' }}>{form.posting_date}</span>
-                                </div>
-                            </div>
+                    ) : (            /* GORGEOUS DELIVERY NOTE DETAILS VIEW */
+                        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }} className="animate-in fade-in duration-300">
 
-                            {/* Main Detail Grid */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                                <div className="so-card">
-                                    <div className="so-card-header">
-                                        <h5 className="so-card-title">Delivery Properties</h5>
+                            {/* Header Summary Cards */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem" }}>
+                                <div style={{ background: "white", padding: "1.25rem 1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                    <div>
+                                        <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Grand Total</span>
+                                        <h3 style={{ fontSize: "1.6rem", fontWeight: 900, margin: "0.25rem 0 0", color: themeColor }}>
+                                            {getCurrencySymbol()}{form.rounded_total?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                                        </h3>
                                     </div>
-                                    <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Currency</span>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.currency}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Selling Price List</span>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.selling_price_list}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Branch/Warehouse</span>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: themeColor }}>{form.set_warehouse || 'Not Specified'}</span>
-                                        </div>
-
-                                        {linkedSalesOrders.length > 0 && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
-                                                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Linked Sales Orders</span>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
-                                                    {linkedSalesOrders.map(so => (
-                                                        <span key={so} className="so-badge" style={{ background: '#ecfdf5', color: '#10b981', borderColor: '#a7f3d0', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
-                                                            {so}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {linkedSalesInvoices.length > 0 && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
-                                                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Linked Sales Invoices</span>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
-                                                    {linkedSalesInvoices.map(si => (
-                                                        <span key={si} className="so-badge" style={{ background: '#eff6ff', color: '#3b82f6', borderColor: '#bfdbfe', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
-                                                            {si}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                    <div style={{ width: "44px", height: "44px", borderRadius: "10px", background: themeLight, display: "flex", alignItems: "center", justifyContent: "center", color: themeColor }}>
+                                        <FileText size={22} />
                                     </div>
                                 </div>
 
-                                <div className="so-card">
-                                    <div className="so-card-header">
-                                        <h5 className="so-card-title">Applied Taxes & Charges</h5>
-                                    </div>
-                                    <div className="so-card-body" style={{ padding: '0' }}>
-                                        <div className="so-table-wrapper" style={{ maxHeight: 'none', border: 'none' }}>
-                                            <table className="so-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Account Head</th>
-                                                        <th style={{ textAlign: 'center' }}>Rate %</th>
-                                                        <th style={{ textAlign: 'right' }}>Tax Amount</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {(form.taxes || []).length === 0 ? (
-                                                        <tr>
-                                                            <td colSpan={3} style={{ textAlign: 'center', padding: '2rem 0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>No taxes applied</td>
-                                                        </tr>
-                                                    ) : (
-                                                        form.taxes.map((t, idx) => (
-                                                            <tr key={idx} style={{ cursor: 'default' }}>
-                                                                <td style={{ fontWeight: 700 }}>{t.account_head}</td>
-                                                                <td style={{ textAlign: 'center', fontWeight: 700 }}>{t.rate}%</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 700, color: themeColor }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {parseFloat((t.rate / 100) * form.base_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
-                                                            </tr>
-                                                        ))
-                                                    )}
-                                                </tbody>
-                                            </table>
+                                <div style={{ background: "white", padding: "1.25rem 1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                    <div>
+                                        <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Lifecycle Status</span>
+                                        <div style={{ marginTop: "0.4rem" }}>
+                                            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
+                                                backgroundColor: form.docstatus === 1 ? '#dcfce7' : (form.docstatus === 2 ? '#fee2fee2' : '#fef9c3'),
+                                                color: form.docstatus === 1 ? '#156534' : (form.docstatus === 2 ? '#b91c1c' : '#854d0e'),
+                                                border: `1px solid ${form.docstatus === 1 ? '#bbf7d0' : (form.docstatus === 2 ? '#fecaca' : '#fef08a')}`
+                                            }}>
+                                                {form.docstatus === 1 ? 'Submitted' : (form.docstatus === 2 ? 'Cancelled' : 'Draft')}
+                                            </span>
                                         </div>
+                                    </div>
+                                    <div style={{ width: "44px", height: "44px", borderRadius: "10px", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+                                        <Palette size={20} />
+                                    </div>
+                                </div>
+
+                                <div style={{ background: "white", padding: "1.25rem 1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                    <div>
+                                        <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Posting Date</span>
+                                        <h3 style={{ fontSize: "1.15rem", fontWeight: 800, margin: "0.25rem 0 0", color: "#1e293b" }}>
+                                            {form.posting_date}
+                                        </h3>
+                                    </div>
+                                    <div style={{ width: "44px", height: "44px", borderRadius: "10px", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+                                        <ChevronRight size={20} />
+                                    </div>
+                                </div>
+
+                                <div style={{ background: "white", padding: "1.25rem 1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                    <div>
+                                        <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Items & Quantity</span>
+                                        <h3 style={{ fontSize: "1.15rem", fontWeight: 800, margin: "0.25rem 0 0", color: "#1e293b" }}>
+                                            {form.items?.length || 0} Items / {form.total_qty || 0} Qty
+                                        </h3>
+                                    </div>
+                                    <div style={{ width: "44px", height: "44px", borderRadius: "10px", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+                                        <ChevronLeft size={20} />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Items Table Presentation */}
-                            <div className="so-table-card">
-                                <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <h5 className="so-card-title">Items</h5>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowColConfig(true)}
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-                                            title="Column Configuration"
-                                        >
-                                            <Settings size={14} style={{ color: '#94a3b8' }} />
-                                        </button>
+                            {/* Customer & System Detail Cards */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "1.5rem" }}>
+                                <div style={{ background: "white", borderRadius: "0.75rem", border: "1px solid #e2e8f0", padding: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                    <h3 style={{ fontSize: "0.8rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f1f5f9", paddingBottom: "0.75rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                        <span style={{ width: "4px", height: "14px", borderRadius: "2px", background: themeColor, display: "inline-block" }}></span>
+                                        Customer details
+                                    </h3>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem" }}>
+                                            <span style={{ color: "#94a3b8", fontWeight: 600 }}>Customer Name</span>
+                                            <span style={{ color: "#1e293b", fontWeight: 700 }}>{form.customer_name || "N/A"}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem" }}>
+                                            <span style={{ color: "#94a3b8", fontWeight: 600 }}>Customer ID</span>
+                                            <span style={{ color: "#64748b", fontWeight: 700, fontFamily: "monospace" }}>{form.customer || "N/A"}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem" }}>
+                                            <span style={{ color: "#94a3b8", fontWeight: 600 }}>Currency</span>
+                                            <span style={{ color: "#1e293b", fontWeight: 700 }}>{form.currency || "AED"}</span>
+                                        </div>
                                     </div>
-                                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>{form.items.length} ACTIVE ITEMS</span>
                                 </div>
-                                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                                    <table className="so-table">
+
+                                <div style={{ background: "white", borderRadius: "0.75rem", border: "1px solid #e2e8f0", padding: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                    <h3 style={{ fontSize: "0.8rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f1f5f9", paddingBottom: "0.75rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                        <span style={{ width: "4px", height: "14px", borderRadius: "2px", background: themeColor, display: "inline-block" }}></span>
+                                        System & Options
+                                    </h3>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", fontSize: "0.875rem" }}>
+                                        <div>
+                                            <span style={{ color: "#94a3b8", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Branch / Warehouse</span>
+                                            <span style={{ color: themeColor, fontWeight: 700 }}>{form.set_warehouse || "Not Specified"}</span>
+                                        </div>
+                                        <div>
+                                            <span style={{ color: "#94a3b8", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Selling Price List</span>
+                                            <span style={{ color: "#1e293b", fontWeight: 700 }}>{form.selling_price_list || "Standard Selling"}</span>
+                                        </div>
+                                        <div>
+                                            <span style={{ color: "#94a3b8", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Return Status</span>
+                                            <span style={{
+                                                color: form.is_return ? "#ef4444" : "#64748b",
+                                                fontWeight: 800,
+                                                background: form.is_return ? "#fee2e2" : "#f1f5f9",
+                                                padding: "0.1rem 0.5rem",
+                                                borderRadius: "0.25rem",
+                                                fontSize: "0.75rem",
+                                                display: "inline-block"
+                                            }}>{form.is_return ? "YES" : "NO"}</span>
+                                        </div>
+                                        {form.return_against && (
+                                            <div>
+                                                <span style={{ color: "#94a3b8", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Return Against</span>
+                                                <span style={{ color: "#ef4444", fontWeight: 700, fontSize: "0.75rem" }}>{form.return_against}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Static Items Table */}
+                            <div style={{ background: "white", borderRadius: "0.75rem", border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <h3 style={{ fontSize: "0.8rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                        <span style={{ width: "4px", height: "14px", borderRadius: "2px", background: themeColor, display: "inline-block" }}></span>
+                                        Delivery Items
+                                    </h3>
+                                    <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "#94a3b8" }}>{form.items.length} ACTIVE ITEMS</span>
+                                </div>
+                                <div style={{ overflowX: "auto" }}>
+                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
                                         <thead>
-                                            <tr>
+                                            <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
                                                 {(() => {
                                                     const hasAnyBox = form.items.some(i => i.use_box_entry);
                                                     const activeCols = dnColumns.filter(c => {
@@ -1779,19 +1780,17 @@ const DeliveryNoteDetails = () => {
                                                             if (col.id === 'custom_pieces_per_box') finalLabel = '';
                                                         }
 
-                                                        let alignClass = "text-center";
-                                                        if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
-                                                            alignClass = "text-left pl-3";
-                                                        } else if (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id)) {
-                                                            alignClass = "text-right pr-3";
+                                                        let alignStyle = { padding: "1rem 1.5rem", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" };
+                                                        if (['item_code', 'uom'].includes(col.id)) {
+                                                            alignStyle.textAlign = "left";
+                                                        } else if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
+                                                            alignStyle.textAlign = "center";
+                                                        } else if (['custom_box_price', 'rate', 'amount'].includes(col.id)) {
+                                                            alignStyle.textAlign = "right";
                                                         }
 
                                                         return (
-                                                            <th
-                                                                key={col.id}
-                                                                className={alignClass}
-                                                                style={{ width: col.width }}
-                                                            >
+                                                            <th key={col.id} style={alignStyle}>
                                                                 {finalLabel}
                                                             </th>
                                                         );
@@ -1801,7 +1800,7 @@ const DeliveryNoteDetails = () => {
                                         </thead>
                                         <tbody>
                                             {form.items.map((i, idx) => (
-                                                <tr key={idx} style={{ cursor: 'default' }}>
+                                                <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
                                                     {(() => {
                                                         const hasAnyBox = form.items.some(item => item.use_box_entry);
                                                         const activeCols = dnColumns.filter(c => {
@@ -1811,75 +1810,57 @@ const DeliveryNoteDetails = () => {
                                                         });
 
                                                         return activeCols.map(col => {
+                                                            const baseTdStyle = { padding: "1rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, color: "#334155" };
                                                             switch (col.id) {
                                                                 case 'item_code':
                                                                     return (
-                                                                        <td key={col.id}>
+                                                                        <td key={col.id} style={{ ...baseTdStyle, textAlign: "left" }}>
                                                                             <div style={{ fontWeight: 700, color: '#1e293b' }}>{i.item_code}</div>
-                                                                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{i.item_name}</div>
+                                                                            <div style={{ fontSize: '0.7rem', color: themeColor, fontWeight: 800, marginTop: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{i.item_name}</div>
                                                                         </td>
                                                                     );
-                                                                case 'custom_ref_sl_no':
-                                                                    return (
-                                                                        <td key={col.id} style={{ textAlign: 'center', fontWeight: 600 }}>
-                                                                            {i.custom_ref_sl_no || '—'}
-                                                                        </td>
-                                                                    );
+
                                                                 case 'custom_box_qty':
                                                                     return (
-                                                                        <td key={col.id} style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 600 }}>
+                                                                        <td key={col.id} style={{ ...baseTdStyle, textAlign: "center" }}>
                                                                             {i.use_box_entry ? `${i.custom_box_qty} Box` : `${i.qty} Nos`}
                                                                         </td>
                                                                     );
                                                                 case 'uom':
                                                                     return (
-                                                                        <td key={col.id} style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
+                                                                        <td key={col.id} style={{ ...baseTdStyle, textAlign: "left", color: "#64748b", fontSize: "0.75rem" }}>
                                                                             {i.use_box_entry ? 'Box' : (i.uom || 'Nos')}
                                                                         </td>
                                                                     );
                                                                 case 'custom_pieces_per_box':
                                                                     return (
-                                                                        <td key={col.id} style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 600 }}>
+                                                                        <td key={col.id} style={{ ...baseTdStyle, textAlign: "center" }}>
                                                                             {i.use_box_entry ? i.custom_pieces_per_box : '—'}
                                                                         </td>
                                                                     );
                                                                 case 'custom_box_price':
                                                                     return (
-                                                                        <td key={col.id} style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 600 }}>
-                                                                            {i.use_box_entry ? i.custom_box_price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}
+                                                                        <td key={col.id} style={{ ...baseTdStyle, textAlign: "right" }}>
+                                                                            {i.use_box_entry ? `${getCurrencySymbol()}${parseFloat(i.custom_box_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : '—'}
                                                                         </td>
                                                                     );
                                                                 case 'rate':
                                                                     return (
-                                                                        <td key={col.id} style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 600 }}>
-                                                                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
-                                                                                <DirhamIcon size={12} />
-                                                                                <span>{parseFloat(i.rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                                                            </div>
+                                                                        <td key={col.id} style={{ ...baseTdStyle, textAlign: "right" }}>
+                                                                            {getCurrencySymbol()}{parseFloat(i.rate || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                                                                         </td>
                                                                     );
-                                                                case 'custom_selling_price':
-                                                                    return (
-                                                                        <td key={col.id} style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 600, color: themeColor }}>
-                                                                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
-                                                                                <DirhamIcon size={12} />
-                                                                                <span>{parseFloat(i.custom_selling_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                                                            </div>
-                                                                        </td>
-                                                                    );
+
                                                                 case 'qty':
                                                                     return (
-                                                                        <td key={col.id} style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 800 }}>
+                                                                        <td key={col.id} style={{ ...baseTdStyle, textAlign: "center", fontWeight: 800 }}>
                                                                             {i.qty} Nos
                                                                         </td>
                                                                     );
                                                                 case 'amount':
                                                                     return (
-                                                                        <td key={col.id} style={{ textAlign: 'right', paddingRight: '10px', fontWeight: 800, color: '#1e293b' }}>
-                                                                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
-                                                                                <DirhamIcon size={12} />
-                                                                                <span>{parseFloat(i.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                                                            </div>
+                                                                        <td key={col.id} style={{ ...baseTdStyle, textAlign: "right", fontWeight: 800, color: "#1e293b" }}>
+                                                                            {getCurrencySymbol()}{parseFloat(i.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                                                                         </td>
                                                                     );
                                                                 default:
@@ -1891,6 +1872,88 @@ const DeliveryNoteDetails = () => {
                                             ))}
                                         </tbody>
                                     </table>
+                                </div>
+                            </div>
+
+                            {/* Bottom Row Details Grid (Taxes, Linked Docs, Gradient Summary) */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "1.5rem", alignItems: "stretch" }}>
+
+                                {/* Taxes & Charges */}
+                                <div style={{ background: "white", borderRadius: "0.75rem", border: "1px solid #e2e8f0", padding: "1.5rem", display: "flex", flexDirection: "column", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                    <h3 style={{ fontSize: "0.8rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f1f5f9", paddingBottom: "0.75rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                        <span style={{ width: "4px", height: "14px", borderRadius: "2px", background: themeColor, display: "inline-block" }}></span>
+                                        Taxes & Charges
+                                    </h3>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", flex: 1, justifyContent: "center" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem" }}>
+                                            <span style={{ color: "#94a3b8", fontWeight: 600 }}>Tax Template</span>
+                                            <span style={{ color: "#1e293b", fontWeight: 700 }}>{form.taxes_and_charges || "No Tax Applied"}</span>
+                                        </div>
+                                        {form.taxes?.map((t, idx) => (
+                                            <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", borderTop: "1px dashed #f1f5f9", paddingTop: "0.5rem" }}>
+                                                <span style={{ color: "#64748b", fontWeight: 600 }}>{t.account_head || "Tax Account"} ({t.rate || 0}%)</span>
+                                                <span style={{ color: "#1e293b", fontWeight: 700 }}>{getCurrencySymbol()}{(t.tax_amount || (form.base_total * (parseFloat(t.rate) || 0) / 100))?.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Linked Documents */}
+                                <div style={{ background: "white", borderRadius: "0.75rem", border: "1px solid #e2e8f0", padding: "1.5rem", display: "flex", flexDirection: "column", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                                    <h3 style={{ fontSize: "0.8rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f1f5f9", paddingBottom: "0.75rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                        <span style={{ width: "4px", height: "14px", borderRadius: "2px", background: themeColor, display: "inline-block" }}></span>
+                                        Linked Documents
+                                    </h3>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", flex: 1, justifyContent: "center" }}>
+                                        <div>
+                                            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: "0.35rem" }}>Linked Sales Orders</span>
+                                            {linkedSalesOrders.length > 0 ? (
+                                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                                    {linkedSalesOrders.map(so => (
+                                                        <span key={so} className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm cursor-pointer hover:bg-emerald-100 transition-all duration-150">
+                                                            {so}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span style={{ fontSize: "0.75rem", color: "#94a3b8", fontStyle: "italic" }}>No linked Sales Orders</span>
+                                            )}
+                                        </div>
+
+                                        <div style={{ borderTop: "1px dashed #f1f5f9", paddingTop: "0.75rem" }}>
+                                            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: "0.35rem" }}>Linked Sales Invoices</span>
+                                            {linkedSalesInvoices.length > 0 ? (
+                                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                                    {linkedSalesInvoices.map(si => (
+                                                        <span key={si} className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-sky-50 text-sky-600 border-sky-100 shadow-sm cursor-pointer hover:bg-sky-100 transition-all duration-150">
+                                                            {si}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span style={{ fontSize: "0.75rem", color: "#94a3b8", fontStyle: "italic" }}>No linked Sales Invoices</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Final Summary Card with Gradient */}
+                                <div style={{ borderRadius: "0.75rem", background: isGreen ? "linear-gradient(135deg, #064e3b 0%, #065f46 100%)" : "linear-gradient(135deg, #0c4a6e 0%, #075985 100%)", color: "white", padding: "1.5rem", display: "flex", flexDirection: "column", justifyContent: "center", boxShadow: "0 4px 6px rgba(0,0,0,0.05)" }}>
+                                    <p style={{ color: "white", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "0.75rem", marginBottom: "1rem", fontWeight: 800, textTransform: "uppercase", fontSize: "0.8rem", letterSpacing: "0.05em" }}>Final Summary</p>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", opacity: 0.9, fontSize: "0.875rem" }}>
+                                            <span>Subtotal</span>
+                                            <span style={{ fontWeight: 700 }}>{getCurrencySymbol()}{form.base_total?.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", opacity: 0.9, fontSize: "0.875rem" }}>
+                                            <span>Taxes</span>
+                                            <span style={{ fontWeight: 700 }}>{getCurrencySymbol()}{form.total_taxes_and_charges?.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <div style={{ marginTop: "0.5rem", paddingTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <span style={{ fontSize: "1rem", fontWeight: 700 }}>Grand Total</span>
+                                            <span style={{ fontSize: "1.8rem", fontWeight: 900 }}>{getCurrencySymbol()}{form.rounded_total?.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

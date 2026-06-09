@@ -592,7 +592,7 @@ function InvoiceList() {
                                                         <td className="px-6 py-5">
                                                             <div className="text-[13px] font-black text-slate-800 leading-tight">{it.item_name}</div>
                                                             <div className="flex gap-2 items-center mt-1">
-                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{it.item_code}</span>
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{it.item_name || it.name || it.item_code}</span>
                                                                 <span className="w-1 h-1 rounded-full bg-slate-200"></span>
                                                                 <span className="text-[10px] font-bold text-slate-500 italic">{it.warehouse?.split(' - ')[0]}</span>
                                                             </div>

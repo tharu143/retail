@@ -10,7 +10,7 @@ import Swal from 'sweetalert2';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import './SalesOrder.css';
+import './SupplierDetails.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import SupplierFormModal from './SupplierFormModal';
 import { Palette } from 'lucide-react';
@@ -19,62 +19,63 @@ import { ChevronDown } from "lucide-react";
 /* ==================== UI COMPONENTS ==================== */
 const StatCard = ({ label, value, currency, icon: Icon, themeColor, isGreen }) => (
   <div
-    className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group"
+    className="stat-card-modern"
+    style={{ borderLeft: `4px solid ${themeColor}` }}
   >
     <div className="space-y-1">
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-      <div className="flex items-baseline gap-1.5">
-        {currency && <span className="text-[11px] font-bold text-slate-500 uppercase">{currency}</span>}
-        <h4 className="text-2xl font-black text-slate-800 tracking-tight">
+      <p className="stat-card-label">{label}</p>
+      <div className="stat-card-value-group">
+        {currency && <span className="stat-card-currency">{currency}</span>}
+        <h4 className="stat-card-value">
           {value}
         </h4>
       </div>
     </div>
-    <div className="p-3.5 rounded-xl transition-colors" style={{ backgroundColor: `${themeColor}0c` }}>
-      <Icon size={22} style={{ color: themeColor }} strokeWidth={2.5} />
+    <div className="stat-card-icon-container" style={{ color: themeColor }}>
+      <Icon size={22} strokeWidth={2.5} />
     </div>
   </div>
 );
 
 const ConnectionCard = ({ title, links, navigate, supplierName, icon: Icon, themeColor }) => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
-    <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-2.5 bg-slate-50/20">
-      <Icon size={16} style={{ color: themeColor }} />
-      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</h5>
-    </div>
-    <div className="p-4 flex-1">
-      <div className="space-y-1.5">
-        {links.map((link, idx) => (
-          <div
-            key={idx}
-            onClick={() => navigate(`/${link.doctype.toLowerCase().replace(/ /g, '')}list?supplier=${encodeURIComponent(supplierName)}`)}
-            className="flex items-center justify-between p-3.5 rounded-xl hover:bg-slate-50 transition-all cursor-pointer group border border-transparent hover:border-slate-100/60"
-          >
-            <span className="text-xs font-semibold text-slate-700">{link.doctype}</span>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-bold px-2.5 py-0.5 bg-slate-100/80 text-slate-500 rounded-full group-hover:bg-slate-200 transition-all">{link.count}</span>
-              <ArrowRight size={12} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-            </div>
-          </div>
-        ))}
-        {links.length === 0 && (
-          <div className="py-8 flex flex-col items-center justify-center text-center opacity-40">
-            <Layers size={32} className="mb-2 text-slate-300" />
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Registry Empty</p>
-          </div>
-        )}
+  <div className="connection-module-card">
+    <div className="connection-card-header">
+      <div className="connection-card-title-group">
+        <Icon size={16} style={{ color: themeColor }} strokeWidth={2.5} />
+        <h5 className="connection-card-title">{title}</h5>
       </div>
+    </div>
+    <div className="connection-links-list">
+      {links.map((link, idx) => (
+        <div
+          key={idx}
+          onClick={() => navigate(`/${link.doctype.toLowerCase().replace(/ /g, '')}list?supplier=${encodeURIComponent(supplierName)}`)}
+          className="connection-link-item"
+        >
+          <span className="connection-link-name">{link.doctype}</span>
+          <div className="connection-link-right">
+            <span className="connection-count-badge">{link.count}</span>
+            <ArrowRight size={12} className="connection-arrow-icon" style={{ color: themeColor }} />
+          </div>
+        </div>
+      ))}
+      {links.length === 0 && (
+        <div className="py-8 flex flex-col items-center justify-center text-center opacity-40">
+          <Layers size={32} className="mb-2 text-gray-300" />
+          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-600">Registry Empty</p>
+        </div>
+      )}
     </div>
   </div>
 );
 
 const InfoSection = ({ title, children, icon: Icon, themeColor }) => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 hover:shadow-md transition-all duration-300">
-    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/20 flex items-center gap-3">
-      <Icon size={16} style={{ color: themeColor }} />
-      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</h5>
+  <div className="info-panel-card">
+    <div className="info-panel-header">
+      <Icon size={18} style={{ color: themeColor }} strokeWidth={2.5} />
+      <h5 className="info-panel-title">{title}</h5>
     </div>
-    <div className="p-6">
+    <div className="info-panel-body">
       {children}
     </div>
   </div>
@@ -90,7 +91,7 @@ const SupplierDetails = () => {
   const [supplier, setSupplier] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
   const [activeTab, setActiveTab] = useState('Dashboard'); // Dashboard, General, Addresses, Contacts, Settings
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [form, setForm] = useState({
     supplier_name: '',
@@ -144,12 +145,18 @@ const SupplierDetails = () => {
 
   const [supplierGroups] = useState(['Distributor', 'Manufacturer', 'Service Provider', 'Wholesaler', 'Retailer']);
 
+  const isNew = name === 'new' || window.location.pathname.includes('/supplier-details/new') || window.location.hash.includes('/supplier-details/new');
+
   useEffect(() => {
+    if (isNew) {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, [name]);
+  }, [name, isNew]);
 
   const fetchData = async () => {
-    if (!name) return;
+    if (!name || isNew) return;
     try {
       setLoading(true);
       const [detailRes, dashRes] = await Promise.all([
@@ -320,7 +327,7 @@ const SupplierDetails = () => {
         borderRadius: '2rem',
         confirmButtonColor: themeColor
       });
-      setShowEditModal(false);
+      setIsEditing(false);
       fetchData();
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Authorization Refused', text: err.message, borderRadius: '2rem', confirmButtonColor: themeColor });
@@ -328,6 +335,32 @@ const SupplierDetails = () => {
       setSaving(false);
     }
   };
+
+  if (isNew || isEditing) {
+    return (
+      <SupplierFormModal
+        isOpen={true}
+        inline={true}
+        editingSupplier={isEditing ? supplier : null}
+        onClose={() => {
+          if (isEditing) {
+            setIsEditing(false);
+          } else {
+            navigate('/supplierlist');
+          }
+        }}
+        onSave={(savedSup) => {
+          if (isEditing) {
+            setIsEditing(false);
+            fetchData();
+          } else {
+            navigate(`/supplier-details/${encodeURIComponent(savedSup.name || savedSup.supplier_name)}`);
+          }
+        }}
+        userWarehouse={warehouse}
+      />
+    );
+  }
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#fcfdfe] gap-6">
@@ -365,93 +398,98 @@ const SupplierDetails = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-[#f8fafc] pb-24">
+      <div className="supplier-page-container">
 
-        {/* Page Header */}
-        <div className="sticky top-0 z-45 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5">
-          <div className="w-full flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-5">
-              <button
-                onClick={() => navigate(-1)}
-                className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all border border-slate-100 flex items-center gap-1.5 shadow-sm"
-              >
-                <ChevronLeft size={16} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">BACK</span>
-              </button>
-
-              <div className="h-10 w-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-md overflow-hidden text-white">
-                <Building2 size={20} style={{ color: themeColor }} />
-              </div>
-
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-black text-slate-800 tracking-tight">
-                    {supplier.supplier_name}
-                  </h1>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                    {isActive ? 'Operational' : 'Restricted'}
-                  </span>
-                </div>
-                {/* Dynamic Metadata Row in Header */}
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-md text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                    <Tag size={10} style={{ color: themeColor }} />
-                    <span>Group: {supplier.supplier_group}</span>
-                  </div>
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-md text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                    <Globe size={10} style={{ color: themeColor }} />
-                    <span>Country: {supplier.country || 'Global Site'}</span>
-                  </div>
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-md text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                    <CreditCard size={10} style={{ color: themeColor }} />
-                    <span>Price List: {supplier.default_price_list || 'Standard Buying'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
+        {/* Profile Header Overlay Card */}
+        <div className="profile-header-container">
+          {/* Header row with buttons */}
+          <div className="header-actions-row">
+            <div className="left-controls-group" />
+            <div className="right-controls-group">
               <button
                 onClick={toggleTheme}
-                className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
+                className="btn-modern-secondary"
+                style={{ borderColor: themeColor, color: themeColor }}
                 title={`Switch to ${isGreen ? 'Blue' : 'Green'} Theme`}
               >
-                <Palette size={13} style={{ color: themeColor }} />
-                <span>{isGreen ? 'BLUE' : 'GREEN'}</span>
+                <Palette size={14} />
+                <span style={{ fontSize: '0.75rem' }}>{isGreen ? 'BLUE' : 'GREEN'}</span>
               </button>
               <button
                 onClick={() => {
                   setLoading(true);
                   fetchData();
                 }}
-                className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
+                className="btn-modern-secondary"
                 title="Sync Dashboard Data"
               >
-                <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-                <span>REFRESH</span>
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <span style={{ fontSize: '0.75rem' }}>REFRESH</span>
               </button>
               <button
                 onClick={() => navigate(`/generalledgerreport?party_type=Supplier&party=${name}`)}
-                className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
+                className="btn-modern-secondary"
                 title="View General Ledger"
               >
-                <FileText size={13} />
-                <span>GENERAL LEDGER</span>
+                <FileText size={14} />
+                <span style={{ fontSize: '0.75rem' }}>GENERAL LEDGER</span>
               </button>
               <button
-                onClick={() => setShowEditModal(true)}
-                className="px-5 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
-                style={{ backgroundColor: themeColor }}
+                className="btn-modern-primary"
+                onClick={() => setIsEditing(true)}
+                style={{ backgroundColor: themeColor, borderColor: themeColor }}
               >
-                <Edit2 size={13} />
-                <span>EDIT PROFILE</span>
+                <Edit2 size={14} />
+                <span style={{ fontSize: '0.75rem' }}>EDIT</span>
               </button>
+            </div>
+          </div>
+
+          {/* Supplier Name and Avatar Block */}
+          <div className="profile-header-content">
+            <div className="supplier-avatar-container" style={{ borderLeft: `5px solid ${themeColor}` }}>
+              {supplier.supplier_name ? supplier.supplier_name.charAt(0).toUpperCase() : 'S'}
+            </div>
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {supplier.supplier_name}
+              </h1>
+
+              {/* Dynamic Metadata Row */}
+              <div className="meta-badges-flex">
+                <div className="badge-pill-modern" style={{ borderColor: isActive ? '#bbf7d0' : '#fecaca', backgroundColor: isActive ? '#f0fdf4' : '#fdf2f2' }}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} style={{ width: '6px', height: '6px', borderRadius: '50%' }} />
+                  <span style={{ color: isActive ? '#15803d' : '#b91c1c', fontWeight: 700, fontSize: '0.75rem' }}>
+                    {isActive ? 'Operational' : 'Restricted'}
+                  </span>
+                </div>
+
+                <div className="badge-pill-modern">
+                  <Tag size={12} style={{ color: themeColor }} />
+                  <span className="badge-label-muted">Group:</span>
+                  <span className="badge-value-dark">{supplier.supplier_group}</span>
+                </div>
+
+                <div className="badge-pill-modern">
+                  <Globe size={12} style={{ color: themeColor }} />
+                  <span className="badge-label-muted">Country:</span>
+                  <span className="badge-value-dark">{supplier.country || 'Global Site'}</span>
+                </div>
+
+                <div className="badge-pill-modern">
+                  <CreditCard size={12} style={{ color: themeColor }} />
+                  <span className="badge-label-muted">Price List:</span>
+                  <span className="badge-value-dark">{supplier.default_price_list || 'Standard Buying'}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Intelligence Navigation Tabs */}
-        <div className="px-8 py-4 sticky top-[77px] z-30 bg-[#f8fafc]/90 backdrop-blur-md border-b border-slate-100/60">
-          <div className="inline-flex p-1 bg-slate-100/80 rounded-xl gap-1">
+        {/* Intelligence Navigation Tabs Container */}
+        <div className="tabs-navigation-panel">
+          <div className="tabs-navigation-container">
             {[
               { id: 'Dashboard', icon: Activity },
               { id: 'General', icon: FileText },
@@ -463,24 +501,22 @@ const SupplierDetails = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-2 text-xs font-semibold uppercase tracking-wider transition-all duration-200 rounded-lg ${activeTab === tab.id
-                  ? 'bg-white text-slate-800 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                className={`nav-tab-btn-modern ${activeTab === tab.id ? 'tab-active' : ''}`}
+                style={activeTab === tab.id ? { color: themeColor } : undefined}
               >
-                <tab.icon size={14} style={{ color: activeTab === tab.id ? themeColor : undefined }} />
-                <span>{tab.id}</span>
+                <tab.icon size={15} style={activeTab === tab.id ? { color: themeColor } : undefined} strokeWidth={2.5} />
+                {tab.id}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Content Shard */}
-        <div className="px-8 mt-8">
+        {/* Content Area */}
+        <div className="supplier-content-layout">
           {activeTab === 'Dashboard' && dashboardData && (
-            <div className="space-y-10 animate-in slide-in-from-bottom-6 duration-700 pb-20">
-              {/* Highlights Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              {/* Highlights Grid - WITH GRAPH CONNECTIVITY REMOVED */}
+              <div className="dashboard-highlights-grid">
                 <StatCard
                   label="Annual Billing"
                   value={parseFloat(dashboardData.stats?.annual_billing || 0).toLocaleString()}
@@ -500,7 +536,7 @@ const SupplierDetails = () => {
               </div>
 
               {/* Connection Matrices */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
+              <div className="connection-modules-grid">
                 {dashboardData.connections && Object.entries(dashboardData.connections).map(([category, links]) => {
                   if (!links || links.length === 0) return null;
                   return (
@@ -520,83 +556,83 @@ const SupplierDetails = () => {
           )}
 
           {activeTab === 'General' && (
-            <div className="space-y-8 pb-20 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
                 <InfoSection title="General Information" icon={Hash} themeColor={themeColor}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Legal Name</label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.supplier_name}</p>
+                  <div className="info-fields-grid">
+                    <div className="info-field-box">
+                      <span className="info-field-label">Legal Name</span>
+                      <span className="info-field-value">{supplier.supplier_name}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Industrial Cluster</label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.supplier_group}</p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Industrial Cluster</span>
+                      <span className="info-field-value">{supplier.supplier_group}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Structural Format</label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.supplier_type}</p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Structural Format</span>
+                      <span className="info-field-value">{supplier.supplier_type}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tax Identity (TRN)</label>
-                      <p className="text-xs font-bold text-slate-800 font-mono tracking-tight bg-slate-50 border border-slate-100 px-3 py-1 rounded-lg inline-block mt-0.5">
-                        {supplier.tax_id || 'NOT REGISTERED'}
-                      </p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Tax Identity (TRN)</span>
+                      <div>
+                        <span className="info-field-value-mono">{supplier.tax_id || 'NOT REGISTERED'}</span>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tax Category</label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.tax_category || 'General'}</p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Tax Category</span>
+                      <span className="info-field-value">{supplier.tax_category || 'General'}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Withholding Category</label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.tax_withholding_category || 'None'}</p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Withholding Category</span>
+                      <span className="info-field-value">{supplier.tax_withholding_category || 'None'}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.payment_terms || 'Not Set'}</p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Payment Terms</span>
+                      <span className="info-field-value">{supplier.payment_terms || 'Not Set'}</span>
                     </div>
                   </div>
                 </InfoSection>
 
                 <InfoSection title="Deal Information" icon={Tag} themeColor={themeColor}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                  <div className="info-fields-grid">
+                    <div className="info-field-box">
+                      <span className="info-field-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         Email Id
                         {!supplier.email_id && supplier.contact_details?.email_id && (
-                          <span className="text-[8px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full lowercase">linked</span>
+                          <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#e0f2fe', color: '#0369a1', borderRadius: '9999px', fontWeight: 700 }}>linked</span>
                         )}
-                      </label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.email_id || supplier.contact_details?.email_id || '—'}</p>
+                      </span>
+                      <span className="info-field-value">{supplier.email_id || supplier.contact_details?.email_id || 'N/A'}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <div className="info-field-box">
+                      <span className="info-field-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         Mobile No
                         {!supplier.mobile_no && supplier.contact_details?.mobile_no && (
-                          <span className="text-[8px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full lowercase">linked</span>
+                          <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#e0f2fe', color: '#0369a1', borderRadius: '9999px', fontWeight: 700 }}>linked</span>
                         )}
-                      </label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.mobile_no || supplier.contact_details?.mobile_no || '—'}</p>
+                      </span>
+                      <span className="info-field-value">{supplier.mobile_no || supplier.contact_details?.mobile_no || 'N/A'}</span>
                     </div>
-                    <div className="space-y-1 col-span-1 sm:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Linked Contact</label>
-                      <p className="text-sm font-semibold text-blue-600">
+                    <div className="info-field-box">
+                      <span className="info-field-label">Linked Contact</span>
+                      <span className="info-field-value" style={{ color: themeColor }}>
                         {supplier.contact_details?.name ? (
-                          <span className="flex items-center gap-1.5">
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                             {supplier.contact_details.first_name} {supplier.contact_details.last_name}
-                            <span className="text-[9px] text-slate-400 font-medium">({supplier.contact_details.name})</span>
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>({supplier.contact_details.name})</span>
                           </span>
                         ) : (
-                          '—'
+                          'N/A'
                         )}
-                      </p>
+                      </span>
                     </div>
-                    <div className="space-y-1 col-span-1 sm:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Primary Address</label>
-                      <div className="text-xs font-medium text-slate-700 leading-relaxed bg-slate-50/50 border border-slate-100/50 rounded-xl p-3.5 mt-1">
-                        {supplier.address_details?.address_line1 || '—'}<br />
+                    <div className="info-field-box">
+                      <span className="info-field-label">Primary Address</span>
+                      <div className="info-field-value" style={{ lineHeight: '1.4', fontWeight: 600 }}>
+                        {supplier.address_details?.address_line1 || 'N/A'}<br />
                         {supplier.address_details?.address_line2 && <>{supplier.address_details.address_line2}<br /></>}
                         {supplier.address_details?.city && (
-                          <span className="text-[11px] text-slate-500">
+                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>
                             {supplier.address_details.city}
                             {supplier.address_details.emirate ? `, ${supplier.address_details.emirate}` : (supplier.address_details.county ? `, ${supplier.address_details.county}` : '')}
                             {supplier.address_details.country ? `, ${supplier.address_details.country}` : ''}
@@ -607,31 +643,32 @@ const SupplierDetails = () => {
                   </div>
                 </InfoSection>
 
-
                 <InfoSection title="Supplier Registry" icon={Calendar} themeColor={themeColor}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">System Key</label>
-                      <p className="text-xs font-semibold font-mono bg-blue-50/30 px-2 py-1 rounded inline-block mt-0.5" style={{ color: themeColor }}>{supplier.name}</p>
+                  <div className="info-fields-grid">
+                    <div className="info-field-box">
+                      <span className="info-field-label">System Key</span>
+                      <div>
+                        <span className="info-field-value-mono" style={{ color: themeColor, background: `${themeColor}10` }}>{supplier.name}</span>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Billing Currency</label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.default_currency || 'AED'}</p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Billing Currency</span>
+                      <span className="info-field-value">{supplier.default_currency || 'AED'}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Price List</label>
-                      <p className="text-sm font-semibold text-slate-800">{supplier.default_price_list || 'Standard Buying'}</p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Price List</span>
+                      <span className="info-field-value">{supplier.default_price_list || 'Standard Buying'}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Creation Vector</label>
-                      <p className="text-xs font-semibold text-slate-700 mt-0.5">{new Date(supplier.creation).toLocaleDateString()}</p>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Creation Vector</span>
+                      <span className="info-field-value">{new Date(supplier.creation).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </InfoSection>
               </div>
 
               <InfoSection title="Supplier Intelligence Bio" icon={FileText} themeColor={themeColor}>
-                <p className="text-xs font-medium text-slate-600 leading-relaxed italic whitespace-pre-wrap">
+                <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 500, color: '#334155', lineHeight: '1.6', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
                   {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
                 </p>
               </InfoSection>
@@ -639,196 +676,204 @@ const SupplierDetails = () => {
           )}
 
           {activeTab === 'Addresses' && (
-            <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-5 bg-slate-50/20 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Geospatial Registry</h3>
-                  <div className="flex-1 max-w-md mx-8 relative">
-                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-300 transition-colors"
-                      placeholder="Search addresses..."
-                      value={linkedSearch}
-                      onChange={e => setLinkedSearch(e.target.value)}
-                    />
-                  </div>
+            <div className="modern-table-card animate-in fade-in duration-500">
+              <div className="modern-table-header">
+                <h3 className="table-header-title">Geospatial Registry</h3>
+                <div className="search-input-wrapper">
+                  <Search size={16} />
+                  <input
+                    type="text"
+                    className="search-input-field"
+                    placeholder="Search addresses..."
+                    value={linkedSearch}
+                    onChange={e => setLinkedSearch(e.target.value)}
+                  />
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/30 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        <th className="px-8 py-3.5">Registry Vector</th>
-                        <th className="px-8 py-3.5">Metrics</th>
-                        <th className="px-8 py-3.5 text-right">Controls</th>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="modern-styled-table">
+                  <thead>
+                    <tr>
+                      <th>Registry Vector</th>
+                      <th>Metrics</th>
+                      <th style={{ textAlign: 'right' }}>Controls</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linkedAddresses.filter(a => !linkedSearch || a.address_title?.toLowerCase().includes(linkedSearch.toLowerCase()) || a.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(addr => (
+                      <tr key={addr.name} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} style={{ cursor: 'pointer' }}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div className="row-avatar-box">
+                              <MapPin size={18} style={{ color: themeColor }} />
+                            </div>
+                            <div>
+                              <div className="row-title-bold">{addr.address_title}</div>
+                              <div className="row-subtitle-muted">{addr.name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.5rem', background: '#f1f5f9', color: '#475569', borderRadius: '8px' }}>
+                              {addr.address_type}
+                            </span>
+                            <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{addr.city}, {addr.country}</span>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button className="btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {linkedAddresses.filter(a => !linkedSearch || a.address_title?.toLowerCase().includes(linkedSearch.toLowerCase()) || a.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(addr => (
-                        <tr key={addr.name} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} className="group hover:bg-slate-50/50 transition-colors cursor-pointer">
-                          <td className="px-8 py-4">
-                            <div className="flex items-center gap-4">
-                              <div className="p-2.5 bg-slate-100/50 border border-slate-200/50 text-slate-600 rounded-xl"><MapPin size={16} /></div>
-                              <div>
-                                <h6 className="text-xs font-bold text-slate-800">{addr.address_title}</h6>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{addr.name}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="px-2.5 py-0.5 bg-slate-100 text-[9px] font-bold text-slate-600 rounded-md uppercase tracking-wider">{addr.address_type}</div>
-                              <div className="text-xs font-semibold text-slate-700">{addr.city}, {addr.country}</div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-4 text-right">
-                            <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-colors">Access Stream</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
 
           {activeTab === 'Contacts' && (
-            <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-5 bg-slate-50/20 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Personnel Registry</h3>
-                  <div className="flex-1 max-w-md mx-8 relative">
-                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-300 transition-colors"
-                      placeholder="Search contacts..."
-                      value={linkedSearch}
-                      onChange={e => setLinkedSearch(e.target.value)}
-                    />
-                  </div>
+            <div className="modern-table-card animate-in fade-in duration-500">
+              <div className="modern-table-header">
+                <h3 className="table-header-title">Personnel Registry</h3>
+                <div className="search-input-wrapper">
+                  <Search size={16} />
+                  <input
+                    type="text"
+                    className="search-input-field"
+                    placeholder="Search contacts..."
+                    value={linkedSearch}
+                    onChange={e => setLinkedSearch(e.target.value)}
+                  />
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/30 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        <th className="px-8 py-3.5">Personnel Identity</th>
-                        <th className="px-8 py-3.5">Connectivity Meta</th>
-                        <th className="px-8 py-3.5 text-right">Controls</th>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="modern-styled-table">
+                  <thead>
+                    <tr>
+                      <th>Personnel Identity</th>
+                      <th>Connectivity Meta</th>
+                      <th style={{ textAlign: 'right' }}>Controls</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linkedContacts.filter(c => !linkedSearch || `${c.first_name} ${c.last_name}`.toLowerCase().includes(linkedSearch.toLowerCase()) || c.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(con => (
+                      <tr key={con.name} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} style={{ cursor: 'pointer' }}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div className="row-avatar-box" style={{ backgroundColor: `${themeColor}10` }}>
+                              <User size={18} style={{ color: themeColor }} />
+                            </div>
+                            <div>
+                              <div className="row-title-bold">{con.first_name} {con.last_name}</div>
+                              <div className="row-subtitle-muted">{con.name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0f172a' }}>{con.designation || 'Personnel'}</div>
+                            <div className="contact-meta-row">
+                              <span className="contact-meta-item">
+                                <Mail size={12} /> {con.email_id}
+                              </span>
+                              <span className="contact-meta-item">
+                                <Phone size={12} /> {con.mobile_no}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button className="btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {linkedContacts.filter(c => !linkedSearch || `${c.first_name} ${c.last_name}`.toLowerCase().includes(linkedSearch.toLowerCase()) || c.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(con => (
-                        <tr key={con.name} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} className="group hover:bg-slate-50/50 transition-colors cursor-pointer">
-                          <td className="px-8 py-4">
-                            <div className="flex items-center gap-4">
-                              <div className="p-2.5 bg-slate-100/50 border border-slate-200/50 text-slate-600 rounded-xl"><User size={16} /></div>
-                              <div>
-                                <h6 className="text-xs font-bold text-slate-800">{con.first_name} {con.last_name}</h6>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{con.name}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-4">
-                            <div className="flex flex-col gap-1">
-                              <div className="text-xs font-bold text-slate-700">{con.designation || 'Personnel'}</div>
-                              <div className="flex items-center gap-3 text-[10px] text-slate-400 font-medium">
-                                <span className="flex items-center gap-1"><Mail size={10} /> {con.email_id || '—'}</span>
-                                <span className="flex items-center gap-1"><Phone size={10} /> {con.mobile_no || '—'}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-4 text-right">
-                            <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-colors">Access Stream</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
 
           {activeTab === 'Branches' && (
-            <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/20">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Branch Availability</h3>
-                </div>
-                <div className="p-8">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {(supplier?.branch_availability || []).length > 0 ? (
-                      supplier.branch_availability.map((branch, idx) => (
-                        <div key={idx} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100/50 rounded-2xl hover:bg-slate-100/20 transition-all">
-                          <div className="p-2 bg-white rounded-xl shadow-xs border border-slate-100">
-                            <Building2 size={16} style={{ color: themeColor }} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-800">{branch.warehouse}</p>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Authorized Branch</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="col-span-full py-12 flex flex-col items-center justify-center text-center opacity-60">
-                        <Building2 size={48} className="mb-4 text-slate-300" />
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">No Branch Restrictions</p>
-                        <p className="text-[11px] text-slate-400 mt-1">This supplier is available across all operational zones.</p>
+            <div className="modern-table-card animate-in fade-in duration-500" style={{ padding: '2rem' }}>
+              <h3 className="table-header-title" style={{ marginBottom: '1.5rem' }}>Branch Availability</h3>
+              <div className="branches-cards-grid">
+                {(supplier?.branch_availability || []).length > 0 ? (
+                  supplier.branch_availability.map((branch, idx) => (
+                    <div key={idx} className="branch-card-modern">
+                      <div className="branch-icon-box">
+                        <Building2 size={18} style={{ color: themeColor }} />
                       </div>
-                    )}
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>{branch.warehouse}</div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Authorized Branch</div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ gridColumn: '1 / -1', padding: '3rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+                    <Building2 size={48} style={{ color: '#94a3b8', marginBottom: '1rem' }} />
+                    <div style={{ fontWeight: 700, color: '#475569', fontSize: '0.95rem' }}>No Branch Restrictions</div>
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>This supplier is available across all operational zones.</div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
 
           {activeTab === 'Settings' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-24">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
               <InfoSection title="Policy Controls" icon={ShieldCheck} themeColor={themeColor}>
-                <div className="flex items-center justify-between bg-slate-50/50 p-6 rounded-2xl border border-slate-100 shadow-xs">
-                  <div className="space-y-1">
-                    <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Lifecycle Permissions</h5>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current operational authorization</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>Lifecycle Permissions</h5>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>Current operational authorization</span>
                   </div>
                   <div
-                    className="flex items-center gap-3 px-4 py-2 rounded-xl border border-transparent text-xs font-bold uppercase tracking-wider"
                     style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.4rem 0.85rem',
+                      borderRadius: '8px',
                       backgroundColor: isActive ? `${themeColor}15` : '#fff1f2',
-                      color: isActive ? themeColor : '#e11d48'
+                      color: isActive ? themeColor : '#e11d48',
+                      fontWeight: 800,
+                      fontSize: '0.75rem'
                     }}
                   >
-                    <Activity size={16} className={isActive ? 'animate-pulse' : ''} />
-                    <span>{isActive ? 'Authorized' : 'Restricted'}</span>
+                    <Activity size={14} className={isActive ? 'animate-pulse' : ''} />
+                    <span>{isActive ? 'AUTHORIZED' : 'RESTRICTED'}</span>
                   </div>
                 </div>
               </InfoSection>
 
               <InfoSection title="Settings & Status" icon={ShieldCheck} themeColor={themeColor}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="settings-grid-panel">
                   {[
-                    { label: 'Transporter', active: supplier.is_transporter },
-                    { label: 'Internal Supplier', active: supplier.is_internal_supplier },
-                    { label: 'Frozen', active: supplier.is_frozen },
-                    { label: 'On Hold', active: supplier.on_hold },
-                    { label: 'Disabled', active: supplier.disabled },
-                    { label: 'Bill without PO', active: supplier.allow_purchase_invoice_creation_without_purchase_order },
-                    { label: 'Bill without Receipt', active: supplier.allow_purchase_invoice_creation_without_purchase_receipt }
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between px-4 py-3 bg-slate-50/50 border border-slate-100 rounded-xl">
-                      <span className="text-xs font-bold text-slate-600">{item.label}</span>
-                      {item.active ? (
-                        <CheckSquare size={16} className="text-emerald-500" />
-                      ) : (
-                        <Square size={16} className="text-slate-300" />
-                      )}
-                    </div>
-                  ))}
+                    { label: 'Transporter', value: supplier.is_transporter },
+                    { label: 'Internal Supplier', value: supplier.is_internal_supplier },
+                    { label: 'Frozen', value: supplier.is_frozen, critical: true },
+                    { label: 'On Hold', value: supplier.on_hold, critical: true },
+                    { label: 'Disabled', value: supplier.disabled, critical: true, inverted: true },
+                    { label: 'Bill without PO', value: supplier.allow_purchase_invoice_creation_without_purchase_order },
+                    { label: 'Bill without Receipt', value: supplier.allow_purchase_invoice_creation_without_purchase_receipt }
+                  ].map((setting, idx) => {
+                    const isChecked = setting.inverted ? !setting.value : setting.value;
+                    return (
+                      <div key={idx} className="settings-card-toggle">
+                        <span className="toggle-label-bold">{setting.label}</span>
+                        <div className={`checkbox-visual-box ${isChecked ? 'checked-active' : ''}`} style={isChecked ? { backgroundColor: themeColor, borderColor: themeColor } : undefined}>
+                          {isChecked && <ShieldCheck size={12} />}
+                        </div>
+                      </div>
+                    );
+                  })}
+
                   {supplier.on_hold && (
-                    <div className="col-span-full p-4 bg-rose-50/50 border border-rose-100 rounded-2xl">
-                      <p className="text-[9px] font-bold text-rose-500 uppercase tracking-wider mb-1">Hold Logic</p>
-                      <p className="text-xs font-bold text-rose-700 italic">"{supplier.hold_type || 'Manual Hold'}"</p>
+                    <div style={{ gridColumn: '1 / -1', padding: '1rem', background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '12px', marginTop: '0.5rem' }}>
+                      <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hold Logic</p>
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', fontWeight: 600, color: '#be123c', fontStyle: 'italic' }}>"{supplier.hold_type || 'Manual Hold'}"</p>
                     </div>
                   )}
                 </div>
@@ -838,16 +883,7 @@ const SupplierDetails = () => {
         </div>
       </div>
 
-      <SupplierFormModal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSave={() => {
-          fetchData();
-          setShowEditModal(false);
-        }}
-        editingSupplier={supplier}
-        userWarehouse={warehouse}
-      />
+
     </>
   );
 };

@@ -283,21 +283,21 @@ const getUpdatedPhone = (currentPhone, newCode) => {
 
 /* ==================== KEY-VALUE ROW COMPONENT ==================== */
 const DetailRow = ({ label, value, icon: Icon, themeColor }) => (
-  <div className="flex items-start gap-4 py-3 hover:bg-slate-50/50 px-3 rounded-xl transition-colors border-b border-slate-100/50 last:border-none">
-    <div className="p-2 rounded-lg shrink-0 mt-0.5" style={{ backgroundColor: `${themeColor}08` }}>
-      <Icon size={14} style={{ color: themeColor || '#475569' }} />
+  <div className="flex items-center gap-4 p-3.5 bg-slate-50/40 hover:bg-white border border-transparent hover:border-slate-100/60 rounded-2xl transition-all duration-200">
+    <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: `${themeColor}0a`, color: themeColor || '#4f46e5' }}>
+      <Icon size={15} strokeWidth={2.5} />
     </div>
-    <div className="space-y-0.5 min-w-0 flex-1">
-      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-      <p className="text-xs font-semibold text-slate-800 break-words">{value !== undefined && value !== null && value !== '' ? String(value) : '—'}</p>
+    <div className="space-y-0.5 flex-1 min-w-0">
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+      <p className="text-xs font-bold text-slate-800 break-words">{value !== undefined && value !== null && value !== '' ? String(value) : '—'}</p>
     </div>
   </div>
 );
 
 const SectionHeader = ({ text, themeColor }) => (
-  <div className="px-6 py-4 border-b border-slate-100/50 flex items-center gap-3 bg-white/50 backdrop-blur-sm">
-    <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: themeColor || '#0f172a' }} />
-    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">{text}</h3>
+  <div className="px-8 py-4.5 border-b border-slate-100/80 flex items-center gap-3 bg-slate-50/20 backdrop-blur-sm">
+    <div className="w-1 h-4 rounded-full" style={{ backgroundColor: themeColor || '#4f46e5' }} />
+    <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">{text}</h3>
   </div>
 );
 
@@ -532,76 +532,113 @@ const CustomerDetails = () => {
   const activeCont = contacts?.[0] || {};
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] pb-24">
-      {/* Header Bar */}
+    <div className="min-h-screen bg-[#f8fafc] pb-24 font-sans antialiased text-slate-800">
+      {/* Sticky Header Bar */}
       <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5">
         <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-5">
-            <button onClick={() => viewMode === 'edit' && !isNew ? setViewMode('view') : navigate('/customerlist')} className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all border border-slate-100 flex items-center gap-1.5 shadow-sm">
+            <button
+              onClick={() => viewMode === 'edit' && !isNew ? setViewMode('view') : navigate('/customerlist')}
+              className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all border border-slate-100 flex items-center gap-1.5 shadow-sm active:scale-95 duration-150"
+            >
               <ChevronLeft size={16} />
               <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
             </button>
-            <div className="h-10 w-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-md overflow-hidden">
+            <div
+              className="h-12 w-12 rounded-2xl flex items-center justify-center shadow-md overflow-hidden border-2 border-white ring-4 transition-transform hover:scale-105 duration-200"
+              style={{ ringColor: `${themeColor}15` }}
+            >
               {customer?.image ? (
                 <img src={customer.image} alt={customer.customer_name} className="w-full h-full object-cover" />
               ) : (
-                <User size={20} className="text-white" />
+                <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${themeColor}15`, color: themeColor }}>
+                  <User size={22} strokeWidth={2.5} />
+                </div>
               )}
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-black text-slate-800 tracking-tight">
+                <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">
                   {isNew ? 'New Customer Registration' : (viewMode === 'edit' ? `Editing: ${customer?.customer_name}` : customer?.customer_name)}
                 </h1>
                 {!isNew && (
-                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${customer?.disabled === 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                    {customer?.disabled === 0 ? 'Active' : 'Disabled'}
-                  </span>
+                  <div className="flex gap-1.5">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1 ${customer?.disabled === 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                      <span className={`w-1 h-1 rounded-full ${customer?.disabled === 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                      {customer?.disabled === 0 ? 'Active' : 'Disabled'}
+                    </span>
+                    {customer?.is_frozen === 1 && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border bg-sky-50 text-sky-600 border-sky-100">
+                        Frozen
+                      </span>
+                    )}
+                    {customer?.is_internal_customer === 1 && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border bg-purple-50 text-purple-600 border-purple-100">
+                        Internal
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-              {!isNew && <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Registry Reference: {customer?.name}</p>}
+              {!isNew && <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">Registry Reference: {customer?.name}</p>}
             </div>
           </div>
-          <div>
+          <div className="flex items-center gap-3">
             {viewMode === 'view' ? (
-              <div className="flex items-center gap-3">
-                <button onClick={() => navigate(`/generalledgerreport?party_type=Customer&party=${customer?.name}`)} className="px-5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all">
-                  <FileText size={13} /> General Ledger
+              <>
+                <button
+                  onClick={() => navigate(`/generalledgerreport?party_type=Customer&party=${customer?.name}`)}
+                  className="px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all active:scale-95 duration-150"
+                >
+                  <FileText size={14} className="text-slate-400" /> General Ledger
                 </button>
-                <button onClick={() => setViewMode('edit')} className="px-5 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all" style={{ backgroundColor: themeColor }}>
+                <button
+                  onClick={() => setViewMode('edit')}
+                  className="px-5 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 duration-150"
+                  style={{ backgroundColor: themeColor }}
+                >
                   <Edit2 size={13} /> Edit Customer
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-3">
+              <>
                 {!isNew && (
-                  <button onClick={() => setViewMode('view')} className="px-5 py-2.5 text-slate-400 hover:text-slate-800 text-[10px] font-black uppercase tracking-widest transition-all">
+                  <button
+                    onClick={() => setViewMode('view')}
+                    className="px-5 py-2.5 text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase tracking-widest transition-all duration-150"
+                  >
                     Discard
                   </button>
                 )}
-                <button onClick={handleSave} disabled={saving} className="px-7 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all" style={{ backgroundColor: themeColor }}>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-7 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 duration-150"
+                  style={{ backgroundColor: themeColor }}
+                >
                   {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                   {saving ? 'Saving...' : 'Save Profile'}
                 </button>
-              </div>
+              </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Main Content Layout containing ONLY form specs */}
+      {/* Main Page Content Wrapper */}
       <div className="w-full mt-8 px-8">
+        {/* Tab Controls for View Mode */}
         {viewMode === 'view' && !isNew && (
-          <div className="flex bg-slate-100/80 p-1 rounded-xl mb-6 w-fit gap-1">
+          <div className="flex bg-slate-100/80 backdrop-blur-sm p-1 rounded-2xl mb-8 w-fit gap-1 border border-slate-200/40">
             <button
               onClick={() => setActiveTab('profile')}
-              className={`px-5 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${activeTab === 'profile' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 ${activeTab === 'profile' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
             >
               <User className="w-4 h-4" style={{ color: activeTab === 'profile' ? themeColor : undefined }} /> Profile Details
             </button>
             <button
               onClick={() => setActiveTab('loyalty')}
-              className={`px-5 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${activeTab === 'loyalty' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 ${activeTab === 'loyalty' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
             >
               <Award className="w-4 h-4" style={{ color: activeTab === 'loyalty' ? themeColor : undefined }} /> Loyalty Ledger ({customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts)
             </button>
@@ -610,134 +647,157 @@ const CustomerDetails = () => {
 
         {viewMode === 'view' ? (
           activeTab === 'profile' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300 pb-12">
+            /* TWO-COLUMN DASHBOARD - VIEW PROFILE */
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300 pb-12">
 
-              {/* Card 1: Legal Identity Details */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
-                <SectionHeader text="Legal Identity Profile" themeColor={themeColor} />
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                  <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
-                  <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
-                  <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
-                  <DetailRow label="Identity Group" value={customer?.customer_group} icon={Layers} themeColor={themeColor} />
-                  <DetailRow label="Territory Domain" value={customer?.territory} icon={Globe} themeColor={themeColor} />
-                  <DetailRow label="Gender" value={customer?.gender} icon={Users} themeColor={themeColor} />
-                  <div className="md:col-span-2">
-                    <DetailRow label="Profile Image Reference" value={customer?.image} icon={Tag} themeColor={themeColor} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <DetailRow label="Identity Registry Specs Details" value={customer?.customer_details} icon={FileText} themeColor={themeColor} />
-                  </div>
-                </div>
-              </div>
+              {/* LEFT COLUMN: Profile and Geospatial Cards */}
+              <div className="lg:col-span-2 space-y-8">
 
-              {/* Card 2: Deal Information & Primary Address */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
-                <SectionHeader text="Deal & Spatial Information" themeColor={themeColor} />
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                  <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
-                  <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
-                  <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
-                  <DetailRow label="City Station" value={activeAddr.city} icon={MapPin} themeColor={themeColor} />
-                  <DetailRow label="Emirate Hub / State" value={activeAddr.state || activeAddr.emirate} icon={MapPin} themeColor={themeColor} />
-                  <DetailRow label="Country" value={activeAddr.country} icon={Globe} themeColor={themeColor} />
-                  <div className="md:col-span-2">
-                    <DetailRow label="Building / Street Line 1" value={activeAddr.address_line1} icon={MapPin} themeColor={themeColor} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
+                {/* Panel 1: Legal Identity details */}
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                  <SectionHeader text="Legal Identity Profile" themeColor={themeColor} />
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
+                    <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
+                    <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
+                    <DetailRow label="Identity Group" value={customer?.customer_group} icon={Layers} themeColor={themeColor} />
+                    <DetailRow label="Territory Domain" value={customer?.territory} icon={Globe} themeColor={themeColor} />
+                    <DetailRow label="Gender" value={customer?.gender} icon={Users} themeColor={themeColor} />
+                    <div className="md:col-span-2">
+                      <DetailRow label="Profile Image Reference" value={customer?.image} icon={Tag} themeColor={themeColor} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <DetailRow label="Identity Registry Specs Details" value={customer?.customer_details} icon={FileText} themeColor={themeColor} />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Card 3: Source & Assignment */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
-                <SectionHeader text="Source & Assignment Protocols" themeColor={themeColor} />
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                  <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
-                  <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
-                  <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
-                  <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
-                  <DetailRow label="Loyalty Hub Link" value={customer?.loyalty_program} icon={Award} themeColor={themeColor} />
-                  <DetailRow label="Allowed Discount (%)" value={customer?.custom_default_discount ? `${customer.custom_default_discount}%` : '0%'} icon={Percent} themeColor={themeColor} />
-                  <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
-                  <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
-                  <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
-                </div>
-              </div>
-
-              {/* Card 4: Additional Information & Contact Person */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
-                <SectionHeader text="Additional Information & Primary Contact" themeColor={themeColor} />
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                  <DetailRow label="Disabled Status" value={customer?.disabled === 1 ? 'Disabled' : 'Active'} icon={Shield} themeColor={themeColor} />
-                  <DetailRow label="Is Frozen Status" value={customer?.is_frozen === 1 ? 'Frozen State' : 'Normal State'} icon={Shield} themeColor={themeColor} />
-                  <DetailRow label="Internal Customer Status" value={customer?.is_internal_customer === 1 ? 'Yes, Internal' : 'No, External'} icon={Shield} themeColor={themeColor} />
-                  <div className="md:col-span-2 my-2 border-t border-dashed border-slate-100" />
-
-                  <div className="md:col-span-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3">Primary Contact Profile</p>
+                {/* Panel 2: Location and Geography details */}
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                  <SectionHeader text="Deal & Spatial Information" themeColor={themeColor} />
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
+                    <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
+                    <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
+                    <DetailRow label="City Station" value={activeAddr.city} icon={MapPin} themeColor={themeColor} />
+                    <DetailRow label="Emirate Hub / State" value={activeAddr.state || activeAddr.emirate} icon={MapPin} themeColor={themeColor} />
+                    <DetailRow label="Country" value={activeAddr.country} icon={Globe} themeColor={themeColor} />
+                    <div className="md:col-span-2">
+                      <DetailRow label="Building / Street Line 1" value={activeAddr.address_line1} icon={MapPin} themeColor={themeColor} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
+                    </div>
                   </div>
-                  <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
-                  <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
-                  <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
-                  <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
-                  <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
                 </div>
-              </div>
 
-              {/* Card 5: Branch Availability Visibility */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 lg:col-span-2">
-                <SectionHeader text="Regional Branch Availability" themeColor={themeColor} />
-                <div className="p-6">
-                  {customer?.branch_availability?.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {customer.branch_availability.map((b, idx) => (
-                        <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100/50">
-                          <div className="w-8 h-8 rounded bg-white flex items-center justify-center shadow-xs border border-slate-100">
-                            <Warehouse size={14} className="text-slate-400" />
+                {/* Panel 3: Branch availability */}
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                  <SectionHeader text="Regional Branch Availability" themeColor={themeColor} />
+                  <div className="p-6">
+                    {customer?.branch_availability?.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {customer.branch_availability.map((b, idx) => (
+                          <div key={idx} className="flex items-center gap-3.5 p-3.5 bg-slate-50/50 hover:bg-white rounded-2xl border border-slate-100 hover:border-slate-200/80 transition-all duration-200">
+                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                              <Warehouse size={16} className="text-slate-400" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Authorized Branch</p>
+                              <p className="text-xs font-bold text-slate-800 truncate leading-none">{b.warehouse}</p>
+                            </div>
                           </div>
-                          <span className="text-xs font-bold text-slate-700">{b.warehouse}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                      <Warehouse size={32} className="mx-auto text-slate-300 mb-2 opacity-50" />
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available in all branches (Global Access)</p>
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10 bg-slate-50/40 rounded-3xl border border-dashed border-slate-200">
+                        <Warehouse size={36} className="mx-auto text-slate-300 mb-3" />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Global Access Allowed (All Branches)</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
+              {/* RIGHT COLUMN: Loyalty programs, Financials, Primary Contacts */}
+              <div className="lg:col-span-1 space-y-8">
+
+                {/* Panel 4: Loyalty point balance widget */}
+                <div className="rounded-3xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col justify-between h-48 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1" style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}>
+                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]" />
+                  <div className="flex justify-between items-start z-10">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/80">Loyalty Program Balance</p>
+                      <h4 className="text-xs font-semibold text-slate-300 mt-1">{customer?.loyalty_program || 'Standard Program'}</h4>
+                    </div>
+                    <div className="p-3 bg-white/10 rounded-2xl">
+                      <Award className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  <div className="z-10 mt-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300/60">Available Points</p>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-4xl font-extrabold tracking-tight">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'}</span>
+                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest">pts</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Panel 5: Financial rules & assignments */}
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                  <SectionHeader text="Financials & Governance" themeColor={themeColor} />
+                  <div className="p-6 space-y-2.5">
+                    <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
+                    <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
+                    <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
+                    <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
+                    <DetailRow label="Allowed Discount (%)" value={customer?.custom_default_discount ? `${customer.custom_default_discount}%` : '0%'} icon={Percent} themeColor={themeColor} />
+                    <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
+                    <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
+                    <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
+                  </div>
+                </div>
+
+                {/* Panel 6: Primary Contact details */}
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                  <SectionHeader text="Primary Contact Person" themeColor={themeColor} />
+                  <div className="p-6 space-y-2.5">
+                    <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
+                    <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
+                    <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
+                    <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
+                    <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
-            /* Loyalty Point Ledger Tab content */
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden pb-12 animate-in fade-in duration-300">
-              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white/50 backdrop-blur-sm">
+            /* LOYALTY LEDGER TAB */
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden pb-12 animate-in fade-in duration-300">
+              <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/20">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50/50 text-indigo-600 flex items-center justify-center border border-indigo-100/50">
-                    <Award size={18} style={{ color: themeColor }} />
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100/50" style={{ backgroundColor: `${themeColor}08`, color: themeColor }}>
+                    <Award size={20} />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">Loyalty Points Balance Ledger</h3>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Historical record of point credits and redemptions</p>
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-1">Historical record of point credits and redemptions</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 bg-slate-50/80 border border-slate-100/50 rounded-xl px-4 py-2">
+                <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-2.5">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Balance:</span>
-                  <span className="text-base font-black text-slate-800">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts</span>
+                  <span className="text-sm font-black text-slate-800">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts</span>
                 </div>
               </div>
 
               {ledgerLoading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-3">
-                  <Loader2 className="animate-spin text-indigo-600" size={24} />
+                  <Loader2 className="animate-spin text-indigo-600" size={24} style={{ color: themeColor }} />
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Retrieving ledger entries...</span>
                 </div>
               ) : loyaltyLedger.length === 0 ? (
                 <div className="text-center py-20 bg-white">
-                  <Award size={40} className="mx-auto text-slate-300 mb-3 opacity-60" />
+                  <Award size={40} className="mx-auto text-slate-300 mb-3 opacity-60" style={{ color: themeColor }} />
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">No loyalty ledger activity recorded for this profile.</p>
                 </div>
               ) : (
@@ -745,40 +805,40 @@ const CustomerDetails = () => {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        <th className="py-3.5 px-6">Posting Date</th>
-                        <th className="py-3.5 px-6">Transaction Type</th>
-                        <th className="py-3.5 px-6">Purchase Value</th>
-                        <th className="py-3.5 px-6">Points Ledger</th>
-                        <th className="py-3.5 px-6">Reference ID</th>
-                        <th className="py-3.5 px-6">Source/Redeem Entry</th>
+                        <th className="py-4 px-8">Posting Date</th>
+                        <th className="py-4 px-8">Transaction Type</th>
+                        <th className="py-4 px-8">Purchase Value</th>
+                        <th className="py-4 px-8">Points Ledger</th>
+                        <th className="py-4 px-8">Reference ID</th>
+                        <th className="py-4 px-8">Source/Redeem Entry</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loyaltyLedger.map((row, idx) => (
                         <tr key={idx} className="border-b border-slate-100/50 hover:bg-slate-50/40 text-xs font-medium text-slate-700 transition-colors">
-                          <td className="py-3.5 px-6 font-semibold text-slate-500">
+                          <td className="py-4 px-8 font-semibold text-slate-500">
                             {row.posting_date}
                           </td>
-                          <td className="py-3.5 px-6">
+                          <td className="py-4 px-8">
                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${row.type === 'Earned' ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50' : 'bg-rose-50 text-rose-600 border-rose-100/50'}`}>
                               {row.type}
                             </span>
                           </td>
-                          <td className="py-3.5 px-6 font-bold text-slate-800">
+                          <td className="py-4 px-8 font-bold text-slate-800">
                             AED {parseFloat(row.purchase_amount || 0).toFixed(2)}
                           </td>
-                          <td className={`py-3.5 px-6 font-black ${row.loyalty_points > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          <td className={`py-4 px-8 font-black ${row.loyalty_points > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                             {row.loyalty_points > 0 ? '+' : ''}{parseFloat(row.loyalty_points).toFixed(2)} pts
                           </td>
-                          <td className="py-3.5 px-6 font-bold text-indigo-600">
+                          <td className="py-4 px-8 font-bold text-indigo-600" style={{ color: themeColor }}>
                             <a href={`/app/sales-invoice/${row.invoice}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1 select-all">
                               <FileText size={12} className="opacity-60" /> {row.invoice}
                             </a>
                           </td>
-                          <td className="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase">
+                          <td className="py-4 px-8 text-[10px] font-bold text-slate-400 uppercase">
                             {row.type === 'Redeemed' && row.original_invoice ? (
                               <span className="text-slate-600 flex items-center gap-1 select-all">
-                                Used against: <b className="text-indigo-600">{row.original_invoice}</b>
+                                Used against: <b className="text-indigo-600" style={{ color: themeColor }}>{row.original_invoice}</b>
                               </span>
                             ) : row.type === 'Earned' ? (
                               <span className="text-emerald-600">Credit Credited</span>
@@ -795,180 +855,328 @@ const CustomerDetails = () => {
             </div>
           )
         ) : (
-          /* Full Screen Edit Form */
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-300 pb-12">
-            {/* Quadrant 1: Registration Details */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
-              <SectionHeader text="Identity Details" themeColor={themeColor} />
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Legal Identity Name</label>
-                  <input
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('customer_name')}
-                    onFocus={() => setFocusedField('customer_name')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.customer_name}
-                    onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                    placeholder="Company or Individual Name"
-                  />
-                </div>
+          /* TWO-COLUMN DASHBOARD - EDIT CUSTOMER PROFILE */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-bottom-4 duration-300 pb-12">
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Salutation</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('salutation'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('salutation')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.salutation}
-                    onChange={e => setForm({ ...form, salutation: e.target.value })}
-                  >
-                    <option value="">Select Salutation</option>
-                    {meta.salutations?.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
+            {/* LEFT COLUMN: Customer identity inputs and geospatial address forms */}
+            <div className="lg:col-span-2 space-y-8">
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Corporate Type</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('customer_type'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('customer_type')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.customer_type}
-                    onChange={e => setForm({ ...form, customer_type: e.target.value })}
-                  >
-                    {meta.customer_type?.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Group</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('customer_group'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('customer_group')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.customer_group}
-                    onChange={e => setForm({ ...form, customer_group: e.target.value })}
-                  >
-                    {meta.customer_group?.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Territory Domain</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('territory'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('territory')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.territory}
-                    onChange={e => setForm({ ...form, territory: e.target.value })}
-                  >
-                    {meta.territory?.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Gender</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('gender'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('gender')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.gender}
-                    onChange={e => setForm({ ...form, gender: e.target.value })}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5 col-span-1 md:col-span-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Profile Image Reference</label>
-                  <div className="flex gap-2">
+              {/* Form Card 1: Identity registration details */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Identity & Profile Details" themeColor={themeColor} />
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Legal Identity Name</label>
                     <input
-                      className="flex-1 h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('image')}
-                      onFocus={() => setFocusedField('image')}
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('customer_name')}
+                      onFocus={() => setFocusedField('customer_name')}
                       onBlur={() => setFocusedField(null)}
-                      value={form.image}
-                      onChange={e => setForm({ ...form, image: e.target.value })}
-                      placeholder="Image URL link"
+                      value={form.customer_name}
+                      onChange={e => setForm({ ...form, customer_name: e.target.value })}
+                      placeholder="Company or Individual Name"
                     />
-                    <button
-                      onClick={() => document.getElementById('customer-image-upload')?.click()}
-                      className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-bold uppercase tracking-wider border border-slate-200/50 transition-all"
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Salutation</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('salutation'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('salutation')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.salutation}
+                      onChange={e => setForm({ ...form, salutation: e.target.value })}
                     >
-                      Upload
-                    </button>
-                    <input
-                      id="customer-image-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageUpload}
+                      <option value="">Select Salutation</option>
+                      {meta.salutations?.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Corporate Type</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('customer_type'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('customer_type')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.customer_type}
+                      onChange={e => setForm({ ...form, customer_type: e.target.value })}
+                    >
+                      {meta.customer_type?.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Group</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('customer_group'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('customer_group')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.customer_group}
+                      onChange={e => setForm({ ...form, customer_group: e.target.value })}
+                    >
+                      {meta.customer_group?.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Territory Domain</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('territory'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('territory')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.territory}
+                      onChange={e => setForm({ ...form, territory: e.target.value })}
+                    >
+                      {meta.territory?.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Gender</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('gender'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('gender')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.gender}
+                      onChange={e => setForm({ ...form, gender: e.target.value })}
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 col-span-1 md:col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Profile Image Reference</label>
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('image')}
+                        onFocus={() => setFocusedField('image')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.image}
+                        onChange={e => setForm({ ...form, image: e.target.value })}
+                        placeholder="Image URL link"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('customer-image-upload')?.click()}
+                        className="px-5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider border border-slate-200 transition-all active:scale-95 duration-150"
+                      >
+                        Upload
+                      </button>
+                      <input
+                        id="customer-image-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 col-span-1 md:col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Registry Specs Details</label>
+                    <textarea
+                      rows={3}
+                      className="w-full px-4 py-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 resize-none focus:ring-0"
+                      style={getInputStyle('customer_details')}
+                      onFocus={() => setFocusedField('customer_details')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.customer_details}
+                      onChange={e => setForm({ ...form, customer_details: e.target.value })}
+                      placeholder="Internal description notes"
                     />
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-1.5 col-span-1 md:col-span-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Identity Registry Specs Details</label>
-                  <textarea
-                    rows={2}
-                    className="w-full px-4 py-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 resize-none focus:ring-0"
-                    style={getInputStyle('customer_details')}
-                    onFocus={() => setFocusedField('customer_details')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.customer_details}
-                    onChange={e => setForm({ ...form, customer_details: e.target.value })}
-                    placeholder="Internal description notes"
-                  />
-                </div>
+              {/* Form Card 2: Geospatial & contact details */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Deal & Spatial Information" themeColor={themeColor} />
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Email Id</label>
+                    <input
+                      type="email"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('email_id')}
+                      onFocus={() => setFocusedField('email_id')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.email_id}
+                      onChange={e => setForm({ ...form, email_id: e.target.value })}
+                      placeholder="email@example.com"
+                    />
+                  </div>
 
-                {/* Branch Availability Management */}
-                <div className="space-y-3 col-span-1 md:col-span-2 mt-4 pt-4 border-t border-slate-100">
-                  <div className="flex items-center justify-between px-0.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Branch Hub Availability</label>
-                    <button
-                      onClick={() => setForm({ ...form, branch_availability: [...form.branch_availability, { warehouse: '' }] })}
-                      className="text-[10px] font-bold text-blue-600 uppercase tracking-wider hover:text-blue-800 transition-colors flex items-center gap-1.5"
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Mobile No</label>
+                    <input
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('mobile_no')}
+                      onFocus={() => setFocusedField('mobile_no')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.mobile_no}
+                      onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                      placeholder="+971 -- --- ----"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Type</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('address_type'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('address_type')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.address_type}
+                      onChange={e => setForm({ ...form, address_type: e.target.value })}
                     >
-                      <Plus size={12} /> Add Branch Hub
+                      {meta.address_type?.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">City Station</label>
+                    <input
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('city')}
+                      onFocus={() => setFocusedField('city')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.city}
+                      onChange={e => setForm({ ...form, city: e.target.value })}
+                      placeholder="City"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Emirate Hub</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('emirate'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('emirate')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.emirate}
+                      onChange={e => setForm({ ...form, emirate: e.target.value })}
+                    >
+                      <option value="">Select Emirate</option>
+                      {meta.emirates?.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Country</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('country'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('country')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.country}
+                      onChange={e => {
+                        const selectedCountry = e.target.value;
+                        const norm = (selectedCountry || '').toLowerCase().trim();
+                        const code = countryPhoneCodes[norm] || '';
+                        setForm(prev => ({
+                          ...prev,
+                          country: selectedCountry,
+                          custom_phone_code: code,
+                          mobile_no: getUpdatedPhone(prev.mobile_no, code)
+                        }));
+                      }}
+                    >
+                      {meta.countries?.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 col-span-1 md:col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Building / Street Line 1</label>
+                    <input
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('address_line1')}
+                      onFocus={() => setFocusedField('address_line1')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.address_line1}
+                      onChange={e => setForm({ ...form, address_line1: e.target.value })}
+                      placeholder="Building / Street Line 1"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 col-span-1 md:col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Line 2</label>
+                    <input
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('address_line2')}
+                      onFocus={() => setFocusedField('address_line2')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.address_line2}
+                      onChange={e => setForm({ ...form, address_line2: e.target.value })}
+                      placeholder="Address Line 2"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Card 3: Branch Availability */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Regional Branch Availability" themeColor={themeColor} />
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center justify-between px-0.5">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Configure Branch Access</p>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, branch_availability: [...form.branch_availability, { warehouse: '' }] })}
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1.5 uppercase tracking-widest active:scale-95 duration-150"
+                      style={{ color: themeColor }}
+                    >
+                      <Plus size={12} strokeWidth={2.5} /> Add Warehouse
                     </button>
                   </div>
 
                   {form.branch_availability.length === 0 ? (
-                    <div className="py-6 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center justify-center">
-                      <Warehouse size={24} className="text-slate-300 mb-2 opacity-60" />
+                    <div className="py-10 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center justify-center">
+                      <Warehouse size={28} className="text-slate-300 mb-2" />
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Global access (All Branches)</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       {form.branch_availability.map((b, idx) => (
                         <div key={idx} className="flex items-center gap-2">
                           <select
@@ -991,11 +1199,12 @@ const CustomerDetails = () => {
                             {meta.warehouses?.map(w => <option key={w} value={w}>{w}</option>)}
                           </select>
                           <button
+                            type="button"
                             onClick={() => {
                               const newB = form.branch_availability.filter((_, i) => i !== idx);
                               setForm({ ...form, branch_availability: newB });
                             }}
-                            className="w-11 h-11 flex items-center justify-center bg-rose-50/50 text-rose-500 rounded-xl border border-rose-100/50 hover:bg-rose-100 transition-all"
+                            className="w-11 h-11 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl border border-rose-100/50 transition-all active:scale-95 duration-150"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1007,388 +1216,269 @@ const CustomerDetails = () => {
               </div>
             </div>
 
-            {/* Quadrant 2: Contact Info & Address */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
-              <SectionHeader text="Deal Information" themeColor={themeColor} />
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Email Id</label>
-                  <input
-                    type="email"
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('email_id')}
-                    onFocus={() => setFocusedField('email_id')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.email_id}
-                    onChange={e => setForm({ ...form, email_id: e.target.value })}
-                    placeholder="email@example.com"
-                  />
-                </div>
+            {/* RIGHT COLUMN: Settings Toggles, Financials Form, Primary Contact Form */}
+            <div className="lg:col-span-1 space-y-8">
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Mobile No</label>
-                  <input
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('mobile_no')}
-                    onFocus={() => setFocusedField('mobile_no')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.mobile_no}
-                    onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                    placeholder="+971 -- --- ----"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Type</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('address_type'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('address_type')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.address_type}
-                    onChange={e => setForm({ ...form, address_type: e.target.value })}
-                  >
-                    {meta.address_type?.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">City Station</label>
-                  <input
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('city')}
-                    onFocus={() => setFocusedField('city')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.city}
-                    onChange={e => setForm({ ...form, city: e.target.value })}
-                    placeholder="City"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Emirate Hub</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('emirate'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('emirate')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.emirate}
-                    onChange={e => setForm({ ...form, emirate: e.target.value })}
-                  >
-                    <option value="">Select Emirate</option>
-                    {meta.emirates?.map(e => <option key={e} value={e}>{e}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Country</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('country'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('country')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.country}
-                    onChange={e => {
-                      const selectedCountry = e.target.value;
-                      const norm = (selectedCountry || '').toLowerCase().trim();
-                      const code = countryPhoneCodes[norm] || '';
-                      setForm(prev => ({
-                        ...prev,
-                        country: selectedCountry,
-                        custom_phone_code: code,
-                        mobile_no: getUpdatedPhone(prev.mobile_no, code)
-                      }));
-                    }}
-                  >
-                    {meta.countries?.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5 col-span-1 md:col-span-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Building / Street Line 1</label>
-                  <input
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('address_line1')}
-                    onFocus={() => setFocusedField('address_line1')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.address_line1}
-                    onChange={e => setForm({ ...form, address_line1: e.target.value })}
-                    placeholder="Building / Street Line 1"
-                  />
-                </div>
-
-                <div className="space-y-1.5 col-span-1 md:col-span-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Line 2</label>
-                  <input
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('address_line2')}
-                    onFocus={() => setFocusedField('address_line2')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.address_line2}
-                    onChange={e => setForm({ ...form, address_line2: e.target.value })}
-                    placeholder="Address Line 2"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Quadrant 3: Currency & Price List */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
-              <SectionHeader text="Source & Assignment" themeColor={themeColor} />
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Id / TRN</label>
-                  <input
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('tax_id')}
-                    onFocus={() => setFocusedField('tax_id')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.tax_id}
-                    onChange={e => setForm({ ...form, tax_id: e.target.value })}
-                    placeholder="TRN Number"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Category</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('tax_category'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('tax_category')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.tax_category}
-                    onChange={e => setForm({ ...form, tax_category: e.target.value })}
-                  >
-                    <option value="">Default</option>
-                    {meta.tax_categories?.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Pricing Matrix</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('default_price_list'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('default_price_list')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.default_price_list}
-                    onChange={e => setForm({ ...form, default_price_list: e.target.value })}
-                  >
-                    <option value="">System Standard</option>
-                    {meta.price_lists?.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Payment Terms Protocol</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('payment_terms'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('payment_terms')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.payment_terms}
-                    onChange={e => setForm({ ...form, payment_terms: e.target.value })}
-                  >
-                    <option value="">Direct</option>
-                    {meta.payment_terms?.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Loyalty Hub Link</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('loyalty_program'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('loyalty_program')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.loyalty_program}
-                    onChange={e => setForm({ ...form, loyalty_program: e.target.value })}
-                  >
-                    <option value="">None</option>
-                    {meta.loyalty_programs?.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Allowed Discount (%)</label>
-                  <input
-                    type="number"
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('custom_default_discount')}
-                    onFocus={() => setFocusedField('custom_default_discount')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.custom_default_discount}
-                    onChange={e => setForm({ ...form, custom_default_discount: parseFloat(e.target.value) || 0 })}
-                    placeholder="Allowed discount percent"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Account Supervisor</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('account_manager'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('account_manager')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.account_manager}
-                    onChange={e => setForm({ ...form, account_manager: e.target.value })}
-                  >
-                    <option value="">Select Supervisor</option>
-                    {meta.account_managers?.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Customer POS Ident</label>
-                  <input
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                    style={getInputStyle('customer_pos_id')}
-                    onFocus={() => setFocusedField('customer_pos_id')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.customer_pos_id}
-                    onChange={e => setForm({ ...form, customer_pos_id: e.target.value })}
-                    placeholder="POS ID"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Prospect Alias</label>
-                  <select
-                    className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                    style={{
-                      ...getInputStyle('prospect_name'),
-                      backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundSize: '1.25rem'
-                    }}
-                    onFocus={() => setFocusedField('prospect_name')}
-                    onBlur={() => setFocusedField(null)}
-                    value={form.prospect_name}
-                    onChange={e => setForm({ ...form, prospect_name: e.target.value })}
-                  >
-                    <option value="">Select Prospect</option>
-                    {meta.prospects?.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Quadrant 4: Settings & Controls */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all duration-300">
-              <SectionHeader text="Additional Information" themeColor={themeColor} />
-              <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {/* Form Card 4: iOS Toggles for Settings */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="System Configurations" themeColor={themeColor} />
+                <div className="p-6 flex flex-col gap-4">
                   {[
-                    { id: 'disabled', label: 'Disabled' },
-                    { id: 'is_frozen', label: 'Is Frozen' },
-                    { id: 'is_internal_customer', label: 'Internal Customer' }
+                    { id: 'disabled', label: 'Disabled Status', desc: 'Prevent transactions for this customer' },
+                    { id: 'is_frozen', label: 'Is Frozen Status', desc: 'Freeze credit limit & activities' },
+                    { id: 'is_internal_customer', label: 'Internal Customer', desc: 'Identify as member of organization' }
                   ].map(check => (
-                    <label key={check.id} className="flex items-center px-4 py-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-100 rounded-xl cursor-pointer transition-all select-none group">
-                      <input
-                        type="checkbox"
-                        className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0 mr-3 w-4 h-4"
-                        style={{
-                          accentColor: themeColor
-                        }}
-                        checked={form[check.id] === 1 || form[check.id] === true}
-                        onChange={e => setForm({ ...form, [check.id]: e.target.checked ? 1 : 0 })}
-                      />
-                      <span className="text-[10px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
-                    </label>
+                    <div key={check.id} className="flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-2xl transition-all duration-200">
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">{check.label}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">{check.desc}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, [check.id]: form[check.id] === 1 ? 0 : 1 })}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${form[check.id] === 1 ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                        style={{ backgroundColor: form[check.id] === 1 ? themeColor : undefined }}
+                      >
+                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form[check.id] === 1 ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
                   ))}
                 </div>
+              </div>
 
-                {/* Personnel Profile (Primary Contact) */}
-                <div className="space-y-3 pt-4 border-t border-slate-100">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Primary Contact Person Profile</label>
-                  <div className="grid grid-cols-2 gap-3">
+              {/* Form Card 5: Financial rules & assignments */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Financials & Governance" themeColor={themeColor} />
+                <div className="p-6 grid grid-cols-1 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Id / TRN</label>
+                    <input
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('tax_id')}
+                      onFocus={() => setFocusedField('tax_id')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.tax_id}
+                      onChange={e => setForm({ ...form, tax_id: e.target.value })}
+                      placeholder="TRN Number"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Category</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('tax_category'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('tax_category')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.tax_category}
+                      onChange={e => setForm({ ...form, tax_category: e.target.value })}
+                    >
+                      <option value="">Default</option>
+                      {meta.tax_categories?.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Pricing Matrix</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('default_price_list'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('default_price_list')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.default_price_list}
+                      onChange={e => setForm({ ...form, default_price_list: e.target.value })}
+                    >
+                      <option value="">System Standard</option>
+                      {meta.price_lists?.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Payment Terms Protocol</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('payment_terms'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('payment_terms')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.payment_terms}
+                      onChange={e => setForm({ ...form, payment_terms: e.target.value })}
+                    >
+                      <option value="">Direct</option>
+                      {meta.payment_terms?.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Loyalty Hub Link</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('loyalty_program'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('loyalty_program')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.loyalty_program}
+                      onChange={e => setForm({ ...form, loyalty_program: e.target.value })}
+                    >
+                      <option value="">None</option>
+                      {meta.loyalty_programs?.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Allowed Discount (%)</label>
+                    <input
+                      type="number"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('custom_default_discount')}
+                      onFocus={() => setFocusedField('custom_default_discount')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.custom_default_discount}
+                      onChange={e => setForm({ ...form, custom_default_discount: parseFloat(e.target.value) || 0 })}
+                      placeholder="Allowed discount percent"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Account Supervisor</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('account_manager'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('account_manager')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.account_manager}
+                      onChange={e => setForm({ ...form, account_manager: e.target.value })}
+                    >
+                      <option value="">Select Supervisor</option>
+                      {meta.account_managers?.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Customer POS Ident</label>
+                    <input
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('customer_pos_id')}
+                      onFocus={() => setFocusedField('customer_pos_id')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.customer_pos_id}
+                      onChange={e => setForm({ ...form, customer_pos_id: e.target.value })}
+                      placeholder="POS ID"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Prospect Alias</label>
+                    <select
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      style={{
+                        ...getInputStyle('prospect_name'),
+                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundSize: '1.25rem'
+                      }}
+                      onFocus={() => setFocusedField('prospect_name')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.prospect_name}
+                      onChange={e => setForm({ ...form, prospect_name: e.target.value })}
+                    >
+                      <option value="">Select Prospect</option>
+                      {meta.prospects?.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Card 6: Primary Contact Person */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <SectionHeader text="Primary Contact Person" themeColor={themeColor} />
+                <div className="p-6 grid grid-cols-2 gap-3.5">
+                  <div className="col-span-2">
                     <input
                       placeholder="First Name"
-                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
                       style={getInputStyle('first_name')}
                       onFocus={() => setFocusedField('first_name')}
                       onBlur={() => setFocusedField(null)}
                       value={form.first_name}
                       onChange={e => setForm({ ...form, first_name: e.target.value })}
                     />
+                  </div>
+                  <div className="col-span-1">
                     <input
                       placeholder="Middle Name"
-                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
                       style={getInputStyle('middle_name')}
                       onFocus={() => setFocusedField('middle_name')}
                       onBlur={() => setFocusedField(null)}
                       value={form.middle_name}
                       onChange={e => setForm({ ...form, middle_name: e.target.value })}
                     />
+                  </div>
+                  <div className="col-span-1">
                     <input
                       placeholder="Last Name"
-                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
                       style={getInputStyle('last_name')}
                       onFocus={() => setFocusedField('last_name')}
                       onBlur={() => setFocusedField(null)}
                       value={form.last_name}
                       onChange={e => setForm({ ...form, last_name: e.target.value })}
                     />
+                  </div>
+                  <div className="col-span-2">
                     <input
                       placeholder="Designation"
-                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
                       style={getInputStyle('designation')}
                       onFocus={() => setFocusedField('designation')}
                       onBlur={() => setFocusedField(null)}
                       value={form.designation}
                       onChange={e => setForm({ ...form, designation: e.target.value })}
                     />
+                  </div>
+                  <div className="col-span-2">
                     <input
                       placeholder="Contact Email"
-                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 col-span-2"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
                       style={getInputStyle('contact_email')}
                       onFocus={() => setFocusedField('contact_email')}
                       onBlur={() => setFocusedField(null)}
                       value={form.contact_email}
                       onChange={e => setForm({ ...form, contact_email: e.target.value })}
                     />
+                  </div>
+                  <div className="col-span-1">
                     <input
                       placeholder="Contact Mobile"
-                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
                       style={getInputStyle('contact_mobile')}
                       onFocus={() => setFocusedField('contact_mobile')}
                       onBlur={() => setFocusedField(null)}
                       value={form.contact_mobile}
                       onChange={e => setForm({ ...form, contact_mobile: e.target.value })}
                     />
+                  </div>
+                  <div className="col-span-1">
                     <select
-                      className="w-full h-10 px-3 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
                       style={{
                         ...getInputStyle('status'),
                         backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,

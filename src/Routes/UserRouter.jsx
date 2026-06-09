@@ -244,6 +244,7 @@ function UserRouter() {
           <Route path='quickstockin' element={<QuickStockInPage />} />
           <Route path='salesreturn' element={<SalesReturnPage />} />
           <Route path='purchasereturn' element={<PurchaseReturnList />} />
+          <Route path='supplier-details/new' element={<SupplierDetailsPage />} />
           <Route path='supplier-details/:name' element={<SupplierDetailsPage />} />
           <Route path='addresslist' element={<AddressList />} />
           <Route path='contactlist' element={<ContactList />} />
@@ -257,4 +258,3 @@ function UserRouter() {
 }
 
 export default UserRouter
-

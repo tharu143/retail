@@ -73,7 +73,7 @@ export default function SupplierList() {
   const runGlobalSearch = async (searchTermOverride) => {
     const q = searchTermOverride !== undefined ? searchTermOverride : globalSyncSearch;
     if (!q.trim()) return Swal.fire('Search', 'Please enter a name or code to discover.', 'info');
-    
+
     setSearchingGlobal(true);
     try {
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.find_supplier_globally_retail', {
@@ -100,7 +100,7 @@ export default function SupplierList() {
         suppliers: JSON.stringify(selectedGlobalSuppliers),
         warehouse: warehouse
       }, { withCredentials: true });
-      
+
       if (res.data.message?.success) {
         Swal.fire({ icon: 'success', title: 'Sync Completed', text: 'All selected suppliers are now active for your branch.', timer: 2000 });
         setShowGlobalSyncModal(false);
@@ -252,19 +252,19 @@ export default function SupplierList() {
         window.enableSupplierForBranch = async (supplierName) => {
           try {
             Swal.fire({ title: 'Enabling Partner...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const syncRes = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', { 
-              supplier: supplierName, 
-              warehouse: warehouse 
+            const syncRes = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', {
+              supplier: supplierName,
+              warehouse: warehouse
             }, { withCredentials: true });
-            
+
             if (syncRes.data.message?.success) {
               Swal.fire({ icon: 'success', title: 'Partner Enabled', text: 'Supplier is now available in your branch.', timer: 2000 });
               fetchSuppliers();
             } else {
               Swal.fire('Error', syncRes.data.message?.message || 'Failed to enable supplier.', 'error');
             }
-          } catch (e) { 
-            Swal.fire('Error', e.message, 'error'); 
+          } catch (e) {
+            Swal.fire('Error', e.message, 'error');
           }
         };
 
@@ -396,7 +396,7 @@ export default function SupplierList() {
 
 
 
-            <button className="so-btn-primary" onClick={() => setShowForm(true)}>
+            <button className="so-btn-primary" onClick={() => navigate('/supplier-details/new')}>
               <Plus size={16} /> Create Supplier
             </button>
           </div>
@@ -514,8 +514,8 @@ export default function SupplierList() {
                         <Building2 size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
                         <p>No partners match the current filter criteria.</p>
                         {filterSearch && (
-                          <button 
-                            className="so-btn-ghost" 
+                          <button
+                            className="so-btn-ghost"
                             style={{ marginTop: '1rem', color: themeColor, fontWeight: 800, border: `1px solid ${themeColor}` }}
                             onClick={checkSupplierGlobally}
                             disabled={globalSearching}
@@ -612,8 +612,8 @@ export default function SupplierList() {
         isOpen={showForm}
         onClose={handleCloseForm}
         onSave={() => {
-           fetchSuppliers();
-           handleCloseForm();
+          fetchSuppliers();
+          handleCloseForm();
         }}
         editingSupplier={editingSupplier}
         userWarehouse={warehouse}
@@ -634,7 +634,7 @@ export default function SupplierList() {
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Sync Suppliers across branches</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setShowGlobalSyncModal(false)}
                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
               >

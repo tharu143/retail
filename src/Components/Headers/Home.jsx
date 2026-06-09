@@ -1796,7 +1796,8 @@ function Home() {
                             branch_availability: item.branch_availability || [],
                             barcodes: item.barcodes || [],
                             modified: item.modified,
-                            custom_pieces_per_box: item.custom_pieces_per_box || 1
+                            custom_pieces_per_box: item.custom_pieces_per_box || 1,
+                            custom_loyalty_eligible: item.custom_loyalty_eligible || 0
                         }))).catch(e => console.error("Dexie background update failed", e));
 
                         if (results.length > 0) {
@@ -1862,7 +1863,8 @@ function Home() {
                     warehouse_details: item.warehouse_details || [],
                     branch_availability: item.branch_availability || [],
                     barcodes: item.barcodes || [],
-                    custom_pieces_per_box: item.custom_pieces_per_box || 1
+                    custom_pieces_per_box: item.custom_pieces_per_box || 1,
+                    custom_loyalty_eligible: item.custom_loyalty_eligible || 0
                 };
             });
 
@@ -3271,6 +3273,22 @@ function Home() {
                     confirmButtonColor: '#16a34a'
                 }).then((res) => {
                     if (res.isConfirmed) {
+                        let loyaltyData = null;
+                        if (selectedCustomer?.loyalty_program) {
+                            const sumOfEligible = billItems.reduce((sum, item) => sum + (item.custom_loyalty_eligible ? (parseFloat(item.price) * parseFloat(item.qty)) : 0), 0);
+                            const pointsEarned = Math.floor(sumOfEligible);
+                            const oldPoints = parseInt(selectedCustomer?.loyalty_points || 0);
+                            const pointsRedeemed = loyaltyPointsToRedeem || 0;
+                            const newBalance = oldPoints + pointsEarned - pointsRedeemed;
+                            loyaltyData = {
+                                enabled: true,
+                                oldPoints,
+                                pointsEarned,
+                                pointsRedeemed,
+                                newBalance
+                            };
+                        }
+
                         handlePrint({
                             name: serverName,
                             grand_total: grandTotal,
@@ -3280,7 +3298,8 @@ function Home() {
                             posting_date: format(new Date(), 'yyyy-MM-dd'),
                             posting_time: format(new Date(), 'HH:mm:ss'),
                             items: billItems,
-                            payments: finalPayments
+                            payments: finalPayments,
+                            loyalty: loyaltyData
                         });
                     }
                 });
@@ -4296,20 +4315,21 @@ function Home() {
                     <div class="info-row"><span>TIME:</span> <span>${invoiceData.posting_time || 'N/A'}</span></div>
                     <div class="info-row"><span>INV NO:</span> <span class="bold">${invoiceData.name}</span></div>
                 </div>
-                <table class="items-table">
+                <table class="items-table" style="width: 100%; border-collapse: collapse; font-size: 8px;">
                     <thead>
-                        <tr>
-                            <th style="width: 30%; text-align: left; font-size: 9px;">ITEM</th>
-                            <th class="text-right" style="width: 10%; font-size: 9px;">QTY</th>
-                            <th class="text-center" style="width: 10%; font-size: 9px;">UOM</th>
-                            <th class="text-right" style="width: 12%; font-size: 9px;">PRICE</th>
-                            <th class="text-center" style="width: 10%; font-size: 9px;">VAT</th>
-                            <th class="text-right" style="width: 13%; font-size: 9px;">VAT VAL</th>
-                            <th class="text-right" style="width: 15%; font-size: 9px;">AMOUNT</th>
+                        <tr style="border-bottom: 1px dashed #000; border-top: 1px dashed #000;">
+                            <th class="text-left" style="width: 5%; padding: 3px 0;">SL</th>
+                            <th class="text-left" style="width: 25%; padding: 3px 2px;">ITEM</th>
+                            <th class="text-center" style="width: 7%; padding: 3px 0;">QTY</th>
+                            <th class="text-center" style="width: 8%; padding: 3px 0;">UOM</th>
+                            <th class="text-right" style="width: 14%; padding: 3px 0;">PRICE</th>
+                            <th class="text-center" style="width: 10%; padding: 3px 0;">VAT</th>
+                            <th class="text-right" style="width: 12%; padding: 3px 0;">V.VAL</th>
+                            <th class="text-right" style="width: 19%; padding: 3px 0;">AMOUNT</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${(invoiceData.items || []).map(it => {
+                        ${(invoiceData.items || []).map((it, idx) => {
             const qty = parseFloat(it.qty) || 1;
             const price = parseFloat(it.price || it.rate || it.basePrice || 0);
             const isInc = it.is_tax_inclusive !== false;
@@ -4326,14 +4346,15 @@ function Home() {
                 : (qty * (price + vatVal));
 
             return `
-                            <tr>
-                                <td style="padding-right: 2px; word-break: break-word; font-size: 9px;">${it.item_name || it.item_code || it.name || 'ITEM'}</td>
-                                <td class="text-right" style="padding-right: 2px; font-size: 9px;">${qty}</td>
-                                <td class="text-center" style="padding-right: 2px; font-size: 9px;">${it.uom || ''}</td>
-                                <td class="text-right" style="padding-right: 2px; font-size: 9px;">${price.toFixed(2)}</td>
-                                <td class="text-center" style="padding-right: 2px; font-size: 9px;">${isInc ? 'INC' : 'EXC'}</td>
-                                <td class="text-right" style="padding-right: 2px; font-size: 9px;">${vatVal.toFixed(2)}</td>
-                                <td class="text-right" style="font-size: 9px;">${parseFloat(lineTotal).toFixed(2)}</td>
+                            <tr style="border-bottom: 1px dotted #ccc;">
+                                <td class="text-left" style="vertical-align: top; padding: 4px 0;">${idx + 1}</td>
+                                <td class="text-left" style="vertical-align: top; padding: 4px 2px; word-break: break-word; font-weight: bold; line-height: 1.1;">${it.name || it.item_name || it.item_code || 'ITEM'}</td>
+                                <td class="text-center" style="vertical-align: top; padding: 4px 0;">${qty}</td>
+                                <td class="text-center" style="vertical-align: top; padding: 4px 0;">${it.uom || ''}</td>
+                                <td class="text-right" style="vertical-align: top; padding: 4px 0;">${price.toFixed(2)}</td>
+                                <td class="text-center" style="vertical-align: top; padding: 4px 0; font-size: 7px;">${isInc ? 'INC' : 'EXC'}</td>
+                                <td class="text-right" style="vertical-align: top; padding: 4px 0;">${vatVal.toFixed(2)}</td>
+                                <td class="text-right" style="vertical-align: top; padding: 4px 0;">${parseFloat(lineTotal).toFixed(2)}</td>
                             </tr>
                           `;
         }).join('')}
@@ -4374,6 +4395,30 @@ function Home() {
                         <span class="bold">${dirhamSvgHtml}${changeDue.toFixed(2)}</span>
                     </div>
                 </div>
+                ${invoiceData.loyalty?.enabled ? `
+                <div class="divider"></div>
+                <div class="totals" style="font-size: 10px;">
+                    <div class="center bold" style="margin-bottom: 5px;">LOYALTY POINTS SUMMARY</div>
+                    <div class="total-row">
+                        <span>PREVIOUS BALANCE</span>
+                        <span>${invoiceData.loyalty.oldPoints}</span>
+                    </div>
+                    <div class="total-row">
+                        <span>POINTS EARNED</span>
+                        <span>+${invoiceData.loyalty.pointsEarned}</span>
+                    </div>
+                    ${invoiceData.loyalty.pointsRedeemed > 0 ? `
+                    <div class="total-row">
+                        <span>POINTS REDEEMED</span>
+                        <span>-${invoiceData.loyalty.pointsRedeemed}</span>
+                    </div>
+                    ` : ''}
+                    <div class="total-row bold" style="border-top: 1px dashed #000; padding-top: 3px; margin-top: 3px;">
+                        <span>NEW BALANCE</span>
+                        <span>${invoiceData.loyalty.newBalance}</span>
+                    </div>
+                </div>
+                ` : ''}
                 <div class="center">
                     <img class="barcode" src="${barCodeUrl}" />
                     <div class="footer">
@@ -6529,7 +6574,7 @@ function Home() {
                                             >
                                                 <td className="text-center font-bold text-slate-400 text-[10px]">{idx + 1}</td>
                                                 <td className="px-2 font-bold text-slate-900 text-center">
-                                                    <span className="classic-cell-text" title={item.item_code || item.id}>{item.item_code || item.id}</span>
+                                                    <span className="classic-cell-text" title={item.name || item.item_name || item.item_code || item.id}>{item.name || item.item_name || item.item_code || item.id}</span>
                                                 </td>
                                                 <td className="p-0 relative group">
                                                     <input
