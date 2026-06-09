@@ -66,6 +66,11 @@ const getImageUrl = (path) => {
     return `https://retail.kylesolutions.com${cleanPath}`;
 };
 
+const getBranchName = (wh) => {
+    if (!wh) return '';
+    return wh.replace(/\s*Warehouse\s*/gi, ' ').replace(/\s*-\s*\w+$/, '').trim() || wh;
+};
+
 // Isolated internal clock component to prevent flickering in the main POS page
 const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount, formatType, onToggleFormat, continuousCount }) => {
     const [tick, setTick] = useState(new Date());
@@ -1957,7 +1962,7 @@ function Home() {
     const handleOutOfStockAlert = async (item) => {
         const result = await Swal.fire({
             title: 'Out of Stock',
-            text: `"${item.name || item.item_name}" is out of stock in your warehouse (${warehouse}).`,
+            text: `"${item.name || item.item_name}" is out of stock in your branch (${getBranchName(warehouse)}).`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Find Nearby Branch',
@@ -2084,14 +2089,14 @@ function Home() {
                         if (it) {
                             const availableBranches = (it.warehouse_details || it.branch_availability || [])
                                 .filter(b => (b.actual_qty || b.qty || 0) > 0)
-                                .map(b => b.warehouse_name || b.warehouse)
+                                .map(b => getBranchName(b.warehouse_name || b.warehouse))
                                 .filter((v, i, a) => a.indexOf(v) === i)
                                 .join(", ");
 
                             Swal.fire({
                                 title: 'Item Found in Other Branches',
                                 html: `<div style="font-size: 15px; font-weight: 600; color: #475569; text-align: left; line-height: 1.5; margin-bottom: 8px;">
-                                    This item is not enabled for <span style="font-weight: 800; color: #0f172a;">${warehouse}</span>.
+                                    This item is not enabled for <span style="font-weight: 800; color: #0f172a;">${getBranchName(warehouse)}</span>.
                                 </div>
                                 <div style="font-size: 16px; font-weight: 700; color: #1e293b; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #4f46e5; text-align: left; line-height: 1.4; margin-bottom: 12px;">
                                     ${it.item_name || it.name}
@@ -2359,7 +2364,7 @@ function Home() {
                     // NOT IN BRANCH PROMPT
                     Swal.fire({
                         title: 'Item Not in Branch!',
-                        text: `"${query}" was not found in ${warehouse}. Would you like to check the Global Industry Registry?`,
+                        text: `"${query}" was not found in ${getBranchName(warehouse)}. Would you like to check the Global Industry Registry?`,
                         icon: 'question',
                         showCancelButton: true,
                         confirmButtonText: '🔄 Search Industry-wide',
@@ -2426,12 +2431,12 @@ function Home() {
             html: `
             <div style="font-family:'Inter',sans-serif;text-align:left;">
                 <div style="font-size:13px;font-weight:600;color:#64748b;margin-bottom:6px;">
-                    Requesting stock for <span style="font-weight:800;color:#0f172a;">${warehouse}</span>:
+                    Requesting stock for <span style="font-weight:800;color:#0f172a;">${getBranchName(warehouse)}</span>:
                 </div>
                 <div style="font-size:14px;font-weight:700;color:#1e293b;padding:8px 12px;background:#f8fafc;border-radius:8px;border-left:4px solid #f59e0b;margin-bottom:14px;line-height:1.4;">
                     ${item.name || item.item_name}
                 </div>
-                ${fromWarehouse ? `<div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:10px;padding:4px 10px;background:#fffbeb;border-radius:6px;">From: ${fromWarehouse}</div>` : ''}
+                ${fromWarehouse ? `<div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:10px;padding:4px 10px;background:#fffbeb;border-radius:6px;">From: ${getBranchName(fromWarehouse)}</div>` : ''}
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
                     <div>
                         <label style="display:block;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">QTY</label>
@@ -2525,7 +2530,7 @@ function Home() {
     const showStockBreakdown = (item) => {
         const details = item.warehouse_details || [];
         if (details.length === 0) {
-            Swal.fire('No Data', 'No warehouse breakdown available.', 'info');
+            Swal.fire('No Data', 'No branch breakdown available.', 'info');
             return;
         }
 
@@ -2534,7 +2539,7 @@ function Home() {
         const html = `
         <div style="text-align: left; padding: 10px; max-height: 500px; overflow-y: auto; font-family: 'Inter', sans-serif;">
              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 10px; font-weight: 800; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-bottom: 10px; font-size: 11px; text-transform: uppercase; color: #64748b;">
-                <span>Branch / Warehouse</span>
+                <span>Branch</span>
                 <span style="text-align: center;">Stock</span>
                 <span style="text-align: center;">Buy</span>
                 <span style="text-align: right;">Sell / Action</span>
@@ -2543,12 +2548,13 @@ function Home() {
             const qty = parseFloat(d.actual_qty);
             const buyPrice = parseFloat(d.buying_price || 0);
             const sellPrice = parseFloat(d.selling_price || 0);
-            const branchName = d.warehouse_name || d.warehouse;
+            const rawBranchName = d.warehouse_name || d.warehouse;
+            const displayBranchName = getBranchName(rawBranchName);
 
             return `
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 10px; align-items: center; border-bottom: 1px solid #f1f5f9; padding: 12px 0; font-size: 13px;">
                     <div style="display: flex; flex-direction: column; min-width: 0;">
-                      <span style="font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${branchName}">${branchName}</span>
+                      <span style="font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${displayBranchName}">${displayBranchName}</span>
                       ${d.distance ? `<span style="font-size: 9px; color: #94a3b8; font-weight: 600;">${d.distance} KM</span>` : ''}
                     </div>
                     
@@ -2562,9 +2568,9 @@ function Home() {
 
                     <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                       <span style="font-weight: 800; color: #3b82f6;">${sellPrice.toFixed(2)}</span>
-                      ${(qty > 0 && branchName !== warehouse) ? `
+                      ${(qty > 0 && rawBranchName !== warehouse) ? `
                         <button 
-                          onclick="window.requestStock('${item.id}', '${branchName}')"
+                          onclick="window.requestStock('${item.id}', '${rawBranchName}')"
                           style="background: #3b82f6; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);"
                         >REQUEST</button>
                       ` : ''}
@@ -2869,6 +2875,10 @@ function Home() {
             Swal.fire('Notice', 'Please select a customer first.', 'info');
             return;
         }
+        if (selectedCustomer.customer_group === 'Discount Customer') {
+            Swal.fire('Restricted', 'Loyalty points are not applicable for Discount Customers.', 'warning');
+            return;
+        }
         if (!selectedCustomer.loyalty_program) {
             Swal.fire('Notice', 'Selected customer is not enrolled in a loyalty program.', 'info');
             return;
@@ -2995,9 +3005,9 @@ function Home() {
             }],
             discount_amount: displayDiscount,
             apply_discount_on: "Net Total",
-            redeem_loyalty_points: loyaltyAmount > 0 ? 1 : 0,
-            loyalty_points: loyaltyPointsToRedeem,
-            loyalty_amount: loyaltyAmount,
+            redeem_loyalty_points: (selectedCustomer?.customer_group === 'Discount Customer') ? 0 : (loyaltyAmount > 0 ? 1 : 0),
+            loyalty_points: (selectedCustomer?.customer_group === 'Discount Customer') ? 0 : loyaltyPointsToRedeem,
+            loyalty_amount: (selectedCustomer?.customer_group === 'Discount Customer') ? 0 : loyaltyAmount,
             tax_template: selectedTaxTemplate,
             taxes_and_charges: selectedTaxTemplate,
             posting_date: new Date().toISOString().slice(0, 10),
@@ -3238,9 +3248,9 @@ function Home() {
             })),
             discount_amount: discountAmount,
             apply_discount_on: "Net Total",
-            redeem_loyalty_points: loyaltyAmount > 0 ? 1 : 0,
-            loyalty_points: loyaltyPointsToRedeem,
-            loyalty_amount: loyaltyAmount,
+            redeem_loyalty_points: (selectedCustomer?.customer_group === 'Discount Customer') ? 0 : (loyaltyAmount > 0 ? 1 : 0),
+            loyalty_points: (selectedCustomer?.customer_group === 'Discount Customer') ? 0 : loyaltyPointsToRedeem,
+            loyalty_amount: (selectedCustomer?.customer_group === 'Discount Customer') ? 0 : loyaltyAmount,
             tax_template: selectedTaxTemplate,
             taxes_and_charges: selectedTaxTemplate,
             posting_date: new Date().toISOString().slice(0, 10),
@@ -3274,7 +3284,7 @@ function Home() {
                 }).then((res) => {
                     if (res.isConfirmed) {
                         let loyaltyData = null;
-                        if (selectedCustomer?.loyalty_program) {
+                        if (selectedCustomer?.loyalty_program && selectedCustomer?.customer_group !== 'Discount Customer') {
                             const sumOfEligible = billItems.reduce((sum, item) => sum + (item.custom_loyalty_eligible ? (parseFloat(item.price) * parseFloat(item.qty)) : 0), 0);
                             const pointsEarned = Math.floor(sumOfEligible);
                             const oldPoints = parseInt(selectedCustomer?.loyalty_points || 0);
@@ -3394,7 +3404,7 @@ function Home() {
                 const optionsHtml = results.slice(0, 3).map(res => `
           <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid #e2e8f0;">
             <div style="text-align:left;">
-              <div style="font-weight:900; color:#1e293b; font-size:0.85rem;">${res.warehouse}</div>
+              <div style="font-weight:900; color:#1e293b; font-size:0.85rem;">${getBranchName(res.warehouse)}</div>
               <div style="font-size:0.75rem; color:#64748b;">${res.distance} km away</div>
             </div>
             <div style="text-align:right;">
@@ -4264,7 +4274,7 @@ function Home() {
     const handlePrint = (invoiceData) => {
         const cashierName = user?.split('@')[0].toUpperCase() || 'CASHIER';
         const companyName = company || 'KYLE RETAIL';
-        const storeAddress = warehouse || 'Main Store Address';
+        const storeAddress = getBranchName(warehouse) || 'Main Store Address';
         const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoiceData.name}&scale=2&height=10`;
         const dirhamSvgHtml = `<svg viewBox="0 0 344.84 299.91" style="width: 12px; height: 10px; display: inline-block; vertical-align: middle; fill: currentColor; margin-right: 2px;"><path d="M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z"/></svg>`;
 
@@ -4285,10 +4295,10 @@ function Home() {
                     }
                     .center { text-align: center; }
                     .bold { font-weight: bold; }
-                    .divider { border-top: 1px dashed #000; margin: 8px 0; }
-                    .header h2 { margin: 0; font-size: 18px; text-transform: uppercase; }
+                    .divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    .header h2 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px; }
                     .header p { margin: 2px 0; font-size: 11px; }
-                    .info { margin: 10px 0; font-size: 11px; }
+                    .info { margin: 12px 0; font-size: 11px; }
                     .info-row { display: flex; justify-content: space-between; }
                     .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
                     .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; font-size: 11px; }
@@ -4599,6 +4609,110 @@ function Home() {
         }
     }, [selectedBillIndex, billItems]);
 
+    const triggerSwapItem = useCallback(() => {
+        if (selectedBillIndex !== -1) {
+            const activeItem = billItems[selectedBillIndex];
+            Swal.fire({
+                title: 'Swap Item',
+                html: `
+                    <div style="font-family:'Inter',sans-serif; text-align:left;">
+                        <div style="font-size:12px; font-weight:700; color:#64748b; margin-bottom:6px;">Swapping active item:</div>
+                        <div style="font-size:14px; font-weight:900; color:#0f172a; padding:8px 12px; background:#f1f5f9; border-radius:8px; border-left:4px solid #8b5cf6; margin-bottom:12px;">
+                            ${activeItem.name} (${activeItem.id})
+                        </div>
+                        <input id="swal-swap-search" class="swal2-input" placeholder="Search by name or code..." style="margin: 8px 0; width: 100%; box-sizing: border-box; font-weight: 700;">
+                        <div id="swal-swap-results" style="max-height: 200px; overflow-y: auto; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 8px; display: none;"></div>
+                    </div>
+                `,
+                showCancelButton: true,
+                showConfirmButton: false,
+                cancelButtonText: 'Cancel',
+                cancelButtonColor: '#64748b',
+                didOpen: () => {
+                    const searchInput = document.getElementById('swal-swap-search');
+                    const resultsContainer = document.getElementById('swal-swap-results');
+                    searchInput.focus();
+
+                    const updateResults = () => {
+                        const q = searchInput.value.toLowerCase().trim();
+                        if (!q) {
+                            resultsContainer.style.display = 'none';
+                            resultsContainer.innerHTML = '';
+                            return;
+                        }
+
+                        const matches = Items.filter(it => 
+                            it.id.toLowerCase().includes(q) || 
+                            (it.item_name || it.name || '').toLowerCase().includes(q) ||
+                            (it.barcodes || []).some(b => (b.barcode || '').toLowerCase().includes(q))
+                        ).slice(0, 5);
+
+                        if (matches.length === 0) {
+                            resultsContainer.style.display = 'block';
+                            resultsContainer.innerHTML = '<div style="padding: 10px; color: #64748b; text-align: center; font-size: 13px;">No items found</div>';
+                            return;
+                        }
+
+                        resultsContainer.style.display = 'block';
+                        resultsContainer.innerHTML = matches.map(it => `
+                            <div class="swal-swap-item-row" data-id="${it.id}" style="padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.15s;">
+                                <div style="text-align: left;">
+                                    <div style="font-weight: 700; font-size: 13px; color: #0f172a;">${it.item_name || it.name}</div>
+                                    <div style="font-size: 11px; color: #64748b;">${it.id}</div>
+                                </div>
+                                <div style="font-weight: 800; color: #8b5cf6; font-size: 13px;">AED ${parseFloat(it.price || 0).toFixed(2)}</div>
+                            </div>
+                        `).join('');
+
+                        const rows = resultsContainer.querySelectorAll('.swal-swap-item-row');
+                        rows.forEach(row => {
+                            row.addEventListener('mouseover', () => { row.style.backgroundColor = '#f8fafc'; });
+                            row.addEventListener('mouseout', () => { row.style.backgroundColor = 'transparent'; });
+                            row.addEventListener('click', () => {
+                                const targetId = row.getAttribute('data-id');
+                                const selectedNewItem = Items.find(item => item.id === targetId);
+                                if (selectedNewItem) {
+                                    setBillItems(prev => {
+                                        const newBill = [...prev];
+                                        const currentUom = newBill[selectedBillIndex].uom || 'Nos';
+                                        const newPrice = selectedNewItem.prices?.[currentUom] || selectedNewItem.price || 0;
+                                        newBill[selectedBillIndex] = {
+                                            ...newBill[selectedBillIndex],
+                                            id: selectedNewItem.id,
+                                            name: selectedNewItem.item_name || selectedNewItem.name,
+                                            price: parseFloat(newPrice),
+                                            base_unit_price: parseFloat(selectedNewItem.prices?.['Nos'] || selectedNewItem.prices?.['Piece'] || selectedNewItem.price || 0),
+                                            image: selectedNewItem.image,
+                                            barcode: selectedNewItem.barcode,
+                                            custom_loyalty_eligible: selectedNewItem.custom_loyalty_eligible,
+                                            actual_qty: selectedNewItem.actual_qty || 0,
+                                            local_qty: selectedNewItem.local_qty || 0,
+                                            warehouse_details: selectedNewItem.warehouse_details || [],
+                                            custom_pieces_per_box: selectedNewItem.custom_pieces_per_box || 1,
+                                            prices: selectedNewItem.prices || {},
+                                            uom_conversions: selectedNewItem.uom_conversions || {},
+                                            barcode_image: selectedNewItem.barcode_image || null
+                                        };
+                                        return newBill;
+                                    });
+                                    Swal.close();
+                                    const Toast = Swal.mixin({
+                                        toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true
+                                    });
+                                    Toast.fire({ icon: 'success', title: 'Item swapped successfully!' });
+                                }
+                            });
+                        });
+                    };
+
+                    searchInput.addEventListener('input', updateResults);
+                }
+            });
+        } else {
+            Swal.fire('Info', 'Please select an item in the cart first to swap.', 'info');
+        }
+    }, [selectedBillIndex, billItems, Items]);
+
     // ---------- KEYBOARD SHORTCUTS ENGINE ----------
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -4875,6 +4989,12 @@ function Home() {
                     clearBillHandler();
                 }
             }
+
+            // Alt + I: Swap Item
+            if (e.altKey && e.key?.toLowerCase() === 'i') {
+                e.preventDefault();
+                triggerSwapItem();
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -4895,6 +5015,7 @@ function Home() {
         clearBillHandler,
         selectedBillIndex,
         updateQuantity,
+        triggerSwapItem,
         selectedCustomer,
         promoteCustomerGroup,
         toggleUom,
@@ -5007,6 +5128,10 @@ function Home() {
                 <div className="so-shortcut-badge rose" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={clearBillHandler}>
                     <span className="so-shortcut-key">ALT+C</span>
                     <span className="so-shortcut-label">Clear</span>
+                </div>
+                <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={triggerSwapItem}>
+                    <span className="so-shortcut-key">ALT+I</span>
+                    <span className="so-shortcut-label">Swap Item</span>
                 </div>
                 <div className="so-shortcut-badge amber" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
                     if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
@@ -5389,6 +5514,7 @@ function Home() {
             { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
             { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
             { key: 'ALT+C', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
+            { key: 'ALT+I', label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
         ];
 
         return classicShortcutsData.map((s, idx) => (
@@ -5538,7 +5664,7 @@ function Home() {
                                 </span>
                                 <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.2, marginTop: '1px', color: '#10b981', whiteSpace: 'nowrap' }}>
                                     <span style={{ color: '#94a3b8', marginRight: '3px' }}>BR:</span>
-                                    {warehouse}
+                                    {getBranchName(warehouse)}
                                 </span>
                                 <span style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', marginTop: '1px', color: '#64748b', whiteSpace: 'nowrap' }}>
                                     {format(currentTime, 'MMM dd | HH:mm:ss')}
@@ -5815,7 +5941,20 @@ function Home() {
                                                 placeholder="Customer Name..."
                                                 value={customerName === 'Cash' ? '' : customerName}
                                                 className="w-full pl-9 pr-3 py-2 text-sm font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
-                                                onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
+                                                onChange={e => {
+                                                    let val = e.target.value;
+                                                    if (/^[\d+]*$/.test(val)) {
+                                                        const cleaned = val.replace(/\D/g, '');
+                                                        const limit = countryCodePrefix === '+971' ? 9 : 10;
+                                                        val = cleaned.slice(0, limit);
+                                                        setCustomerMobile(val);
+                                                        setCustomerName(val);
+                                                    } else {
+                                                        setCustomerName(val);
+                                                        setCustomerMobile('');
+                                                    }
+                                                    if (val.trim() !== 'Cash') setSelectedCustomer(null);
+                                                }}
                                                 onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); setShowDropdown(true); }}
                                                 onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
                                                 onKeyDown={async (e) => {
@@ -6288,7 +6427,7 @@ function Home() {
                                 </span>
                                 <span className="text-[10px] font-black uppercase leading-tight mt-0.5">
                                     <span className="text-slate-400 mr-1">BRANCH:</span>
-                                    <span className={isGreen ? 'text-emerald-600' : 'text-sky-600'}>{warehouse}</span>
+                                    <span className={isGreen ? 'text-emerald-600' : 'text-sky-600'}>{getBranchName(warehouse)}</span>
                                 </span>
                                 <span className="text-[9px] font-bold uppercase mt-1 tracking-tighter">
                                     <span className="text-slate-400 mr-1">DATE:</span>
@@ -6442,8 +6581,16 @@ function Home() {
                                     value={customerMobile || customerName}
                                     onChange={e => {
                                         const val = e.target.value;
-                                        if (/^[\d+]*$/.test(val)) { setCustomerMobile(val); setCustomerName(''); }
-                                        else { setCustomerName(val); setCustomerMobile(''); }
+                                        if (/^[\d+]*$/.test(val)) {
+                                            const cleaned = val.replace(/\D/g, '');
+                                            const limit = countryCodePrefix === '+971' ? 9 : 10;
+                                            const restricted = cleaned.slice(0, limit);
+                                            setCustomerMobile(restricted);
+                                            setCustomerName('');
+                                        } else {
+                                            setCustomerName(val);
+                                            setCustomerMobile('');
+                                        }
                                     }}
                                     onFocus={() => { setSearchContext('customer'); setShowDropdown(true); }}
                                     onClick={() => { setSearchContext('customer'); setShowDropdown(true); }}
@@ -7139,7 +7286,11 @@ function Home() {
                                             type="tel"
                                             placeholder="Mobile + Enter (Speed Checkout)"
                                             value={customerMobile}
-                                            onChange={(e) => setCustomerMobile(e.target.value)}
+                                            onChange={(e) => {
+                                                const cleaned = e.target.value.replace(/\D/g, '');
+                                                const limit = countryCodePrefix === '+971' ? 9 : 10;
+                                                setCustomerMobile(cleaned.slice(0, limit));
+                                            }}
                                             onKeyDown={handleMobileEnter}
                                             style={{
                                                 flex: 1, padding: '10px 40px 10px 12px',
@@ -7252,7 +7403,11 @@ function Home() {
                                         </div>
                                     )}
                                 </div>
-                                <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} className="home-customer-input" />
+                                <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => {
+                                    const cleaned = e.target.value.replace(/\D/g, '');
+                                    const limit = countryCodePrefix === '+971' ? 9 : 10;
+                                    setPhoneNumber(cleaned.slice(0, limit));
+                                }} className="home-customer-input" />
 
                                 {/* Bill Items */}
                                 <div className="home-bill-items">
