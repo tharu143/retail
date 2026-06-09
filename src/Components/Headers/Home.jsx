@@ -2528,7 +2528,10 @@ function Home() {
 
 
     const showStockBreakdown = (item) => {
-        const details = item.warehouse_details || [];
+        const details = (item.warehouse_details || []).filter(d => {
+            const whLower = (d.warehouse_name || d.warehouse || "").toLowerCase();
+            return !["goods in transit", "finished goods", "work in progress", "stores"].some(term => whLower.includes(term));
+        });
         if (details.length === 0) {
             Swal.fire('No Data', 'No branch breakdown available.', 'info');
             return;
@@ -3401,7 +3404,13 @@ function Home() {
             Swal.close();
 
             if (results && results.length > 0) {
-                const optionsHtml = results.slice(0, 3).map(res => `
+                const filteredResults = results.filter(res => {
+                    const whLower = (res.warehouse || "").toLowerCase();
+                    return !["goods in transit", "finished goods", "work in progress", "stores"].some(term => whLower.includes(term));
+                });
+
+                if (filteredResults.length > 0) {
+                    const optionsHtml = filteredResults.slice(0, 3).map(res => `
           <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid #e2e8f0;">
             <div style="text-align:left;">
               <div style="font-weight:900; color:#1e293b; font-size:0.85rem;">${getBranchName(res.warehouse)}</div>
@@ -3417,74 +3426,77 @@ function Home() {
           </div>
         `).join('');
 
-                window.requestStock = async (itemCode, fromWh, toWh) => {
-                    const itemObj = Items.find(it => it.id === itemCode || it.item_code === itemCode);
-                    const stockUom = itemObj?.stock_uom || 'Nos';
-                    const conversions = itemObj?.uom_conversions || {};
-                    const uomOptions = Object.keys(conversions).length > 0 ? Object.keys(conversions) : [stockUom];
+                    window.requestStock = async (itemCode, fromWh, toWh) => {
+                        const itemObj = Items.find(it => it.id === itemCode || it.item_code === itemCode);
+                        const stockUom = itemObj?.stock_uom || 'Nos';
+                        const conversions = itemObj?.uom_conversions || {};
+                        const uomOptions = Object.keys(conversions).length > 0 ? Object.keys(conversions) : [stockUom];
 
-                    const uomSelectHtml = uomOptions.map(u => `<option value="${u}">${u}</option>`).join('');
+                        const uomSelectHtml = uomOptions.map(u => `<option value="${u}">${u}</option>`).join('');
 
-                    const { value: formValues } = await Swal.fire({
-                        title: 'Request Details',
-                        html: `
-                            <div style="text-align: left; margin-bottom: 12px;">
-                                <label style="font-weight: 700; font-size: 13px; color: #475569;">Quantity</label>
-                                <input type="number" id="swal-input-qty" class="swal2-input" value="1" min="1" style="margin: 8px 0; width: 100%; box-sizing: border-box;">
-                            </div>
-                            <div style="text-align: left;">
-                                <label style="font-weight: 700; font-size: 13px; color: #475569;">UOM</label>
-                                <select id="swal-input-uom" class="swal2-select" style="margin: 8px 0; width: 100%; box-sizing: border-box; height: 50px;">
-                                    ${uomSelectHtml}
-                                </select>
-                            </div>
-                        `,
-                        focusConfirm: false,
-                        showCancelButton: true,
-                        confirmButtonText: 'Submit Request',
-                        confirmButtonColor: '#2563eb',
-                        preConfirm: () => {
-                            const qty = document.getElementById('swal-input-qty').value;
-                            const uom = document.getElementById('swal-input-uom').value;
-                            if (!qty || parseFloat(qty) <= 0) {
-                                Swal.showValidationMessage('Please enter a valid quantity');
-                                return false;
-                            }
-                            return { qty, uom };
-                        }
-                    });
-
-                    if (formValues) {
-                        const { qty, uom } = formValues;
-                        Swal.fire({ title: 'Creating Material Request...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                        try {
-                            const res = await frappeCall({
-                                method: 'kyle_retail.retail_api.api.create_draft_material_request',
-                                args: {
-                                    item_code: itemCode,
-                                    qty: parseFloat(qty),
-                                    from_warehouse: fromWh,
-                                    to_warehouse: toWh,
-                                    uom: uom
+                        const { value: formValues } = await Swal.fire({
+                            title: 'Request Details',
+                            html: `
+                                <div style="text-align: left; margin-bottom: 12px;">
+                                    <label style="font-weight: 700; font-size: 13px; color: #475569;">Quantity</label>
+                                    <input type="number" id="swal-input-qty" class="swal2-input" value="1" min="1" style="margin: 8px 0; width: 100%; box-sizing: border-box;">
+                                </div>
+                                <div style="text-align: left;">
+                                    <label style="font-weight: 700; font-size: 13px; color: #475569;">UOM</label>
+                                    <select id="swal-input-uom" class="swal2-select" style="margin: 8px 0; width: 100%; box-sizing: border-box; height: 50px;">
+                                        ${uomSelectHtml}
+                                    </select>
+                                </div>
+                            `,
+                            focusConfirm: false,
+                            showCancelButton: true,
+                            confirmButtonText: 'Submit Request',
+                            confirmButtonColor: '#2563eb',
+                            preConfirm: () => {
+                                const qty = document.getElementById('swal-input-qty').value;
+                                const uom = document.getElementById('swal-input-uom').value;
+                                if (!qty || parseFloat(qty) <= 0) {
+                                    Swal.showValidationMessage('Please enter a valid quantity');
+                                    return false;
                                 }
-                            });
-                            if (res.status === 'success') {
-                                Swal.fire('Success', `Material Request ${res.name} submitted successfully!`, 'success');
-                            } else {
-                                throw new Error(res.message || 'Failed to submit request');
+                                return { qty, uom };
                             }
-                        } catch (e) {
-                            Swal.fire('Error', e.message || 'Failed to create request', 'error');
-                        }
-                    }
-                };
+                        });
 
-                Swal.fire({
-                    title: 'Nearest Stock Locations',
-                    html: `<div style="margin-top:15px;">${optionsHtml}</div>`,
-                    showConfirmButton: false,
-                    showCloseButton: true
-                });
+                        if (formValues) {
+                            const { qty, uom } = formValues;
+                            Swal.fire({ title: 'Creating Material Request...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                            try {
+                                const res = await frappeCall({
+                                    method: 'kyle_retail.retail_api.api.create_draft_material_request',
+                                    args: {
+                                        item_code: itemCode,
+                                        qty: parseFloat(qty),
+                                        from_warehouse: fromWh,
+                                        to_warehouse: toWh,
+                                        uom: uom
+                                    }
+                                });
+                                if (res.status === 'success') {
+                                    Swal.fire('Success', `Material Request ${res.name} submitted successfully!`, 'success');
+                                } else {
+                                    throw new Error(res.message || 'Failed to submit request');
+                                }
+                            } catch (e) {
+                                Swal.fire('Error', e.message || 'Failed to create request', 'error');
+                            }
+                        }
+                    };
+
+                    Swal.fire({
+                        title: 'Nearest Stock Locations',
+                        html: `<div style="margin-top:15px;">${optionsHtml}</div>`,
+                        showConfirmButton: false,
+                        showCloseButton: true
+                    });
+                } else {
+                    Swal.fire('No Stock', 'Item is not available in any other branch.', 'warning');
+                }
             } else {
                 Swal.fire('No Stock', 'Item is not available in any other branch.', 'warning');
             }
