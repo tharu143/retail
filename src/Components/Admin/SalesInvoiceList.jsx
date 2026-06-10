@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Plus, X, Search, Filter, ChevronDown, FileText,
-  Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette
+  Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -254,6 +254,25 @@ const SalesInvoiceList = () => {
           });
           if (res.data.message?.status === 'success') {
             const mappedData = res.data.message.data;
+            const mappedItems = (mappedData.items || []).map(i => {
+              const isBox = (i.uom || '').toLowerCase() === 'box';
+              const pPerBox = parseFloat(i.custom_pieces_per_box || 1);
+              return {
+                ...i,
+                amount: (parseFloat(i.qty) * parseFloat(i.rate)).toFixed(2),
+                custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+                custom_box_qty: parseFloat(parseFloat(i.custom_box_qty || 0).toFixed(2)) || (isBox ? parseFloat(parseFloat(i.qty || 0).toFixed(2)) : 0),
+                custom_pieces_per_box: pPerBox,
+                default_pieces_per_box: pPerBox,
+                custom_box_price: parseFloat(parseFloat(i.custom_box_price || 0).toFixed(2)) || (isBox ? parseFloat(parseFloat(i.rate || 0).toFixed(2)) * pPerBox : 0),
+                custom_selling_price: parseFloat(parseFloat(i.custom_selling_price || 0).toFixed(2)),
+                use_box_entry: isBox,
+                uom_list: [],
+                delivery_note: dnName,
+                dn_detail: i.dn_detail || i.name || '',
+              };
+            });
+
             setForm(prev => ({
               ...prev,
               ...mappedData,
@@ -262,12 +281,23 @@ const SalesInvoiceList = () => {
               docstatus: 0,
               posting_date: new Date().toISOString().split('T')[0],
               update_billed_amount_in_delivery_note: true,
-              items: (mappedData.items || []).map(i => ({
-                ...i,
-                amount: (parseFloat(i.qty) * parseFloat(i.rate)).toFixed(2)
-              }))
+              items: mappedItems
             }));
             setSearchCustomer(mappedData.customer_name || '');
+            
+            // Async fetch UOM lists
+            mappedItems.forEach((item, idx) => {
+              fetchItemUOMs(item.item_code).then(fetchedUoms => {
+                setForm(p => {
+                  const its = [...p.items];
+                  if (its[idx]) {
+                    its[idx] = { ...its[idx], uom_list: fetchedUoms };
+                  }
+                  return { ...p, items: its };
+                });
+              });
+            });
+
             setShowModal(true);
             setIsViewOnly(false);
           }
@@ -280,6 +310,10 @@ const SalesInvoiceList = () => {
         }
       };
       fetchMappedDN();
+    } else if (params.get('invoice')) {
+      const invoiceName = params.get('invoice');
+      loadInvoiceForEdit(invoiceName);
+      navigate('/salesinvoice', { replace: true });
     }
   }, [location.search, navigate]);
 
@@ -304,8 +338,18 @@ const SalesInvoiceList = () => {
         setCustomers(Array.isArray(custRes.data.message) ? custRes.data.message : []);
         setWarehouses(Array.isArray(whRes.data.message) ? whRes.data.message : []);
         setTaxTemplates(Array.isArray(taxRes.data.message) ? taxRes.data.message : []);
-        setInvoices(Array.isArray(invRes.data.data) ? invRes.data.data : []);
-        setFilteredInvoices(Array.isArray(invRes.data.data) ? invRes.data.data : []);
+        const deduplicateInvoices = (list) => {
+          if (!list || !Array.isArray(list)) return [];
+          const seen = new Set();
+          return list.filter(item => {
+            if (!item.name || seen.has(item.name)) return false;
+            seen.add(item.name);
+            return true;
+          });
+        };
+        const deduped = deduplicateInvoices(invRes.data.data);
+        setInvoices(deduped);
+        setFilteredInvoices(deduped);
       } catch (err) {
         console.error(err);
       } finally {
@@ -408,7 +452,14 @@ const SalesInvoiceList = () => {
       uom: 'Nos',
       rate: 0,
       amount: 0,
-      income_account: defaultIncomeAccount || ''
+      income_account: defaultIncomeAccount || '',
+      custom_pieces_per_box: 1,
+      default_pieces_per_box: 1,
+      custom_box_qty: 1,
+      custom_box_price: 0,
+      custom_ref_sl_no: '',
+      use_box_entry: false,
+      uom_list: []
     };
 
     setForm(prev => ({
@@ -431,13 +482,26 @@ const SalesInvoiceList = () => {
   const selectItem = async (idx, item) => {
     if (isReturnMode) return;
     const items = [...form.items];
+    const isBox = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box';
+    const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
+
     items[idx] = {
+      ...items[idx],
       item_code: item.item_code,
       item_name: item.item_name,
+      stock_uom: item.stock_uom || 'Nos',
       uom: item.stock_uom || 'Nos',
-      qty: items[idx].qty || 1,
+      uom_list: [],
+      use_box_entry: isBox,
+      qty: 1,
       rate: 0,
-      amount: 0
+      amount: 0,
+      custom_pieces_per_box: 1,
+      default_pieces_per_box: pPerBox,
+      custom_box_qty: 1,
+      custom_box_price: 0,
+      custom_selling_price: parseFloat(item.selling_price || 0),
+      custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || ''
     };
     try {
       const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
@@ -446,15 +510,28 @@ const SalesInvoiceList = () => {
           price_list: form.selling_price_list
         }
       });
-      items[idx].rate = res.data.message?.rate || 0;
+      const rate = res.data.message?.rate || 0;
+      items[idx].rate = rate;
+      items[idx].amount = items[idx].qty * rate;
+      items[idx].custom_box_price = isBox ? rate * pPerBox : rate;
     } catch (e) {
       console.error(e);
     }
-    items[idx].amount = items[idx].qty * items[idx].rate;
     setForm(prev => ({ ...prev, items }));
     setItemQueries(prev => ({ ...prev, [idx]: '' }));
     setActiveItemRow(null);
     setDropdownPosition(null);
+
+    // Async fetch UOMs
+    fetchItemUOMs(item.item_code).then(fetchedUoms => {
+      setForm(p => {
+        const its = [...p.items];
+        const ri = its.findIndex(i => i.item_code === item.item_code);
+        if (ri !== -1) its[ri] = { ...its[ri], uom_list: fetchedUoms };
+        return { ...p, items: its };
+      });
+    });
+
     calculateTotals();
   };
 
@@ -468,6 +545,99 @@ const SalesInvoiceList = () => {
     }
     setForm(prev => ({ ...prev, items }));
     calculateTotals();
+  };
+
+  const handleUOMChangeDetails = (uomValue, rowIndex) => {
+    setForm(prev => {
+      const items = [...prev.items];
+      const item = { ...items[rowIndex] };
+      const isBox = uomValue.toLowerCase() === 'box';
+      item.uom = uomValue;
+      item.use_box_entry = isBox;
+
+      if (isBox) {
+        const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
+        item.custom_pieces_per_box = pPerBox;
+        item.qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
+        item.custom_box_price = parseFloat(((item.rate || 0) * pPerBox).toFixed(2));
+      } else {
+        item.custom_pieces_per_box = 1;
+        item.qty = parseFloat(item.custom_box_qty) || 0;
+        item.custom_box_price = item.rate || 0;
+      }
+      item.amount = (item.qty || 0) * (item.rate || 0);
+      items[rowIndex] = item;
+      return { ...prev, items };
+    });
+  };
+
+  const handleInputChangeDetails = (e, rowIndex) => {
+    const { name, value } = e.target;
+    setForm(prev => {
+      const items = [...prev.items];
+      const item = { ...items[rowIndex] };
+      item[name] = value;
+
+      const val = (value === '' || value === '.') ? 0 : parseFloat(value);
+      const isBoxMode = item.use_box_entry;
+
+      if (name === 'qty' || name === 'rate') {
+        const q = name === 'qty' ? val : (parseFloat(item.qty) || 0);
+        const r = name === 'rate' ? val : (parseFloat(item.rate) || 0);
+        item.amount = parseFloat((q * r).toFixed(2));
+
+        if (name === 'rate') {
+          item.custom_box_price = parseFloat((val * (item.custom_pieces_per_box || 1)).toFixed(2));
+        } else if (name === 'qty') {
+          item.custom_box_qty = (item.custom_pieces_per_box > 0) ? parseFloat((val / item.custom_pieces_per_box).toFixed(2)) : 0;
+        }
+      } else if (name === 'custom_box_qty') {
+        if (isBoxMode) {
+          item.qty = parseFloat((val * (item.custom_pieces_per_box || 1)).toFixed(2));
+        } else {
+          item.qty = val;
+        }
+        item.amount = parseFloat(((item.qty || 0) * (parseFloat(item.rate) || 0)).toFixed(2));
+      } else if (name === 'custom_pieces_per_box') {
+        const pPerBox = Math.max(1, isNaN(val) ? 1 : val);
+        item.qty = parseFloat(((parseFloat(item.custom_box_qty) || 0) * pPerBox).toFixed(2));
+        item.custom_box_price = parseFloat(((parseFloat(item.rate) || 0) * pPerBox).toFixed(2));
+        item.amount = parseFloat(((item.qty || 0) * (parseFloat(item.rate) || 0)).toFixed(2));
+      } else if (name === 'custom_box_price') {
+        item.rate = parseFloat((val / (item.custom_pieces_per_box || 1)).toFixed(2));
+        item.amount = parseFloat(((parseFloat(item.qty) || 0) * item.rate).toFixed(2));
+      }
+
+      items[rowIndex] = item;
+      return { ...prev, items };
+    });
+  };
+
+  const fetchItemUOMs = async (item_code) => {
+    try {
+      const res = await axios.get(`/api/resource/Item/${encodeURIComponent(item_code)}`, {
+        params: { fields: '["uoms","stock_uom"]' }
+      });
+      const doc = res.data.data || {};
+      const uomRows = doc.uoms || [];
+      const list = uomRows.map(u => ({ uom: u.uom, conversion_factor: parseFloat(u.conversion_factor) || 1 }));
+
+      const stockUom = doc.stock_uom || 'Nos';
+      if (!list.find(u => u.uom === stockUom)) {
+        list.unshift({ uom: stockUom, conversion_factor: 1 });
+      }
+
+      if (!list.find(u => (u.uom || '').toLowerCase() === "nos")) {
+        list.push({ uom: "Nos", conversion_factor: 1 });
+      }
+
+      if (!list.find(u => (u.uom || '').toLowerCase() === "box")) {
+        list.push({ uom: "Box", conversion_factor: 0 });
+      }
+      return list;
+    } catch (err) {
+      return [{ uom: 'Nos', conversion_factor: 1 }, { uom: 'Box', conversion_factor: 0 }];
+    }
   };
 
   const resetForm = () => {
@@ -529,7 +699,20 @@ const SalesInvoiceList = () => {
         rate: i.rate,
         amount: form.is_return ? -Math.abs(i.amount) : i.amount,
         uom: i.uom,
-        income_account: i.income_account || defaultIncomeAccount
+        income_account: i.income_account || defaultIncomeAccount,
+        conversion_factor: i.use_box_entry ? i.custom_pieces_per_box : (i.conversion_factor || 1.0),
+        // Preserve delivery note link
+        delivery_note: i.delivery_note || undefined,
+        dn_detail: i.dn_detail || undefined,
+        // Preserve sales order link
+        sales_order: i.sales_order || undefined,
+        so_detail: i.so_detail || undefined,
+        // Preserve custom fields
+        custom_ref_sl_no: i.custom_ref_sl_no || undefined,
+        custom_box_qty: i.custom_box_qty || undefined,
+        custom_pieces_per_box: i.custom_pieces_per_box || undefined,
+        custom_box_price: i.custom_box_price || undefined,
+        custom_selling_price: i.custom_selling_price || undefined,
       })),
       taxes_and_charges: form.taxes_and_charges || undefined,
       taxes: form.taxes
@@ -589,8 +772,15 @@ const SalesInvoiceList = () => {
           order_by: '`tabSales Invoice`.modified desc'
         }
       });
-      setInvoices(invRes.data.data || []);
-      setFilteredInvoices(invRes.data.data || []);
+      const rawInvoices = invRes.data.data || [];
+      const seenNames = new Set();
+      const dedupedInvoices = rawInvoices.filter(item => {
+        if (!item.name || seenNames.has(item.name)) return false;
+        seenNames.add(item.name);
+        return true;
+      });
+      setInvoices(dedupedInvoices);
+      setFilteredInvoices(dedupedInvoices);
 
       alert(submit ? (isReturnMode ? "Credit Note Submitted!" : "Invoice Submitted!") : "Saved as Draft");
 
@@ -616,6 +806,37 @@ const SalesInvoiceList = () => {
       const inv = res.data.data;
       setIsReturnMode(inv.is_return === 1);
       setReturnAgainst(inv.return_against || null);
+
+      const loadedItems = inv.items.map(i => {
+        const isBox = (i.uom || '').toLowerCase() === 'box';
+        const pPerBox = parseFloat(i.custom_pieces_per_box || 1);
+        return {
+          item_code: i.item_code,
+          item_name: i.item_name,
+          qty: inv.is_return ? Math.abs(i.qty) : i.qty,
+          rate: i.rate,
+          amount: Math.abs(i.amount),
+          uom: i.uom || 'Nos',
+          conversion_factor: i.conversion_factor || 1,
+          base_rate: i.base_rate || i.rate,
+          base_amount: i.base_amount || Math.abs(i.amount),
+          income_account: i.income_account || defaultIncomeAccount,
+          delivered_qty: i.delivered_qty || 0,
+          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+          custom_box_qty: parseFloat(parseFloat(i.custom_box_qty || 0).toFixed(2)) || (isBox ? parseFloat(parseFloat(i.qty || 0).toFixed(2)) : 0),
+          custom_pieces_per_box: pPerBox,
+          default_pieces_per_box: pPerBox,
+          custom_box_price: parseFloat(parseFloat(i.custom_box_price || 0).toFixed(2)) || (isBox ? parseFloat(parseFloat(i.rate || 0).toFixed(2)) * pPerBox : 0),
+          custom_selling_price: parseFloat(parseFloat(i.custom_selling_price || 0).toFixed(2)),
+          use_box_entry: isBox,
+          uom_list: [],
+          delivery_note: i.delivery_note || '',
+          dn_detail: i.dn_detail || '',
+          sales_order: i.sales_order || '',
+          so_detail: i.so_detail || '',
+        };
+      });
+
       setForm({
         name: inv.name,
         status: inv.status || 'Draft',
@@ -637,18 +858,7 @@ const SalesInvoiceList = () => {
         payments: inv.payments || [],
         outstanding_amount: inv.outstanding_amount || 0,
         paid_amount: inv.paid_amount || 0,
-        items: inv.items.map(i => ({
-          item_code: i.item_code,
-          item_name: i.item_name,
-          qty: inv.is_return ? Math.abs(i.qty) : i.qty,
-          rate: i.rate,
-          amount: Math.abs(i.amount),
-          uom: i.uom || 'Nos',
-          conversion_factor: i.conversion_factor || 1,
-          base_rate: i.base_rate || i.rate,
-          base_amount: i.base_amount || Math.abs(i.amount),
-          income_account: i.income_account || defaultIncomeAccount
-        })),
+        items: loadedItems,
         taxes_and_charges: inv.taxes_and_charges || '',
         taxes: inv.taxes || [],
         total_qty: 0,
@@ -659,7 +869,21 @@ const SalesInvoiceList = () => {
         in_words: ''
       });
       setSearchCustomer(inv.customer_name || '');
-      setIsViewOnly(true);
+
+      // Async fetch UOM lists for each item
+      loadedItems.forEach((item, idx) => {
+        fetchItemUOMs(item.item_code).then(fetchedUoms => {
+          setForm(p => {
+            const its = [...p.items];
+            if (its[idx]) {
+              its[idx] = { ...its[idx], uom_list: fetchedUoms };
+            }
+            return { ...p, items: its };
+          });
+        });
+      });
+
+      setIsViewOnly(inv.status !== 'Draft');
       setShowModal(true);
       calculateTotals();
     } catch (err) {
@@ -1058,11 +1282,8 @@ const SalesInvoiceList = () => {
 
 
         {/* Modal */}
-        {/* Modal */}
-        {showModal && (
-
-
-          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())} style={{ padding: 0, position: 'fixed', zIndex: 9999, top: 0, left: 0, right: 0, bottom: 0 }}>
+        {showModal && createPortal(
+          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())} style={{ padding: 0, position: 'fixed', zIndex: 99999, top: 0, left: 0, right: 0, bottom: 0 }}>
             <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
 
               {/* Header */}
@@ -1074,7 +1295,72 @@ const SalesInvoiceList = () => {
                     form.name ? `Edit — ${form.name}` : 'New Sales Invoice'
                   )}
                 </h2>
-                <button className="so-modal-close" onClick={() => { setShowModal(false); resetForm(); }} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#64748b' }}><X size={20} /></button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {isViewOnly ? (
+                    <>
+                      {(() => {
+                        const isFullyDelivered = form.update_stock || (form.items && form.items.length > 0 && form.items.every(item => (parseFloat(item.delivered_qty) || 0) >= (parseFloat(item.qty) || 0)));
+                        const showCreateDN = form.name && (form.status === 'Submitted' || form.status === 'Paid' || form.status === 'Unpaid') && !form.update_stock && !form.is_return && !isFullyDelivered;
+                        if (showCreateDN) {
+                          return (
+                            <button
+                              className="so-btn-primary"
+                              onClick={() => {
+                                setShowModal(false);
+                                resetForm();
+                                navigate(`/deliverynote/create?si=${encodeURIComponent(form.name)}`);
+                              }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#10b981', borderColor: '#10b981', padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
+                            >
+                              <Truck size={16} /> Create DN
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
+                      <button
+                        className="so-btn-secondary"
+                        onClick={() => handlePrint(form)}
+                        style={{ background: 'white', border: '1px solid #cbd5e1', color: '#475569', fontWeight: 600, padding: '0.45rem 0.9rem', fontSize: '0.75rem' }}
+                      >
+                        Print Invoice
+                      </button>
+                      <button
+                        className="so-btn-primary"
+                        onClick={() => setIsViewOnly(false)}
+                        style={{ minWidth: '120px', backgroundColor: themeColor, padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
+                      >
+                        Edit Invoice
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        className="so-btn-secondary" 
+                        onClick={() => createSalesInvoice(false)} 
+                        disabled={saving}
+                        style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
+                      >
+                        {saving ? 'Saving...' : 'Save Draft'}
+                      </button>
+                      <button 
+                        className="so-btn-primary" 
+                        onClick={() => createSalesInvoice(true)} 
+                        disabled={saving}
+                        style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, backgroundColor: themeColor }}
+                      >
+                        {saving ? 'Submitting...' : 'Submit Invoice'}
+                      </button>
+                    </>
+                  )}
+                  <button
+                    className="so-btn-secondary"
+                    onClick={() => { setShowModal(false); resetForm(); }}
+                    style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    <X size={14} /> Close
+                  </button>
+                </div>
               </div>
 
               {/* Body - Alignment Fix Here */}
@@ -1221,35 +1507,78 @@ const SalesInvoiceList = () => {
                         </h3>
                       </div>
                       <div style={{ overflowX: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                          <thead>
-                            <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                              <th style={{ padding: "1rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>Item Details</th>
-                              <th style={{ padding: "1rem 1.5rem", textAlign: "center", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>Qty</th>
-                              <th style={{ padding: "1rem 1.5rem", textAlign: "center", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>UOM</th>
-                              <th style={{ padding: "1rem 1.5rem", textAlign: "right", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "140px" }}>Rate</th>
-                              <th style={{ padding: "1rem 1.5rem", textAlign: "right", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "140px", paddingRight: "1.5rem" }}>Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {form.items.map((item, i) => (
-                              <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                <td style={{ padding: "1rem 1.5rem" }}>
-                                  <div style={{ fontWeight: 700, color: "#1e293b", fontSize: "0.875rem" }}>{item.item_name}</div>
-                                  <div style={{ fontSize: "0.7rem", color: themeColor, fontWeight: 800, marginTop: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.item_code}</div>
-                                </td>
-                                <td style={{ padding: "1rem 1.5rem", textAlign: "center", fontWeight: 700, color: "#334155" }}>{item.qty}</td>
-                                <td style={{ padding: "1rem 1.5rem", textAlign: "center", fontWeight: 700, color: "#64748b", fontSize: "0.75rem" }}>{item.uom || "-"}</td>
-                                <td style={{ padding: "1rem 1.5rem", textAlign: "right", fontWeight: 700, color: "#334155" }}>
-                                  {getCurrencySymbol()}{item.rate?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                </td>
-                                <td style={{ padding: "1rem 1.5rem", textAlign: "right", fontWeight: 800, color: themeColor, paddingRight: "1.5rem" }}>
-                                  {getCurrencySymbol()}{item.amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        {(() => {
+                          const hasAnyBox = form.items?.some(i => i.use_box_entry);
+                          return (
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                              <thead>
+                                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                                  <th style={{ padding: "1rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>Item Details</th>
+                                  {hasAnyBox ? (
+                                    <>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "center", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>Box Qty</th>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>UOM</th>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "center", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>Pcs/Box</th>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "right", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "120px" }}>Box Price</th>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "right", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "120px" }}>Rate (Nos)</th>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "center", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>Total Qty</th>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "center", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>Qty</th>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "center", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>UOM</th>
+                                      <th style={{ padding: "1rem 1.5rem", textAlign: "right", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "140px" }}>Rate</th>
+                                    </>
+                                  )}
+                                  <th style={{ padding: "1rem 1.5rem", textAlign: "right", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "140px", paddingRight: "1.5rem" }}>Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {form.items.map((item, i) => (
+                                  <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                    <td style={{ padding: "1rem 1.5rem" }}>
+                                      <div style={{ fontWeight: 700, color: "#1e293b", fontSize: "0.875rem" }}>{item.item_name}</div>
+                                      <div style={{ fontSize: "0.7rem", color: themeColor, fontWeight: 800, marginTop: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.item_code}</div>
+                                    </td>
+                                    {hasAnyBox ? (
+                                      <>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "center", fontWeight: 700, color: "#334155" }}>
+                                          {item.use_box_entry ? `${item.custom_box_qty} Box` : `${item.qty} Nos`}
+                                        </td>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "left", color: "#64748b", fontSize: "0.75rem", fontWeight: 700 }}>
+                                          {item.use_box_entry ? 'Box' : (item.uom || 'Nos')}
+                                        </td>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "center", fontWeight: 700, color: "#334155" }}>
+                                          {item.use_box_entry ? item.custom_pieces_per_box : '—'}
+                                        </td>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "right", fontWeight: 700, color: "#334155" }}>
+                                          {item.use_box_entry ? `${getCurrencySymbol()}${parseFloat(item.custom_box_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : '—'}
+                                        </td>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "right", fontWeight: 700, color: "#334155" }}>
+                                          {getCurrencySymbol()}{parseFloat(item.rate || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "center", fontWeight: 800, color: "#334155" }}>
+                                          {item.qty} Nos
+                                        </td>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "center", fontWeight: 700, color: "#334155" }}>{item.qty}</td>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "center", fontWeight: 700, color: "#64748b", fontSize: "0.75rem" }}>{item.uom || "-"}</td>
+                                        <td style={{ padding: "1rem 1.5rem", textAlign: "right", fontWeight: 700, color: "#334155" }}>
+                                          {getCurrencySymbol()}{item.rate?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                        </td>
+                                      </>
+                                    )}
+                                    <td style={{ padding: "1rem 1.5rem", textAlign: "right", fontWeight: 800, color: themeColor, paddingRight: "1.5rem" }}>
+                                      {getCurrencySymbol()}{item.amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -1426,128 +1755,288 @@ const SalesInvoiceList = () => {
                       </div>
                       <div className="so-card-body" style={{ padding: 0 }}>
                         <div className="so-table-wrapper" style={{ boxShadow: 'none', borderRadius: 0, border: 'none' }}>
-                          <table className="so-items-table">
-                            <thead>
-                              <tr>
-                                <th style={{ paddingLeft: '1.5rem' }}>Item Details</th>
-                                <th style={{ width: '100px', textAlign: 'center' }}>Qty</th>
-                                <th style={{ width: '80px', textAlign: 'center' }}>UOM</th>
-                                <th style={{ width: '140px', textAlign: 'right' }}>Rate</th>
-                                <th style={{ width: '140px', textAlign: 'right', paddingRight: '1.5rem' }}>Amount</th>
-                                <th style={{ width: '50px' }}></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {form.items.map((item, i) => (
-                                <tr key={i}>
-                                  <td style={{ paddingLeft: '1.5rem' }}>
-                                    <div style={{ position: 'relative' }}>
-                                      {!isReturnMode ? (
-                                        <>
-                                          <input
-                                            type="text"
-                                            value={itemQueries[i] || ''}
-                                            onChange={(e) => {
-                                              const q = e.target.value;
-                                              setItemQueries(prev => ({ ...prev, [i]: q }));
-                                              if (q.length >= 2) searchItems(q);
-                                            }}
-                                            onFocus={(e) => {
-                                              const input = e.target;
-                                              const rect = input.getBoundingClientRect();
-                                              setDropdownPosition({
-                                                top: rect.bottom + window.scrollY + 8,
-                                                left: rect.left + window.scrollX,
-                                                width: rect.width
-                                              });
-                                              setActiveItemRow(i);
-                                            }}
-                                            placeholder="Search item..."
-                                            className="so-input"
-                                            style={{ height: '36px', fontSize: '0.85rem', fontWeight: 600 }}
-                                          />
-                                          {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
-                                            <div
-                                              className="so-dropdown"
-                                              style={{
-                                                position: 'fixed',
-                                                top: dropdownPosition.top + 'px',
-                                                left: dropdownPosition.left + 'px',
-                                                width: dropdownPosition.width + 'px',
-                                                zIndex: 9999
-                                              }}
-                                            >
-                                              {allItems
-                                                .filter(it =>
-                                                  it.item_name?.toLowerCase().includes((itemQueries[i] || '').toLowerCase()) ||
-                                                  it.item_code?.toLowerCase().includes((itemQueries[i] || '').toLowerCase())
-                                                )
-                                                .slice(0, 20)
-                                                .map(it => (
-                                                  <div
-                                                    key={it.item_code}
-                                                    onClick={() => {
-                                                      selectItem(i, it);
-                                                      setDropdownPosition(null);
-                                                    }}
-                                                    className="so-dropdown-item"
-                                                  >
-                                                    <div style={{ fontWeight: 700 }}>{it.item_name}</div>
-                                                    <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{it.item_code}</div>
-                                                  </div>
-                                                ))}
-                                            </div>,
-                                            document.body
-                                          )}
-                                        </>
-                                      ) : (
-                                        <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{item.item_name}</div>
-                                      )}
-                                      {item.item_name && (
-                                        <div style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: 'var(--so-primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.item_code}</div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <input
-                                      type="number"
-                                      value={item.qty || ''}
-                                      onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)}
-                                      className="so-input"
-                                      style={{ textAlign: 'center', height: '36px', fontWeight: 700 }}
-                                      disabled={isReturnMode}
-                                    />
-                                  </td>
-                                  <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 800, color: 'var(--so-text-muted)' }}>{item.uom || '-'}</td>
-                                  <td>
-                                    <input
-                                      type="number"
-                                      value={item.rate || ''}
-                                      onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)}
-                                      className="so-input"
-                                      style={{ textAlign: 'right', height: '36px', fontWeight: 700 }}
-                                      step="0.01"
-                                      disabled={isReturnMode}
-                                    />
-                                  </td>
-                                  <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.9rem', paddingRight: '1.5rem', color: 'var(--so-primary)' }}>
-                                    {getCurrencySymbol(form.currency)}{(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </td>
-                                  <td style={{ textAlign: 'center' }}>
-                                    {!isReturnMode && (
-                                      <button
-                                        onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }))}
-                                        className="so-btn-danger"
-                                        style={{ padding: '0.25rem', borderRadius: '0.4rem' }}
-                                      >
-                                        <X size={14} />
-                                      </button>
+                          {(() => {
+                            const hasAnyBox = form.items?.some(it => it.use_box_entry);
+                            return (
+                              <table className="so-items-table">
+                                <thead>
+                                  <tr>
+                                    <th style={{ paddingLeft: '1.5rem' }}>Item Details</th>
+                                    {hasAnyBox ? (
+                                      <>
+                                        <th style={{ width: '90px', textAlign: 'center' }}>Box Qty</th>
+                                        <th style={{ width: '90px', textAlign: 'center' }}>UOM</th>
+                                        <th style={{ width: '90px', textAlign: 'center' }}>Pcs/Box</th>
+                                        <th style={{ width: '90px', textAlign: 'right' }}>Box Price</th>
+                                        <th style={{ width: '90px', textAlign: 'right' }}>Rate (Nos)</th>
+                                        <th style={{ width: '90px', textAlign: 'center' }}>Total Qty</th>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <th style={{ width: '100px', textAlign: 'center' }}>Qty</th>
+                                        <th style={{ width: '80px', textAlign: 'center' }}>UOM</th>
+                                        <th style={{ width: '140px', textAlign: 'right' }}>Rate</th>
+                                      </>
                                     )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                    <th style={{ width: '140px', textAlign: 'right', paddingRight: '1.5rem' }}>Amount</th>
+                                    <th style={{ width: '50px' }}></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {form.items.map((item, i) => (
+                                    <tr key={i}>
+                                      <td style={{ paddingLeft: '1.5rem' }}>
+                                        <div style={{ position: 'relative' }}>
+                                          {!isReturnMode ? (
+                                            <>
+                                              <input
+                                                type="text"
+                                                value={itemQueries[i] || ''}
+                                                onChange={(e) => {
+                                                  const q = e.target.value;
+                                                  setItemQueries(prev => ({ ...prev, [i]: q }));
+                                                  if (q.length >= 2) searchItems(q);
+                                                }}
+                                                onFocus={(e) => {
+                                                  const input = e.target;
+                                                  const rect = input.getBoundingClientRect();
+                                                  setDropdownPosition({
+                                                    top: rect.bottom + window.scrollY + 8,
+                                                    left: rect.left + window.scrollX,
+                                                    width: rect.width
+                                                  });
+                                                  setActiveItemRow(i);
+                                                }}
+                                                placeholder="Search item..."
+                                                className="so-input"
+                                                style={{ height: '36px', fontSize: '0.85rem', fontWeight: 600 }}
+                                              />
+                                              {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
+                                                <div
+                                                  className="so-dropdown"
+                                                  style={{
+                                                    position: 'fixed',
+                                                    top: dropdownPosition.top + 'px',
+                                                    left: dropdownPosition.left + 'px',
+                                                    width: dropdownPosition.width + 'px',
+                                                    zIndex: 9999
+                                                  }}
+                                                >
+                                                  {allItems
+                                                    .filter(it =>
+                                                      it.item_name?.toLowerCase().includes((itemQueries[i] || '').toLowerCase()) ||
+                                                      it.item_code?.toLowerCase().includes((itemQueries[i] || '').toLowerCase())
+                                                    )
+                                                    .slice(0, 20)
+                                                    .map(it => (
+                                                      <div
+                                                        key={it.item_code}
+                                                        onClick={() => {
+                                                          selectItem(i, it);
+                                                          setDropdownPosition(null);
+                                                        }}
+                                                        className="so-dropdown-item"
+                                                      >
+                                                        <div style={{ fontWeight: 700 }}>{it.item_name}</div>
+                                                        <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{it.item_code}</div>
+                                                      </div>
+                                                    ))}
+                                                </div>,
+                                                document.body
+                                              )}
+                                            </>
+                                          ) : (
+                                            <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{item.item_name}</div>
+                                          )}
+                                          {item.item_name && (
+                                            <div style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: 'var(--so-primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.item_code}</div>
+                                          )}
+                                        </div>
+                                      </td>
+
+                                      {/* Box Qty column */}
+                                      {hasAnyBox && (
+                                        <td>
+                                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                            <input
+                                              className="so-input"
+                                              style={{ textAlign: 'center', fontWeight: 'bold', color: item.use_box_entry ? '#0284c7' : '#334155', height: '36px' }}
+                                              type="text"
+                                              inputMode="decimal"
+                                              name={item.use_box_entry ? "custom_box_qty" : "qty"}
+                                              value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                              onChange={(e) => handleInputChangeDetails(e, i)}
+                                              onFocus={(e) => e.target.select()}
+                                              disabled={isReturnMode}
+                                            />
+                                            {item.item_code && (
+                                              <span style={{
+                                                position: 'absolute', right: '6px', fontSize: '8px', fontWeight: 'extrabold',
+                                                color: item.use_box_entry ? '#0284c7' : '#64748b',
+                                                background: item.use_box_entry ? 'rgba(2, 132, 199, 0.08)' : '#f8fafc',
+                                                border: `1px solid ${item.use_box_entry ? 'rgba(2, 132, 199, 0.15)' : '#e2e8f0'}`,
+                                                borderRadius: '3px', padding: '1px 3px', pointerEvents: 'none'
+                                              }}>
+                                                {item.use_box_entry ? 'BOX' : 'NOS'}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                      )}
+
+                                      {/* UOM dropdown column */}
+                                      <td>
+                                        <select
+                                          className="so-select"
+                                          value={item.uom || 'Nos'}
+                                          onChange={e => handleUOMChangeDetails(e.target.value, i)}
+                                          style={{ height: '36px', padding: '0.25rem 0.5rem', width: '100%' }}
+                                          disabled={isReturnMode}
+                                        >
+                                          {(() => {
+                                            const uniqueUoms = [];
+                                            const seen = new Set();
+                                            const candidates = [];
+                                            if (item.uom_list && Array.isArray(item.uom_list)) {
+                                              item.uom_list.forEach(u => { if (u && u.uom) candidates.push(u.uom); });
+                                            }
+                                            candidates.push(item.stock_uom || 'Nos');
+                                            candidates.push(item.uom || 'Nos');
+                                            candidates.push('Nos');
+                                            candidates.push('Box');
+
+                                            candidates.forEach(u => {
+                                              const norm = u.trim().toLowerCase();
+                                              let display = u.trim();
+                                              if (norm === 'box') display = 'Box';
+                                              else if (norm === 'nos') display = 'Nos';
+
+                                              if (!seen.has(norm)) {
+                                                seen.add(norm);
+                                                uniqueUoms.push(display);
+                                              }
+                                            });
+                                            return uniqueUoms.map(uomVal => (
+                                              <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                            ));
+                                          })()}
+                                        </select>
+                                      </td>
+
+                                      {/* Pcs/Box column */}
+                                      {hasAnyBox && (
+                                        <td>
+                                          {item.use_box_entry ? (
+                                            <input
+                                              className="so-input"
+                                              style={{ textAlign: 'center', height: '36px' }}
+                                              type="text"
+                                              inputMode="decimal"
+                                              name="custom_pieces_per_box"
+                                              value={item.custom_pieces_per_box || ''}
+                                              onChange={(e) => handleInputChangeDetails(e, i)}
+                                              onFocus={(e) => e.target.select()}
+                                              disabled={isReturnMode}
+                                            />
+                                          ) : (
+                                            <div style={{ textAlign: 'center', fontSize: '0.75rem', opacity: 0.3 }}>—</div>
+                                          )}
+                                        </td>
+                                      )}
+
+                                      {/* Box Price column */}
+                                      {hasAnyBox && (
+                                        <td>
+                                          {item.use_box_entry ? (
+                                            <input
+                                              className="so-input"
+                                              style={{ textAlign: 'right', fontWeight: 'bold', height: '36px' }}
+                                              type="text"
+                                              inputMode="decimal"
+                                              name="custom_box_price"
+                                              value={item.custom_box_price || ''}
+                                              onChange={(e) => handleInputChangeDetails(e, i)}
+                                              onFocus={(e) => e.target.select()}
+                                              disabled={isReturnMode}
+                                            />
+                                          ) : (
+                                            <div style={{ textAlign: 'center', fontSize: '0.75rem', opacity: 0.3 }}>—</div>
+                                          )}
+                                        </td>
+                                      )}
+
+                                      {/* Rate (Nos) column */}
+                                      <td>
+                                        <input
+                                          className="so-input"
+                                          style={{ textAlign: 'right', fontWeight: 'bold', height: '36px' }}
+                                          type="text"
+                                          inputMode="decimal"
+                                          name="rate"
+                                          value={item.rate || ''}
+                                          onChange={(e) => handleInputChangeDetails(e, i)}
+                                          onFocus={(e) => e.target.select()}
+                                          disabled={isReturnMode}
+                                        />
+                                      </td>
+
+                                      {/* Total Qty column (read-only for boxes) */}
+                                      {hasAnyBox && (
+                                        <td>
+                                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                            <div style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', height: '36px', display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+                                              {item.qty || 0}
+                                            </div>
+                                            {item.use_box_entry && (
+                                              <span style={{
+                                                position: 'absolute', right: '8px', fontSize: '8px', fontWeight: 'extrabold',
+                                                color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0',
+                                                borderRadius: '3px', padding: '1px 3px', pointerEvents: 'none'
+                                              }}>
+                                                NOS
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                      )}
+
+                                      {/* Simplified Qty column if there are no boxes in the document */}
+                                      {!hasAnyBox && (
+                                        <td>
+                                          <input
+                                            type="number"
+                                            value={item.qty || ''}
+                                            onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)}
+                                            className="so-input"
+                                            style={{ textAlign: 'center', height: '36px', fontWeight: 700 }}
+                                            disabled={isReturnMode}
+                                          />
+                                        </td>
+                                      )}
+
+                                      {/* Amount column */}
+                                      <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.9rem', paddingRight: '1.5rem', color: 'var(--so-primary)' }}>
+                                        {getCurrencySymbol(form.currency)}{(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                      </td>
+
+                                      {/* Delete action column */}
+                                      <td style={{ textAlign: 'center' }}>
+                                        {!isReturnMode && (
+                                          <button
+                                            onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }))}
+                                            className="so-btn-danger"
+                                            style={{ padding: '0.25rem', borderRadius: '0.4rem' }}
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -1590,46 +2079,9 @@ const SalesInvoiceList = () => {
                   </>
                 )}
               </div>
-
-              {/* Footer */}
-              <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={() => { setShowModal(false); resetForm(); }}>
-                  Close
-                </button>
-
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-
-                  {isViewOnly ? (
-                    <>
-                      <button
-                        className="so-btn-secondary"
-                        onClick={() => handlePrint(form)}
-                        style={{ background: 'white', border: '1px solid #cbd5e1', color: '#475569', fontWeight: 600 }}
-                      >
-                        Print Invoice
-                      </button>
-                      <button
-                        className="so-btn-primary"
-                        onClick={() => setIsViewOnly(false)}
-                        style={{ minWidth: '120px', backgroundColor: themeColor }}
-                      >
-                        Edit Invoice
-                      </button>
-                    </>
-                  ) : (
-
-                    <>
-                      <button className="so-btn-secondary" onClick={() => createSalesInvoice(false)} disabled={saving}>
-                        {saving ? 'Saving...' : 'Save Draft'}
-                      </button>
-                      <button className="so-btn-primary" onClick={() => createSalesInvoice(true)} disabled={saving}>
-                        {saving ? 'Submitting...' : 'Submit Invoice'}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>            </div>
-          </div>
+            </div>
+          </div>,
+          document.body
         )}
 
 

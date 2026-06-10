@@ -49,6 +49,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
       email_id: '',
       mobile_no: '',
       designation: '',
+      company_name: '',
       gender: '',
       is_primary_contact: true,
       // Internal
@@ -133,8 +134,10 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             email_id: editingSupplier.contact_details?.email_id || editingSupplier.email_id || '',
             mobile_no: editingSupplier.contact_details?.mobile_no || editingSupplier.mobile_no || '',
             designation: editingSupplier.contact_details?.designation || '',
+            company_name: editingSupplier.contact_details?.company_name || '',
             gender: editingSupplier.contact_details?.gender || '',
-            is_primary_contact: editingSupplier.contact_details?.is_primary_contact !== undefined ? !!editingSupplier.contact_details.is_primary_contact : true
+            is_primary_contact: editingSupplier.contact_details?.is_primary_contact !== undefined ? !!editingSupplier.contact_details.is_primary_contact : true,
+            supplier_details: editingSupplier.supplier_details || ''
          });
       } else {
          setForm({
@@ -143,7 +146,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             disabled: false, tax_id: '', tax_category: '', tax_withholding_category: '',
             website: '',
             address_title: '', address_type: 'Office', address_line1: '', address_line2: '', city: '', emirate: 'Dubai', state: '', postal_code: '', address_email: '', address_phone: '',
-            salutation: '', first_name: '', middle_name: '', last_name: '', email_id: '', mobile_no: '', designation: '', gender: '', is_primary_contact: true,
+            salutation: '', first_name: '', middle_name: '', last_name: '', email_id: '', mobile_no: '', designation: '', company_name: '', gender: '', is_primary_contact: true,
             supplier_details: '', default_currency: 'AED',
             default_price_list: '', payment_terms: '',
             allow_purchase_invoice_creation_without_purchase_order: false,

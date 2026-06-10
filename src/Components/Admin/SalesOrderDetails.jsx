@@ -443,11 +443,13 @@ export default function SalesOrderDetails() {
                 };
             });
 
+            const totalQty = loadedItems.reduce((s, i) => s + (parseFloat(i.qty) || 0), 0);
             setForm({
                 ...d,
                 set_source_warehouse: d.set_warehouse || (loadedItems[0] && loadedItems[0].warehouse) || '',
                 items: loadedItems,
-                taxes: d.taxes || []
+                taxes: d.taxes || [],
+                total_qty: totalQty
             });
 
             // Async UOM fetch for each item
@@ -537,12 +539,24 @@ export default function SalesOrderDetails() {
             const endpoint = type === 'Delivery Note' ? 'create_delivery_note_from_so' : 'create_sales_invoice_from_so';
             const res = await axios.post(`/api/method/kyle_retail.retail_api.api.${endpoint}`, {
                 so_name: name,
-                submit_doc: true
+                submit_doc: false
             }, { withCredentials: true });
 
             if (res.data.message?.status === 'success') {
-                Swal.fire({ icon: 'success', title: `${type} Created`, text: res.data.message.name });
-                fetchLinkedDocs();
+                const createdName = res.data.message.name;
+                Swal.fire({ 
+                    icon: 'success', 
+                    title: `${type} Created (Draft)`, 
+                    text: createdName,
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                
+                if (type === 'Delivery Note') {
+                    navigate(`/deliverynote-details/${encodeURIComponent(createdName)}`);
+                } else {
+                    navigate(`/salesinvoice?invoice=${encodeURIComponent(createdName)}`);
+                }
             } else {
                 throw new Error(res.data.message?.message || 'Transition failed');
             }
@@ -1351,22 +1365,26 @@ export default function SalesOrderDetails() {
                             )}
                             {form.docstatus === 1 && (
                                 <>
-                                    <button
-                                        onClick={() => handleTransistion('Delivery Note')}
-                                        disabled={loadingLinks}
-                                        className="so-btn-primary"
-                                        style={{ background: '#10b981', borderColor: '#10b981' }}
-                                    >
-                                        {loadingLinks ? <Loader2 size={16} className="animate-spin" /> : <ShoppingCart size={16} />} Create DN
-                                    </button>
-                                    <button
-                                        onClick={() => handleTransistion('Sales Invoice')}
-                                        disabled={loadingLinks}
-                                        className="so-btn-primary"
-                                        style={{ background: '#3b82f6', borderColor: '#3b82f6' }}
-                                    >
-                                        {loadingLinks ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />} Create Invoice
-                                    </button>
+                                    {(form.per_delivered || 0) < 99.9 && (
+                                        <button
+                                            onClick={() => handleTransistion('Delivery Note')}
+                                            disabled={loadingLinks}
+                                            className="so-btn-primary"
+                                            style={{ background: '#10b981', borderColor: '#10b981' }}
+                                        >
+                                            {loadingLinks ? <Loader2 size={16} className="animate-spin" /> : <ShoppingCart size={16} />} Create DN
+                                        </button>
+                                    )}
+                                    {(form.per_billed || 0) < 99.9 && (
+                                        <button
+                                            onClick={() => handleTransistion('Sales Invoice')}
+                                            disabled={loadingLinks}
+                                            className="so-btn-primary"
+                                            style={{ background: '#3b82f6', borderColor: '#3b82f6' }}
+                                        >
+                                            {loadingLinks ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />} Create Invoice
+                                        </button>
+                                    )}
                                 </>
                             )}
                         </>

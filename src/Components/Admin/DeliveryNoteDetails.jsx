@@ -588,6 +588,72 @@ const DeliveryNoteDetails = () => {
         } catch (err) { navigate('/deliverynote'); }
     };
 
+    const loadMappedSI = async (siName) => {
+        try {
+            setLoading(true);
+            const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_mapped_doc_retail', {
+                params: { from_doctype: 'Sales Invoice', to_doctype: 'Delivery Note', source_name: siName },
+                withCredentials: true
+            });
+            if (res.data.message?.status === 'success') {
+                const mappedData = res.data.message.data;
+                const loadedItems = (mappedData.items || []).map(it => {
+                    const isBox = (it.uom || '').toLowerCase() === 'box';
+                    const pPerBox = parseFloat(it.custom_pieces_per_box || 1);
+                    return {
+                        ...DNItemModel,
+                        ...it,
+                        custom_ref_sl_no: it.custom_ref_sl_no || it.custom_supplier_sl_num || '',
+                        custom_box_qty: parseFloat(parseFloat(it.custom_box_qty || 0).toFixed(2)),
+                        custom_pieces_per_box: pPerBox,
+                        default_pieces_per_box: pPerBox,
+                        custom_box_price: parseFloat(parseFloat(it.custom_box_price || 0).toFixed(2)),
+                        custom_selling_price: parseFloat(parseFloat(it.custom_selling_price || 0).toFixed(2)),
+                        qty: parseFloat(parseFloat(it.qty || 0).toFixed(2)),
+                        rate: parseFloat(parseFloat(it.rate || 0).toFixed(2)),
+                        amount: parseFloat(parseFloat(it.amount || 0).toFixed(2)),
+                        use_box_entry: isBox
+                    };
+                });
+
+                // Async fetch UOM lists for each item
+                loadedItems.forEach((item, idx) => {
+                    fetchItemUOMs(item.item_code).then(fetchedUoms => {
+                        setForm(p => {
+                            const its = [...p.items];
+                            if (its[idx]) {
+                                its[idx] = { ...its[idx], uom_list: fetchedUoms };
+                            }
+                            return { ...p, items: its };
+                        });
+                    });
+                });
+
+                setForm({
+                    ...mappedData,
+                    name: '', // New draft
+                    status: 'Draft',
+                    docstatus: 0,
+                    posting_date: new Date().toISOString().split('T')[0],
+                    posting_time: new Date().toTimeString().slice(0, 5),
+                    items: loadedItems,
+                    taxes: mappedData.taxes || []
+                });
+                setCustomerQuery(mappedData.customer_name || '');
+                setIsViewOnly(false);
+                setIsDirty(true);
+                setActiveTab('details');
+            } else {
+                throw new Error(res.data.message?.message || 'Failed to map Sales Invoice');
+            }
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Mapping Failed', text: err.message });
+            navigate('/deliverynote');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const openCreateModal = (templates = []) => {
         const defaultWh = loggedWarehouse || localStorage.getItem('warehouse') || '';
         const list = templates.length > 0 ? templates : taxTemplates;
@@ -624,10 +690,17 @@ const DeliveryNoteDetails = () => {
 
     useEffect(() => {
         loadMetadata().then((templates) => {
-            if (name) loadDeliveryNote(name);
-            else if (location.pathname.includes('/create')) openCreateModal(templates);
+            const params = new URLSearchParams(location.search);
+            const siName = params.get('si');
+            if (name) {
+                loadDeliveryNote(name);
+            } else if (siName) {
+                loadMappedSI(siName);
+            } else if (location.pathname.includes('/create')) {
+                openCreateModal(templates);
+            }
         });
-    }, [name, location.pathname]);
+    }, [name, location.pathname, location.search]);
 
     useEffect(() => {
         setForm(prev => {
@@ -1038,13 +1111,23 @@ const DeliveryNoteDetails = () => {
                             >
                                 <X size={16} /> Discard
                             </button>
-                            {(allowedActions.includes('save') || isNew) && (
+                            {(form.docstatus === 0 || isNew) && (
                                 <button
                                     onClick={() => handleDocAction('save')}
                                     disabled={saving}
                                     className="so-btn-primary"
                                 >
                                     {saving ? <Loader2 size={16} className="so-spinner" /> : <Save size={16} />} Save Draft
+                                </button>
+                            )}
+                            {!isNew && form.docstatus === 0 && (
+                                <button
+                                    onClick={() => handleDocAction('submit')}
+                                    disabled={saving}
+                                    className="so-btn-primary"
+                                    style={{ background: '#10b981', borderColor: '#10b981' }}
+                                >
+                                    {saving ? <Loader2 size={16} className="so-spinner" /> : <CheckCircle2 size={16} />} Submit Delivery
                                 </button>
                             )}
                         </>
@@ -1082,13 +1165,15 @@ const DeliveryNoteDetails = () => {
                             )}
                             {form.docstatus === 1 && (
                                 <>
-                                    <button
-                                        onClick={handleCreateInvoice}
-                                        className="so-btn-primary"
-                                        style={{ background: '#3b82f6', borderColor: '#3b82f6' }}
-                                    >
-                                        <FileText size={16} /> Create Invoice
-                                    </button>
+                                    {(form.per_billed || 0) < 99.9 && (
+                                        <button
+                                            onClick={handleCreateInvoice}
+                                            className="so-btn-primary"
+                                            style={{ background: '#3b82f6', borderColor: '#3b82f6' }}
+                                        >
+                                            <FileText size={16} /> Create Invoice
+                                        </button>
+                                    )}
                                     {allowedActions.includes('cancel') && (
                                         <button
                                             onClick={() => handleDocAction('cancel')}

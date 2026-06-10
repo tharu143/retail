@@ -8,7 +8,9 @@ const ModernNoImageGrid = ({
     handleAddToBill,
     handleOutOfStockAlert,
     showStockBreakdown,
-    handleFindNearestStock
+    handleFindNearestStock,
+    activeCardIndex,
+    setActiveCardIndex
 }) => {
     return (
         <div className="so-grid-area">
@@ -18,11 +20,12 @@ const ModernNoImageGrid = ({
                     <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
                 </div>
             ) : (
-                filteredItems.map(item => (
+                filteredItems.map((item, index) => (
                     <div
                         key={item.id}
-                        className="so-item-card no-image"
+                        className={`so-item-card no-image relative ${activeCardIndex === index ? 'focused-card' : ''}`}
                         onClick={() => {
+                            if (setActiveCardIndex) setActiveCardIndex(index);
                             setLastInteractedItem(item);
                             if (item.local_qty > 0) {
                                 handleAddToBill(item);
@@ -32,7 +35,7 @@ const ModernNoImageGrid = ({
                         }}
                         style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
                     >
-                        {/* Top Row: Barcode */}
+                        {/* Top Row: Barcode & Focused Indicator */}
                         <div className="flex items-center justify-between w-full" style={{ height: '16px' }}>
                             {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) ? (
                                 <span className="text-slate-400 font-bold flex items-center gap-1 text-[9px]" style={{ letterSpacing: '0.02em' }}>
@@ -42,6 +45,11 @@ const ModernNoImageGrid = ({
                                 <span className="text-slate-300 font-bold flex items-center gap-1 text-[9px]">
                                     <Barcode size={10} className="opacity-20" /> -
                                 </span>
+                            )}
+                            {activeCardIndex === index && (
+                                <div className="bg-amber-500 text-white text-[8px] font-extrabold px-1 rounded shadow-sm uppercase tracking-wider animate-pulse flex items-center gap-0.5" style={{ height: '14px', lineHeight: '14px' }}>
+                                    <span className="bg-amber-600 px-0.5 rounded text-[7px]">ENTER</span> ADD
+                                </div>
                             )}
                         </div>
 

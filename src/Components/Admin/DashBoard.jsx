@@ -1,13 +1,12 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ArrowRight, 
-  ShoppingCart, 
-  Users, 
-  BarChart3, 
-  Boxes, 
-  Monitor, 
+import {
+  ArrowRight,
+  ShoppingCart,
+  Users,
+  BarChart3,
+  Boxes,
+  Monitor,
   ChevronRight,
   TrendingUp,
   PackageCheck,
@@ -60,7 +59,7 @@ const routeMap = {
   'Closing Entry List': { path: '/posclosingentrylist', icon: FileText },
   'New Closing Entry': { path: '/closingentry', icon: Monitor },
   'POS Invoices': { path: '/invoicelist', icon: Receipt },
-  'Sync Manager': { path: '/syncmanager', icon: ClipboardList },
+
   'Inter-Branch Requests': { path: '/interbranchrequests', icon: ArrowRightLeft },
   'New Transfer Request': { path: '/newinterbranchrequest', icon: PlusCircle },
 
@@ -74,6 +73,7 @@ const routeMap = {
   // System
   'POS Health': { path: '/poshealth', icon: TrendingUp },
   'Settings': { path: '/settings', icon: Settings },
+  'Sync Manager': { path: '/syncmanager', icon: ClipboardList },
 };
 
 function Dashboard() {
@@ -93,7 +93,7 @@ function Dashboard() {
       icon: TrendingUp,
       colorClass: 'icon-sales',
       cardClass: 'card-sales',
-      items: ['Customer', 'Sales Order', 'Sales Invoice', 'Sync Manager', 'Delivery Note', 'Sales Return'],
+      items: ['Customer', 'Sales Order', 'Sales Invoice', 'Delivery Note', 'Sales Return'],
     },
     {
       title: 'Stock Management',
@@ -128,14 +128,14 @@ function Dashboard() {
       icon: Settings,
       colorClass: 'icon-pos',
       cardClass: 'card-pos',
-      items: ['POS Health', 'Settings'],
+      items: ['POS Health', 'Settings', 'Sync Manager'],
     },
   ];
 
   return (
     <div className="dashboard-modern-container">
       <div className="max-w-7xl mx-auto">
-        
+
         <header className="dashboard-header">
           <div className="welcome-text">
             <h1>Welcome back, {typeof user === 'string' && user ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase()) : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋</h1>

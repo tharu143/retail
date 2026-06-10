@@ -1018,6 +1018,7 @@ function Home() {
     const [categories, setCategories] = useState(["all"]);
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [filteredItems, setFilteredItems] = useState([]);
+    const [activeCardIndex, setActiveCardIndex] = useState(-1);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [billItems, setBillItems] = useState([]);
     const [selectedBillIndex, setSelectedBillIndex] = useState(-1);
@@ -1033,6 +1034,19 @@ function Home() {
             if (el) el.scrollIntoView({ behavior: 'auto', block: 'nearest' });
         }
     }, [selectedBillIndex]);
+
+    useEffect(() => {
+        if (activeCardIndex !== -1) {
+            const cardEl = document.querySelector(`.so-grid-area .so-item-card:nth-child(${activeCardIndex + 1})`);
+            if (cardEl) {
+                cardEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        }
+    }, [activeCardIndex]);
+
+    useEffect(() => {
+        setActiveCardIndex(-1);
+    }, [selectedCategory, barcodeInput]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1417,7 +1431,7 @@ function Home() {
             setSelectedPaymentMode('Credit');
         }
     };
-    
+
     const pickCustomer = async (cust) => {
         setSelectedCustomer(cust);
         setCustomerName(cust.customer_name);
@@ -1513,7 +1527,7 @@ function Home() {
             if (createForm.address) formData.append("address", createForm.address);
             if (createForm.email) formData.append("email", createForm.email);
             if (warehouse) formData.append("warehouse", warehouse);
-            
+
             const hostname = window.location.hostname.toLowerCase();
             if (hostname.includes('retailpos') || hostname.includes('kyleretail') || hostname.includes('retail.kylesolutions.com')) {
                 formData.append("country", "United Arab Emirates");
@@ -4647,19 +4661,38 @@ function Home() {
                     const resultsContainer = document.getElementById('swal-swap-results');
                     searchInput.focus();
 
+                    let focusedRowIndex = -1;
+                    let currentMatches = [];
+
+                    const highlightRow = (idx) => {
+                        const rows = resultsContainer.querySelectorAll('.swal-swap-item-row');
+                        rows.forEach((row, i) => {
+                            if (i === idx) {
+                                row.style.backgroundColor = '#e2e8f0';
+                                row.scrollIntoView({ block: 'nearest' });
+                            } else {
+                                row.style.backgroundColor = 'transparent';
+                            }
+                        });
+                    };
+
                     const updateResults = () => {
                         const q = searchInput.value.toLowerCase().trim();
+                        focusedRowIndex = -1;
                         if (!q) {
+                            currentMatches = [];
                             resultsContainer.style.display = 'none';
                             resultsContainer.innerHTML = '';
                             return;
                         }
 
-                        const matches = Items.filter(it => 
-                            it.id.toLowerCase().includes(q) || 
+                        const matches = Items.filter(it =>
+                            it.id.toLowerCase().includes(q) ||
                             (it.item_name || it.name || '').toLowerCase().includes(q) ||
                             (it.barcodes || []).some(b => (b.barcode || '').toLowerCase().includes(q))
                         ).slice(0, 5);
+
+                        currentMatches = matches;
 
                         if (matches.length === 0) {
                             resultsContainer.style.display = 'block';
@@ -4679,9 +4712,16 @@ function Home() {
                         `).join('');
 
                         const rows = resultsContainer.querySelectorAll('.swal-swap-item-row');
-                        rows.forEach(row => {
-                            row.addEventListener('mouseover', () => { row.style.backgroundColor = '#f8fafc'; });
-                            row.addEventListener('mouseout', () => { row.style.backgroundColor = 'transparent'; });
+                        rows.forEach((row, i) => {
+                            row.addEventListener('mouseover', () => {
+                                focusedRowIndex = i;
+                                highlightRow(i);
+                            });
+                            row.addEventListener('mouseout', () => {
+                                if (focusedRowIndex !== i) {
+                                    row.style.backgroundColor = 'transparent';
+                                }
+                            });
                             row.addEventListener('click', () => {
                                 const targetId = row.getAttribute('data-id');
                                 const selectedNewItem = Items.find(item => item.id === targetId);
@@ -4720,6 +4760,28 @@ function Home() {
                     };
 
                     searchInput.addEventListener('input', updateResults);
+
+                    searchInput.addEventListener('keydown', (e) => {
+                        if (currentMatches.length === 0) return;
+
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            focusedRowIndex = (focusedRowIndex + 1) % currentMatches.length;
+                            highlightRow(focusedRowIndex);
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            focusedRowIndex = (focusedRowIndex - 1 + currentMatches.length) % currentMatches.length;
+                            highlightRow(focusedRowIndex);
+                        } else if (e.key === 'Enter') {
+                            if (focusedRowIndex >= 0 && focusedRowIndex < currentMatches.length) {
+                                e.preventDefault();
+                                const rows = resultsContainer.querySelectorAll('.swal-swap-item-row');
+                                if (rows[focusedRowIndex]) {
+                                    rows[focusedRowIndex].click();
+                                }
+                            }
+                        }
+                    });
                 }
             });
         } else {
@@ -4943,6 +5005,8 @@ function Home() {
                     const item = billItems[selectedBillIndex];
                     const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
                     toggleUom(item.id, newUom);
+                } else {
+                    Swal.fire('Info', 'Select an item in cart first', 'info');
                 }
             }
 
@@ -4950,6 +5014,65 @@ function Home() {
             if (e.key === 'F10') {
                 e.preventDefault();
                 handleSaveDraft();
+            }
+
+            // Card Selection Grid Navigation in Modern Themes
+            if (theme !== 'legacy' && activeCardIndex !== -1 && !showDiscountModal && !showPaymentModal) {
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    setActiveCardIndex(prev => Math.min(prev + 1, filteredItems.length - 1));
+                    return;
+                }
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    setActiveCardIndex(prev => Math.max(prev - 1, 0));
+                    return;
+                }
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const gridEl = document.querySelector('.so-grid-area');
+                    let cols = 6;
+                    if (gridEl) {
+                        const computedStyle = window.getComputedStyle(gridEl);
+                        const gridTemplateColumns = computedStyle.getPropertyValue('grid-template-columns');
+                        if (gridTemplateColumns) {
+                            cols = gridTemplateColumns.trim().split(/\s+/).length || 6;
+                        }
+                    }
+                    setActiveCardIndex(prev => Math.min(prev + cols, filteredItems.length - 1));
+                    return;
+                }
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const gridEl = document.querySelector('.so-grid-area');
+                    let cols = 6;
+                    if (gridEl) {
+                        const computedStyle = window.getComputedStyle(gridEl);
+                        const gridTemplateColumns = computedStyle.getPropertyValue('grid-template-columns');
+                        if (gridTemplateColumns) {
+                            cols = gridTemplateColumns.trim().split(/\s+/).length || 6;
+                        }
+                    }
+                    setActiveCardIndex(prev => Math.max(prev - cols, 0));
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const item = filteredItems[activeCardIndex];
+                    if (item) {
+                        if (item.local_qty > 0) {
+                            handleAddToBill(item);
+                        } else {
+                            handleOutOfStockAlert(item);
+                        }
+                    }
+                    return;
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setActiveCardIndex(-1);
+                    return;
+                }
             }
 
             // Arrow Keys for Bill Navigation & Tax Toggle (Ignored when payment or discount modal is open)
@@ -5004,10 +5127,16 @@ function Home() {
                 }
             }
 
-            // Alt + I: Swap Item
+            // Alt + I: Grid Card Selection Mode (Modern Themes) or Swap Item (Classic Theme)
             if (e.altKey && e.key?.toLowerCase() === 'i') {
                 e.preventDefault();
-                triggerSwapItem();
+                if (theme !== 'legacy') {
+                    if (filteredItems.length > 0) {
+                        setActiveCardIndex(prev => prev === -1 ? 0 : -1);
+                    }
+                } else {
+                    triggerSwapItem();
+                }
             }
         };
 
@@ -5042,7 +5171,12 @@ function Home() {
         handleBulkQtyUpdate,
         handleSaveDraft,
         discount,
-        setDiscount
+        setDiscount,
+        activeCardIndex,
+        filteredItems,
+        handleAddToBill,
+        handleOutOfStockAlert,
+        theme
     ]);
 
     if (loadingItems && Items.length === 0) return <div className="home-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><p>Loading items...</p></div>;
@@ -5143,10 +5277,21 @@ function Home() {
                     <span className="so-shortcut-key">ALT+C</span>
                     <span className="so-shortcut-label">Clear</span>
                 </div>
-                <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={triggerSwapItem}>
-                    <span className="so-shortcut-key">ALT+I</span>
-                    <span className="so-shortcut-label">Swap Item</span>
-                </div>
+                {theme !== 'legacy' ? (
+                    <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                        if (filteredItems.length > 0) {
+                            setActiveCardIndex(prev => prev === -1 ? 0 : -1);
+                        }
+                    }}>
+                        <span className="so-shortcut-key">ALT+I</span>
+                        <span className="so-shortcut-label">Select Item</span>
+                    </div>
+                ) : (
+                    <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={triggerSwapItem}>
+                        <span className="so-shortcut-key">ALT+I</span>
+                        <span className="so-shortcut-label">Swap Item</span>
+                    </div>
+                )}
                 <div className="so-shortcut-badge amber" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
                     if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
                     else Swal.fire('Info', 'Select or scan an item first.', 'info');
@@ -5163,6 +5308,8 @@ function Home() {
                         const item = billItems[selectedBillIndex];
                         const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
                         toggleUom(item.id, newUom);
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
                     }
                 }}>
                     <span className="so-shortcut-key">F8</span>
@@ -5559,10 +5706,8 @@ function Home() {
                 background: isGreen ? '#0d4a35' : '#0d3050',
                 borderBottom: shortcutsPosition === 'top' ? `2px solid ${borderColor}` : 'none',
                 borderTop: shortcutsPosition === 'bottom' ? `2px solid ${borderColor}` : 'none',
-                overflowX: 'auto',
-                scrollbarWidth: 'none', msOverflowStyle: 'none',
                 flexShrink: 0,
-                flexWrap: 'nowrap'
+                flexWrap: 'wrap'
             }}>
                 {renderDragHandle()}
                 {renderShortcutsSelector()}
@@ -5847,6 +5992,8 @@ function Home() {
                                         handleOutOfStockAlert={handleOutOfStockAlert}
                                         showStockBreakdown={showStockBreakdown}
                                         handleFindNearestStock={handleFindNearestStock}
+                                        activeCardIndex={activeCardIndex}
+                                        setActiveCardIndex={setActiveCardIndex}
                                     />
                                 ) : (
                                     <div className="so-grid-area">
@@ -5856,11 +6003,19 @@ function Home() {
                                                 <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
                                             </div>
                                         ) : (
-                                            filteredItems.map(item => (
+                                            filteredItems.map((item, index) => (
                                                 <div
                                                     key={item.id}
-                                                    className="so-item-card"
-                                                    onClick={() => { setLastInteractedItem(item); if (item.local_qty > 0) { handleAddToBill(item); } else { handleOutOfStockAlert(item); } }}
+                                                    className={`so-item-card ${activeCardIndex === index ? 'focused-card' : ''}`}
+                                                    onClick={() => {
+                                                        setActiveCardIndex(index);
+                                                        setLastInteractedItem(item);
+                                                        if (item.local_qty > 0) {
+                                                            handleAddToBill(item);
+                                                        } else {
+                                                            handleOutOfStockAlert(item);
+                                                        }
+                                                    }}
                                                     style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
                                                 >
                                                     <div className="relative group">
@@ -5870,6 +6025,11 @@ function Home() {
                                                             <div className="so-item-img flex flex-col items-center justify-center bg-slate-50 border border-slate-100 text-slate-300">
                                                                 <Package size={28} strokeWidth={1.5} />
                                                                 <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">No Image</span>
+                                                            </div>
+                                                        )}
+                                                        {activeCardIndex === index && (
+                                                            <div className="absolute top-2 right-2 z-20 bg-amber-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-md uppercase tracking-wider animate-pulse flex items-center gap-1">
+                                                                <span className="bg-amber-600 px-1 rounded text-[8px]">ENTER</span> ADD
                                                             </div>
                                                         )}
                                                     </div>
@@ -6190,6 +6350,7 @@ function Home() {
                                         value={barcodeInput}
                                         onChange={e => setBarcodeInput(e.target.value)}
                                         onKeyDown={onBarcodeKeyDown}
+                                        onFocus={() => setActiveCardIndex(-1)}
                                         className="so-customer-input pl-10 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
                                     />
                                 </div>
@@ -6938,6 +7099,22 @@ function Home() {
                         {/* BOTTOM BAR: TOTALS ONLY */}
                         <div className="classic-bottom-bar flex flex-col md:flex-row items-stretch md:items-center justify-between px-4 py-2 bg-slate-50 border-t border-slate-200 gap-4">
 
+                            {/* Active Orders Button on Left Side */}
+                            <button
+                                onClick={() => setShowDraftsModal(true)}
+                                className={`px-4 py-1.5 flex items-center gap-2 rounded-lg border transition-all font-black text-[11px] uppercase tracking-wider shadow-sm select-none ${isGreen ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-sky-600 text-white border-sky-700 hover:bg-sky-700'}`}
+                                style={{ alignSelf: 'center', height: 'fit-content' }}
+                                title="View Active Saved Orders (Drafts) (Press F9)"
+                            >
+                                <Package size={14} />
+                                <span className="classic-active-orders-text">Active Orders</span>
+                                {pendingSyncCount > 0 && (
+                                    <span className="classic-active-orders-badge">
+                                        {pendingSyncCount}
+                                    </span>
+                                )}
+                            </button>
+
                             {/* Totals Section */}
                             <div className="flex items-center gap-4 ml-auto py-1">
                                 <div className="flex flex-col items-start px-3 border-r border-slate-200">
@@ -7045,20 +7222,7 @@ function Home() {
 
                 {isDraggingShortcuts && renderDropZones()}
 
-                {/* FLOATING ACTIVE ORDERS BUTTON */}
-                <button
-                    onClick={() => setShowDraftsModal(true)}
-                    className="classic-active-orders-float-btn"
-                    title="View Active Orders"
-                >
-                    <Package size={16} />
-                    <span className="classic-active-orders-text">Active Orders</span>
-                    {pendingSyncCount > 0 && (
-                        <span className="classic-active-orders-badge">
-                            {pendingSyncCount}
-                        </span>
-                    )}
-                </button>
+
 
                 {/* Common Modals */}
                 {renderCommonModals()}
@@ -7335,6 +7499,7 @@ function Home() {
                                         value={barcodeInput}
                                         onChange={(e) => setBarcodeInput(e.target.value)}
                                         onKeyDown={onBarcodeKeyDown}
+                                        onFocus={() => setActiveCardIndex(-1)}
                                         className="w-full pl-12 pr-12 py-4 bg-sky-50/50 border-2 border-sky-100 rounded-2xl text-sm font-black text-sky-900 placeholder:text-sky-300 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
                                     />
                                     <button

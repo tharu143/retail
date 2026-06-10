@@ -354,7 +354,7 @@ const SupplierDetails = () => {
             setIsEditing(false);
             fetchData();
           } else {
-            navigate(`/supplier-details/${encodeURIComponent(savedSup.name || savedSup.supplier_name)}`);
+            navigate(`/supplier-details/${encodeURIComponent(savedSup.name || savedSup.supplier_name || savedSup.supplier)}`);
           }
         }}
         userWarehouse={warehouse}

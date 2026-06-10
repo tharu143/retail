@@ -105,7 +105,7 @@ const GlobalStyle = () => (
     .il-sync-row:hover { background: ${T.bg}; }
     .il-sync-row.selected { background: ${T.blueLight}; border-color: ${T.blue}30; }
     .il-sync-footer { padding: 16px 24px; border-top: 1px solid ${T.border}; display: flex; align-items: center; gap: 12px; flex-shrink: 0; background: ${T.bg}; border-radius: 0 0 0 0; }
-    .il-modal-panel { position: fixed; inset: 0; z-index: 11000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
+    .il-modal-panel { position: fixed; top: 56px; bottom: 0; left: 0; right: 0; z-index: 10000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
     .il-modal-header { background: ${T.surface}; border-bottom: 1.5px solid ${T.border}; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
     .il-modal-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
     .il-modal-footer { background: ${T.surface}; border-top: 1.5px solid ${T.border}; padding: 14px 28px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
@@ -305,7 +305,7 @@ const CameraScanner = ({ onScan, onClose }) => {
         onScan(decodedText.trim());
         html5Qrcode.stop().catch(err => console.error(err));
       },
-      () => {}
+      () => { }
     ).catch(err => {
       console.error("Scanner start error, trying default device:", err);
       html5Qrcode.start(
@@ -315,7 +315,7 @@ const CameraScanner = ({ onScan, onClose }) => {
           onScan(decodedText.trim());
           html5Qrcode.stop().catch(fallbackErr => console.error(fallbackErr));
         },
-        () => {}
+        () => { }
       ).catch(finalErr => {
         console.error("All startup options failed:", finalErr);
       });
@@ -573,13 +573,13 @@ export default function ItemList() {
         if (item.branch_availability) setForm(prev => ({ ...prev, branch_availability: item.branch_availability }));
       }
       try {
-        const connRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_linked_documents', { 
-          params: { 
-            doctype: 'Item', 
+        const connRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_linked_documents', {
+          params: {
+            doctype: 'Item',
             name: code,
             warehouse: localStorage.getItem('warehouse')
-          }, 
-          withCredentials: true 
+          },
+          withCredentials: true
         });
         if (connRes.data?.message?.categories) setDashboardData(prev => ({ ...prev, connections: connRes.data.message.categories }));
       } catch { }
@@ -589,12 +589,12 @@ export default function ItemList() {
   const fetchItemValuation = async (code) => {
     try {
       setLoadingValuation(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_valuation_retail', { 
-        params: { 
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_valuation_retail', {
+        params: {
           item_code: code,
           warehouse: localStorage.getItem('warehouse')
-        }, 
-        withCredentials: true 
+        },
+        withCredentials: true
       });
       setValuationData(res.data?.message || null);
     } catch { setValuationData(null); } finally { setLoadingValuation(false); }
@@ -603,12 +603,12 @@ export default function ItemList() {
   const fetchPriceList = async (code) => {
     try {
       setLoadingPrices(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_prices', { 
-        params: { 
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_prices', {
+        params: {
           item_code: code,
           warehouse: localStorage.getItem('warehouse')
-        }, 
-        withCredentials: true 
+        },
+        withCredentials: true
       });
       const r = res.data.message;
       setPriceData({ prices: r?.data || [], metrics: r?.metrics || {}, warehouse_breakdown: r?.warehouse_breakdown || [] });
@@ -669,9 +669,9 @@ export default function ItemList() {
 
   const fetchWarehouses = async () => {
     try {
-      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses', { 
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses', {
         params: { warehouse: !isAdmin ? warehouse : undefined },
-        withCredentials: true 
+        withCredentials: true
       });
       const raw = res.data.message || [];
       setWarehouses((Array.isArray(raw) ? raw : []).map(w => ({
@@ -823,7 +823,7 @@ export default function ItemList() {
             setBarcodeFilter(decodedText.trim());
             stopBarcodeScanner();
           },
-          () => {}
+          () => { }
         ).catch(err => {
           console.error("Scanner failed, trying fallback device:", err);
           html5Qrcode.start(
@@ -833,7 +833,7 @@ export default function ItemList() {
               setBarcodeFilter(decodedText.trim());
               stopBarcodeScanner();
             },
-            () => {}
+            () => { }
           ).catch(finalErr => {
             console.error("All startup options failed:", finalErr);
             setShowGlobalScan(false);
@@ -1494,7 +1494,7 @@ export default function ItemList() {
                           }
                         }}
                       >
-                        <input type="checkbox" className="il-check" checked={allSyncSelected} onChange={() => {}} onClick={e => e.stopPropagation()} />
+                        <input type="checkbox" className="il-check" checked={allSyncSelected} onChange={() => { }} onClick={e => e.stopPropagation()} />
                         <span style={{ fontSize: 12, fontWeight: 700, color: T.textSub }}>
                           {allSyncSelected ? 'Deselect All' : `Select All (${filteredSync.length})`}
                         </span>
@@ -1514,7 +1514,7 @@ export default function ItemList() {
                               prev.includes(item.item_code) ? prev.filter(c => c !== item.item_code) : [...prev, item.item_code]
                             )}
                           >
-                            <input type="checkbox" className="il-check" checked={checked} onChange={() => {}} onClick={e => e.stopPropagation()} />
+                            <input type="checkbox" className="il-check" checked={checked} onChange={() => { }} onClick={e => e.stopPropagation()} />
                             <div style={{ width: 40, height: 40, background: T.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: `1px solid ${T.border}` }}>
                               {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Package size={16} color={T.textMuted} />}
                             </div>
@@ -1594,10 +1594,7 @@ export default function ItemList() {
         <div className="il-modal-panel anim-in">
           <div className="il-modal-header" style={{ height: 'auto', minHeight: 64, padding: '12px 28px', flexWrap: 'wrap', gap: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 'fit-content' }}>
-              <button className="il-btn il-btn-secondary" style={{ height: 36, padding: '0 12px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4 }} onClick={handleCloseForm}>
-                <ChevronLeft size={18} />
-                <span style={{ fontSize: 11, fontWeight: 800 }}>Back</span>
-              </button>
+
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: T.text, lineHeight: 1.2 }}>
                   {isViewMode ? form.item_name : (isEditMode ? 'Edit Item Master' : 'New Item Master')}
@@ -2056,7 +2053,7 @@ export default function ItemList() {
                     </div>
                     {/* Check All Branches Button */}
                     <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center' }}>
-                      <button 
+                      <button
                         className="il-btn il-btn-secondary"
                         style={{ height: 44, padding: '0 24px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}
                         onClick={() => {
