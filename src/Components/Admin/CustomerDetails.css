@@ -1,0 +1,37 @@
+/* CustomerDetails.css */
+
+.customer-details-navbar {
+  width: 100%;
+  margin-top: 0;
+  border-radius: 0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  /* Ensure it sticks correctly below global NavBar */
+  top: 48px !important;
+  /* Strictly enforce height */
+  height: 48px;
+  max-height: 48px;
+  overflow: hidden;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  display: flex;
+  align-items: center;
+}
+
+/* Force border radius on all buttons inside the navbar */
+.customer-details-navbar button {
+  border-radius: 9999px !important;
+}
+
+/* Force table row height to be exactly half and keep alignment straight */
+.customer-loyalty-table th,
+.customer-loyalty-table td {
+  padding: 0.5rem 1rem !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+}
+
+/* Force border-radius on tab buttons */
+.tab-pill-button {
+  border-radius: 9999px !important;
+}

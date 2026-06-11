@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Building2, Users, MapPin, Phone, Mail, ChevronLeft, Loader2,
+  Building2, Users, MapPin, Phone, Mail, ChevronLeft, ChevronRight, Loader2,
   AlertCircle, Globe, Tag, Receipt, Layers, ShoppingCart,
   ArrowRight, Settings, Edit2, Save, X, Package, CreditCard,
   ShieldCheck, Activity, TrendingUp, Calendar, Hash, FileText,
@@ -17,6 +17,45 @@ import { Palette } from 'lucide-react';
 import { ChevronDown } from "lucide-react";
 
 /* ==================== UI COMPONENTS ==================== */
+const ScrollReveal = ({ children, delay = 0, className = '', style = {} }) => {
+   const [isVisible, setIsVisible] = useState(false);
+   const domRef = useRef();
+
+   useEffect(() => {
+      const observer = new IntersectionObserver(entries => {
+         entries.forEach(entry => {
+            if (entry.isIntersecting) {
+               setIsVisible(true);
+               observer.unobserve(domRef.current);
+            }
+         });
+      }, { threshold: 0.1 });
+      
+      const { current } = domRef;
+      if (current) observer.observe(current);
+      
+      return () => {
+         if (current) observer.unobserve(current);
+      };
+   }, []);
+
+   return (
+      <div
+         ref={domRef}
+         className={className}
+         style={{
+            opacity: isVisible ? 1 : 0,
+            transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
+            transition: `opacity 0.6s ease-out ${delay}ms, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
+            willChange: 'opacity, transform',
+            height: '100%',
+            ...style
+         }}
+      >
+         {children}
+      </div>
+   );
+};
 const StatCard = ({ label, value, currency, icon: Icon, themeColor, isGreen }) => (
   <div
     className="stat-card-modern"
@@ -69,8 +108,8 @@ const ConnectionCard = ({ title, links, navigate, supplierName, icon: Icon, them
   </div>
 );
 
-const InfoSection = ({ title, children, icon: Icon, themeColor }) => (
-  <div className="info-panel-card">
+const InfoSection = ({ title, children, icon: Icon, themeColor, style }) => (
+  <div className="info-panel-card" style={style}>
     <div className="info-panel-header">
       <Icon size={18} style={{ color: themeColor }} strokeWidth={2.5} />
       <h5 className="info-panel-title">{title}</h5>
@@ -354,7 +393,7 @@ const SupplierDetails = () => {
             setIsEditing(false);
             fetchData();
           } else {
-            navigate(`/supplier-details/${encodeURIComponent(savedSup.name || savedSup.supplier_name || savedSup.supplier)}`);
+            navigate(`/supplier-details/${encodeURIComponent(savedSup.name || savedSup.supplier_name)}`);
           }
         }}
         userWarehouse={warehouse}
@@ -362,15 +401,7 @@ const SupplierDetails = () => {
     );
   }
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#fcfdfe] gap-6">
-      <div className="relative">
-        <div className="w-16 h-16 border-4 border-gray-100 rounded-full animate-spin" style={{ borderTopColor: themeColor }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full animate-ping opacity-20" style={{ backgroundColor: themeColor }} />
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Restructuring Virtual Assets...</p>
-    </div>
-  );
+  if (loading) return null;
 
   if (!supplier) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#fcfdfe] text-center p-8">
@@ -556,122 +587,147 @@ const SupplierDetails = () => {
           )}
 
           {activeTab === 'General' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                <InfoSection title="General Information" icon={Hash} themeColor={themeColor}>
-                  <div className="info-fields-grid">
-                    <div className="info-field-box">
-                      <span className="info-field-label">Legal Name</span>
-                      <span className="info-field-value">{supplier.supplier_name}</span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Industrial Cluster</span>
-                      <span className="info-field-value">{supplier.supplier_group}</span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Structural Format</span>
-                      <span className="info-field-value">{supplier.supplier_type}</span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Tax Identity (TRN)</span>
-                      <div>
-                        <span className="info-field-value-mono">{supplier.tax_id || 'NOT REGISTERED'}</span>
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                {/* Left Column - General Information */}
+                <div className="lg:col-span-5 w-full h-full">
+                  <ScrollReveal delay={0} style={{ height: '100%' }}>
+                  <InfoSection title="General Information" icon={Hash} themeColor={themeColor} style={{ height: '100%', margin: 0 }}>
+                    <div className="info-fields-grid">
+                      <div className="info-field-box">
+                        <span className="info-field-label">Legal Name</span>
+                        <span className="info-field-value font-bold text-slate-800">{supplier.supplier_name}</span>
+                      </div>
+                      <div className="info-field-box">
+                        <span className="info-field-label">Industrial Cluster</span>
+                        <span className="info-field-value font-bold text-slate-800">{supplier.supplier_group}</span>
+                      </div>
+                      <div className="info-field-box">
+                        <span className="info-field-label">Structural Format</span>
+                        <span className="info-field-value font-bold text-slate-800">{supplier.supplier_type || 'Company'}</span>
+                      </div>
+                      <div className="info-field-box">
+                        <span className="info-field-label">Tax Identity (TRN)</span>
+                        <span className="info-field-value">
+                          {supplier.tax_id ? (
+                            <span className="font-bold text-slate-800">{supplier.tax_id}</span>
+                          ) : (
+                            <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: '#f1f5f9', color: '#64748b', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.05em', fontFamily: 'monospace' }}>NOT REGISTERED</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="info-field-box">
+                        <span className="info-field-label">Tax Category</span>
+                        <span className="info-field-value font-bold text-slate-800">{supplier.tax_category || 'General'}</span>
+                      </div>
+                      <div className="info-field-box">
+                        <span className="info-field-label">Withholding Category</span>
+                        <span className="info-field-value font-bold text-slate-800">{supplier.tax_withholding_category || 'None'}</span>
+                      </div>
+                      <div className="info-field-box" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                        <span className="info-field-label">Payment Terms</span>
+                        <span className="info-field-value font-bold text-slate-800">{supplier.payment_terms || 'Not Set'}</span>
                       </div>
                     </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Tax Category</span>
-                      <span className="info-field-value">{supplier.tax_category || 'General'}</span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Withholding Category</span>
-                      <span className="info-field-value">{supplier.tax_withholding_category || 'None'}</span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Payment Terms</span>
-                      <span className="info-field-value">{supplier.payment_terms || 'Not Set'}</span>
-                    </div>
-                  </div>
-                </InfoSection>
+                  </InfoSection>
+                  </ScrollReveal>
+                </div>
 
-                <InfoSection title="Deal Information" icon={Tag} themeColor={themeColor}>
-                  <div className="info-fields-grid">
-                    <div className="info-field-box">
-                      <span className="info-field-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        Email Id
-                        {!supplier.email_id && supplier.contact_details?.email_id && (
-                          <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#e0f2fe', color: '#0369a1', borderRadius: '9999px', fontWeight: 700 }}>linked</span>
-                        )}
-                      </span>
-                      <span className="info-field-value">{supplier.email_id || supplier.contact_details?.email_id || 'N/A'}</span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        Mobile No
-                        {!supplier.mobile_no && supplier.contact_details?.mobile_no && (
-                          <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: '#e0f2fe', color: '#0369a1', borderRadius: '9999px', fontWeight: 700 }}>linked</span>
-                        )}
-                      </span>
-                      <span className="info-field-value">{supplier.mobile_no || supplier.contact_details?.mobile_no || 'N/A'}</span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Linked Contact</span>
-                      <span className="info-field-value" style={{ color: themeColor }}>
-                        {supplier.contact_details?.name ? (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                            {supplier.contact_details.first_name} {supplier.contact_details.last_name}
-                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>({supplier.contact_details.name})</span>
+                {/* Right Column - Deal Information & Supplier Registry */}
+                <div className="lg:col-span-7 w-full flex flex-col">
+                  <ScrollReveal delay={150}>
+                  <InfoSection title="Deal Information" icon={Tag} themeColor={themeColor} style={{ margin: 0, marginBottom: '1.5rem' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+                      {/* Left side of Deal Info */}
+                      <div className="flex flex-col">
+                        <div className="info-field-box">
+                          <span className="info-field-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            Email Id
                           </span>
-                        ) : (
-                          'N/A'
-                        )}
-                      </span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Primary Address</span>
-                      <div className="info-field-value" style={{ lineHeight: '1.4', fontWeight: 600 }}>
-                        {supplier.address_details?.address_line1 || 'N/A'}<br />
-                        {supplier.address_details?.address_line2 && <>{supplier.address_details.address_line2}<br /></>}
-                        {supplier.address_details?.city && (
-                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>
-                            {supplier.address_details.city}
-                            {supplier.address_details.emirate ? `, ${supplier.address_details.emirate}` : (supplier.address_details.county ? `, ${supplier.address_details.county}` : '')}
-                            {supplier.address_details.country ? `, ${supplier.address_details.country}` : ''}
+                          <span className="info-field-value font-bold text-slate-800">{supplier.email_id || supplier.contact_details?.email_id || 'N/A'}</span>
+                        </div>
+                        <div className="info-field-box">
+                          <span className="info-field-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            Mobile No
                           </span>
-                        )}
+                          <span className="info-field-value font-bold text-slate-800">{supplier.mobile_no || supplier.contact_details?.mobile_no || 'N/A'}</span>
+                        </div>
+                        <div className="info-field-box" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                          <span className="info-field-label">Primary Address</span>
+                          <span className="info-field-value font-bold text-slate-800">{supplier.primary_address_details?.address_line1 || 'N/A'}</span>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </InfoSection>
 
-                <InfoSection title="Supplier Registry" icon={Calendar} themeColor={themeColor}>
-                  <div className="info-fields-grid">
-                    <div className="info-field-box">
-                      <span className="info-field-label">System Key</span>
-                      <div>
-                        <span className="info-field-value-mono" style={{ color: themeColor, background: `${themeColor}10` }}>{supplier.name}</span>
+                      {/* Right side of Deal Info */}
+                      <div className="flex flex-col">
+                        <div className="info-field-box" style={{ borderBottom: 'none' }}>
+                          <span className="info-field-label">Linked Contact</span>
+                          <span className="info-field-value" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <span style={{ color: themeColor, fontWeight: 700 }}>
+                              {supplier.contact_details?.first_name || 'N/A'} {supplier.contact_details?.last_name || ''}
+                            </span>
+                            {supplier.contact_details && (
+                              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
+                                ({supplier.contact_details.name})
+                              </span>
+                            )}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Billing Currency</span>
-                      <span className="info-field-value">{supplier.default_currency || 'AED'}</span>
+                  </InfoSection>
+                </ScrollReveal>
+
+                  <ScrollReveal delay={300}>
+                  <InfoSection title="Supplier Registry" icon={Calendar} themeColor={themeColor} style={{ margin: 0 }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+                      <div className="info-field-box">
+                        <span className="info-field-label">System Key</span>
+                        <span className="info-field-value font-bold" style={{
+                          padding: '0.15rem 0.6rem',
+                          background: `${themeColor}15`,
+                          color: themeColor,
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          width: 'fit-content'
+                        }}>{supplier.name}</span>
+                      </div>
+                      <div className="info-field-box">
+                        <span className="info-field-label">Billing Currency</span>
+                        <span className="info-field-value font-bold text-slate-800">{supplier.default_currency || 'AED'}</span>
+                      </div>
+                      <div className="info-field-box" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                        <span className="info-field-label">Price List</span>
+                        <span className="info-field-value font-bold text-slate-800">{supplier.default_price_list || supplier.supplier_name}</span>
+                      </div>
+                      <div className="info-field-box" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                        <span className="info-field-label">Creation Vector</span>
+                        <span className="info-field-value font-bold text-slate-800">
+                          {new Date(supplier.creation).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Price List</span>
-                      <span className="info-field-value">{supplier.default_price_list || 'Standard Buying'}</span>
-                    </div>
-                    <div className="info-field-box">
-                      <span className="info-field-label">Creation Vector</span>
-                      <span className="info-field-value">{new Date(supplier.creation).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </InfoSection>
+                  </InfoSection>
+                  </ScrollReveal>
+                </div>
               </div>
 
-              <InfoSection title="Supplier Intelligence Bio" icon={FileText} themeColor={themeColor}>
-                <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 500, color: '#334155', lineHeight: '1.6', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
-                  {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
-                </p>
-              </InfoSection>
+              <div className="mt-2">
+                <h3 className="text-[13px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2 mb-4">
+                  <FileText size={16} style={{ color: themeColor }} strokeWidth={3} /> SUPPLIER INTELLIGENCE BIO
+                </h3>
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between cursor-pointer hover:shadow-md transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50" style={{ color: themeColor, backgroundColor: `${themeColor}15` }}>
+                      <FileText size={20} strokeWidth={2.5} />
+                    </div>
+                    <p className="text-sm font-bold text-slate-600 m-0 italic">
+                      {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
+                    </p>
+                  </div>
+                  <ChevronRight size={20} className="text-slate-400" />
+                </div>
+              </div>
             </div>
           )}
 

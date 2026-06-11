@@ -347,11 +347,8 @@ export default function SupplierList() {
     }
   };
 
-  const handleEdit = async (supplier) => {
-    setEditingSupplier(supplier);
-    setIsEditMode(true);
-    await fetchSupplierDetails(supplier.name);
-    setShowForm(true);
+  const handleEdit = (supplier) => {
+    navigate(`/supplier-edit/${encodeURIComponent(supplier.name)}`);
   };
 
   const handleCloseForm = () => {
@@ -396,7 +393,7 @@ export default function SupplierList() {
 
 
 
-            <button className="so-btn-primary" onClick={() => navigate('/supplier-details/new')}>
+            <button className="so-btn-primary" onClick={() => navigate('/supplier-edit/new')}>
               <Plus size={16} /> Create Supplier
             </button>
           </div>

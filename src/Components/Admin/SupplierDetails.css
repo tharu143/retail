@@ -497,7 +497,7 @@
 .info-panel-card {
     background: #ffffff;
     border-radius: 24px;
-    border: 1px solid #f1f5f9;
+    border: 1px solid #e2e8f0;
     box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.02);
     overflow: hidden;
     margin-bottom: 1.5rem;
@@ -521,34 +521,56 @@
 }
 
 .info-panel-body {
-    padding: 2rem 2.25rem;
+    padding: 1.25rem 1.5rem;
 }
 
-/* Form-like display grids */
+/* Form-like display grids - Redesigned to horizontal layout */
 .info-fields-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
 .info-field-box {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 1rem;
+    padding: 0.65rem 0.75rem;
+    margin: 0 -0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+    align-items: start;
+    transition: all 0.25s ease;
+    border-radius: 8px;
+}
+
+.info-field-box:hover {
+    background: #f8fafc;
+    transform: translateX(4px);
+}
+
+.info-field-box:first-child {
+    padding-top: 0;
+}
+
+.info-field-box:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
 .info-field-label {
-    font-size: 0.65rem;
-    font-weight: 800;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #64748b;
+    text-transform: none;
+    letter-spacing: normal;
+    margin-top: 2px;
 }
 
 .info-field-value {
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #0f172a;
+    line-height: 1.4;
 }
 
 .info-field-value-mono {

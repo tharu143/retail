@@ -8,8 +8,9 @@ import {
   UserPlus, Shield, UserCircle2, Percent, Warehouse, Plus, Trash2
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { motion } from 'framer-motion';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
-
+import './CustomerDetails.css';
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
 const countryPhoneCodes = {
@@ -283,21 +284,21 @@ const getUpdatedPhone = (currentPhone, newCode) => {
 
 /* ==================== KEY-VALUE ROW COMPONENT ==================== */
 const DetailRow = ({ label, value, icon: Icon, themeColor }) => (
-  <div className="flex items-center gap-4 p-3.5 bg-slate-50/40 hover:bg-white border border-transparent hover:border-slate-100/60 rounded-2xl transition-all duration-200">
-    <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: `${themeColor}0a`, color: themeColor || '#4f46e5' }}>
-      <Icon size={15} strokeWidth={2.5} />
+  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50/50 rounded-md">
+    <div className="shrink-0" style={{ color: themeColor || '#10b981' }}>
+      <Icon size={14} strokeWidth={2.5} />
     </div>
-    <div className="space-y-0.5 flex-1 min-w-0">
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-      <p className="text-xs font-bold text-slate-800 break-words">{value !== undefined && value !== null && value !== '' ? String(value) : '—'}</p>
+    <div className="flex-1 min-w-0 flex flex-row items-center gap-2">
+      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest m-0 p-0 whitespace-nowrap">{label} :</p>
+      <p className="text-[11px] font-bold text-slate-800 truncate m-0 p-0">{value !== undefined && value !== null && value !== '' ? String(value) : '—'}</p>
     </div>
   </div>
 );
 
 const SectionHeader = ({ text, themeColor }) => (
-  <div className="px-8 py-4.5 border-b border-slate-100/80 flex items-center gap-3 bg-slate-50/20 backdrop-blur-sm">
-    <div className="w-1 h-4 rounded-full" style={{ backgroundColor: themeColor || '#4f46e5' }} />
-    <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">{text}</h3>
+  <div className="px-3 py-3 flex items-center gap-2 bg-white">
+    <div className="w-1 h-3 rounded-full" style={{ backgroundColor: themeColor || '#10b981' }} />
+    <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">{text}</div>
   </div>
 );
 
@@ -532,55 +533,49 @@ const CustomerDetails = () => {
   const activeCont = contacts?.[0] || {};
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] pb-24 font-sans antialiased text-slate-800">
+    <div className="min-h-screen bg-white pb-24 font-sans antialiased text-slate-800">
       {/* Sticky Header Bar */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5">
-        <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="sticky z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 customer-details-navbar">
+        <div className="w-full flex items-center justify-between h-full">
           <div className="flex items-center gap-5">
-            <button
-              onClick={() => viewMode === 'edit' && !isNew ? setViewMode('view') : navigate('/customerlist')}
-              className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all border border-slate-100 flex items-center gap-1.5 shadow-sm active:scale-95 duration-150"
-            >
-              <ChevronLeft size={16} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
-            </button>
+
             <div
-              className="h-12 w-12 rounded-2xl flex items-center justify-center shadow-md overflow-hidden border-2 border-white ring-4 transition-transform hover:scale-105 duration-200"
+              className="h-6 w-6 rounded-md flex items-center justify-center shadow-sm overflow-hidden border border-white ring-1 transition-transform hover:scale-105 duration-200"
               style={{ ringColor: `${themeColor}15` }}
             >
               {customer?.image ? (
                 <img src={customer.image} alt={customer.customer_name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${themeColor}15`, color: themeColor }}>
-                  <User size={22} strokeWidth={2.5} />
+                  <User size={12} strokeWidth={2.5} />
                 </div>
               )}
             </div>
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">
-                  {isNew ? 'New Customer Registration' : (viewMode === 'edit' ? `Editing: ${customer?.customer_name}` : customer?.customer_name)}
+              <div className="flex flex-row items-center gap-2">
+                <h1 className="text-sm font-black text-slate-900 tracking-tight leading-none truncate max-w-[200px] sm:max-w-[300px]">
+                  {isNew ? 'New Customer' : (viewMode === 'edit' ? `Editing: ${customer?.customer_name}` : customer?.customer_name)}
                 </h1>
                 {!isNew && (
-                  <div className="flex gap-1.5">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1 ${customer?.disabled === 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                  <div className="flex gap-1 shrink-0">
+                    <span className={`px-1.5 py-px rounded-full text-[8px] font-bold uppercase tracking-wider border flex items-center gap-1 ${customer?.disabled === 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                       <span className={`w-1 h-1 rounded-full ${customer?.disabled === 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                       {customer?.disabled === 0 ? 'Active' : 'Disabled'}
                     </span>
                     {customer?.is_frozen === 1 && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border bg-sky-50 text-sky-600 border-sky-100">
+                      <span className="px-1.5 py-px rounded-full text-[8px] font-bold uppercase tracking-wider border bg-sky-50 text-sky-600 border-sky-100">
                         Frozen
                       </span>
                     )}
                     {customer?.is_internal_customer === 1 && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border bg-purple-50 text-purple-600 border-purple-100">
+                      <span className="px-1.5 py-px rounded-full text-[8px] font-bold uppercase tracking-wider border bg-purple-50 text-purple-600 border-purple-100">
                         Internal
                       </span>
                     )}
                   </div>
                 )}
+                {!isNew && <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider ml-2 hidden md:inline-block">Ref: {customer?.name}</span>}
               </div>
-              {!isNew && <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">Registry Reference: {customer?.name}</p>}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -588,16 +583,16 @@ const CustomerDetails = () => {
               <>
                 <button
                   onClick={() => navigate(`/generalledgerreport?party_type=Customer&party=${customer?.name}`)}
-                  className="px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all active:scale-95 duration-150"
+                  className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-all active:scale-95 duration-150"
                 >
-                  <FileText size={14} className="text-slate-400" /> General Ledger
+                  <FileText size={11} className="text-slate-400" /> Ledger
                 </button>
                 <button
-                  onClick={() => setViewMode('edit')}
-                  className="px-5 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 duration-150"
+                  onClick={() => navigate(`/customer-edit/${id}`)}
+                  className="px-3 py-1 text-white rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm hover:shadow transition-all active:scale-95 duration-150"
                   style={{ backgroundColor: themeColor }}
                 >
-                  <Edit2 size={13} /> Edit Customer
+                  <Edit2 size={11} /> Edit Profile
                 </button>
               </>
             ) : (
@@ -605,7 +600,7 @@ const CustomerDetails = () => {
                 {!isNew && (
                   <button
                     onClick={() => setViewMode('view')}
-                    className="px-5 py-2.5 text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase tracking-widest transition-all duration-150"
+                    className="px-3 py-1 text-slate-400 hover:text-slate-600 text-[9px] font-black uppercase tracking-widest transition-all duration-150"
                   >
                     Discard
                   </button>
@@ -613,11 +608,11 @@ const CustomerDetails = () => {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-7 py-2.5 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 duration-150"
+                  className="px-4 py-1 text-white rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm hover:shadow transition-all active:scale-95 duration-150"
                   style={{ backgroundColor: themeColor }}
                 >
-                  {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                  {saving ? 'Saving...' : 'Save Profile'}
+                  {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                  {saving ? 'Saving...' : 'Save'}
                 </button>
               </>
             )}
@@ -626,21 +621,23 @@ const CustomerDetails = () => {
       </div>
 
       {/* Main Page Content Wrapper */}
-      <div className="w-full mt-8 px-8">
+      <div className="w-full mt-3 px-8">
         {/* Tab Controls for View Mode */}
         {viewMode === 'view' && !isNew && (
-          <div className="flex bg-slate-100/80 backdrop-blur-sm p-1 rounded-2xl mb-8 w-fit gap-1 border border-slate-200/40">
+          <div className="flex items-center gap-2 mb-4 w-full">
             <button
               onClick={() => setActiveTab('profile')}
-              className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 ${activeTab === 'profile' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              className={`tab-pill-button px-3 py-1.5 text-[10px] rounded-full font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 border ${activeTab === 'profile' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700 shadow-sm'}`}
+              style={activeTab === 'profile' ? { color: themeColor, borderColor: themeColor, backgroundColor: `${themeColor}10` } : {}}
             >
-              <User className="w-4 h-4" style={{ color: activeTab === 'profile' ? themeColor : undefined }} /> Profile Details
+              <User size={12} strokeWidth={2.5} /> Profile Details
             </button>
             <button
               onClick={() => setActiveTab('loyalty')}
-              className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 ${activeTab === 'loyalty' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              className={`tab-pill-button px-3 py-1.5 text-[10px] rounded-full font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 border ${activeTab === 'loyalty' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700 shadow-sm'}`}
+              style={activeTab === 'loyalty' ? { color: themeColor, borderColor: themeColor, backgroundColor: `${themeColor}10` } : {}}
             >
-              <Award className="w-4 h-4" style={{ color: activeTab === 'loyalty' ? themeColor : undefined }} /> Loyalty Ledger ({customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts)
+              <Award size={12} strokeWidth={2.5} /> Loyalty Ledger ({customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts)
             </button>
           </div>
         )}
@@ -648,15 +645,40 @@ const CustomerDetails = () => {
         {viewMode === 'view' ? (
           activeTab === 'profile' ? (
             /* TWO-COLUMN DASHBOARD - VIEW PROFILE */
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300 pb-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in fade-in duration-300 pb-12">
 
-              {/* LEFT COLUMN: Profile and Geospatial Cards */}
-              <div className="lg:col-span-2 space-y-8">
+              {/* TOP FULL WIDTH ROW: Loyalty Balance Banner */}
+              <div className="lg:col-span-2">
+                <div className="rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-row items-center justify-between transition-all duration-300 hover:shadow-2xl hover:-translate-y-1" style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}>
+                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]" />
+                  
+                  <div className="flex items-center gap-4 z-10">
+                    <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner">
+                      <Award className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/80 mb-1">Loyalty Program Balance</p>
+                      <h4 className="text-xl font-bold text-white leading-tight">{customer?.loyalty_program || 'Standard Program'}</h4>
+                    </div>
+                  </div>
+                  
+                  <div className="z-10 text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300/60 mb-1">Available Points</p>
+                    <div className="flex items-baseline justify-end gap-2">
+                      <span className="text-4xl font-extrabold tracking-tight">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'}</span>
+                      <span className="text-sm font-semibold text-slate-300 uppercase tracking-widest">pts</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* LEFT COLUMN: Profile, Financials */}
+              <div className="lg:col-span-1 flex flex-col gap-4">
 
                 {/* Panel 1: Legal Identity details */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                   <SectionHeader text="Legal Identity Profile" themeColor={themeColor} />
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
                     <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
                     <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
                     <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
@@ -670,12 +692,31 @@ const CustomerDetails = () => {
                       <DetailRow label="Identity Registry Specs Details" value={customer?.customer_details} icon={FileText} themeColor={themeColor} />
                     </div>
                   </div>
-                </div>
+                </motion.div>
+
+                {/* Panel 5: Financial rules & assignments */}
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.1 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden flex-1 flex flex-col">
+                  <SectionHeader text="Financials & Governance" themeColor={themeColor} />
+                  <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
+                    <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
+                    <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
+                    <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
+                    <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
+                    <DetailRow label="Allowed Discount (%)" value={customer?.custom_default_discount ? `${customer.custom_default_discount}%` : '0%'} icon={Percent} themeColor={themeColor} />
+                    <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
+                    <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
+                    <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* RIGHT COLUMN: Deal & Spatial, Primary Contacts */}
+              <div className="lg:col-span-1 flex flex-col gap-4">
 
                 {/* Panel 2: Location and Geography details */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.2 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                   <SectionHeader text="Deal & Spatial Information" themeColor={themeColor} />
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
                     <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
                     <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
                     <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
@@ -689,86 +730,49 @@ const CustomerDetails = () => {
                       <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                {/* Panel 3: Branch availability */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
-                  <SectionHeader text="Regional Branch Availability" themeColor={themeColor} />
-                  <div className="p-6">
-                    {customer?.branch_availability?.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {customer.branch_availability.map((b, idx) => (
-                          <div key={idx} className="flex items-center gap-3.5 p-3.5 bg-slate-50/50 hover:bg-white rounded-2xl border border-slate-100 hover:border-slate-200/80 transition-all duration-200">
-                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-slate-100">
-                              <Warehouse size={16} className="text-slate-400" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Authorized Branch</p>
-                              <p className="text-xs font-bold text-slate-800 truncate leading-none">{b.warehouse}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-10 bg-slate-50/40 rounded-3xl border border-dashed border-slate-200">
-                        <Warehouse size={36} className="mx-auto text-slate-300 mb-3" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Global Access Allowed (All Branches)</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* RIGHT COLUMN: Loyalty programs, Financials, Primary Contacts */}
-              <div className="lg:col-span-1 space-y-8">
-
-                {/* Panel 4: Loyalty point balance widget */}
-                <div className="rounded-3xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col justify-between h-48 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1" style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}>
-                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]" />
-                  <div className="flex justify-between items-start z-10">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/80">Loyalty Program Balance</p>
-                      <h4 className="text-xs font-semibold text-slate-300 mt-1">{customer?.loyalty_program || 'Standard Program'}</h4>
-                    </div>
-                    <div className="p-3 bg-white/10 rounded-2xl">
-                      <Award className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                  <div className="z-10 mt-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300/60">Available Points</p>
-                    <div className="flex items-baseline gap-2 mt-1">
-                      <span className="text-4xl font-extrabold tracking-tight">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'}</span>
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest">pts</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel 5: Financial rules & assignments */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
-                  <SectionHeader text="Financials & Governance" themeColor={themeColor} />
-                  <div className="p-6 space-y-2.5">
-                    <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
-                    <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
-                    <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
-                    <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
-                    <DetailRow label="Allowed Discount (%)" value={customer?.custom_default_discount ? `${customer.custom_default_discount}%` : '0%'} icon={Percent} themeColor={themeColor} />
-                    <DetailRow label="Account Supervisor" value={customer?.account_manager} icon={Briefcase} themeColor={themeColor} />
-                    <DetailRow label="Customer POS Ident" value={customer?.customer_pos_id} icon={Hash} themeColor={themeColor} />
-                    <DetailRow label="Prospect Alias" value={customer?.prospect_name} icon={UserCircle2} themeColor={themeColor} />
-                  </div>
-                </div>
-
-                {/* Panel 6: Primary Contact details */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                {/* Panel 6: Primary Contact assigned */}
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.3 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden flex-1 flex flex-col">
                   <SectionHeader text="Primary Contact Person" themeColor={themeColor} />
-                  <div className="p-6 space-y-2.5">
+                  <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
                     <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
                     <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
                     <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
                     <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
                     <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
                   </div>
-                </div>
+                </motion.div>
+              </div>
+
+              {/* BOTTOM FULL WIDTH ROW: Regional Branch Availability */}
+              <div className="lg:col-span-2 mt-2">
+                {/* Panel 3: Branch availability */}
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.4 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                  <SectionHeader text="Regional Branch Availability" themeColor={themeColor} />
+                  <div className="p-2">
+                    {customer?.branch_availability?.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {customer.branch_availability.map((b, idx) => (
+                          <div key={idx} className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-2 bg-slate-50/50 rounded-md border border-slate-100/50">
+                            <div className="shrink-0" style={{ color: themeColor || '#10b981' }}>
+                              <Warehouse size={14} strokeWidth={2.5} />
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-row items-center gap-2">
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest m-0 p-0 whitespace-nowrap">Authorized Branch :</p>
+                              <p className="text-[11px] font-bold text-slate-800 truncate m-0 p-0">{b.warehouse}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 bg-slate-50/40 rounded-xl border border-dashed border-slate-200">
+                        <Warehouse size={32} className="mx-auto text-slate-300 mb-2" />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Global Access Allowed (All Branches)</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
               </div>
             </div>
           ) : (
@@ -802,40 +806,40 @@ const CustomerDetails = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                  <table className="w-full text-left border-collapse customer-loyalty-table">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        <th className="py-4 px-8">Posting Date</th>
-                        <th className="py-4 px-8">Transaction Type</th>
-                        <th className="py-4 px-8">Purchase Value</th>
-                        <th className="py-4 px-8">Points Ledger</th>
-                        <th className="py-4 px-8">Reference ID</th>
-                        <th className="py-4 px-8">Source/Redeem Entry</th>
+                        <th className="py-2 px-4">Posting Date</th>
+                        <th className="py-2 px-4">Transaction Type</th>
+                        <th className="py-2 px-4">Purchase Value</th>
+                        <th className="py-2 px-4">Points Ledger</th>
+                        <th className="py-2 px-4">Reference ID</th>
+                        <th className="py-2 px-4">Source/Redeem Entry</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loyaltyLedger.map((row, idx) => (
                         <tr key={idx} className="border-b border-slate-100/50 hover:bg-slate-50/40 text-xs font-medium text-slate-700 transition-colors">
-                          <td className="py-4 px-8 font-semibold text-slate-500">
+                          <td className="py-2 px-4 font-semibold text-slate-500">
                             {row.posting_date}
                           </td>
-                          <td className="py-4 px-8">
+                          <td className="py-2 px-4">
                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${row.type === 'Earned' ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50' : 'bg-rose-50 text-rose-600 border-rose-100/50'}`}>
                               {row.type}
                             </span>
                           </td>
-                          <td className="py-4 px-8 font-bold text-slate-800">
+                          <td className="py-2 px-4 font-bold text-slate-800">
                             AED {parseFloat(row.purchase_amount || 0).toFixed(2)}
                           </td>
-                          <td className={`py-4 px-8 font-black ${row.loyalty_points > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          <td className={`py-2 px-4 font-black ${row.loyalty_points > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                             {row.loyalty_points > 0 ? '+' : ''}{parseFloat(row.loyalty_points).toFixed(2)} pts
                           </td>
-                          <td className="py-4 px-8 font-bold text-indigo-600" style={{ color: themeColor }}>
+                          <td className="py-2 px-4 font-bold text-indigo-600" style={{ color: themeColor }}>
                             <a href={`/app/sales-invoice/${row.invoice}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1 select-all">
                               <FileText size={12} className="opacity-60" /> {row.invoice}
                             </a>
                           </td>
-                          <td className="py-4 px-8 text-[10px] font-bold text-slate-400 uppercase">
+                          <td className="py-2 px-4 text-[10px] font-bold text-slate-400 uppercase">
                             {row.type === 'Redeemed' && row.original_invoice ? (
                               <span className="text-slate-600 flex items-center gap-1 select-all">
                                 Used against: <b className="text-indigo-600" style={{ color: themeColor }}>{row.original_invoice}</b>

@@ -1,0 +1,156 @@
+/* SupplierFormModal.css */
+
+.supplier-edit-page {
+  /* Variables will be injected via React inline style on the root element */
+}
+
+/* Smooth input, select, and textarea transitions */
+.supplier-edit-page input:not([type="checkbox"]),
+.supplier-edit-page select,
+.supplier-edit-page textarea {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) inset;
+}
+
+.supplier-edit-page input:not([type="checkbox"]):focus,
+.supplier-edit-page select:focus,
+.supplier-edit-page textarea:focus {
+  border-color: var(--theme-color) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-color) 20%, transparent);
+  transform: translateY(-1px);
+}
+
+.supplier-edit-page input:not([type="checkbox"]):hover,
+.supplier-edit-page select:hover,
+.supplier-edit-page textarea:hover {
+  border-color: color-mix(in srgb, var(--theme-color) 50%, #cbd5e1);
+}
+
+/* Custom animated checkbox */
+.supplier-edit-page input[type="checkbox"] {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.supplier-edit-page label:hover input[type="checkbox"] {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--theme-color) 10%, transparent);
+}
+
+.supplier-edit-page label:active input[type="checkbox"] {
+  transform: scale(0.95);
+}
+
+/* Buttons micro-interactions */
+.supplier-edit-page button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.supplier-edit-page button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.supplier-edit-page button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.95);
+}
+
+/* Label hover effect inside cards */
+.supplier-edit-page label {
+  transition: color 0.2s ease;
+}
+
+.supplier-edit-page .space-y-1\.5:hover > label {
+  color: var(--theme-color);
+  opacity: 0.8;
+}
+
+/* Customizing the scrollbar for a premium feel */
+.supplier-edit-page ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.supplier-edit-page ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.supplier-edit-page ::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
+  border: 2px solid #f5f6fa;
+}
+
+.supplier-edit-page ::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+/* --- Layout Compactness Overrides --- */
+
+/* Reduce grid gaps to make form more compact */
+.supplier-edit-page .grid.gap-5 {
+  gap: 0.75rem !important; /* Reduces from 20px to 12px */
+}
+
+/* Reduce vertical space between labels and inputs */
+.supplier-edit-page .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.25rem !important; /* Reduces from 6px to 4px */
+}
+
+/* Reduce card internal padding to tighten layout */
+.supplier-edit-page .p-6 {
+  padding: 1.25rem !important; /* Reduces from 24px to 20px */
+}
+
+/* --- Bottom Navbar Overrides --- */
+/* Give pill-shape border radius to the buttons in the navbar */
+.supplier-edit-page .sticky.top-0 button {
+  border-radius: 50px !important;
+}
+
+/* --- Ultra Compact Overrides --- */
+.supplier-edit-page input:not([type="checkbox"]),
+.supplier-edit-page select {
+  height: 30px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+}
+
+.supplier-edit-page label.uppercase {
+  font-size: 9px !important;
+  margin-bottom: 2px !important;
+}
+
+.supplier-edit-page h3.uppercase {
+  font-size: 11px !important;
+  margin: 0 !important;
+}
+
+.supplier-edit-page p.normal-case {
+  font-size: 9px !important;
+  margin: 0 !important;
+}
+
+.supplier-edit-page .p-4, .supplier-edit-page .p-6 {
+  padding: 12px !important;
+}
+
+.supplier-edit-page .grid {
+  gap: 10px !important;
+}
+
+.supplier-edit-page .gap-3, .supplier-edit-page .gap-4, .supplier-edit-page .gap-5 {
+  gap: 8px !important;
+}
+
+.supplier-edit-page .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 2px !important;
+}
+
+.supplier-edit-page .w-6.h-6.rounded-full {
+  width: 20px !important;
+  height: 20px !important;
+  font-size: 10px !important;
+}

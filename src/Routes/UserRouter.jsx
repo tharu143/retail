@@ -23,6 +23,7 @@ import GeneralLedgerReportPage from '../Pages/GeneralLedgerReportPage'
 import DashboardPage from '../Pages/DashboardPage'
 import POSHealthPage from '../Pages/POSHealthPage'
 import CustomerList from '../Components/Admin/CustomerList'
+import CustomerEditPage from '../Pages/CustomerEditPage';
 import CustomerDetails from '../Components/Admin/CustomerDetails';
 import ItemGroupList from '../Components/Admin/ItemGroupList'
 import ItemList from '../Components/Admin/ItemList'
@@ -45,6 +46,7 @@ import PurchaseToolsPage from '../Pages/PurchaseToolsPage'
 import QuickStockInPage from '../Pages/QuickStockInPage'
 import PurchaseReturnPage from '../Pages/PurchaseReturnPage'
 import SupplierDetailsPage from '../Pages/SupplierDetailsPage'
+import SupplierEditPage from '../Pages/SupplierEditPage'
 import AddressList from '../Components/Admin/AddressList'
 import ContactList from '../Components/Admin/ContactList'
 import SalesReturnPage from '../Pages/SalesReturnPage'
@@ -202,7 +204,7 @@ function UserRouter() {
     <>
       <ScrollToTop />
       {showNavBar && <NavBar />}
-      <div style={{ paddingTop: applyPadding ? '56px' : '0' }}>
+      <div style={{ paddingTop: applyPadding ? '48px' : '0' }}>
         <Routes>
           <Route path='/' element={<LoginPage />} />
           <Route path='homepage' element={<HomePage />} />
@@ -220,6 +222,7 @@ function UserRouter() {
           <Route path='dashboard' element={<DashboardPage />} />
           <Route path='poshealth' element={<POSHealthPage />} />
           <Route path='customerlist' element={<CustomerList />} />
+          <Route path='customer-edit/:id' element={<CustomerEditPage />} />
           <Route path='customer-details/:id' element={<CustomerDetails />} />
           <Route path='customer-details/new' element={<CustomerDetails />} />
           <Route path='itemgrouplist' element={<ItemGroupList />} />
@@ -246,6 +249,7 @@ function UserRouter() {
           <Route path='purchasereturn' element={<PurchaseReturnList />} />
           <Route path='supplier-details/new' element={<SupplierDetailsPage />} />
           <Route path='supplier-details/:name' element={<SupplierDetailsPage />} />
+          <Route path='supplier-edit/:name' element={<SupplierEditPage />} />
           <Route path='addresslist' element={<AddressList />} />
           <Route path='contactlist' element={<ContactList />} />
           <Route path='interbranchrequests' element={<InterBranchTransferList />} />

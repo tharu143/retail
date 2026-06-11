@@ -1,11 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
    X, Save, Building2, ChevronLeft, ShieldCheck, Globe,
-   Mail, Phone, MapPin, CreditCard, Tag, Loader2
+   Mail, Phone, MapPin, CreditCard, Tag, Loader2,
+   Lock, Snowflake, PauseCircle, UserCheck, Truck, Bell, AlertTriangle, ShieldAlert, Shield, FileText
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import './SupplierFormModal.css';
+
+const ScrollReveal = ({ children, delay = 0 }) => {
+   const [isVisible, setIsVisible] = useState(false);
+   const domRef = useRef();
+
+   useEffect(() => {
+      const observer = new IntersectionObserver(entries => {
+         entries.forEach(entry => {
+            if (entry.isIntersecting) {
+               setIsVisible(true);
+               observer.unobserve(domRef.current);
+            }
+         });
+      }, { threshold: 0.1 });
+      
+      const { current } = domRef;
+      if (current) observer.observe(current);
+      
+      return () => {
+         if (current) observer.unobserve(current);
+      };
+   }, []);
+
+   return (
+      <div
+         ref={domRef}
+         style={{ transitionDelay: `${delay}ms` }}
+         className={`h-full transition-all duration-700 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+      >
+         {children}
+      </div>
+   );
+};
 
 const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, userWarehouse = null, inline = false }) => {
    const { themeColor, isGreen } = useLegacyTheme();
@@ -49,7 +84,6 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
       email_id: '',
       mobile_no: '',
       designation: '',
-      company_name: '',
       gender: '',
       is_primary_contact: true,
       // Internal
@@ -134,10 +168,8 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             email_id: editingSupplier.contact_details?.email_id || editingSupplier.email_id || '',
             mobile_no: editingSupplier.contact_details?.mobile_no || editingSupplier.mobile_no || '',
             designation: editingSupplier.contact_details?.designation || '',
-            company_name: editingSupplier.contact_details?.company_name || '',
             gender: editingSupplier.contact_details?.gender || '',
-            is_primary_contact: editingSupplier.contact_details?.is_primary_contact !== undefined ? !!editingSupplier.contact_details.is_primary_contact : true,
-            supplier_details: editingSupplier.supplier_details || ''
+            is_primary_contact: editingSupplier.contact_details?.is_primary_contact !== undefined ? !!editingSupplier.contact_details.is_primary_contact : true
          });
       } else {
          setForm({
@@ -146,7 +178,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             disabled: false, tax_id: '', tax_category: '', tax_withholding_category: '',
             website: '',
             address_title: '', address_type: 'Office', address_line1: '', address_line2: '', city: '', emirate: 'Dubai', state: '', postal_code: '', address_email: '', address_phone: '',
-            salutation: '', first_name: '', middle_name: '', last_name: '', email_id: '', mobile_no: '', designation: '', company_name: '', gender: '', is_primary_contact: true,
+            salutation: '', first_name: '', middle_name: '', last_name: '', email_id: '', mobile_no: '', designation: '', gender: '', is_primary_contact: true,
             supplier_details: '', default_currency: 'AED',
             default_price_list: '', payment_terms: '',
             allow_purchase_invoice_creation_without_purchase_order: false,
@@ -242,38 +274,32 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
    if (!isOpen && !inline) return null;
 
    const containerClass = inline
-      ? "bg-[#f8fafc] w-full min-h-screen flex flex-col"
-      : "bg-[#f8fafc] w-full max-w-5xl h-full max-h-[90vh] rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200";
+      ? "supplier-edit-page bg-[#f8fafc] w-full min-h-screen flex flex-col"
+      : "supplier-edit-page bg-[#f8fafc] w-full max-w-5xl h-full max-h-[90vh] rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200";
 
    const formContent = (
       <div className={containerClass}>
          {/* Modal Header */}
-         <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between z-10">
+         <div className="sticky top-0 bg-white border-b border-slate-100 px-6 h-[52px] flex items-center justify-between z-10">
             <div className="flex items-center gap-3">
-               <div className="p-2 rounded-xl" style={{ backgroundColor: `${themeColor}0c`, color: themeColor }}>
-                  <Building2 size={18} />
+               <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${themeColor}0c`, color: themeColor }}>
+                  <Building2 size={16} />
                </div>
                <div>
-                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider leading-none">
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider leading-none m-0">
                      {editingSupplier ? 'Edit Supplier Registry' : 'New Supplier Registry'}
                   </h2>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">Supplier Directory Profile</p>
                </div>
             </div>
 
             <div className="flex items-center gap-3">
                <button
                   onClick={onClose}
-                  className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-rose-500 transition-colors"
+                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-rose-500 transition-colors"
                >
                   Discard
                </button>
-               <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-5 py-2.5 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all hover:opacity-95 disabled:opacity-50"
-                  style={{ backgroundColor: themeColor }}
-               >
+               <button onClick={handleSave} disabled={saving} className="px-5 py-1.5 text-white rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all hover:scale-[1.02] active:scale-95" style={{ backgroundColor: themeColor }}>
                   {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                   <span>{saving ? 'Saving...' : (editingSupplier ? 'Save Supplier' : 'Create Supplier')}</span>
                </button>
@@ -285,10 +311,16 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
             <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12 items-stretch">
 
                {/* Row 1 - Col 1: Section 1 (General Specification) */}
+               <ScrollReveal delay={0}>
                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full">
                   <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3 bg-slate-50/20">
-                     <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
-                     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Opportunity Details</h3>
+                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm" style={{ backgroundColor: themeColor }}>
+                        1
+                     </div>
+                     <div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider leading-none m-0">Opportunity Details</h3>
+                        <p className="text-[10px] font-bold text-slate-400 normal-case mt-0.5 m-0">Basic supplier and profile information</p>
+                     </div>
                   </div>
                   <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
                      <div className="space-y-1.5 col-span-1 md:col-span-2">
@@ -413,12 +445,19 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                      </div>
                   </div>
                </div>
+               </ScrollReveal>
 
                {/* Row 1 - Col 2: Section 2 (Address Information) */}
+               <ScrollReveal delay={150}>
                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full">
                   <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3 bg-slate-50/20">
-                     <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
-                     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Address Information</h3>
+                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm" style={{ backgroundColor: themeColor }}>
+                        2
+                     </div>
+                     <div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider leading-none m-0">Address Information</h3>
+                        <p className="text-[10px] font-bold text-slate-400 normal-case mt-0.5 m-0">Address and location details</p>
+                     </div>
                   </div>
                   <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
 
@@ -595,12 +634,19 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                      </div>
                   </div>
                </div>
+               </ScrollReveal>
 
                {/* Row 2 - Col 1: Section 3 (Contact Information) */}
+               <ScrollReveal delay={0}>
                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full">
                   <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3 bg-slate-50/20">
-                     <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
-                     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Contact Information</h3>
+                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm" style={{ backgroundColor: themeColor }}>
+                        3
+                     </div>
+                     <div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider leading-none m-0">Contact Information</h3>
+                        <p className="text-[10px] font-bold text-slate-400 normal-case mt-0.5 m-0">Primary contact person details</p>
+                     </div>
                   </div>
                   <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
                      {/* Contact Section */}
@@ -731,55 +777,68 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                         />
                      </div>
 
-                     <div className="space-y-1.5 flex items-center pt-6">
-                        <label className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg cursor-pointer transition-all hover:bg-slate-100/80">
-                           <input
-                              type="checkbox"
-                              className="rounded border-slate-300 text-slate-800 focus:ring-0 w-4 h-4"
-                              checked={form.is_primary_contact}
-                              onChange={e => setForm({ ...form, is_primary_contact: e.target.checked })}
-                           />
-                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Is Primary Contact</span>
+                     <div className="pt-6 w-full sm:w-auto">
+                        <label className="cursor-pointer block w-full sm:w-max m-0">
+                           <div className="flex flex-row items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-100 rounded-lg transition-all hover:bg-slate-100/80">
+                              <input
+                                 type="checkbox"
+                                 className="rounded border-slate-300 transition-all cursor-pointer focus:ring-0 w-4 h-4 shrink-0 m-0"
+                                 style={{ accentColor: themeColor }}
+                                 checked={form.is_primary_contact}
+                                 onChange={e => setForm({ ...form, is_primary_contact: e.target.checked })}
+                              />
+                              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap m-0">Is Primary Contact</span>
+                           </div>
                         </label>
                      </div>
 
                   </div>
                </div>
+               </ScrollReveal>
 
                {/* Row 2 - Col 2: Section 4 (Settings & Controls) */}
+               <ScrollReveal delay={150}>
                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full">
                   <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3 bg-slate-50/20">
-                     <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
-                     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Settings & Controls</h3>
+                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm" style={{ backgroundColor: themeColor }}>
+                        4
+                     </div>
+                     <div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider leading-none m-0">Settings & Controls</h3>
+                        <p className="text-[10px] font-bold text-slate-400 normal-case mt-0.5 m-0">Supplier status and operational settings</p>
+                     </div>
                   </div>
                   <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3">
                         {[
-                           { id: 'disabled', label: 'Disabled' },
-                           { id: 'is_frozen', label: 'Is Frozen' },
-                           { id: 'on_hold', label: 'On Hold' },
-                           { id: 'is_internal_supplier', label: 'Internal Supplier' },
-                           { id: 'is_transporter', label: 'Is Transporter' },
-                           { id: 'warn_rfqs', label: 'Warn RFQs' },
-                           { id: 'warn_pos', label: 'Warn POs' },
-                           { id: 'prevent_rfqs', label: 'Prevent RFQs' },
-                           { id: 'prevent_pos', label: 'Prevent POs' },
-                           { id: 'allow_purchase_invoice_creation_without_purchase_order', label: 'Bill without PO' },
-                           { id: 'allow_purchase_invoice_creation_without_purchase_receipt', label: 'Bill without Receipt' }
-                        ].map(check => (
-                           <label key={check.id} className="flex items-center px-3 py-2.5 bg-slate-50/50 hover:bg-slate-100/50 border border-slate-100 rounded-xl cursor-pointer transition-all select-none group">
-                              <input
-                                 type="checkbox"
-                                 className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0 mr-3 w-4 h-4"
-                                 style={{
-                                    accentColor: themeColor
-                                 }}
-                                 checked={form[check.id]}
-                                 onChange={e => setForm({ ...form, [check.id]: e.target.checked })}
-                              />
-                              <span className="text-[10px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
+                           { id: 'disabled', label: 'Disabled', icon: Lock, color: '#ef4444' },
+                           { id: 'is_frozen', label: 'Is Frozen', icon: Snowflake, color: '#3b82f6' },
+                           { id: 'on_hold', label: 'On Hold', icon: PauseCircle, color: '#f59e0b' },
+                           { id: 'is_internal_supplier', label: 'Internal Supplier', icon: UserCheck, color: '#f59e0b' },
+                           { id: 'is_transporter', label: 'Is Transporter', icon: Truck, color: '#10b981' },
+                           { id: 'warn_rfqs', label: 'Warn RFQs', icon: Bell, color: '#f59e0b' },
+                           { id: 'warn_pos', label: 'Warn POs', icon: AlertTriangle, color: '#f59e0b' },
+                           { id: 'prevent_rfqs', label: 'Prevent RFQs', icon: ShieldAlert, color: '#ef4444' },
+                           { id: 'prevent_pos', label: 'Prevent POs', icon: Shield, color: '#ef4444' },
+                           { id: 'allow_purchase_invoice_creation_without_purchase_order', label: 'Bill Without PO', icon: FileText, color: '#10b981' },
+                           { id: 'allow_purchase_invoice_creation_without_purchase_receipt', label: 'Bill Without Receipt', icon: FileText, color: '#10b981' }
+                        ].map(check => {
+                           const Icon = check.icon;
+                           return (
+                           <label key={check.id} className="cursor-pointer block w-full m-0">
+                              <div className="flex flex-row items-center justify-start px-4 py-3 gap-3 bg-white border border-slate-200 rounded-lg transition-all group-hover:border-slate-300 shadow-sm group w-full">
+                                 <input
+                                    type="checkbox"
+                                    className="rounded border-slate-300 transition-all cursor-pointer focus:ring-0 w-4 h-4 shrink-0"
+                                    style={{ accentColor: themeColor }}
+                                    checked={form[check.id]}
+                                    onChange={e => setForm({ ...form, [check.id]: e.target.checked })}
+                                 />
+                                 <Icon size={14} color={check.color} strokeWidth={2.5} className="shrink-0" />
+                                 <span className="text-[10px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors uppercase tracking-wider whitespace-nowrap m-0">{check.label}</span>
+                              </div>
                            </label>
-                        ))}
+                        )})}
                      </div>
 
                      <div className="space-y-1.5 flex flex-col flex-1">
@@ -798,12 +857,19 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                      </div>
                   </div>
                </div>
+               </ScrollReveal>
 
                {/* Row 3 - Col 1: Section 5 (Source & Assignment) */}
+               <ScrollReveal delay={0}>
                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full">
                   <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3 bg-slate-50/20">
-                     <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
-                     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Source & Assignment</h3>
+                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm" style={{ backgroundColor: themeColor }}>
+                        5
+                     </div>
+                     <div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider leading-none m-0">Source & Assignment</h3>
+                        <p className="text-[10px] font-bold text-slate-400 normal-case mt-0.5 m-0">Tax and assignment information</p>
+                     </div>
                   </div>
                   <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
                      <div className="space-y-1.5">
@@ -927,23 +993,31 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                      </div>
                   </div>
                </div>
+               </ScrollReveal>
 
                {/* Row 3 - Col 2: Section 6 (Branch Availability) */}
+               <ScrollReveal delay={150}>
                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full">
                   <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3 bg-slate-50/20">
-                     <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
-                     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Branch Availability</h3>
+                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm" style={{ backgroundColor: themeColor }}>
+                        6
+                     </div>
+                     <div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider leading-none m-0">Branch Availability</h3>
+                        <p className="text-[10px] font-bold text-slate-400 normal-case mt-0.5 m-0">Select branches where this supplier can be used</p>
+                     </div>
                   </div>
                   <div className="p-6 space-y-4 flex-1">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select branches where this supplier can be used:</p>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-1">
-                        {meta.warehouses.map(wh => (
-                           <label key={wh} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer transition-all hover:bg-slate-100/80">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[200px] overflow-y-auto p-1">
+                        {meta.warehouses.map(wh => {
+                           const isChecked = form.branch_availability.some(b => b.warehouse === wh);
+                           return (
+                           <label key={wh} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${isChecked ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50 hover:bg-slate-100/80 border-slate-100'}`}>
                               <input
                                  type="checkbox"
                                  className="rounded border-slate-300"
-                                 style={{ accentColor: themeColor }}
-                                 checked={form.branch_availability.some(b => b.warehouse === wh)}
+                                 style={{ accentColor: '#10b981' }}
+                                 checked={isChecked}
                                  onChange={e => {
                                     const updated = e.target.checked
                                        ? [...form.branch_availability, { warehouse: wh }]
@@ -953,35 +1027,12 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                               />
                               <span className="text-[11px] font-bold text-slate-600">{wh}</span>
                            </label>
-                        ))}
+                        )})}
                      </div>
                   </div>
                </div>
+               </ScrollReveal>
 
-            </div>
-         </div>
-
-         {/* Sticky Footer exact structure matching mockup */}
-         <div className="sticky bottom-0 bg-white border-t border-slate-200 px-8 py-4 flex items-center justify-between z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
-            <div className="text-xs font-semibold text-slate-400">
-               Fields marked <span className="text-rose-500">*</span> are required
-            </div>
-            <div className="flex items-center gap-3">
-               <button
-                  onClick={onClose}
-                  className="px-6 py-2.5 text-slate-500 hover:text-slate-800 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
-               >
-                  Cancel
-               </button>
-               <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-6 py-2.5 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all hover:scale-[1.02] active:scale-95"
-                  style={{ backgroundColor: themeColor }}
-               >
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  {saving ? 'Saving...' : (editingSupplier ? 'Save Supplier' : 'Create Supplier')}
-               </button>
             </div>
          </div>
       </div>

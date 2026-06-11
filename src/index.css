@@ -33,3 +33,22 @@ body {
   color: #64748b;
   cursor: not-allowed;
 }
+.scroll-animate-card {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.animate-slide-up-fade {
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpFade {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
