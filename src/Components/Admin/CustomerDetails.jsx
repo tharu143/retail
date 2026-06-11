@@ -288,9 +288,9 @@ const DetailRow = ({ label, value, icon: Icon, themeColor }) => (
     <div className="shrink-0" style={{ color: themeColor || '#10b981' }}>
       <Icon size={14} strokeWidth={2.5} />
     </div>
-    <div className="flex-1 min-w-0 flex flex-row items-center gap-2">
-      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest m-0 p-0 whitespace-nowrap">{label} :</p>
-      <p className="text-[11px] font-bold text-slate-800 truncate m-0 p-0">{value !== undefined && value !== null && value !== '' ? String(value) : '—'}</p>
+    <div className="flex-1 min-w-0 flex flex-row items-center detail-row-content">
+      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest m-0 p-0 whitespace-nowrap detail-row-label">{label} :</p>
+      <p className="text-[11px] font-bold text-slate-800 truncate m-0 p-0 detail-row-value">{value !== undefined && value !== null && value !== '' ? String(value) : '—'}</p>
     </div>
   </div>
 );
@@ -533,7 +533,7 @@ const CustomerDetails = () => {
   const activeCont = contacts?.[0] || {};
 
   return (
-    <div className="min-h-screen bg-white pb-24 font-sans antialiased text-slate-800">
+    <div className="customer-details-page min-h-screen bg-white pb-24 font-sans antialiased text-slate-800">
       {/* Sticky Header Bar */}
       <div className="sticky z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 customer-details-navbar">
         <div className="w-full flex items-center justify-between h-full">

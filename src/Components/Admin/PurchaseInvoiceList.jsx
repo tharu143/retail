@@ -2107,6 +2107,920 @@ function PurchaseInvoiceList() {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxTemplates, isDirty, docName]);
 
+  if (isModalOpen) {
+    return (
+      <>
+        <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ height: '100vh', overflowY: 'auto' }}>
+          <div className="so-page-header" style={{ padding: '0.85rem 2rem', background: '#fff', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} {formData.is_return === 1 ? 'Debit Note' : 'Purchase Invoice'}
+                </h2>
+                {docName && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{docName} • Accounts</p>
+                    <a
+                      href={`/app/purchase-invoice/${encodeURIComponent(docName)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase ml-2 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
+                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                    >
+                      <ExternalLink size={10} className="mr-1" /> Open in ERPNext
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                {/* Always show DUPLICATE if docName exists */}
+                {docName && (
+                  <button
+                    onClick={handleDuplicate}
+                    className="so-btn-secondary"
+                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                  >
+                    <Copy size={14} /> DUPLICATE
+                  </button>
+                )}
+
+                {/* DRAFT PHASE */}
+                {(formData.docstatus === 0 || formData.docstatus === undefined) && (
+                  <>
+                    {/* 1. DELETE button (if allowed) */}
+                    {docName && (allowedActions.includes('delete') || allowedActions.length === 0) && (
+                      <button
+                        onClick={() => handleDocAction('delete')}
+                        className="so-btn-ghost"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                      >
+                        <Trash2 size={14} className="inline mr-1" /> DELETE
+                      </button>
+                    )}
+
+                    {/* 2. EDIT DRAFT button (only if in view mode) */}
+                    {docName && isViewMode && (
+                      <button
+                        onClick={() => setIsViewMode(false)}
+                        className="so-btn-secondary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                      >
+                        <Edit2 size={14} /> EDIT DRAFT
+                      </button>
+                    )}
+
+                    {/* 3. Primary action button(s) */}
+                    {!docName ? (
+                      // New Document -> SAVE DRAFT
+                      <button
+                        onClick={() => handleDocAction('save')}
+                        disabled={saving}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
+                      </button>
+                    ) : (
+                      // Saved Document -> Show BOTH Update and Submit (if allowed)
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        {!isViewMode && (
+                          <button
+                            onClick={() => handleDocAction('save')}
+                            disabled={saving}
+                            className="so-btn-secondary"
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                          >
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
+                          </button>
+                        )}
+                        {(allowedActions.includes('submit') || allowedActions.length === 0) && (
+                          <button
+                            onClick={() => handleDocAction('submit')}
+                            disabled={saving}
+                            className="so-btn-primary"
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                          >
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* SUBMITTED PHASE */}
+                {formData.docstatus === 1 && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#ecfdf5', borderRadius: '0.75rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                      <CheckCircle2 size={14} /> SUBMITTED
+                    </div>
+
+                    {allowedActions.includes('cancel') && (
+                      <button
+                        onClick={() => handleDocAction('cancel')}
+                        disabled={saving}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        {saving ? <Loader2 size={14} className="so-spinner" /> : 'CANCEL'}
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* CANCELLED PHASE */}
+                {formData.docstatus === 2 && (
+                  <>
+                    {docName && allowedActions.includes('delete') && (
+                      <button
+                        onClick={() => handleDocAction('delete')}
+                        className="so-btn-ghost"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                      >
+                        <Trash2 size={14} className="inline mr-1" /> DELETE
+                      </button>
+                    )}
+
+                    <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
+                      CANCELLED
+                    </div>
+
+                    {allowedActions.includes('amend') && (
+                      <button
+                        onClick={() => handleDocAction('amend')}
+                        disabled={saving}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        {saving ? <Loader2 size={14} className="so-spinner" /> : 'AMEND'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+              <button onClick={closeModal} className="so-btn-secondary" style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <ChevronLeft size={16} /> Back to List
+              </button>
+            </div>
+          </div>
+
+          {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
+          <div className="w-full bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-sky-50/50 backdrop-blur-md border-b border-emerald-100/60 px-8 py-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-[11px] font-medium text-slate-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
+            <div className="flex items-center gap-1.5 text-emerald-800 font-bold uppercase tracking-wider text-[10px]">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Quick Shortcuts
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F2</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Supplier</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F3</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
+                <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
+                <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F10 / Alt+A</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Submit</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Qty Adjust</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
+            {renderConnectionsDashboard()}
+            {/* Basic Details Card */}
+            <div className="so-card">
+              <div className="so-card-header">
+                <p className="so-card-title">Basic Details</p>
+              </div>
+              <div className="so-card-body">
+                <div className="so-form-grid">
+                  <div className="so-field">
+                    <label className="so-label">Supplier {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                    <CustomSearchDropdown
+                      placeholder="Search and select supplier..."
+                      value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
+                      onSelect={selectSupplier}
+                      fetchData={fetchSuppliersAPI}
+                      createOption={handleSupplierCreate}
+                      optionsLabel="supplier_name"
+                    />
+                    {formErrors.supplier && <span className="so-error-text">{formErrors.supplier}</span>}
+                  </div>
+
+                  <div className="so-field">
+                    <label className="so-label">Posting Date</label>
+                    <div style={{ position: 'relative' }}>
+                      <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                      <input
+                        type="date"
+                        value={formData.posting_date}
+                        onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
+                        className="so-input"
+                        style={{ paddingLeft: '2.5rem' }}
+                        disabled={isViewMode}
+                        onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                        onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="so-field">
+                    <label className="so-label">Due Date</label>
+                    <div style={{ position: 'relative' }}>
+                      <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                      <input
+                        type="date"
+                        value={formData.due_date}
+                        onChange={e => {
+                          const newDueDate = e.target.value;
+                          setFormData(prev => {
+                            const schedule = (prev.payment_schedule || []).map(row => ({
+                              ...row,
+                              due_date: newDueDate
+                            }));
+                            return { ...prev, due_date: newDueDate, payment_schedule: schedule };
+                          });
+                        }}
+                        className="so-input"
+                        style={{ paddingLeft: '2.5rem' }}
+                        disabled={isViewMode}
+                        onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                        onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="so-field">
+                    <label className="so-label">Bill Number</label>
+                    <input
+                      type="text"
+                      value={formData.bill_no}
+                      onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
+                      placeholder="Enter bill number..."
+                      className="so-input"
+                      disabled={isViewMode}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Barcode Scanner Card */}
+            {!isViewMode && (
+              <div className="so-card" style={{ border: `1px dashed ${themeColor}`, background: `${themeColor}05` }}>
+                <div className="so-card-body" style={{ padding: '1rem 1.5rem' }}>
+                  <div className="so-form-grid" style={{ gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ background: themeColor, color: 'white', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                        <Barcode size={20} />
+                      </div>
+                      <div>
+                        <p style={{ fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Quick Scan</p>
+                        <p style={{ fontSize: '0.65rem', opacity: 0.6 }}>Add items instantly</p>
+                      </div>
+                    </div>
+                    <input
+                      ref={barcodeRef}
+                      type="text"
+                      value={barcodeInput}
+                      onChange={e => setBarcodeInput(e.target.value)}
+                      onKeyDown={handleBarcodeScan}
+                      placeholder="Place cursor here and scan barcode..."
+                      className="so-input"
+                      style={{ height: '42px', fontSize: '0.9rem', borderStyle: 'dashed' }}
+                      disabled={barcodeLoading}
+                      autoFocus
+                    />
+                    {barcodeLoading && <Loader2 className="so-spinner" size={20} />}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Items Card */}
+            <div className="so-card">
+              <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p className="so-card-title">Items</p>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowColConfig(true)}
+                    className="so-btn-ghost"
+                    style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                    title="Configure Columns"
+                  >
+                    <Settings size={14} />
+                    <span>Columns</span>
+                  </button>
+                  {!isViewMode && (
+                    <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
+                      <Plus size={14} /> Add Row
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="so-card-body">
+                <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
+                  <table className="so-items-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
+                        {(() => {
+                          const activeCols = columnConfig.filter(c => c.visible);
+                          const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
+
+                          return activeCols.map(col => {
+                            if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
+                            return (
+                              <th
+                                key={col.id}
+                                style={{
+                                  width: col.width,
+                                  minWidth: col.id === 'item_code' ? 120 : undefined,
+                                  textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price'].includes(col.id) ? 'right' :
+                                    ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
+                                }}
+                              >
+                                {col.label}
+                              </th>
+                            );
+                          });
+                        })()}
+                        <th style={{ width: '40px', textAlign: 'center' }}>
+                          {!isViewMode && (
+                            <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Configure Columns">
+                              <Settings size={16} />
+                            </button>
+                          )}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.items.map((item, i) => (
+                        <tr key={i} tabIndex={-1}>
+                          <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>{i + 1}</td>
+
+                          {(() => {
+                            const activeCols = columnConfig.filter(c => c.visible);
+                            const isNosUom = (item.uom || '').toLowerCase() !== 'box';
+                            const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
+
+                            return activeCols.map(col => {
+                              if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
+                              switch (col.id) {
+                                case 'custom_box_qty':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box" style={{ position: 'relative' }}>
+                                          {isViewMode ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800" style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}>
+                                              {item.custom_box_qty || 0}
+                                            </div>
+                                          ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const currentVal = parseFloat(item.custom_box_qty) || 0;
+                                                  updateItem(i, 'custom_box_qty', Math.max(0, currentVal - 1));
+                                                }}
+                                                style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px 0 0 4px', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
+                                              >
+                                                -
+                                              </button>
+                                              <input
+                                                type="number"
+                                                value={item.custom_box_qty !== undefined ? item.custom_box_qty : ''}
+                                                onFocus={e => e.target.select()}
+                                                onClick={e => e.target.select()}
+                                                onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
+                                                className="so-input text-center font-bold"
+                                                style={{ borderTop: `1px solid ${themeColor}40`, borderBottom: `1px solid ${themeColor}40`, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const currentVal = parseFloat(item.custom_box_qty) || 0;
+                                                  updateItem(i, 'custom_box_qty', currentVal + 1);
+                                                }}
+                                                style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '0 4px 4px 0', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
+                                              >
+                                                +
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'custom_pieces_per_box':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          {isNosUom ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                          ) : isViewMode ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800">
+                                              {(item.custom_pieces_per_box || 1)}
+                                            </div>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : ''}
+                                              onFocus={e => e.target.select()}
+                                              onClick={e => e.target.select()}
+                                              onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                              className="so-input text-left pl-3 font-bold"
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'item_code':
+                                  return (
+                                    <td key={col.id} ref={el => itemRefs.current[i] = el} style={{ minWidth: '200px' }}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          {isViewMode ? (
+                                            <div style={{ padding: '0.4rem 0.6rem' }}>
+                                              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b' }}>{item.item_name}</div>
+                                              <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem', fontWeight: 600 }}>{item.item_code}</div>
+                                            </div>
+                                          ) : (
+                                            <CustomSearchDropdown
+                                              placeholder="Search item..."
+                                              value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                              onSelect={it => selectItem(i, it)}
+                                              fetchData={fetchItemsAPI}
+                                              optionsLabel="item_name"
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'qty':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box" style={{ position: 'relative' }}>
+                                          {isViewMode ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-[var(--so-primary)]" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>
+                                              {item.qty}
+                                            </div>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.qty}
+                                              onFocus={e => e.target.select()}
+                                              onClick={e => e.target.select()}
+                                              onChange={e => updateItem(i, 'qty', e.target.value)}
+                                              className="so-input text-left pl-3 font-bold"
+                                              style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
+                                            />
+                                          )}
+                                          {item.use_box_entry && (
+                                            <span
+                                              className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
+                                              style={{
+                                                position: 'absolute',
+                                                right: '8px',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                color: '#64748b',
+                                                backgroundColor: '#f8fafc',
+                                                borderColor: '#e2e8f0',
+                                                lineHeight: 1
+                                              }}
+                                            >
+                                              NOS
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'uom':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          {!item.item_code || isViewMode ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-center text-[10px] uppercase text-slate-500 font-bold">
+                                              {item.use_box_entry ? 'BOX' : (item.uom || 'NOS')}
+                                            </div>
+                                          ) : (
+                                            <select
+                                              value={item.uom || ''}
+                                              onChange={(e) => handleUOMChange(e.target.value, i)}
+                                              className="text-center text-[10px] font-bold text-slate-600 bg-white"
+                                            >
+                                              {(() => {
+                                                const uniqueUoms = [];
+                                                const seen = new Set();
+                                                const candidates = [];
+
+                                                if (item.uom_list && Array.isArray(item.uom_list)) {
+                                                  item.uom_list.forEach(u => {
+                                                    if (u && u.uom) candidates.push(u.uom);
+                                                  });
+                                                }
+
+                                                candidates.push(item.stock_uom || 'Nos');
+                                                candidates.push(item.uom || 'Nos');
+                                                candidates.push('Nos');
+                                                candidates.push('Box');
+
+                                                candidates.forEach(u => {
+                                                  const norm = u.trim().toLowerCase();
+                                                  let display = u.trim();
+                                                  if (norm === 'box') display = 'Box';
+                                                  else if (norm === 'nos') display = 'Nos';
+
+                                                  if (!seen.has(norm)) {
+                                                    seen.add(norm);
+                                                    uniqueUoms.push(display);
+                                                  }
+                                                });
+
+                                                return uniqueUoms.map(uomVal => (
+                                                  <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                                ));
+                                              })()}
+                                            </select>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'custom_box_price':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          {isNosUom ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                          ) : isViewMode ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
+                                              {formatPrice(item.custom_box_price)}
+                                            </div>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.custom_box_price !== undefined ? item.custom_box_price : ''}
+                                              onFocus={e => e.target.select()}
+                                              onClick={e => e.target.select()}
+                                              onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
+                                              className="so-input text-right pr-3 font-bold"
+                                              style={{ textAlign: 'right' }}
+                                              step="0.01"
+                                              placeholder="Box Price"
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'rate':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          {item.use_box_entry || (item.uom || '').toLowerCase() === 'box' ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                          ) : isViewMode ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[var(--so-primary)]">
+                                              {formatPrice(item.rate)}
+                                            </div>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.rate}
+                                              onFocus={e => e.target.select()}
+                                              onClick={e => e.target.select()}
+                                              onChange={e => updateItem(i, 'rate', e.target.value)}
+                                              className="so-input text-right pr-3 font-bold"
+                                              style={{ textAlign: 'right' }}
+                                              step="0.01"
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'custom_selling_price':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          {isViewMode ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
+                                              {formatPrice(item.custom_selling_price)}
+                                            </div>
+                                          ) : (
+                                            <input
+                                              type="number"
+                                              value={item.custom_selling_price || ''}
+                                              onFocus={e => e.target.select()}
+                                              onClick={e => e.target.select()}
+                                              onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                              className="so-input text-right pr-3 font-bold text-[#6366f1]"
+                                              style={{ textAlign: 'right' }}
+                                              step="0.01"
+                                              placeholder="Nos Price"
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'custom_box_selling_price':
+                                  {
+                                    const isBoxUom = (item.uom || '').toLowerCase() === 'box';
+                                    return (
+                                      <td key={col.id}>
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {!isBoxUom ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
+                                            ) : isViewMode ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#10b981]">
+                                                {formatPrice((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1))}
+                                              </div>
+                                            ) : (
+                                              <input
+                                                type="number"
+                                                value={item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? ((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2) : '')}
+                                                onFocus={e => e.target.select()}
+                                                onClick={e => e.target.select()}
+                                                onChange={e => {
+                                                  const typedVal = e.target.value;
+                                                  const val = parseFloat(typedVal) || 0;
+                                                  const pcs = parseFloat(item.custom_pieces_per_box) || 1;
+                                                  const nosPrice = pcs > 0 ? (val / pcs).toFixed(4) : 0;
+
+                                                  setFormData(prev => {
+                                                    const newItems = [...prev.items];
+                                                    newItems[i] = {
+                                                      ...newItems[i],
+                                                      custom_selling_price: parseFloat(nosPrice),
+                                                      _temp_box_selling_price: typedVal
+                                                    };
+                                                    return { ...prev, items: newItems };
+                                                  });
+                                                }}
+                                                onBlur={() => {
+                                                  setFormData(prev => {
+                                                    const newItems = [...prev.items];
+                                                    newItems[i] = {
+                                                      ...newItems[i],
+                                                      custom_selling_price: parseFloat(newItems[i].custom_selling_price).toFixed(2),
+                                                      _temp_box_selling_price: undefined
+                                                    };
+                                                    return { ...prev, items: newItems };
+                                                  });
+                                                }}
+                                                className="so-input text-right pr-3 font-bold text-[#10b981]"
+                                                style={{ textAlign: 'right' }}
+                                                step="0.01"
+                                                placeholder="Box Price"
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  }
+                                case 'amount':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800" style={{ textAlign: 'right' }}>
+                                            {formatPrice(item.amount)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                              }
+                            });
+                          })()}
+
+                          <td style={{ textAlign: 'center' }}>
+                            {!isViewMode && (
+                              <button onClick={() => removeItemRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}>
+                                <X size={14} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Discounts & Taxes Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+              {/* Left Column: Discounts & Tax Selection */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div className="so-card">
+                  <div className="so-card-header">
+                    <p className="so-card-title">Discounts & Rounding</p>
+                  </div>
+                  <div className="so-card-body">
+                    <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                      <div className="so-field" style={{ gridColumn: 'span 2' }}>
+                        <label className="so-label">Apply Discount On</label>
+                        <select
+                          value={formData.apply_discount_on}
+                          onChange={e => setFormData(prev => ({ ...prev, apply_discount_on: e.target.value }))}
+                          disabled={isViewMode}
+                          className="so-select"
+                        >
+                          <option>Grand Total</option>
+                          <option>Net Total</option>
+                        </select>
+                      </div>
+                      <div className="so-field">
+                        <label className="so-label">Discount (%)</label>
+                        <input
+                          type="number"
+                          value={formData.additional_discount_percentage}
+                          onChange={e => setFormData(prev => ({ ...prev, additional_discount_percentage: e.target.value, discount_amount: 0 }))}
+                          className="so-input"
+                          min="0" max="100" step="0.01"
+                          disabled={isViewMode}
+                        />
+                      </div>
+                      <div className="so-field">
+                        <label className="so-label">Discount Amount</label>
+                        <input
+                          type="number"
+                          value={formData.discount_amount}
+                          onChange={e => setFormData(prev => ({ ...prev, discount_amount: e.target.value, additional_discount_percentage: 0 }))}
+                          className="so-input"
+                          min="0" step="0.01"
+                          disabled={isViewMode}
+                        />
+                      </div>
+                      <div className="so-field" style={{ gridColumn: 'span 2' }}>
+                        <label className="so-label">Tax Template</label>
+                        <select
+                          value={formData.taxes_and_charges}
+                          onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
+                          disabled={isViewMode || loadingTaxTemplates}
+                          className="so-select"
+                        >
+                          <option value="">No Tax</option>
+                          {taxTemplates.map(t => (
+                            <option key={t.name} value={t.name}>{t.title || t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Taxes Table Card */}
+                {taxPreview.length > 0 && (
+                  <div className="so-card">
+                    <div className="so-card-header">
+                      <p className="so-card-title">Taxes & Charges</p>
+                    </div>
+                    <div className="so-card-body">
+                      <div className="so-table-wrapper" style={{ boxShadow: 'none', border: '1px solid var(--so-border)', marginTop: 0 }}>
+                        <table className="so-items-table">
+                          <thead>
+                            <tr>
+                              <th>Type</th>
+                              <th>Account</th>
+                              <th style={{ textAlign: 'center' }}>Rate</th>
+                              <th style={{ textAlign: 'right' }}>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {taxPreview.map((tax, i) => (
+                              <tr key={i}>
+                                <td><span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '1rem', background: '#e0f2fe', color: '#0369a1' }}>ACTUAL</span></td>
+                                <td style={{ fontSize: '0.75rem', fontWeight: 600 }}>{tax.account_head?.split(' - ')[0]}</td>
+                                <td style={{ textAlign: 'center', fontWeight: 700 }}>{tax.rate}%</td>
+                                <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                                  {formatPrice(netTotal * (parseFloat(tax.rate || 0) / 100))}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Totals Summary */}
+              <div className="so-card" style={{
+                background: isGreen
+                  ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
+                  : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)',
+                color: 'white',
+                height: '100%'
+              }}>
+                <div className="so-card-header" style={{ borderBottomColor: 'rgba(255,255,255,0.1)' }}>
+                  <p className="so-card-title" style={{ color: 'white' }}>Final Summary</p>
+                </div>
+                <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
+                    <span>Subtotal</span>
+                    <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(subtotal)}</span>
+                  </div>
+
+                  {discountAmount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fda4af' }}>
+                      <span>Total Discount</span>
+                      <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>- <DirhamIcon size={12} /> {formatPrice(discountAmount)}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
+                    <span>Tax Total</span>
+                    <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(taxTotal)}</span>
+                  </div>
+
+                  <div style={{
+                    marginTop: '1rem',
+                    paddingTop: '1rem',
+                    borderTop: '1px solid rgba(255,255,255,0.2)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{ fontSize: '1rem', fontWeight: 500 }}>Grand Total</span>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '1.75rem', fontWeight: 900, display: 'block', lineHeight: 1 }}>
+                        <span className="flex items-center justify-end gap-1.5"><DirhamIcon size={20} /> {formatPrice(grandTotal)}</span>
+                      </span>
+                      <span style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inc. All Taxes</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="so-page">
@@ -2378,1032 +3292,9 @@ function PurchaseInvoiceList() {
                 </>
               )}
             </div>
-          </div>
         </div>
-
-        {isModalOpen && (
-          <div className="so-modal-overlay" onClick={closeModal} style={{ padding: 0, zIndex: 10500, top: '74px', height: 'calc(100vh - 74px)', background: 'white' }}>
-            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-              <div className="so-modal-header" style={{ padding: '0.85rem 2rem', background: '#fff', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div>
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} {formData.is_return === 1 ? 'Debit Note' : 'Purchase Invoice'}
-                    </h2>
-                    {formData.name && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formData.name} • Accounts</p>
-                        <a
-                          href={`/app/purchase-invoice/${encodeURIComponent(formData.name)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase ml-2 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
-                          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-                        >
-                          <ExternalLink size={10} className="mr-1" /> Open in ERPNext
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    {/* Always show DUPLICATE if docName exists */}
-                    {docName && (
-                      <button
-                        onClick={handleDuplicate}
-                        className="so-btn-secondary"
-                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-                      >
-                        <Copy size={14} /> DUPLICATE
-                      </button>
-                    )}
-
-                    {/* DRAFT PHASE */}
-                    {(formData.docstatus === 0 || formData.docstatus === undefined) && (
-                      <>
-                        {/* 1. DELETE button (if allowed) */}
-                        {docName && (allowedActions.includes('delete') || allowedActions.length === 0) && (
-                          <button
-                            onClick={() => handleDocAction('delete')}
-                            className="so-btn-ghost"
-                            style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
-                          >
-                            <Trash2 size={14} className="inline mr-1" /> DELETE
-                          </button>
-                        )}
-
-                        {/* 2. EDIT DRAFT button (only if in view mode) */}
-                        {docName && isViewMode && (
-                          <button
-                            onClick={() => setIsViewMode(false)}
-                            className="so-btn-secondary"
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-                          >
-                            <Edit2 size={14} /> EDIT DRAFT
-                          </button>
-                        )}
-
-                        {/* 3. Primary action button(s) */}
-                        {!docName ? (
-                          // New Document -> SAVE DRAFT
-                          <button
-                            onClick={() => handleDocAction('save')}
-                            disabled={saving}
-                            className="so-btn-primary"
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                          >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
-                          </button>
-                        ) : (
-                          // Saved Document -> Show BOTH Update and Submit (if allowed)
-                          <div style={{ display: 'flex', gap: '0.75rem' }}>
-                            {!isViewMode && (
-                              <button
-                                onClick={() => handleDocAction('save')}
-                                disabled={saving}
-                                className="so-btn-secondary"
-                                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
-                              >
-                                {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
-                              </button>
-                            )}
-                            {(allowedActions.includes('submit') || allowedActions.length === 0) && (
-                              <button
-                                onClick={() => handleDocAction('submit')}
-                                disabled={saving}
-                                className="so-btn-primary"
-                                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                              >
-                                {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {/* SUBMITTED PHASE */}
-                    {formData.docstatus === 1 && (
-                      <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#ecfdf5', borderRadius: '0.75rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
-                          <CheckCircle2 size={14} /> SUBMITTED
-                        </div>
-
-                        {allowedActions.includes('cancel') && (
-                          <button
-                            onClick={() => handleDocAction('cancel')}
-                            disabled={saving}
-                            className="so-btn-primary"
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
-                          >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'CANCEL'}
-                          </button>
-                        )}
-                      </>
-                    )}
-
-                    {/* CANCELLED PHASE */}
-                    {formData.docstatus === 2 && (
-                      <>
-                        {docName && allowedActions.includes('delete') && (
-                          <button
-                            onClick={() => handleDocAction('delete')}
-                            className="so-btn-ghost"
-                            style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
-                          >
-                            <Trash2 size={14} className="inline mr-1" /> DELETE
-                          </button>
-                        )}
-
-                        <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
-                          CANCELLED
-                        </div>
-
-                        {allowedActions.includes('amend') && (
-                          <button
-                            onClick={() => handleDocAction('amend')}
-                            disabled={saving}
-                            className="so-btn-primary"
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
-                          >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'AMEND'}
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <button onClick={closeModal} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '0.5rem' }}>
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
-              <div className="w-full bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-sky-50/50 backdrop-blur-md border-b border-emerald-100/60 px-8 py-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-[11px] font-medium text-slate-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
-                <div className="flex items-center gap-1.5 text-emerald-800 font-bold uppercase tracking-wider text-[10px]">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  Quick Shortcuts
-                </div>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F2</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Supplier</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F3</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
-                    <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
-                    <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F10 / Alt+A</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Submit</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
-                    <span className="text-[10px] font-semibold text-slate-600">Qty Adjust</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
-                {renderConnectionsDashboard()}
-                {/* Basic Details Card */}
-                <div className="so-card">
-                  <div className="so-card-header">
-                    <p className="so-card-title">Basic Details</p>
-                  </div>
-                  <div className="so-card-body">
-                    <div className="so-form-grid">
-                      <div className="so-field">
-                        <label className="so-label">Supplier {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
-                        <CustomSearchDropdown
-                          placeholder="Search and select supplier..."
-                          value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
-                          onSelect={selectSupplier}
-                          fetchData={fetchSuppliersAPI}
-                          createOption={handleSupplierCreate}
-                          optionsLabel="supplier_name"
-                        />
-                        {formErrors.supplier && <span className="so-error-text">{formErrors.supplier}</span>}
-                      </div>
-
-                      <div className="so-field">
-                        <label className="so-label">Posting Date</label>
-                        <div style={{ position: 'relative' }}>
-                          <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
-                          <input
-                            type="date"
-                            value={formData.posting_date}
-                            onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
-                            className="so-input"
-                            style={{ paddingLeft: '2.5rem' }}
-                            disabled={isViewMode}
-                            onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                            onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="so-field">
-                        <label className="so-label">Due Date</label>
-                        <div style={{ position: 'relative' }}>
-                          <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
-                          <input
-                            type="date"
-                            value={formData.due_date}
-                            onChange={e => {
-                              const newDueDate = e.target.value;
-                              setFormData(prev => {
-                                const schedule = (prev.payment_schedule || []).map(row => ({
-                                  ...row,
-                                  due_date: newDueDate
-                                }));
-                                return { ...prev, due_date: newDueDate, payment_schedule: schedule };
-                              });
-                            }}
-                            className="so-input"
-                            style={{ paddingLeft: '2.5rem' }}
-                            disabled={isViewMode}
-                            onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                            onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="so-field">
-                        <label className="so-label">Bill Number</label>
-                        <input
-                          type="text"
-                          value={formData.bill_no}
-                          onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
-                          placeholder="Enter bill number..."
-                          className="so-input"
-                          disabled={isViewMode}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Barcode Scanner Card */}
-                {!isViewMode && (
-                  <div className="so-card" style={{ border: `1px dashed ${themeColor}`, background: `${themeColor}05` }}>
-                    <div className="so-card-body" style={{ padding: '1rem 1.5rem' }}>
-                      <div className="so-form-grid" style={{ gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div style={{ background: themeColor, color: 'white', padding: '0.5rem', borderRadius: '0.5rem' }}>
-                            <Barcode size={20} />
-                          </div>
-                          <div>
-                            <p style={{ fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Quick Scan</p>
-                            <p style={{ fontSize: '0.65rem', opacity: 0.6 }}>Add items instantly</p>
-                          </div>
-                        </div>
-                        <input
-                          ref={barcodeRef}
-                          type="text"
-                          value={barcodeInput}
-                          onChange={e => setBarcodeInput(e.target.value)}
-                          onKeyDown={handleBarcodeScan}
-                          placeholder="Place cursor here and scan barcode..."
-                          className="so-input"
-                          style={{ height: '42px', fontSize: '0.9rem', borderStyle: 'dashed' }}
-                          disabled={barcodeLoading}
-                          autoFocus
-                        />
-                        {barcodeLoading && <Loader2 className="so-spinner" size={20} />}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {/* Stock Controls Card */}
-                <div className="so-card" style={{ display: 'none' }}>
-                  <div className="so-card-body">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: isViewMode ? 'not-allowed' : 'pointer', userSelect: 'none' }}>
-                        <input
-                          type="checkbox"
-                          checked={formData.update_stock}
-                          onChange={e => {
-                            const checked = e.target.checked;
-                            setFormData(prev => ({
-                              ...prev,
-                              update_stock: checked,
-                              accepted_warehouse: checked ? (prev.accepted_warehouse || warehouses[0]?.name || '') : '',
-                            }));
-                          }}
-                          disabled={isViewMode}
-                          style={{ width: '1.2rem', height: '1.2rem', accentColor: themeColor }}
-                        />
-                        <div>
-                          <p style={{ fontWeight: 700, fontSize: '0.85rem' }}>Update Stock</p>
-                          <p style={{ fontSize: '0.7rem', opacity: 0.6 }}>Receive items into inventory upon submission</p>
-                        </div>
-                      </label>
-
-                      {formData.update_stock && (
-                        <div className="so-form-grid" style={{ gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr) auto', alignItems: 'end' }}>
-                          <div className="so-field">
-                            <label className="so-label">Accepted Branch</label>
-                            <select
-                              name="accepted_warehouse"
-                              value={formData.accepted_warehouse}
-                              onChange={e => setFormData(prev => ({ ...prev, accepted_warehouse: e.target.value }))}
-                              className="so-select"
-                              disabled={isViewMode}
-                            >
-                              <option value="">Select Branch</option>
-                              {warehouses.map(w => (
-                                <option key={w.name} value={w.name}>{w.warehouse_name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="so-field">
-                            <label className="so-label">Rejected Branch</label>
-                            <select
-                              value={formData.rejected_warehouse}
-                              onChange={e => setFormData(prev => ({ ...prev, rejected_warehouse: e.target.value }))}
-                              className="so-select"
-                              disabled={isViewMode}
-                            >
-                              <option value="">None</option>
-                              {warehouses.map(w => (
-                                <option key={w.name} value={w.name}>{w.warehouse_name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: isViewMode ? 'not-allowed' : 'pointer', marginBottom: '0.75rem' }}>
-                            <input
-                              type="checkbox"
-                              checked={formData.is_subcontracted}
-                              onChange={e => setFormData(prev => ({ ...prev, is_subcontracted: e.target.checked }))}
-                              disabled={isViewMode}
-                              style={{ accentColor: themeColor }}
-                            />
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Subcontracted</span>
-                          </label>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Items Card */}
-                <div className="so-card">
-                  <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p className="so-card-title">Items</p>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => setShowColConfig(true)}
-                        className="so-btn-ghost"
-                        style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                        title="Configure Columns"
-                      >
-                        <Settings size={14} />
-                        <span>Columns</span>
-                      </button>
-                      {!isViewMode && (
-                        <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
-                          <Plus size={14} /> Add Row
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="so-card-body">
-                    <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
-                      <table className="so-items-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
-                            {(() => {
-                              const activeCols = columnConfig.filter(c => c.visible);
-                              const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
-
-                              return activeCols.map(col => {
-                                // Hide Selling Price (Box) header column when no items have UOM=Box
-                                if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
-                                return (
-                                  <th
-                                    key={col.id}
-                                    style={{
-                                      width: col.width,
-                                      minWidth: col.id === 'item_code' ? 120 : undefined,
-                                      textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price'].includes(col.id) ? 'right' :
-                                        ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
-                                    }}
-                                  >
-                                    {col.label}
-                                  </th>
-                                );
-                              });
-                            })()}
-                            <th style={{ width: '40px', textAlign: 'center' }}>
-                              {!isViewMode && (
-                                <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Configure Columns">
-                                  <Settings size={16} />
-                                </button>
-                              )}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {formData.items.map((item, i) => (
-                            <tr key={i} tabIndex={-1}>
-                              <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>{i + 1}</td>
-
-                              {(() => {
-                                const activeCols = columnConfig.filter(c => c.visible);
-                                const isNosUom = (item.uom || '').toLowerCase() !== 'box';
-                                const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
-
-                                return activeCols.map(col => {
-                                  // Skip Selling Price (Box) cell entirely when NO items have UOM=Box (matching header logic)
-                                  if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
-                                  switch (col.id) {
-                                    case 'custom_box_qty':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box" style={{ position: 'relative' }}>
-                                              {isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800" style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}>
-                                                  {item.custom_box_qty || 0}
-                                                </div>
-                                              ) : (
-                                                <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      const currentVal = parseFloat(item.custom_box_qty) || 0;
-                                                      updateItem(i, 'custom_box_qty', Math.max(0, currentVal - 1));
-                                                    }}
-                                                    style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px 0 0 4px', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
-                                                  >
-                                                    -
-                                                  </button>
-                                                  <input
-                                                    type="number"
-                                                    value={item.custom_box_qty !== undefined ? item.custom_box_qty : ''}
-                                                    onFocus={e => e.target.select()}
-                                                    onClick={e => e.target.select()}
-                                                    onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
-                                                    className="so-input text-center font-bold"
-                                                    style={{ borderTop: `1px solid ${themeColor}40`, borderBottom: `1px solid ${themeColor}40`, borderRadius: 0, height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '40px', flex: 1, minWidth: '40px' }}
-                                                  />
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      const currentVal = parseFloat(item.custom_box_qty) || 0;
-                                                      updateItem(i, 'custom_box_qty', currentVal + 1);
-                                                    }}
-                                                    style={{ padding: '0 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '0 4px 4px 0', height: '36px', fontWeight: 'bold', cursor: 'pointer' }}
-                                                  >
-                                                    +
-                                                  </button>
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'custom_pieces_per_box':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box">
-                                              {isNosUom ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
-                                              ) : isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800">
-                                                  {(item.custom_pieces_per_box || 1)}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="number"
-                                                  value={item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : ''}
-                                                  onFocus={e => e.target.select()}
-                                                  onClick={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
-                                                  className="so-input text-left pl-3 font-bold"
-                                                />
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'item_code':
-                                      return (
-                                        <td key={col.id} ref={el => itemRefs.current[i] = el} style={{ verticalAlign: 'middle' }}>
-                                          <div className="premium-cell-container" style={{ minHeight: '36px', justifyContent: 'center' }}>
-                                            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-                                              {!isViewMode ? (
-                                                <CustomSearchDropdown
-                                                  value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
-                                                  placeholder="Search item..."
-                                                  onSelect={(val) => selectItem(i, val)}
-                                                  fetchData={fetchItemsAPI}
-                                                  themeColor={themeColor}
-                                                  optionsLabel="name"
-                                                />
-                                              ) : (
-                                                item.item_code && (
-                                                  <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-[#1e293b]">
-                                                    {item.item_code}
-                                                  </div>
-                                                )
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'item_name':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box">
-                                              <div
-                                                className="premium-cell-readonly premium-cell-readonly-left pl-3 text-slate-500 font-bold truncate"
-                                                style={{ maxWidth: '140px', fontSize: '11px' }}
-                                                title={item.item_name || '—'}
-                                              >
-                                                {item.item_name || '—'}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'custom_ref_sl_no':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box">
-                                              {isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center">
-                                                  {item.custom_ref_sl_no || item.custom_supplier_sl_num || '—'}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="text"
-                                                  value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
-                                                  onFocus={e => e.target.select()}
-                                                  onClick={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
-                                                  className="so-input text-center font-bold text-[10px]"
-                                                  placeholder="REF / SL #"
-                                                />
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'qty':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box" style={{ position: 'relative' }}>
-                                              {isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-[var(--so-primary)]" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>
-                                                  {item.qty}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="number"
-                                                  value={item.qty}
-                                                  onFocus={e => e.target.select()}
-                                                  onClick={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'qty', e.target.value)}
-                                                  className="so-input text-left pl-3 font-bold"
-                                                  style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}
-                                                />
-                                              )}
-                                              {item.use_box_entry && (
-                                                <span
-                                                  className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
-                                                  style={{
-                                                    position: 'absolute',
-                                                    right: '8px',
-                                                    top: '50%',
-                                                    transform: 'translateY(-50%)',
-                                                    color: '#64748b',
-                                                    backgroundColor: '#f8fafc',
-                                                    borderColor: '#e2e8f0',
-                                                    lineHeight: 1
-                                                  }}
-                                                >
-                                                  NOS
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'uom':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box">
-                                              {!item.item_code || isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center text-[10px] uppercase text-slate-500 font-bold">
-                                                  {item.use_box_entry ? 'BOX' : (item.uom || 'NOS')}
-                                                </div>
-                                              ) : (
-                                                <select
-                                                  value={item.uom || ''}
-                                                  onChange={(e) => handleUOMChange(e.target.value, i)}
-                                                  className="text-center text-[10px] font-bold text-slate-600 bg-white"
-                                                >
-                                                  {(() => {
-                                                    const uniqueUoms = [];
-                                                    const seen = new Set();
-                                                    const candidates = [];
-
-                                                    if (item.uom_list && Array.isArray(item.uom_list)) {
-                                                      item.uom_list.forEach(u => {
-                                                        if (u && u.uom) candidates.push(u.uom);
-                                                      });
-                                                    }
-
-                                                    candidates.push(item.stock_uom || 'Nos');
-                                                    candidates.push(item.uom || 'Nos');
-                                                    candidates.push('Nos');
-                                                    candidates.push('Box');
-
-                                                    candidates.forEach(u => {
-                                                      const norm = u.trim().toLowerCase();
-                                                      let display = u.trim();
-                                                      if (norm === 'box') display = 'Box';
-                                                      else if (norm === 'nos') display = 'Nos';
-
-                                                      if (!seen.has(norm)) {
-                                                        seen.add(norm);
-                                                        uniqueUoms.push(display);
-                                                      }
-                                                    });
-
-                                                    return uniqueUoms.map(uomVal => (
-                                                      <option key={uomVal} value={uomVal}>{uomVal}</option>
-                                                    ));
-                                                  })()}
-                                                </select>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'custom_box_price':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box">
-                                              {isNosUom ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
-                                              ) : isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
-                                                  {formatPrice(item.custom_box_price)}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="number"
-                                                  value={item.custom_box_price !== undefined ? item.custom_box_price : ''}
-                                                  onFocus={e => e.target.select()}
-                                                  onClick={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
-                                                  className="so-input text-right pr-3 font-bold"
-                                                  step="0.01"
-                                                  placeholder="Box Price"
-                                                />
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'rate':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box">
-                                              {item.use_box_entry || (item.uom || '').toLowerCase() === 'box' ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
-                                              ) : isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[var(--so-primary)]">
-                                                  {formatPrice(item.rate)}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="number"
-                                                  value={item.rate}
-                                                  onFocus={e => e.target.select()}
-                                                  onClick={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'rate', e.target.value)}
-                                                  className="so-input text-right pr-3 font-bold"
-                                                  step="0.01"
-                                                />
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'custom_selling_price':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box">
-                                              {isViewMode ? (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
-                                                  {formatPrice(item.custom_selling_price)}
-                                                </div>
-                                              ) : (
-                                                <input
-                                                  type="number"
-                                                  value={item.custom_selling_price || ''}
-                                                  onFocus={e => e.target.select()}
-                                                  onClick={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                                  className="so-input text-right pr-3 font-bold text-[#6366f1]"
-                                                  step="0.01"
-                                                  placeholder="Nos Price"
-                                                />
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                    case 'custom_box_selling_price':
-                                      {
-                                        const isBoxUom = (item.uom || '').toLowerCase() === 'box';
-                                        return (
-                                          <td key={col.id}>
-                                            <div className="premium-cell-container">
-                                              <div className="premium-cell-box">
-                                                {!isBoxUom ? (
-                                                  <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
-                                                ) : isViewMode ? (
-                                                  <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#10b981]">
-                                                    {formatPrice((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1))}
-                                                  </div>
-                                                ) : (
-                                                  <input
-                                                    type="number"
-                                                    value={item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? ((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2) : '')}
-                                                    onFocus={e => e.target.select()}
-                                                    onClick={e => e.target.select()}
-                                                    onChange={e => {
-                                                      const typedVal = e.target.value;
-                                                      const val = parseFloat(typedVal) || 0;
-                                                      const pcs = parseFloat(item.custom_pieces_per_box) || 1;
-                                                      const nosPrice = pcs > 0 ? (val / pcs).toFixed(4) : 0;
-
-                                                      setFormData(prev => {
-                                                        const newItems = [...prev.items];
-                                                        newItems[i] = {
-                                                          ...newItems[i],
-                                                          custom_selling_price: parseFloat(nosPrice),
-                                                          _temp_box_selling_price: typedVal
-                                                        };
-                                                        return { ...prev, items: newItems };
-                                                      });
-                                                    }}
-                                                    onBlur={() => {
-                                                      setFormData(prev => {
-                                                        const newItems = [...prev.items];
-                                                        newItems[i] = {
-                                                          ...newItems[i],
-                                                          custom_selling_price: parseFloat(newItems[i].custom_selling_price).toFixed(2),
-                                                          _temp_box_selling_price: undefined
-                                                        };
-                                                        return { ...prev, items: newItems };
-                                                      });
-                                                    }}
-                                                    className="so-input text-right pr-3 font-bold text-[#10b981]"
-                                                    step="0.01"
-                                                    placeholder="Box Price"
-                                                  />
-                                                )}
-                                              </div>
-                                            </div>
-                                          </td>
-                                        );
-                                      }
-                                    case 'amount':
-                                      return (
-                                        <td key={col.id}>
-                                          <div className="premium-cell-container">
-                                            <div className="premium-cell-box">
-                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
-                                                {formatPrice(item.amount)}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
-                                  }
-                                });
-                              })()}
-
-                              <td style={{ textAlign: 'center' }}>
-                                {!isViewMode && (
-                                  <button onClick={() => removeItemRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}>
-                                    <X size={14} />
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Discounts & Taxes Section */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
-                  {/* Left Column: Discounts & Tax Selection */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div className="so-card">
-                      <div className="so-card-header">
-                        <p className="so-card-title">Discounts & Rounding</p>
-                      </div>
-                      <div className="so-card-body">
-                        <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                          <div className="so-field" style={{ gridColumn: 'span 2' }}>
-                            <label className="so-label">Apply Discount On</label>
-                            <select
-                              value={formData.apply_discount_on}
-                              onChange={e => setFormData(prev => ({ ...prev, apply_discount_on: e.target.value }))}
-                              disabled={isViewMode}
-                              className="so-select"
-                            >
-                              <option>Grand Total</option>
-                              <option>Net Total</option>
-                            </select>
-                          </div>
-                          <div className="so-field">
-                            <label className="so-label">Discount (%)</label>
-                            <input
-                              type="number"
-                              value={formData.additional_discount_percentage}
-                              onChange={e => setFormData(prev => ({ ...prev, additional_discount_percentage: e.target.value, discount_amount: 0 }))}
-                              className="so-input"
-                              min="0" max="100" step="0.01"
-                              disabled={isViewMode}
-                            />
-                          </div>
-                          <div className="so-field">
-                            <label className="so-label">Discount Amount</label>
-                            <input
-                              type="number"
-                              value={formData.discount_amount}
-                              onChange={e => setFormData(prev => ({ ...prev, discount_amount: e.target.value, additional_discount_percentage: 0 }))}
-                              className="so-input"
-                              min="0" step="0.01"
-                              disabled={isViewMode}
-                            />
-                          </div>
-                          <div className="so-field" style={{ gridColumn: 'span 2' }}>
-                            <label className="so-label">Tax Template</label>
-                            <select
-                              value={formData.taxes_and_charges}
-                              onChange={e => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
-                              disabled={isViewMode || loadingTaxTemplates}
-                              className="so-select"
-                            >
-                              <option value="">No Tax</option>
-                              {taxTemplates.map(t => (
-                                <option key={t.name} value={t.name}>{t.title || t.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Taxes Table Card */}
-                    {taxPreview.length > 0 && (
-                      <div className="so-card">
-                        <div className="so-card-header">
-                          <p className="so-card-title">Taxes & Charges</p>
-                        </div>
-                        <div className="so-card-body">
-                          <div className="so-table-wrapper" style={{ boxShadow: 'none', border: '1px solid var(--so-border)', marginTop: 0 }}>
-                            <table className="so-items-table">
-                              <thead>
-                                <tr>
-                                  <th>Type</th>
-                                  <th>Account</th>
-                                  <th style={{ textAlign: 'center' }}>Rate</th>
-                                  <th style={{ textAlign: 'right' }}>Amount</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {taxPreview.map((tax, i) => (
-                                  <tr key={i}>
-                                    <td><span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '1rem', background: '#e0f2fe', color: '#0369a1' }}>ACTUAL</span></td>
-                                    <td style={{ fontSize: '0.75rem', fontWeight: 600 }}>{tax.account_head?.split(' - ')[0]}</td>
-                                    <td style={{ textAlign: 'center', fontWeight: 700 }}>{tax.rate}%</td>
-                                    <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                      {formatPrice(netTotal * (parseFloat(tax.rate || 0) / 100))}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right Column: Totals Summary */}
-                  <div className="so-card" style={{
-                    background: isGreen
-                      ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
-                      : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)',
-                    color: 'white',
-                    height: '100%'
-                  }}>
-                    <div className="so-card-header" style={{ borderBottomColor: 'rgba(255,255,255,0.1)' }}>
-                      <p className="so-card-title" style={{ color: 'white' }}>Final Summary</p>
-                    </div>
-                    <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
-                        <span>Subtotal</span>
-                        <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(subtotal)}</span>
-                      </div>
-
-                      {discountAmount > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fda4af' }}>
-                          <span>Total Discount</span>
-                          <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>- <DirhamIcon size={12} /> {formatPrice(discountAmount)}</span>
-                        </div>
-                      )}
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.8, fontSize: '0.9rem' }}>
-                        <span>Tax Total</span>
-                        <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(taxTotal)}</span>
-                      </div>
-
-                      <div style={{
-                        marginTop: '1rem',
-                        paddingTop: '1rem',
-                        borderTop: '1px solid rgba(255,255,255,0.2)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}>
-                        <span style={{ fontSize: '1rem', fontWeight: 500 }}>Grand Total</span>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '1.75rem', fontWeight: 900, display: 'block', lineHeight: 1 }}>
-                            <span className="flex items-center justify-end gap-1.5"><DirhamIcon size={20} /> {formatPrice(grandTotal)}</span>
-                          </span>
-                          <span style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inc. All Taxes</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+    </div>
       {showColConfig && (
         <ColumnConfigModal
           isOpen={showColConfig}

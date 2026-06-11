@@ -1619,7 +1619,6 @@ function PurchaseReceiptList() {
   const closeModal = () => {
     setIsModalOpen(false);
     setDocName('');
-    setDocStatus(null);
     setIsEditMode(false);
     setIsViewMode(false);
     setFormErrors({});
@@ -2128,6 +2127,636 @@ function PurchaseReceiptList() {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxesTemplates]);
 
+  if (isModalOpen) {
+    return (
+      <>
+        <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ height: '100vh', overflowY: 'auto' }}>
+          <div className="so-page-header" style={{ padding: '0.85rem 2rem', background: '#fff', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+            <div>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {isViewMode ? 'View' : (docName ? 'Edit' : 'New')} {formData.is_return === 1 ? 'Purchase Return' : 'Purchase Receipt'}
+              </h2>
+              {docName && <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{docName} • Procurement</p>}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                {/* Always show DUPLICATE if docName exists */}
+                {docName && (
+                  <button
+                    onClick={handleDuplicate}
+                    className="so-btn-secondary"
+                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                  >
+                    <Copy size={14} /> DUPLICATE
+                  </button>
+                )}
+
+                {/* DRAFT PHASE */}
+                {(formData.docstatus === 0 || formData.docstatus === undefined) && (
+                  <>
+                    {/* 1. DELETE button (if allowed) */}
+                    {docName && allowedActions.includes('delete') && (
+                      <button
+                        onClick={() => handleDocAction('delete')}
+                        className="so-btn-ghost"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                      >
+                        <Trash2 size={14} className="inline mr-1" /> DELETE
+                      </button>
+                    )}
+
+                    {/* 2. EDIT DRAFT button (only if in view mode) */}
+                    {docName && isViewMode && (
+                      <button
+                        onClick={() => setIsViewMode(false)}
+                        className="so-btn-secondary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                      >
+                        <Edit3 size={14} /> EDIT DRAFT
+                      </button>
+                    )}
+
+                    {/* 3. The SINGLE PRIMARY action button */}
+                    {!docName ? (
+                      // New Document -> SAVE DRAFT
+                      <button
+                        onClick={() => handleDocAction('save')}
+                        disabled={saving}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
+                      </button>
+                    ) : (
+                      // Saved Document -> Show BOTH Update and Submit (if allowed)
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        {!isViewMode && (
+                          <button
+                            onClick={() => handleDocAction('save')}
+                            disabled={saving}
+                            className="so-btn-secondary"
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                          >
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
+                          </button>
+                        )}
+                        {(allowedActions.includes('submit') || allowedActions.length === 0) && (
+                          <button
+                            onClick={() => handleDocAction('submit')}
+                            disabled={saving}
+                            className="so-btn-primary"
+                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                          >
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* SUBMITTED PHASE */}
+                {formData.docstatus === 1 && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#ecfdf5', borderRadius: '0.75rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                      <CheckCircle2 size={14} /> SUBMITTED
+                    </div>
+
+                    {formData.per_billed < 100 && (
+                      <button
+                        onClick={() => handleCreateFlow('invoice')}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0284c7', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        <Plus size={14} className="inline mr-1" /> CREATE INVOICE
+                      </button>
+                    )}
+
+                    {allowedActions.includes('cancel') && (
+                      <button
+                        onClick={() => handleDocAction('cancel')}
+                        disabled={saving}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        {saving ? <Loader2 size={14} className="so-spinner" /> : 'CANCEL'}
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* CANCELLED PHASE */}
+                {formData.docstatus === 2 && (
+                  <>
+                    <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
+                      CANCELLED
+                    </div>
+
+                    {allowedActions.includes('amend') && (
+                      <button
+                        onClick={() => handleDocAction('amend')}
+                        disabled={saving}
+                        className="so-btn-primary"
+                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
+                      >
+                        {saving ? <Loader2 size={14} className="so-spinner" /> : 'AMEND'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+              <button onClick={closeModal} className="so-btn-secondary" style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <ChevronLeft size={16} /> Back to List
+              </button>
+            </div>
+          </div>
+
+          {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
+          <div className="w-full bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-sky-50/50 backdrop-blur-md border-b border-emerald-100/60 px-8 py-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-[11px] font-medium text-slate-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
+            <div className="flex items-center gap-1.5 text-emerald-800 font-bold uppercase tracking-wider text-[10px]">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Quick Shortcuts
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F2</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Supplier</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F3</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
+                <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
+                <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F10 / Alt+A</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Submit</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
+                <span className="text-[10px] font-semibold text-slate-600">Qty Adjust</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
+            {renderConnectionsDashboard()}
+            {/* Basic Details Card */}
+            <div className="so-card">
+              <div className="so-card-header">
+                <p className="so-card-title">Basic Details</p>
+              </div>
+              <div className="so-card-body">
+                <div className="so-form-grid">
+                  <div className="so-field">
+                    <label className="so-label">Series</label>
+                    <select
+                      name="series"
+                      value={formData.series}
+                      onChange={e => setFormData(prev => ({ ...prev, series: e.target.value }))}
+                      disabled={isViewMode}
+                      className="so-select"
+                      style={{ color: themeColor }}
+                    >
+                      <option value="MAT-PRE-.YYYY.-">MAT-PRE-.YYYY.-</option>
+                    </select>
+                  </div>
+
+                  <div className="so-field">
+                    <label className="so-label">Posting Date</label>
+                    {isViewMode ? (
+                      <div className="so-view-field">{format(new Date(formData.posting_date), 'dd-MM-yyyy')}</div>
+                    ) : (
+                      <input
+                        type="date"
+                        name="posting_date"
+                        value={formData.posting_date}
+                        onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
+                        className="so-input"
+                        onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                        onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="so-field">
+                    <label className="so-label">Posting Time</label>
+                    {isViewMode ? (
+                      <div className="so-view-field">{formData.posting_time}</div>
+                    ) : (
+                      <input
+                        type="time"
+                        name="posting_time"
+                        value={formData.posting_time}
+                        onChange={e => setFormData(prev => ({ ...prev, posting_time: e.target.value }))}
+                        className="so-input"
+                        onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                        onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="so-field" style={{ justifyContent: 'center' }}>
+                    <label className="so-label" style={{ marginBottom: '0.4rem' }}>Is Return</label>
+                    <div style={{ display: 'flex', alignItems: 'center', height: '38px' }}>
+                      <input
+                        type="checkbox"
+                        name="is_return"
+                        checked={formData.is_return}
+                        onChange={e => setFormData(prev => ({ ...prev, is_return: e.target.checked }))}
+                        disabled={isViewMode || docName}
+                        style={{ width: '20px', height: '20px', cursor: isViewMode ? 'not-allowed' : 'pointer' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="so-field" style={{ gridColumn: 'span 2' }}>
+                    <label className="so-label">Supplier / Vendor</label>
+                    {isViewMode ? (
+                      <div className="so-view-field">{formData.supplier_name} ({formData.supplier})</div>
+                    ) : (
+                      <div className="relative" ref={supplierRef}>
+                        <CustomSearchDropdown
+                          placeholder="Search supplier..."
+                          value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
+                          onSelect={selectSupplier}
+                          fetchData={fetchSuppliers}
+                          optionsLabel="supplier_name"
+                        />
+                      </div>
+                    )}
+                    {formErrors.supplier && <span style={{ color: 'red', fontSize: '0.7rem' }}>{formErrors.supplier}</span>}
+                  </div>
+
+                  <div className="so-field">
+                    <label className="so-label">Supplier Delivery Note</label>
+                    {isViewMode ? (
+                      <div className="so-view-field">{formData.supplier_delivery_note || <span style={{ opacity: 0.3 }}>None</span>}</div>
+                    ) : (
+                      <input
+                        type="text"
+                        name="supplier_delivery_note"
+                        value={formData.supplier_delivery_note}
+                        onChange={e => setFormData(prev => ({ ...prev, supplier_delivery_note: e.target.value }))}
+                        className="so-input"
+                        placeholder="e.g. DN-12345"
+                      />
+                    )}
+                  </div>
+
+                  <div className="so-field">
+                    <label className="so-label">Target Warehouse</label>
+                    {isViewMode ? (
+                      <div className="so-view-field">{formData.set_warehouse?.replace(' - KSPL', '')}</div>
+                    ) : (
+                      <select
+                        name="set_warehouse"
+                        value={formData.set_warehouse}
+                        onChange={e => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
+                        className="so-select"
+                        disabled={!isAdmin}
+                      >
+                        <option value="">Select Warehouse</option>
+                        {warehouses.map(w => (
+                          <option key={w.name} value={w.name}>{w.warehouse_name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {formErrors.set_warehouse && <span style={{ color: 'red', fontSize: '0.7rem' }}>{formErrors.set_warehouse}</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Product Items Table Card */}
+            <div className="so-card" style={{ overflow: 'visible' }}>
+              <div className="so-card-header" style={{ padding: '0.8rem 1.25rem' }}>
+                <p className="so-card-title">Product Basket</p>
+                {!isViewMode && (
+                  <button onClick={addItemRow} className="so-btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.7rem' }}>
+                    <Plus size={12} /> Add Row
+                  </button>
+                )}
+              </div>
+              <div className="so-card-body" style={{ padding: 0 }}>
+                {/* Barcode scanner wrapper */}
+                {!isViewMode && (
+                  <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--so-border)', display: 'flex', gap: '0.5rem', background: '#f8fafc' }}>
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="Scan / Type item barcode here..."
+                        value={barcodeInput}
+                        onChange={e => setBarcodeInput(e.target.value)}
+                        onKeyDown={handleBarcodeScan}
+                        className="so-input"
+                        style={{ height: '36px', fontSize: '0.75rem' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="so-items-table-wrap" style={{ overflowX: 'auto', maxConstraints: '100%' }}>
+                  <table className="so-items-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '40px', textCent: 'center' }}>#</th>
+                        <th>Product Details</th>
+                        <th style={{ width: '120px' }}>UOM</th>
+                        <th style={{ width: '100px', textAlign: 'center' }}>Qty</th>
+                        <th style={{ width: '110px', textAlign: 'right' }}>Rate (Nos)</th>
+                        <th style={{ width: '120px', textAlign: 'right' }}>Selling (Nos)</th>
+                        <th style={{ width: '120px', textAlign: 'right' }}>Selling (Box)</th>
+                        <th style={{ width: '100px', textAlign: 'center' }}>Rejected Qty</th>
+                        <th style={{ width: '120px', textAlign: 'right' }}>Subtotal</th>
+                        <th style={{ width: '50px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.items.map((item, i) => (
+                        <tr key={i}>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
+                          <td style={{ minWidth: '220px', position: 'relative' }}>
+                            {isViewMode ? (
+                              <div>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 800 }}>{item.item_name}</div>
+                                <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem' }}>{item.item_code}</div>
+                              </div>
+                            ) : (
+                              <div ref={el => itemRefs.current[i] = el}>
+                                <CustomSearchDropdown
+                                  placeholder="Type name / code..."
+                                  value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                  onSelect={(it) => selectItem(i, it)}
+                                  fetchData={fetchItems}
+                                  optionsLabel="item_name"
+                                />
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            {isViewMode ? (
+                              <div className="so-view-badge" style={{ display: 'inline-block' }}>{item.uom}</div>
+                            ) : (
+                              <select
+                                value={item.uom || ''}
+                                onChange={e => handleUOMChange(e.target.value, i)}
+                                className="so-select"
+                                style={{ height: '30px', padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
+                              >
+                                <option value="">Select UOM</option>
+                                {(item.uom_list || []).map(u => (
+                                  <option key={u.uom} value={u.uom}>{u.uom}</option>
+                                ))}
+                              </select>
+                            )}
+                          </td>
+                          <td>
+                            {isViewMode ? (
+                              <div className="so-view-field" style={{ textAlign: 'center', minHeight: '30px', height: '30px', padding: '0.2rem 0.5rem' }}>{item.use_box_entry ? item.custom_box_qty : item.accepted_qty}</div>
+                            ) : (
+                              <input
+                                type="number"
+                                name={item.use_box_entry ? "custom_box_qty" : "accepted_qty"}
+                                value={item.use_box_entry ? item.custom_box_qty : item.accepted_qty}
+                                onChange={e => updateItem(i, item.use_box_entry ? 'custom_box_qty' : 'accepted_qty', e.target.value)}
+                                className="so-td-input text-center"
+                                style={{ textAlign: 'center', height: '30px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                                placeholder="0"
+                              />
+                            )}
+                          </td>
+                          <td>
+                            {isViewMode ? (
+                              <div className="so-view-field" style={{ textAlign: 'right', minHeight: '30px', height: '30px', padding: '0.2rem 0.5rem' }}>{formatPrice(item.rate)}</div>
+                            ) : (
+                              <div className="relative">
+                                {rateLoading[i] ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '30px' }}><Loader2 size={12} className="animate-spin text-slate-450" /></div>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={item.rate}
+                                    onChange={e => updateItem(i, 'rate', e.target.value)}
+                                    className="so-td-input text-right font-bold"
+                                    style={{ textAlign: 'right', height: '30px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                                    placeholder="0.00"
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            {isViewMode ? (
+                              <div className="so-view-field" style={{ textAlign: 'right', minHeight: '30px', height: '30px', padding: '0.2rem 0.5rem' }}>{formatPrice(item.custom_selling_price)}</div>
+                            ) : (
+                              <input
+                                type="number"
+                                value={item.custom_selling_price}
+                                onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                className="so-td-input text-right"
+                                style={{ textAlign: 'right', height: '30px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                                placeholder="0.00"
+                              />
+                            )}
+                          </td>
+                          <td>
+                            {isViewMode ? (
+                              <div className="so-view-field" style={{ textAlign: 'right', minHeight: '30px', height: '30px', padding: '0.2rem 0.5rem' }}>{formatPrice(item.custom_box_selling_price)}</div>
+                            ) : (
+                              <input
+                                type="number"
+                                value={item.custom_box_selling_price}
+                                onChange={e => updateItem(i, 'custom_box_selling_price', e.target.value)}
+                                className="so-td-input text-right"
+                                style={{ textAlign: 'right', height: '30px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                                placeholder="0.00"
+                              />
+                            )}
+                          </td>
+                          <td>
+                            {isViewMode ? (
+                              <div className="so-view-field" style={{ textAlign: 'center', minHeight: '30px', height: '30px', padding: '0.2rem 0.5rem' }}>{item.rejected_qty}</div>
+                            ) : (
+                              <input
+                                type="number"
+                                value={item.rejected_qty}
+                                onChange={e => updateItem(i, 'rejected_qty', e.target.value)}
+                                className="so-td-input text-center text-slate-500"
+                                style={{ textAlign: 'center', height: '30px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                                placeholder="0"
+                              />
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', height: '30px' }}><DirhamIcon size={10} /> {formatPrice(item.amount)}</div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {!isViewMode && (
+                              <button onClick={() => removeItemRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}><X size={14} /></button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Taxes & Charges Card */}
+            <div className="so-card">
+              <div className="so-card-header" style={{ padding: '0.8rem 1.25rem' }}>
+                <p className="so-card-title">Taxes & Charges</p>
+                {!isViewMode && (
+                  <button onClick={addTaxRow} className="so-btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.7rem' }}>
+                    <Plus size={12} /> Add Tax Row
+                  </button>
+                )}
+              </div>
+              <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
+                  <div className="so-field" style={{ minWidth: '220px', flex: 1 }}>
+                    <label className="so-label">Taxes Template</label>
+                    {isViewMode ? (
+                      <div className="so-view-field">{formData.taxes_and_charges || <span style={{ opacity: 0.3 }}>None</span>}</div>
+                    ) : (
+                      <select
+                        value={formData.taxes_and_charges || ''}
+                        onChange={e => handleTaxesTemplateChange(e.target.value)}
+                        className="so-select"
+                      >
+                        <option value="">No Template</option>
+                        {taxesTemplates.map(t => (
+                          <option key={t.name} value={t.name}>{t.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
+                    <table className="so-items-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '40px' }}>Add</th>
+                          <th>Account / Type</th>
+                          <th style={{ width: '80px', textAlign: 'center' }}>Rate %</th>
+                          <th style={{ width: '100px', textAlign: 'right' }}>Total</th>
+                          <th style={{ width: '40px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.taxes.map((tax, i) => (
+                          <tr key={i}>
+                            <td style={{ textAlign: 'center' }}>
+                              {isViewMode ? (
+                                tax.add_row ? <CheckCircle2 size={16} style={{ color: themeColor }} /> : <span style={{ opacity: 0.2 }}>—</span>
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  checked={tax.add_row}
+                                  onChange={e => updateTax(i, 'add_row', e.target.checked)}
+                                />
+                              )}
+                            </td>
+                            <td>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{tax.account_head?.split(' - ')[0] || 'New Account'}</div>
+                              <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{tax.charge_type}</div>
+                            </td>
+                            <td>
+                              {isViewMode ? (
+                                <div className="so-view-field" style={{ textAlign: 'center' }}>{tax.rate}%</div>
+                              ) : (
+                                <input
+                                  type="number"
+                                  value={tax.rate}
+                                  onChange={e => updateTax(i, 'rate', e.target.value)}
+                                  className="so-input"
+                                  style={{ height: '30px', textAlign: 'center', fontSize: '0.75rem' }}
+                                />
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.75rem' }}>
+                              {(parseFloat(tax.total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {!isViewMode && <button onClick={() => removeTaxRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}><X size={12} /></button>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              {/* Summary Section */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div style={{
+                  background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColorHover} 100%)`,
+                  color: 'white',
+                  borderRadius: '0.75rem',
+                  padding: '1.75rem',
+                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', justifyConstraints: 'space-between', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
+                      <span>Net Total</span>
+                      <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(formData.net_total)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyConstraints: 'space-between', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
+                      <span>Total Tax</span>
+                      <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(formData.total_taxes_and_charges)}</span>
+                    </div>
+                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '0.5rem 0' }}></div>
+                    <div style={{ display: 'flex', justifyConstraints: 'space-between', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Grand Total</span>
+                      <span style={{ fontSize: '1.6rem', fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: '5px' }}><DirhamIcon size={20} /> {formatPrice(formData.grand_total)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Otherwise, render the list view page!
   return (
     <>
       <div className="so-page">
@@ -2447,28 +3076,30 @@ function PurchaseReceiptList() {
                           >
                             {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                           </button>
-                        ) : !isViewMode ? (
-                          // Edit / Update -> UPDATE DRAFT
-                          <button
-                            onClick={() => handleDocAction('save')}
-                            disabled={saving}
-                            className="so-btn-primary"
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                          >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
-                          </button>
                         ) : (
-                          // View / Draft Saved -> SUBMIT (only if in allowedActions)
-                          allowedActions.includes('submit') && (
-                            <button
-                              onClick={() => handleDocAction('submit')}
-                              disabled={saving}
-                              className="so-btn-primary"
-                              style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                            >
-                              {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
-                            </button>
-                          )
+                          // Saved Document -> Show BOTH Update and Submit (if allowed)
+                          <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            {!isViewMode && (
+                              <button
+                                onClick={() => handleDocAction('save')}
+                                disabled={saving}
+                                className="so-btn-secondary"
+                                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+                              >
+                                {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
+                              </button>
+                            )}
+                            {(allowedActions.includes('submit') || allowedActions.length === 0) && (
+                              <button
+                                onClick={() => handleDocAction('submit')}
+                                disabled={saving}
+                                className="so-btn-primary"
+                                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                              >
+                                {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </>
                     )}

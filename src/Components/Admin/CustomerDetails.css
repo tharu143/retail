@@ -35,3 +35,50 @@
 .tab-pill-button {
   border-radius: 9999px !important;
 }
+
+/* Font size overrides for readability */
+.customer-details-page .text-\[9px\] {
+  font-size: 11px !important;
+}
+.customer-details-page .text-\[11px\] {
+  font-size: 13px !important;
+}
+.customer-details-page .text-xs {
+  font-size: 13px !important;
+}
+.customer-details-page .text-\[10px\] {
+  font-size: 12px !important;
+}
+.customer-details-page .text-sm {
+  font-size: 15px !important;
+}
+.customer-details-page .text-\[8px\] {
+  font-size: 10px !important;
+}
+.customer-details-page .text-4xl {
+  font-size: 2.25rem !important;
+}
+.customer-details-page .tab-pill-button {
+  font-size: 12px !important;
+}
+
+/* Detail Row alignment styles */
+.customer-details-page .detail-row-content {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+}
+
+.customer-details-page .detail-row-label {
+  flex-shrink: 0 !important;
+  margin-right: 0.5rem !important;
+}
+
+.customer-details-page .detail-row-value {
+  flex-grow: 1 !important;
+  text-align: right !important;
+}
+
+

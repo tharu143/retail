@@ -850,3 +850,77 @@
         max-width: none;
     }
 }
+
+/* Font-size adjustments for readability */
+.supplier-page-container .badge-pill-modern {
+    font-size: 0.85rem;
+}
+.supplier-page-container .badge-label-muted {
+    font-size: 0.8rem;
+}
+.supplier-page-container .btn-modern-primary,
+.supplier-page-container .btn-modern-secondary,
+.supplier-page-container .btn-modern-ghost {
+    font-size: 0.9rem;
+}
+.supplier-page-container .nav-tab-btn-modern {
+    font-size: 0.9rem;
+}
+.supplier-page-container .stat-card-label {
+    font-size: 0.75rem;
+}
+.supplier-page-container .stat-card-currency {
+    font-size: 0.9rem;
+}
+.supplier-page-container .stat-card-value {
+    font-size: 2rem;
+}
+.supplier-page-container .connection-card-title {
+    font-size: 0.9rem;
+}
+.supplier-page-container .connection-link-name {
+    font-size: 0.95rem;
+}
+.supplier-page-container .connection-count-badge {
+    font-size: 0.85rem;
+}
+.supplier-page-container .info-panel-title {
+    font-size: 0.95rem;
+}
+.supplier-page-container .info-field-label {
+    font-size: 0.8rem;
+}
+.supplier-page-container .info-field-value {
+    font-size: 0.88rem;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    text-align: right !important;
+}
+.supplier-page-container .info-field-value-mono {
+    font-size: 0.9rem;
+}
+.supplier-page-container .table-header-title {
+    font-size: 0.95rem;
+}
+.supplier-page-container .search-input-field {
+    font-size: 0.9rem;
+}
+.supplier-page-container .modern-styled-table th {
+    font-size: 0.75rem;
+}
+.supplier-page-container .modern-styled-table td {
+    font-size: 0.95rem;
+}
+.supplier-page-container .row-title-bold {
+    font-size: 0.95rem;
+}
+.supplier-page-container .row-subtitle-muted {
+    font-size: 0.8rem;
+}
+.supplier-page-container .contact-meta-item {
+    font-size: 0.85rem;
+}
+.supplier-page-container .toggle-label-bold {
+    font-size: 0.95rem;
+}

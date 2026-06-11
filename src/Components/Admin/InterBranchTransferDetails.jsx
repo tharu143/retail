@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { 
-  ArrowLeft, Save, CheckCircle2, XCircle, Package, Building2, 
+  Save, CheckCircle2, XCircle, Package, Building2, 
   Search, Trash2, Loader2, AlertTriangle, ArrowRight, Info, Plus, Scan, MapPin, X, Copy, Edit3
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -111,129 +111,186 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
 
     const hasErrors = Object.keys(validationErrors).length > 0;
 
+    const grandTotal = items?.reduce((sum, item) => {
+        const itemPrices = prices[item.item_code] || {};
+        return sum + ((item.qty || 0) * (itemPrices.selling_price || 0));
+    }, 0) || 0;
+
+    const totalQty = items?.reduce((sum, item) => sum + (item.qty || 0), 0) || 0;
+
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 animate-fadeIn">
+            <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] w-full max-w-4xl overflow-hidden border border-slate-100 flex flex-col max-h-[85vh]">
                 {/* Header */}
-                <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-blue-50">
+                <div className="px-8 py-5 border-b border-slate-100 bg-white">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-lg font-black text-slate-800 tracking-tight">Accept & Transfer</h2>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
-                                <Package size={10} /> Confirm selling prices for dispatch
-                            </p>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                                <Package size={18} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h2 className="text-base font-extrabold text-slate-950 tracking-tight leading-none">Accept & Transfer</h2>
+                                    <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 uppercase tracking-wider">
+                                        Source: {sourceWarehouse?.replace(' - KSPL', '')}
+                                    </span>
+                                </div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">
+                                    Confirm selling prices and authorize dispatch
+                                </p>
+                            </div>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-slate-600">
+                        <button onClick={onClose} className="p-2 hover:bg-slate-50 active:scale-95 rounded-xl transition-all text-slate-400 hover:text-slate-700">
                             <X size={18} strokeWidth={3} />
                         </button>
                     </div>
                 </div>
 
-                {/* Items Table */}
-                <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
+                {/* Items Container */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/20">
                     {loading ? (
                         <div className="py-16 text-center space-y-4">
                             <Loader2 className="animate-spin mx-auto text-emerald-500" size={28} />
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fetching Branch Prices...</p>
                         </div>
                     ) : (
-                        <>
-                            {/* Items */}
-                            {items.map((item, idx) => {
-                                const itemPrices = prices[item.item_code] || {};
-                                const isBox = (item.uom || '').toLowerCase() === 'box';
-                                const sellingPrice = itemPrices.selling_price || 0;
-                                const totalPrice = (item.qty || 0) * sellingPrice;
-                                const error = validationErrors[item.item_code];
-                                const minPrice = isBox ? (minPrices[item.item_code]?.box || 0) : (minPrices[item.item_code]?.nos || 0);
+                        <div className="space-y-6">
+                            {/* Items Table Card */}
+                            <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="border-b border-slate-150 bg-slate-50/75">
+                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center" style={{ width: '50px' }}>#</th>
+                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Item Details</th>
+                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center" style={{ width: '120px' }}>Quantity</th>
+                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right" style={{ width: '180px' }}>Selling Price</th>
+                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right" style={{ width: '160px' }}>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {items.map((item, idx) => {
+                                                const itemPrices = prices[item.item_code] || {};
+                                                const isBox = (item.uom || '').toLowerCase() === 'box';
+                                                const sellingPrice = itemPrices.selling_price || 0;
+                                                const totalPrice = (item.qty || 0) * sellingPrice;
+                                                const error = validationErrors[item.item_code];
+                                                const minPrice = isBox ? (minPrices[item.item_code]?.box || 0) : (minPrices[item.item_code]?.nos || 0);
 
-                                return (
-                                    <div key={idx} className={`p-4 rounded-2xl border ${error ? 'border-rose-200 bg-rose-50/30' : 'border-slate-100 bg-slate-50/50'} space-y-3 transition-all`}>
-                                        {/* Item header */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[10px] font-black text-slate-400 border border-slate-100 shadow-sm">
-                                                    {idx + 1}
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs font-black text-slate-700">{item.item_name}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase">{item.item_code}</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-black text-slate-800">{item.qty} <span className="text-[9px] text-slate-400 uppercase">{item.uom || 'Nos'}</span></div>
-                                            </div>
-                                        </div>
+                                                return (
+                                                    <tr key={idx} className={`hover:bg-slate-50/50 transition-colors ${error ? 'bg-rose-50/20' : ''}`}>
+                                                        <td className="px-4 py-4 text-center text-xs font-bold text-slate-400">
+                                                            {idx + 1}
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <span className="text-xs font-extrabold text-slate-900 block leading-tight">{item.item_name}</span>
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1 block">{item.item_code}</span>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-center">
+                                                            <span className="text-xs font-black text-slate-800 bg-slate-50 border border-slate-100 px-3 py-1 rounded-md shadow-xs inline-block">
+                                                                {item.qty} <span className="text-[9px] text-slate-400 uppercase font-bold ml-0.5">{item.uom || 'Nos'}</span>
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <div className="relative w-32">
+                                                                    <input
+                                                                        type="number"
+                                                                        className={`w-full h-9 pl-3 pr-9 border rounded-xl font-bold text-xs outline-none transition-all text-right bg-white ${
+                                                                            error 
+                                                                                ? 'border-rose-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100' 
+                                                                                : 'border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100'
+                                                                        }`}
+                                                                        value={sellingPrice || ''}
+                                                                        placeholder="0.00"
+                                                                        onChange={(e) => handlePriceChange(item.item_code, e.target.value, item.uom)}
+                                                                        onFocus={(e) => e.target.select()}
+                                                                    />
+                                                                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400 uppercase">
+                                                                        AED
+                                                                    </span>
+                                                                </div>
+                                                                {error ? (
+                                                                    <span className="text-[8px] font-bold text-rose-500 leading-tight">{error}</span>
+                                                                ) : (
+                                                                    <span className="text-[8px] font-bold text-slate-400 leading-tight">
+                                                                        Min: <span className="text-slate-600 font-semibold">{minPrice.toFixed(2)}</span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-right">
+                                                            <span className="text-xs font-black text-slate-950">
+                                                                AED {totalPrice.toFixed(2)}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
 
-                                        {/* Price Row */}
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                                            {/* Selling Price Input */}
-                                            <div className="relative">
-                                                <label className="text-[7.5px] font-black text-emerald-600 uppercase tracking-widest block mb-1">
-                                                    Selling Price ({isBox ? 'Box' : 'Nos'})
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    className={`w-full px-3 py-2 border-2 ${error ? 'border-rose-300 focus:border-rose-500' : 'border-slate-200 focus:border-emerald-500'} rounded-xl font-black text-xs outline-none transition-all bg-white`}
-                                                    value={sellingPrice || ''}
-                                                    placeholder="0.00"
-                                                    onChange={(e) => handlePriceChange(item.item_code, e.target.value, item.uom)}
-                                                    onFocus={(e) => e.target.select()}
-                                                />
-                                                {error && <p className="text-[8px] font-bold text-rose-500 mt-1">{error}</p>}
-                                                <p className="text-[7px] font-bold text-slate-400 mt-0.5">Min: {minPrice.toFixed(2)}</p>
-                                            </div>
-
-                                            {/* Qty (read-only) */}
-                                            <div>
-                                                <label className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-1">Qty</label>
-                                                <div className="px-3 py-2 bg-slate-100 rounded-xl font-black text-xs text-slate-600 border-2 border-transparent">
-                                                    {item.qty} {item.uom || 'Nos'}
-                                                </div>
-                                            </div>
-
-                                            {/* Total Price (calculated) */}
-                                            <div>
-                                                <label className="text-[7.5px] font-black text-blue-500 uppercase tracking-widest block mb-1">Total Price</label>
-                                                <div className="px-3 py-2 bg-blue-50 rounded-xl font-black text-xs text-blue-700 border-2 border-blue-100">
-                                                    {totalPrice.toFixed(2)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            {/* PIN Input */}
-                            <div className="mt-4 p-4 rounded-2xl border border-slate-200 bg-white">
-                                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Cashier PIN to Authorize Dispatch</label>
-                                <input
-                                    type="password"
-                                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-black text-sm outline-none focus:border-emerald-500 transition-all text-center tracking-[0.5em]"
-                                    value={pinValue}
-                                    onChange={(e) => setPinValue(e.target.value)}
-                                    placeholder="Enter PIN"
-                                    autoComplete="off"
-                                />
+                                            {/* Summary Row */}
+                                            <tr className="bg-slate-50/50 border-t border-slate-200">
+                                                <td colSpan={2} className="px-4 py-3.5 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider text-right">
+                                                    Total Items: {items.length}
+                                                </td>
+                                                <td className="px-4 py-3.5 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider text-center">
+                                                    {totalQty}
+                                                </td>
+                                                <td className="px-4 py-3.5 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider text-right">
+                                                    Grand Total:
+                                                </td>
+                                                <td className="px-4 py-3.5 text-sm font-black text-emerald-600 text-right">
+                                                    AED {grandTotal.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </>
+
+                            {/* PIN Authorization Panel */}
+                            <div className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 bg-white text-slate-650 rounded-xl border border-slate-150 shadow-xs">
+                                        <Info size={16} className="text-slate-500" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">Cashier Authorization PIN</h4>
+                                        <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                                            Enter your 4-digit security PIN to authorize this dispatch transfer.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="w-full md:w-auto">
+                                    <input
+                                        type="password"
+                                        maxLength={4}
+                                        className="w-full md:w-36 h-10 px-4 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 rounded-xl font-black text-sm outline-none transition-all text-center tracking-[0.5em] bg-white shadow-inner"
+                                        value={pinValue}
+                                        onChange={(e) => setPinValue(e.target.value)}
+                                        placeholder="••••"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+                {/* Footer Controls */}
+                <div className="px-8 py-5 border-t border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
                     <button
                         onClick={onClose}
-                        className="px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                        className="px-6 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleConfirm}
                         disabled={loading || hasErrors || !pinValue}
-                        className="px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 shadow-md hover:shadow-lg disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
                     >
-                        <CheckCircle2 size={14} /> Accept & Transfer
+                        <CheckCircle2 size={13} /> Confirm & Dispatch
                     </button>
                 </div>
             </div>
@@ -983,9 +1040,6 @@ function InterBranchTransferDetails() {
       <div className="po-header-container bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
         <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/interbranchrequests')} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-full transition-all text-slate-400">
-              <ArrowLeft size={18} />
-            </button>
             <div>
               <h1 className="text-base font-black tracking-tight text-slate-800">
                 {isNew ? 'New Inter-Branch Request' : `Inter-Branch Request: ${name}`}
