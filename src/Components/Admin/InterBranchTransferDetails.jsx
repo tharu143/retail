@@ -15,6 +15,283 @@ import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
 
+// Accept & Transfer Modal - shown to Branch B when accepting a request
+const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfirm }) => {
+    const [prices, setPrices] = useState({});
+    const [loading, setLoading] = useState(false);
+    const [minPrices, setMinPrices] = useState({});
+    const [pinValue, setPinValue] = useState('');
+    const [validationErrors, setValidationErrors] = useState({});
+
+    useEffect(() => {
+        if (isOpen && items?.length > 0 && sourceWarehouse) {
+            fetchPrices();
+        }
+    }, [isOpen, items, sourceWarehouse]);
+
+    const fetchPrices = async () => {
+        try {
+            setLoading(true);
+            const sid = localStorage.getItem('session') || '';
+            const itemCodes = items.map(it => it.item_code);
+            const res = await axios.post(`${API_PATH}.get_branch_selling_prices`, {
+                items: JSON.stringify(itemCodes),
+                warehouse: sourceWarehouse
+            }, {
+                headers: { 'X-Frappe-SID': sid },
+                withCredentials: true
+            });
+            const data = res.data?.message || {};
+            const initialPrices = {};
+            const mins = {};
+            items.forEach(it => {
+                const p = data[it.item_code] || {};
+                const uomIsBox = (it.uom || '').toLowerCase() === 'box';
+                initialPrices[it.item_code] = {
+                    selling_price: uomIsBox ? (p.box_price || 0) : (p.nos_price || 0),
+                    nos_price: p.nos_price || 0,
+                    box_price: p.box_price || 0,
+                    pcs_per_box: p.pcs_per_box || 1
+                };
+                mins[it.item_code] = {
+                    nos: p.nos_price || 0,
+                    box: p.box_price || 0
+                };
+            });
+            setPrices(initialPrices);
+            setMinPrices(mins);
+            setValidationErrors({});
+        } catch (err) {
+            console.error('Failed to fetch branch prices:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePriceChange = (itemCode, value, uom) => {
+        const numVal = parseFloat(value) || 0;
+        const isBox = (uom || '').toLowerCase() === 'box';
+        const minPrice = isBox ? (minPrices[itemCode]?.box || 0) : (minPrices[itemCode]?.nos || 0);
+        
+        const newErrors = { ...validationErrors };
+        if (numVal > 0 && numVal < minPrice) {
+            newErrors[itemCode] = `Cannot be lower than ${minPrice.toFixed(2)}`;
+        } else {
+            delete newErrors[itemCode];
+        }
+        setValidationErrors(newErrors);
+
+        setPrices(prev => ({
+            ...prev,
+            [itemCode]: {
+                ...prev[itemCode],
+                selling_price: numVal,
+                ...(isBox ? { box_price: numVal } : { nos_price: numVal })
+            }
+        }));
+    };
+
+    const handleConfirm = () => {
+        if (Object.keys(validationErrors).length > 0) {
+            return;
+        }
+        if (!pinValue) {
+            return;
+        }
+        // Build selling_prices array for the API
+        const sellingPrices = items.map(it => ({
+            item_code: it.item_code,
+            selling_price_nos: prices[it.item_code]?.nos_price || 0,
+            selling_price_box: prices[it.item_code]?.box_price || 0
+        }));
+        onConfirm(pinValue, sellingPrices);
+    };
+
+    if (!isOpen) return null;
+
+    const hasErrors = Object.keys(validationErrors).length > 0;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-blue-50">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-lg font-black text-slate-800 tracking-tight">Accept & Transfer</h2>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
+                                <Package size={10} /> Confirm selling prices for dispatch
+                            </p>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-slate-600">
+                            <X size={18} strokeWidth={3} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Items Table */}
+                <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
+                    {loading ? (
+                        <div className="py-16 text-center space-y-4">
+                            <Loader2 className="animate-spin mx-auto text-emerald-500" size={28} />
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fetching Branch Prices...</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Items */}
+                            {items.map((item, idx) => {
+                                const itemPrices = prices[item.item_code] || {};
+                                const isBox = (item.uom || '').toLowerCase() === 'box';
+                                const sellingPrice = itemPrices.selling_price || 0;
+                                const totalPrice = (item.qty || 0) * sellingPrice;
+                                const error = validationErrors[item.item_code];
+                                const minPrice = isBox ? (minPrices[item.item_code]?.box || 0) : (minPrices[item.item_code]?.nos || 0);
+
+                                return (
+                                    <div key={idx} className={`p-4 rounded-2xl border ${error ? 'border-rose-200 bg-rose-50/30' : 'border-slate-100 bg-slate-50/50'} space-y-3 transition-all`}>
+                                        {/* Item header */}
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[10px] font-black text-slate-400 border border-slate-100 shadow-sm">
+                                                    {idx + 1}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black text-slate-700">{item.item_name}</p>
+                                                    <p className="text-[9px] font-bold text-slate-400 uppercase">{item.item_code}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-sm font-black text-slate-800">{item.qty} <span className="text-[9px] text-slate-400 uppercase">{item.uom || 'Nos'}</span></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Price Row */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                                            {/* Selling Price Input */}
+                                            <div className="relative">
+                                                <label className="text-[7.5px] font-black text-emerald-600 uppercase tracking-widest block mb-1">
+                                                    Selling Price ({isBox ? 'Box' : 'Nos'})
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    className={`w-full px-3 py-2 border-2 ${error ? 'border-rose-300 focus:border-rose-500' : 'border-slate-200 focus:border-emerald-500'} rounded-xl font-black text-xs outline-none transition-all bg-white`}
+                                                    value={sellingPrice || ''}
+                                                    placeholder="0.00"
+                                                    onChange={(e) => handlePriceChange(item.item_code, e.target.value, item.uom)}
+                                                    onFocus={(e) => e.target.select()}
+                                                />
+                                                {error && <p className="text-[8px] font-bold text-rose-500 mt-1">{error}</p>}
+                                                <p className="text-[7px] font-bold text-slate-400 mt-0.5">Min: {minPrice.toFixed(2)}</p>
+                                            </div>
+
+                                            {/* Qty (read-only) */}
+                                            <div>
+                                                <label className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-1">Qty</label>
+                                                <div className="px-3 py-2 bg-slate-100 rounded-xl font-black text-xs text-slate-600 border-2 border-transparent">
+                                                    {item.qty} {item.uom || 'Nos'}
+                                                </div>
+                                            </div>
+
+                                            {/* Total Price (calculated) */}
+                                            <div>
+                                                <label className="text-[7.5px] font-black text-blue-500 uppercase tracking-widest block mb-1">Total Price</label>
+                                                <div className="px-3 py-2 bg-blue-50 rounded-xl font-black text-xs text-blue-700 border-2 border-blue-100">
+                                                    {totalPrice.toFixed(2)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* PIN Input */}
+                            <div className="mt-4 p-4 rounded-2xl border border-slate-200 bg-white">
+                                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Cashier PIN to Authorize Dispatch</label>
+                                <input
+                                    type="password"
+                                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-black text-sm outline-none focus:border-emerald-500 transition-all text-center tracking-[0.5em]"
+                                    value={pinValue}
+                                    onChange={(e) => setPinValue(e.target.value)}
+                                    placeholder="Enter PIN"
+                                    autoComplete="off"
+                                />
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+                    <button
+                        onClick={onClose}
+                        className="px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleConfirm}
+                        disabled={loading || hasErrors || !pinValue}
+                        className="px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        <CheckCircle2 size={14} /> Accept & Transfer
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Dispatch Prices View Modal - shown to Branch A to see what B sent
+const DispatchPricesModal = ({ isOpen, onClose, items, sourceWarehouse }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 flex flex-col max-h-[80vh]">
+                <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-black text-slate-800 tracking-tight">Dispatch Prices</h2>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                            Selling prices provided by {sourceWarehouse?.replace(' - KSPL', '') || 'Source Branch'}
+                        </p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-slate-600">
+                        <X size={18} strokeWidth={3} />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
+                    {items.map((item, idx) => (
+                        <div key={idx} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/30 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[10px] font-black text-slate-400 border border-slate-100">
+                                    {idx + 1}
+                                </div>
+                                <div>
+                                    <p className="text-xs font-black text-slate-700">{item.item_name}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">{item.item_code}</p>
+                                    <p className="text-[9px] font-bold text-blue-500">{item.qty} {item.uom || 'Nos'}</p>
+                                </div>
+                            </div>
+                            <div className="text-right space-y-1">
+                                <div className="text-sm font-black text-slate-800">
+                                    {parseFloat(item.rate || 0).toFixed(2)} <span className="text-[8px] text-slate-400 uppercase">/ {item.uom || 'Nos'}</span>
+                                </div>
+                                <div className="text-xs font-bold text-blue-600">
+                                    Total: {(parseFloat(item.rate || 0) * parseFloat(item.qty || 0)).toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="p-4 bg-slate-50 border-t border-slate-100">
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter text-center">
+                        These are the selling prices set by the source branch for this transfer
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Branch Availability Modal
 const BranchAvailabilityModal = ({ isOpen, onClose, itemCode, itemName, currentWarehouse, onSelectBranch }) => {
     const [loading, setLoading] = useState(false);
@@ -148,6 +425,11 @@ function InterBranchTransferDetails() {
   const [acceptingStock, setAcceptingStock] = useState(false);
   const [sourcePrices, setSourcePrices] = useState({});
 
+  // Accept & Transfer Modal state
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  // Dispatch Prices Modal state (for Branch A to view B's prices)
+  const [showDispatchPrices, setShowDispatchPrices] = useState(false);
+
   useEffect(() => {
     fetchWarehouses();
     if (!isNew) {
@@ -197,17 +479,43 @@ function InterBranchTransferDetails() {
     setSourcePrices(prices);
   };
 
+  // State to store pieces_per_box fetched from Item master
+  const [itemPcsPerBox, setItemPcsPerBox] = useState({});
+
   // Sync selling prices from doc when it arrives (with Box & Nos support)
+  // Also fetch custom_pieces_per_box from Item master
   useEffect(() => {
     if (doc.status === 'Transferred' && doc.items) {
-        const prices = {};
-        doc.items.forEach(it => {
-            prices[it.item_code] = {
-                Nos: it.rate || 0,
-                Box: (it.rate || 0) * (it.custom_pieces_per_box || 1)
-            };
-        });
-        setSellingPrices(prices);
+        // Fetch pieces_per_box from Item master for each item
+        const fetchPcsPerBox = async () => {
+            const pcsMap = {};
+            for (const it of doc.items) {
+                if (!it.item_code) continue;
+                try {
+                    const r = await axios.get(`/api/resource/Item/${encodeURIComponent(it.item_code)}`, {
+                        params: { fields: JSON.stringify(["custom_pieces_per_box"]) },
+                        headers: { 'X-Frappe-SID': getSession() },
+                        withCredentials: true
+                    });
+                    pcsMap[it.item_code] = r.data?.data?.custom_pieces_per_box || 1;
+                } catch (e) {
+                    pcsMap[it.item_code] = 1;
+                }
+            }
+            setItemPcsPerBox(pcsMap);
+
+            // Now set initial selling prices using fetched pcs_per_box
+            const prices = {};
+            doc.items.forEach(it => {
+                const ppb = pcsMap[it.item_code] || 1;
+                prices[it.item_code] = {
+                    Nos: it.rate || 0,
+                    Box: (it.rate || 0) * ppb
+                };
+            });
+            setSellingPrices(prices);
+        };
+        fetchPcsPerBox();
     }
   }, [doc]);
 
@@ -408,11 +716,7 @@ function InterBranchTransferDetails() {
         return;
     }
 
-    const missingPrice = validItems.find(it => !it.rate || it.rate <= 0);
-    if (missingPrice) {
-        Swal.fire('Price Required', `Please enter a valid price for ${missingPrice.item_name || missingPrice.item_code}`, 'warning');
-        return;
-    }
+    // Note: Rate validation removed — Branch A does not set price; source branch (B) sets it during Accept & Transfer
 
     try {
         setSaving(true);
@@ -592,40 +896,48 @@ function InterBranchTransferDetails() {
     const comment = decision === 'reject' ? prompt("Please enter rejection reason:", "Stock currently unavailable at source.") : null;
     if (decision === 'reject' && comment === null) return;
 
-    let secretKey = null;
     if (decision === 'accept') {
-      const { value: key } = await Swal.fire({
-        title: 'Enter Cashier PIN to Dispatch',
-        input: 'password',
-        inputLabel: 'Secret Key / Authorization PIN',
-        inputPlaceholder: 'Enter your PIN',
-        inputAttributes: {
-          autocapitalize: 'off',
-          autocorrect: 'off'
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Verify & Dispatch',
-        inputValidator: (value) => {
-          if (!value) {
-            return 'You need to enter your PIN!';
-          }
-        }
-      });
-      if (!key) return;
-      secretKey = key;
+      // Open the Accept & Transfer modal instead of just asking for PIN
+      setShowAcceptModal(true);
+      return;
     }
 
+    // Handle reject
     try {
       setDecisionLoading(decision);
       const res = await axios.post(`${API_PATH}.handle_inter_branch_decision`, {
         request_name: name,
         decision: decision,
-        comment: comment,
-        secret_key: secretKey
+        comment: comment
       }, { withCredentials: true, headers: { 'X-Frappe-SID': getSession() } });
 
       if (res.data?.message?.status === 'success') {
         Swal.fire('Action Complete', res.data.message.message, 'success');
+        fetchRequest();
+      } else {
+        Swal.fire('Action Failed', res.data?.message?.message || 'Action failed', 'error');
+      }
+    } catch (err) { 
+      console.error(err);
+      Swal.fire('Error', err.response?.data?.message || 'Request failed', 'error'); 
+    }
+    finally { setDecisionLoading(null); }
+  };
+
+  // Called from AcceptTransferModal when B confirms with PIN and prices
+  const handleAcceptWithPrices = async (secretKey, sellingPrices) => {
+    setShowAcceptModal(false);
+    try {
+      setDecisionLoading('accept');
+      const res = await axios.post(`${API_PATH}.handle_inter_branch_decision`, {
+        request_name: name,
+        decision: 'accept',
+        secret_key: secretKey,
+        selling_prices: JSON.stringify(sellingPrices)
+      }, { withCredentials: true, headers: { 'X-Frappe-SID': getSession() } });
+
+      if (res.data?.message?.status === 'success') {
+        Swal.fire('Dispatched!', res.data.message.message, 'success');
         fetchRequest();
       } else {
         Swal.fire('Action Failed', res.data?.message?.message || 'Action failed', 'error');
@@ -648,6 +960,23 @@ function InterBranchTransferDetails() {
         itemName={activeItemIndex !== null ? doc.items[activeItemIndex]?.item_name : ''}
         currentWarehouse={currentWarehouse}
         onSelectBranch={handleBranchSelectFromModal}
+      />
+
+      {/* Accept & Transfer Modal for Branch B */}
+      <AcceptTransferModal
+        isOpen={showAcceptModal}
+        onClose={() => setShowAcceptModal(false)}
+        items={doc.items || []}
+        sourceWarehouse={doc.set_from_warehouse}
+        onConfirm={handleAcceptWithPrices}
+      />
+
+      {/* Dispatch Prices Modal for Branch A */}
+      <DispatchPricesModal
+        isOpen={showDispatchPrices}
+        onClose={() => setShowDispatchPrices(false)}
+        items={doc.items || []}
+        sourceWarehouse={doc.set_from_warehouse}
       />
 
       {/* Header Bar */}
@@ -796,6 +1125,16 @@ function InterBranchTransferDetails() {
                 <CheckCircle2 size={13} /> Transfer Complete
               </div>
             )}
+            {/* View Dispatch Prices Button — for Branch A when Dispatched or Transferred */}
+            {!isNew && (doc.status === 'Dispatched' || doc.status === 'Transferred') && doc.set_warehouse === currentWarehouse && (
+              <button
+                onClick={() => setShowDispatchPrices(true)}
+                className="po-btn-secondary flex items-center gap-1.5"
+                style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem' }}
+              >
+                <Info size={13} /> View Dispatch Prices
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -871,7 +1210,14 @@ function InterBranchTransferDetails() {
                         <tr>
                             <th className="purchase-th" style={{ padding: '0.75rem 1.5rem' }}>Product Details</th>
                             <th className="purchase-th text-center" style={{ width: '140px' }}>Quantity</th>
-                            <th className="purchase-th text-right" style={{ width: '180px' }}>Request price / unit</th>
+                            {/* Only show rate column when viewing existing dispatched/transferred requests */}
+                            {(!isNew && doc.docstatus > 0 && (doc.status === 'Dispatched' || doc.status === 'Transferred')) && (
+                                <th className="purchase-th text-right" style={{ width: '180px' }}>Source Selling Price</th>
+                            )}
+                            {/* Show rate input only for Draft view-only mode (not new request creation) */}
+                            {(!isNew && doc.docstatus === 0 && isViewOnly) && (
+                                <th className="purchase-th text-right" style={{ width: '180px' }}>Request price / unit</th>
+                            )}
                             <th className="purchase-th text-right" style={{ width: '180px' }}>Source Stock</th>
                             {(isNew || (doc.docstatus === 0 && !isViewOnly)) && <th className="purchase-th text-center" style={{ width: '60px' }}></th>}
                         </tr>
@@ -926,30 +1272,28 @@ function InterBranchTransferDetails() {
                                     </div>
                                 </td>
                                 
-                                {/* column 3: rate / price */}
+                                {/* column 3: rate / price — only for dispatched/transferred (read-only) */}
+                                {(!isNew && doc.docstatus > 0 && (doc.status === 'Dispatched' || doc.status === 'Transferred')) && (
                                 <td className="purchase-td text-right">
                                     <div className="premium-cell-container">
                                         <div className="premium-cell-box">
-                                            {(isNew || (doc.docstatus === 0 && !isViewOnly)) ? (
-                                                <input 
-                                                    type="number" 
-                                                    className="po-input text-right font-bold"
-                                                    value={item.rate === 0 ? '' : item.rate}
-                                                    placeholder="0.00"
-                                                    onChange={(e) => {
-                                                        const ni = [...doc.items];
-                                                        ni[idx].rate = parseFloat(e.target.value) || 0;
-                                                        setDoc(prev => ({...prev, items: ni}));
-                                                    }}
-                                                    onFocus={(e) => e.target.select()}
-                                                />
-                                            ) : (
-                                                <div className="premium-cell-readonly premium-cell-readonly-right font-bold flex items-center justify-end gap-1"><DirhamIcon size={12} /> {parseFloat(item.rate || 0).toFixed(2)}</div>
-                                            )}
+                                            <div className="premium-cell-readonly premium-cell-readonly-right font-bold flex items-center justify-end gap-1"><DirhamIcon size={12} /> {parseFloat(item.rate || 0).toFixed(2)}</div>
+                                        </div>
+                                        <span className="premium-subtext flex items-center gap-1"><DirhamIcon size={8} /> per {item.uom || 'Nos'}</span>
+                                    </div>
+                                </td>
+                                )}
+                                {/* Show rate for Draft view-only (not new) */}
+                                {(!isNew && doc.docstatus === 0 && isViewOnly) && (
+                                <td className="purchase-td text-right">
+                                    <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                            <div className="premium-cell-readonly premium-cell-readonly-right font-bold flex items-center justify-end gap-1"><DirhamIcon size={12} /> {parseFloat(item.rate || 0).toFixed(2)}</div>
                                         </div>
                                         <span className="premium-subtext flex items-center gap-1"><DirhamIcon size={8} /> per Unit</span>
                                     </div>
                                 </td>
+                                )}
                                 
                                 {/* column 4: source stock */}
                                 <td className="purchase-td text-right">
@@ -1054,35 +1398,48 @@ function InterBranchTransferDetails() {
                                     className="w-full pl-4 pr-12 py-2 bg-white border-2 border-slate-200 rounded-xl font-black text-xs outline-none focus:border-blue-500 transition-all"
                                     value={sellingPrices[item.item_code]?.Nos || ''}
                                     placeholder="0.00"
-                                    onChange={(e) => setSellingPrices(prev => ({
-                                        ...prev,
-                                        [item.item_code]: {
-                                            ...prev[item.item_code],
-                                            Nos: parseFloat(e.target.value) || 0
-                                        }
-                                    }))}
+                                    onChange={(e) => {
+                                        const nosVal = parseFloat(e.target.value) || 0;
+                                        const pcsPerBox = itemPcsPerBox[item.item_code] || 1;
+                                        setSellingPrices(prev => ({
+                                            ...prev,
+                                            [item.item_code]: {
+                                                ...prev[item.item_code],
+                                                Nos: nosVal,
+                                                Box: nosVal * pcsPerBox
+                                            }
+                                        }));
+                                    }}
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">Nos</span>
                                 <label className="absolute -top-2 left-3 px-2 bg-white text-[7px] font-black text-blue-500 uppercase tracking-widest">Selling Price (Nos)</label>
                             </div>
 
-                            {/* Local Selling Price input for Box */}
+                            {/* Local Selling Price input for Box — auto-calculated from Nos × pieces_per_box */}
                             <div className="relative group/sp" style={{ marginTop: '10px' }}>
                                 <input 
                                     type="number"
                                     className="w-full pl-4 pr-12 py-2 bg-white border-2 border-slate-200 rounded-xl font-black text-xs outline-none focus:border-blue-500 transition-all"
                                     value={sellingPrices[item.item_code]?.Box || ''}
                                     placeholder="0.00"
-                                    onChange={(e) => setSellingPrices(prev => ({
-                                        ...prev,
-                                        [item.item_code]: {
-                                            ...prev[item.item_code],
-                                            Box: parseFloat(e.target.value) || 0
-                                        }
-                                    }))}
+                                    onChange={(e) => {
+                                        const boxVal = parseFloat(e.target.value) || 0;
+                                        const pcsPerBox = itemPcsPerBox[item.item_code] || 1;
+                                        setSellingPrices(prev => ({
+                                            ...prev,
+                                            [item.item_code]: {
+                                                ...prev[item.item_code],
+                                                Box: boxVal,
+                                                Nos: pcsPerBox > 0 ? boxVal / pcsPerBox : 0
+                                            }
+                                        }));
+                                    }}
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">Box</span>
                                 <label className="absolute -top-2 left-3 px-2 bg-white text-[7px] font-black text-blue-500 uppercase tracking-widest">Selling Price (Box)</label>
+                                {(itemPcsPerBox[item.item_code] || 0) > 1 && (
+                                    <p className="text-[7px] font-bold text-slate-400 mt-0.5 ml-1">{itemPcsPerBox[item.item_code]} pcs/box — auto-linked with Nos</p>
+                                )}
                             </div>
                         </div>
                     ))}
