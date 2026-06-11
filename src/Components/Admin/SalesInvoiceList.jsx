@@ -1102,7 +1102,8 @@ const SalesInvoiceList = () => {
 
   return (
     <>
-      <div className="so-page">
+      {!showModal && (
+        <div className="so-page">
         {/* Page Header */}
         <div className="so-page-header">
           <div>
@@ -1273,18 +1274,13 @@ const SalesInvoiceList = () => {
             </div>
           </div>
         </div>
+        </div>
+      )}
 
-
-
-
-
-
-
-
-        {/* Modal */}
-        {showModal && createPortal(
-          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && (setShowModal(false), resetForm())} style={{ padding: 0, position: 'fixed', zIndex: 99999, top: 0, left: 0, right: 0, bottom: 0 }}>
-            <div className="so-modal" style={{ maxWidth: 'none', width: '100vw', height: '100vh', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+      {/* Modal */}
+      {showModal && (
+        <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ flex: 1 }}>
+          <div className="so-modal" style={{ maxWidth: 'none', width: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', flex: 1 }}>
 
               {/* Header */}
               <div className="so-modal-header" style={{ padding: '1rem 1.5rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2080,15 +2076,9 @@ const SalesInvoiceList = () => {
                 )}
               </div>
             </div>
-          </div>,
-          document.body
+          </div>
         )}
-
-
-
-
-      </div>
-    </>
+      </>
   );
 };
 

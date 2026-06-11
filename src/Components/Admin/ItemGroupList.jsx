@@ -75,13 +75,13 @@ export default function ItemGroupList() {
         item_group_name: g.item_group_name || g.name
       }));
       setGroups(normalized);
-      
+
       // Auto-expand root level
       const rootLevel = (res.data.data || []).filter(g => !g.parent_item_group || g.parent_item_group === 'All Item Groups');
       const newExpanded = { 'All Item Groups': true };
       rootLevel.forEach(g => newExpanded[g.name] = true);
       setExpandedNodes(newExpanded);
-      
+
     } catch (err) {
       console.error(err);
       alert('Failed to load item groups');
@@ -92,18 +92,28 @@ export default function ItemGroupList() {
 
   const fetchGroupDetails = async (id) => {
     try {
-      const res = await axios.get(`/api/resource/Item Group/${encodeURIComponent(id)}`, {
+      const res = await axios.get('/api/resource/Item Group', {
+        params: {
+          filters: JSON.stringify([["name", "=", id]]),
+          fields: JSON.stringify(["*"]),
+          limit_page_length: 1
+        },
         withCredentials: true
       });
-      const data = res.data.data;
-      setForm({
-        item_group_name: data.item_group_name || '',
-        parent_item_group: data.parent_item_group || '',
-        is_group: data.is_group || 0,
-        default_price_list: data.default_price_list || '',
-        description: data.description || '',
-        image: data.image || ''
-      });
+      const records = res.data.data || [];
+      if (records.length > 0) {
+        const data = records[0];
+        setForm({
+          item_group_name: data.item_group_name || data.name || '',
+          parent_item_group: data.parent_item_group || '',
+          is_group: data.is_group || 0,
+          default_price_list: data.default_price_list || '',
+          description: data.description || '',
+          image: data.image || ''
+        });
+      } else {
+        console.warn(`No details found for Item Group: ${id}`);
+      }
     } catch (err) {
       console.error('Failed to load details', err);
     }
@@ -188,12 +198,12 @@ export default function ItemGroupList() {
   const treeData = useMemo(() => {
     const rootNodes = [];
     const map = {};
-    
+
     // First pass: initialize map
     groups.forEach(g => {
       map[g.name] = { ...g, children: [], depth: 0 };
     });
-    
+
     // Second pass: build tree
     groups.forEach(g => {
       const node = map[g.name];
@@ -203,7 +213,7 @@ export default function ItemGroupList() {
         rootNodes.push(node);
       }
     });
-    
+
     // Compute depth recursively
     const computeDepth = (nodes, d) => {
       nodes.forEach(n => {
@@ -212,7 +222,7 @@ export default function ItemGroupList() {
       });
     };
     computeDepth(rootNodes, 0);
-    
+
     // Flatten tree respecting expanded state and filters
     const flat = [];
     const traverse = (node) => {
@@ -222,7 +232,7 @@ export default function ItemGroupList() {
         // If child matches, we still want to show parent (but this requires a different filtering logic).
         // For simplicity, we'll do standard flat filtering if filterName is used.
       }
-      
+
       if (!filterName) {
         flat.push(node);
         if (expandedNodes[node.name]) {
@@ -231,12 +241,12 @@ export default function ItemGroupList() {
       } else {
         // If searching, ignore expanded state and show all matching
         if (node.item_group_name.toLowerCase().includes(filterName.toLowerCase())) {
-           flat.push(node);
+          flat.push(node);
         }
         node.children.forEach(traverse);
       }
     };
-    
+
     rootNodes.forEach(traverse);
     return flat;
   }, [groups, expandedNodes, filterName]);
@@ -398,7 +408,7 @@ export default function ItemGroupList() {
                           <input type="text" value={form.default_price_list} onChange={e => setForm({ ...form, default_price_list: e.target.value })} disabled={isViewMode} className="so-input" placeholder="e.g. Standard Selling" />
                         </div>
                       </div>
-                      
+
                       <div className="so-field">
                         <label className="so-label">Description / Internal Notes</label>
                         <textarea value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} disabled={isViewMode} className="so-input" rows={4}></textarea>

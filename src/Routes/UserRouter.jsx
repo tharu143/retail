@@ -224,7 +224,7 @@ function UserRouter() {
           <Route path='customerlist' element={<CustomerList />} />
           <Route path='customer-edit/:id' element={<CustomerEditPage />} />
           <Route path='customer-details/:id' element={<CustomerDetails />} />
-          <Route path='customer-details/new' element={<CustomerDetails />} />
+          <Route path='customer-details/new' element={<CustomerEditPage />} />
           <Route path='itemgrouplist' element={<ItemGroupList />} />
           <Route path='itemlist' element={<ItemList />} />
           <Route path='itempricelist' element={<ItemPriceList />} />

@@ -33,7 +33,7 @@ const getUpdatedPhone = (currentPhone, newCode) => {
 export default function CustomerEditPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const isNew = id === 'new';
+  const isNew = id === 'new' || !id || window.location.pathname.endsWith('/new');
   const { themeColor } = useLegacyTheme();
   const { warehouse, user_roles } = useSelector(state => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");

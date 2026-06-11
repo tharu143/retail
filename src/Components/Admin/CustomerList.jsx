@@ -790,7 +790,7 @@ function CustomerList() {
               <button className="so-btn-secondary" onClick={toggleTheme} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
                 <Palette size={16} /> {legacySubTheme.toUpperCase()}
               </button>
-              <button className="so-btn-primary" onClick={openAddModal}>
+              <button className="so-btn-primary" onClick={() => navigate('/customer-edit/new')}>
                 <Plus size={16} /> Create Customer
               </button>
             </div>
@@ -992,7 +992,7 @@ function CustomerList() {
                                   <button
                                     className="so-btn-ghost"
                                     style={{ padding: '0.25rem' }}
-                                    onClick={(e) => handleEditClick(e, c)}
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/customer-edit/${c.name || c.value}`); }}
                                     title="Edit Customer Details"
                                   >
                                     <Edit2 size={15} />
