@@ -418,6 +418,9 @@ function Home() {
             if (notificationsContainerRef.current && !notificationsContainerRef.current.contains(e.target)) {
                 setShowNotifications(false);
             }
+            if (posDropdownRef.current && !posDropdownRef.current.contains(e.target)) {
+                setShowPosDropdown(false);
+            }
         };
         document.addEventListener('mousedown', handleOutsideClick);
         return () => document.removeEventListener('mousedown', handleOutsideClick);
@@ -935,10 +938,10 @@ function Home() {
             navigate('/');
             return;
         }
-        if (!posOpeningEntry) {
+        if (!isAdmin && !posOpeningEntry) {
             setShowOpeningModal(true);
         }
-    }, [user, session, navigate, posOpeningEntry]);
+    }, [user, session, navigate, posOpeningEntry, isAdmin]);
 
     const handleOpeningSuccess = (entryId) => {
         localStorage.setItem('posOpeningEntry', entryId);
@@ -991,13 +994,17 @@ function Home() {
     const [isDraggingShortcuts, setIsDraggingShortcuts] = useState(false);
     const [dragOverZone, setDragOverZone] = useState(null); // 'top', 'bottom', 'left', 'right'
     const [showPosDropdown, setShowPosDropdown] = useState(false);
+    const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+    const posDropdownRef = useRef(null);
 
     const handleShortcutsDragStart = (e) => {
-        setIsDraggingShortcuts(true);
         if (e.dataTransfer) {
             e.dataTransfer.setData('text/plain', 'shortcuts');
             e.dataTransfer.effectAllowed = 'move';
         }
+        setTimeout(() => {
+            setIsDraggingShortcuts(true);
+        }, 0);
     };
 
     const handleShortcutsDragEnd = () => {
@@ -1784,19 +1791,8 @@ function Home() {
                     // If Admin, fetch all. If not, restrict by warehouse.
                     const results = await POSService.getRetailItems(isAdmin ? {} : { warehouse: warehouse });
                     if (results) {
-                        // Apply Branch Restriction if not Admin
+                        // Keep all items returned by the API so that 0-stock/other items are available to cashier
                         let filteredResults = results;
-                        if (!isAdmin) {
-                            filteredResults = results.filter(item => {
-                                if (item.branch_availability && item.branch_availability.length > 0) {
-                                    return item.branch_availability.some(ba => ba.warehouse === warehouse);
-                                }
-                                if (item.warehouse_details && item.warehouse_details.length > 0) {
-                                    return item.warehouse_details.some(wd => (wd.warehouse_name || wd.warehouse) === warehouse);
-                                }
-                                return true;
-                            });
-                        }
                         apiItems = filteredResults;
 
                         db.items.bulkPut(results.map(item => ({
@@ -1833,17 +1829,6 @@ function Home() {
             } else {
                 // STRICT OFFLINE MODE: Use local Dexie cache
                 let allCached = await db.items.toArray();
-                if (!isAdmin) {
-                    allCached = allCached.filter(item => {
-                        if (item.branch_availability && item.branch_availability.length > 0) {
-                            return item.branch_availability.some(ba => ba.warehouse === warehouse);
-                        }
-                        if (item.warehouse_details && item.warehouse_details.length > 0) {
-                            return item.warehouse_details.some(wd => (wd.warehouse_name || wd.warehouse) === warehouse);
-                        }
-                        return true;
-                    });
-                }
                 apiItems = allCached;
                 if (apiItems.length === 0) {
                     setError("Offline: No local item cache found for your branch. Please connect to internet to sync.");
@@ -1962,6 +1947,10 @@ function Home() {
             ? Items
             : Items.filter(i => (i.group || '').toLowerCase() === selectedCategory.toLowerCase());
 
+        if (showAvailableOnly) {
+            filtered = filtered.filter(i => (i.local_qty !== undefined ? i.local_qty : 0) > 0);
+        }
+
         if (barcodeInput.trim()) {
             const term = barcodeInput.toLowerCase().trim();
             filtered = filtered.filter(i =>
@@ -1971,7 +1960,7 @@ function Home() {
             );
         }
         setFilteredItems(filtered);
-    }, [selectedCategory, Items, barcodeInput]);
+    }, [selectedCategory, Items, barcodeInput, showAvailableOnly]);
 
     const handleOutOfStockAlert = async (item) => {
         const result = await Swal.fire({
@@ -3424,7 +3413,7 @@ function Home() {
                 });
 
                 if (filteredResults.length > 0) {
-                    const optionsHtml = filteredResults.slice(0, 3).map(res => `
+                    const optionsHtml = filteredResults.slice(0, 7).map(res => `
           <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid #e2e8f0;">
             <div style="text-align:left;">
               <div style="font-weight:900; color:#1e293b; font-size:0.85rem;">${getBranchName(res.warehouse)}</div>
@@ -5233,29 +5222,46 @@ function Home() {
                 }}
                 style={{ opacity: 0.1, fontSize: '10px', marginTop: '20px', border: 'none', background: 'none' }}
             >
-                Emergency Bypass
-            </button>
-        </div>
-    );
+                    Emergency Bypass
+                </button>
+            </div>
+        );
 
-    const changeBack = Math.max(0, totalPaid - grandTotal);
+    const renderShortcutsList = (isVertical) => {
+        const getBadgeStyle = (baseColor) => ({
+            flexShrink: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: isVertical ? 'space-between' : 'flex-start',
+            alignItems: 'center',
+            width: isVertical ? '100%' : 'auto',
+            gap: isVertical ? '10px' : '0.5rem'
+        });
 
-    const renderShortcutsList = () => {
+        const getLabelStyle = () => ({
+            flexGrow: isVertical ? 1 : 0,
+            textAlign: isVertical ? 'right' : 'left'
+        });
+
         return (
             <>
-                <div className="so-shortcut-badge violet" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => setShowDiscountModal(prev => !prev)}>
+                {/* 1. F1 (Discount) */}
+                <div className="so-shortcut-badge violet" style={getBadgeStyle('violet')} onClick={() => setShowDiscountModal(prev => !prev)}>
                     <span className="so-shortcut-key">F1</span>
-                    <span className="so-shortcut-label">Discount</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Discount</span>
                 </div>
-                <div className="so-shortcut-badge blue" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => mobileInputRef.current?.focus()}>
+                {/* 2. F2 (Customer) */}
+                <div className="so-shortcut-badge blue" style={getBadgeStyle('blue')} onClick={() => mobileInputRef.current?.focus()}>
                     <span className="so-shortcut-key">F2</span>
-                    <span className="so-shortcut-label">Customer</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Customer</span>
                 </div>
-                <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => barcodeInputRef.current?.focus()}>
+                {/* 3. F3 (Search) */}
+                <div className="so-shortcut-badge indigo" style={getBadgeStyle('indigo')} onClick={() => barcodeInputRef.current?.focus()}>
                     <span className="so-shortcut-key">F3</span>
-                    <span className="so-shortcut-label">Search</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Search</span>
                 </div>
-                <div className="so-shortcut-badge cyan" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                {/* 4. F4 (CC) */}
+                <div className="so-shortcut-badge cyan" style={getBadgeStyle('cyan')} onClick={() => {
                     setCountryCodePrefix(prev => {
                         const next = prev === '+971' ? '+91' : '+971';
                         localStorage.setItem('pos_country_code', next);
@@ -5267,43 +5273,23 @@ function Home() {
                     });
                 }}>
                     <span className="so-shortcut-key">F4</span>
-                    <span className="so-shortcut-label">CC ({countryCodePrefix})</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>CC ({countryCodePrefix})</span>
                 </div>
-                <div className="so-shortcut-badge emerald" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleCheckout}>
-                    <span className="so-shortcut-key">SPACE</span>
-                    <span className="so-shortcut-label">Pay</span>
-                </div>
-                <div className="so-shortcut-badge rose" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={clearBillHandler}>
-                    <span className="so-shortcut-key">ALT+C</span>
-                    <span className="so-shortcut-label">Clear</span>
-                </div>
-                {theme !== 'legacy' ? (
-                    <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
-                        if (filteredItems.length > 0) {
-                            setActiveCardIndex(prev => prev === -1 ? 0 : -1);
-                        }
-                    }}>
-                        <span className="so-shortcut-key">ALT+I</span>
-                        <span className="so-shortcut-label">Select Item</span>
-                    </div>
-                ) : (
-                    <div className="so-shortcut-badge indigo" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={triggerSwapItem}>
-                        <span className="so-shortcut-key">ALT+I</span>
-                        <span className="so-shortcut-label">Swap Item</span>
-                    </div>
-                )}
-                <div className="so-shortcut-badge amber" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                {/* 5. F5 (Stock) */}
+                <div className="so-shortcut-badge amber" style={getBadgeStyle('amber')} onClick={() => {
                     if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
                     else Swal.fire('Info', 'Select or scan an item first.', 'info');
                 }}>
                     <span className="so-shortcut-key">F5</span>
-                    <span className="so-shortcut-label">Stock</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Stock</span>
                 </div>
-                <div className="so-shortcut-badge pink" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleBulkQtyUpdate}>
+                {/* 6. F6 (Bulk Qty) */}
+                <div className="so-shortcut-badge pink" style={getBadgeStyle('pink')} onClick={handleBulkQtyUpdate}>
                     <span className="so-shortcut-key">F6</span>
-                    <span className="so-shortcut-label">Bulk Qty</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Bulk Qty</span>
                 </div>
-                <div className="so-shortcut-badge violet" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                {/* 7. F8 (UOM) */}
+                <div className="so-shortcut-badge violet" style={getBadgeStyle('violet')} onClick={() => {
                     if (selectedBillIndex !== -1) {
                         const item = billItems[selectedBillIndex];
                         const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
@@ -5313,35 +5299,69 @@ function Home() {
                     }
                 }}>
                     <span className="so-shortcut-key">F8</span>
-                    <span className="so-shortcut-label">UOM</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>UOM</span>
                 </div>
-                <div className="so-shortcut-badge sky" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => setShowDraftsModal(prev => !prev)}>
+                {/* 8. F9 (Orders) */}
+                <div className="so-shortcut-badge sky" style={getBadgeStyle('sky')} onClick={() => setShowDraftsModal(prev => !prev)}>
                     <span className="so-shortcut-key">F9</span>
-                    <span className="so-shortcut-label">Orders</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Orders</span>
                 </div>
-                <div className="so-shortcut-badge amber" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleSaveDraft}>
+                {/* 9. F10 (Save Draft) */}
+                <div className="so-shortcut-badge amber" style={getBadgeStyle('amber')} onClick={handleSaveDraft}>
                     <span className="so-shortcut-key">F10</span>
-                    <span className="so-shortcut-label">Save Draft</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Save Draft</span>
                 </div>
-                <div className="so-shortcut-badge emerald" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={handleLoyaltyPointsClick}>
+                {/* 10. F12 (Loyalty) */}
+                <div className="so-shortcut-badge emerald" style={getBadgeStyle('emerald')} onClick={handleLoyaltyPointsClick}>
                     <span className="so-shortcut-key">F12</span>
-                    <span className="so-shortcut-label">Loyalty</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Loyalty</span>
                 </div>
-                <div className="so-shortcut-badge slate" style={{ flexShrink: 0 }}>
+                {/* 11. SPACE (Pay) */}
+                <div className="so-shortcut-badge emerald" style={getBadgeStyle('emerald')} onClick={handleCheckout}>
+                    <span className="so-shortcut-key">SPACE</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Pay</span>
+                </div>
+                {/* 12. ALT+C (Clear) */}
+                <div className="so-shortcut-badge rose" style={getBadgeStyle('rose')} onClick={clearBillHandler}>
+                    <span className="so-shortcut-key">ALT+C</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Clear</span>
+                </div>
+                {/* 13. ALT+I (Select Item / Swap Item) */}
+                {theme !== 'legacy' ? (
+                    <div className="so-shortcut-badge indigo" style={getBadgeStyle('indigo')} onClick={() => {
+                        if (filteredItems.length > 0) {
+                            setActiveCardIndex(prev => prev === -1 ? 0 : -1);
+                        }
+                    }}>
+                        <span className="so-shortcut-key">ALT+I</span>
+                        <span className="so-shortcut-label" style={getLabelStyle()}>Select Item</span>
+                    </div>
+                ) : (
+                    <div className="so-shortcut-badge indigo" style={getBadgeStyle('indigo')} onClick={triggerSwapItem}>
+                        <span className="so-shortcut-key">ALT+I</span>
+                        <span className="so-shortcut-label" style={getLabelStyle()}>Swap Item</span>
+                    </div>
+                )}
+                {/* 14. ↑ ↓ (Navigate) */}
+                <div className="so-shortcut-badge slate" style={getBadgeStyle('slate')}>
                     <span className="so-shortcut-key">↑ ↓</span>
-                    <span className="so-shortcut-label">Navigate</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Navigate</span>
                 </div>
-                <div className="so-shortcut-badge slate" style={{ flexShrink: 0 }}>
+                {/* 15. + / - (Qty) */}
+                <div className="so-shortcut-badge slate" style={getBadgeStyle('slate')}>
                     <span className="so-shortcut-key">+ / -</span>
-                    <span className="so-shortcut-label">Qty</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Qty</span>
                 </div>
-                <div className="so-shortcut-badge slate" style={{ flexShrink: 0 }}>
+                {/* 16. ← / → (Tax Toggle) */}
+                <div className="so-shortcut-badge slate" style={getBadgeStyle('slate')}>
                     <span className="so-shortcut-key">← / →</span>
-                    <span className="so-shortcut-label">Tax Toggle</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Tax Toggle</span>
                 </div>
             </>
         );
     };
+
+    const changeBack = Math.max(0, totalPaid - grandTotal);
 
     const renderDragHandle = () => {
         return (
@@ -5376,12 +5396,16 @@ function Home() {
     const renderShortcutsSelector = () => {
         return (
             <div
+                ref={posDropdownRef}
                 className="so-pos-selector-container"
-                onMouseLeave={() => setShowPosDropdown(false)}
                 style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
             >
                 <button
-                    onClick={() => setShowPosDropdown(prev => !prev)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowPosDropdown(prev => !prev);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="so-shortcut-badge slate"
                     title="Change shortcuts bar position"
                     style={{
@@ -5423,7 +5447,8 @@ function Home() {
                         {['top', 'bottom', 'left', 'right'].map(pos => (
                             <button
                                 key={pos}
-                                onClick={() => {
+                                onClick={(e) => {
+                                    e.stopPropagation();
                                     setShortcutsPosition(pos);
                                     localStorage.setItem('pos_shortcuts_position', pos);
                                     setShowPosDropdown(false);
@@ -5464,15 +5489,25 @@ function Home() {
                 padding: '8px 14px', background: '#f8fafc',
                 borderBottom: shortcutsPosition === 'top' ? '1px solid #e2e8f0' : 'none',
                 borderTop: shortcutsPosition === 'bottom' ? '1px solid #e2e8f0' : 'none',
-                overflowX: 'auto',
-                scrollbarWidth: 'none', msOverflowStyle: 'none',
+                overflow: 'visible',
                 boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)',
                 flexShrink: 0
             }}>
                 {renderDragHandle()}
                 {renderShortcutsSelector()}
                 <div style={{ height: '16px', width: '1px', background: '#cbd5e1', margin: '0 2px', flexShrink: 0 }}></div>
-                {renderShortcutsList()}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    overflowX: 'auto',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    width: '100%',
+                    overflowY: 'visible'
+                }}>
+                    {renderShortcutsList(false)}
+                </div>
             </div>
         );
     };
@@ -5482,12 +5517,12 @@ function Home() {
             <div style={{
                 display: 'flex', flexDirection: 'column', gap: '8px',
                 width: '190px', flexShrink: 0, padding: '14px 10px',
-                background: '#f8fafc', overflowY: 'auto',
+                background: '#f8fafc',
                 borderRight: '1px solid #e2e8f0',
                 borderLeft: pos === 'right' ? '1px solid #e2e8f0' : 'none',
                 boxShadow: pos === 'left' ? 'inset -1px 0 2px rgba(0,0,0,0.02)' : 'inset 1px 0 2px rgba(0,0,0,0.02)',
-                scrollbarWidth: 'none', msOverflowStyle: 'none',
-                height: '100%'
+                height: '100%',
+                overflow: 'visible'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', marginBottom: '4px', flexShrink: 0 }}>
                     {renderDragHandle()}
@@ -5495,7 +5530,18 @@ function Home() {
                 </div>
 
                 <div style={{ height: '1px', width: '100%', background: '#cbd5e1', marginBottom: '2px', flexShrink: 0 }}></div>
-                {renderShortcutsList()}
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    overflowY: 'auto',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    flex: 1,
+                    overflowX: 'visible'
+                }}>
+                    {renderShortcutsList(true)}
+                </div>
             </div>
         );
     };
@@ -5631,7 +5677,7 @@ function Home() {
     };
 
     // ---------- CLASSIC THEME RENDERERS (Green & Blue) ----------
-    const renderClassicShortcutsList = () => {
+    const renderClassicShortcutsList = (isVertical) => {
         const classicShortcutsData = [
             { key: 'F1', label: 'Discount', color: '#ec4899', icon: <Percent size={12} />, action: () => setShowDiscountModal(prev => !prev) },
             { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
@@ -5671,11 +5717,11 @@ function Home() {
             { key: 'F9', label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
             { key: 'F10', label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
             { key: 'F12', label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
-            { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
-            { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
-            { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
             { key: 'ALT+C', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
             { key: 'ALT+I', label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
+            { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
+            { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
+            { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
         ];
 
         return classicShortcutsData.map((s, idx) => (
@@ -5683,15 +5729,27 @@ function Home() {
                 key={idx}
                 className="classic-shortcut-badge"
                 onClick={s.action}
-                style={{ flexShrink: 0 }}
+                style={{
+                    flexShrink: 0,
+                    width: isVertical ? '100%' : 'auto',
+                    display: 'flex',
+                    justifyContent: isVertical ? 'space-between' : 'flex-start',
+                    alignItems: 'center',
+                    gap: isVertical ? '10px' : '8px'
+                }}
             >
-                <span className="classic-shortcut-key">
+                <span className="classic-shortcut-key" style={{ flexShrink: 0 }}>
                     {s.key}
                 </span>
-                <div className="classic-shortcut-icon">
+                <div className="classic-shortcut-icon" style={{ display: isVertical ? 'none' : 'flex', flexShrink: 0 }}>
                     {s.icon}
                 </div>
-                <span className="classic-shortcut-label">{s.label}</span>
+                <span className="classic-shortcut-label" style={{
+                    flexGrow: isVertical ? 1 : 0,
+                    textAlign: isVertical ? 'right' : 'left'
+                }}>
+                    {s.label}
+                </span>
             </div>
         ));
     };
@@ -5707,12 +5765,24 @@ function Home() {
                 borderBottom: shortcutsPosition === 'top' ? `2px solid ${borderColor}` : 'none',
                 borderTop: shortcutsPosition === 'bottom' ? `2px solid ${borderColor}` : 'none',
                 flexShrink: 0,
-                flexWrap: 'wrap'
+                overflow: 'visible'
             }}>
                 {renderDragHandle()}
                 {renderShortcutsSelector()}
                 <div style={{ height: '20px', width: '2px', background: isGreen ? '#1e7556' : '#235985', margin: '0 2px', flexShrink: 0 }}></div>
-                {renderClassicShortcutsList()}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    overflowX: 'auto',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    width: '100%',
+                    overflowY: 'visible',
+                    flexWrap: 'nowrap'
+                }}>
+                    {renderClassicShortcutsList(false)}
+                </div>
             </div>
         );
     };
@@ -5724,21 +5794,32 @@ function Home() {
             <div className="classic-shortcut-guide" style={{
                 display: 'flex', flexDirection: 'column', gap: '8px',
                 width: '190px', flexShrink: 0, padding: '14px 10px',
-                background: isGreen ? '#0d4a35' : '#0d3050', overflowY: 'auto',
+                background: isGreen ? '#0d4a35' : '#0d3050',
                 borderRight: pos === 'left' ? `2px solid ${borderColor}` : 'none',
                 borderLeft: pos === 'right' ? `2px solid ${borderColor}` : 'none',
-                scrollbarWidth: 'none', msOverflowStyle: 'none',
                 height: '100%',
-                flexWrap: 'nowrap',
                 boxShadow: 'inset 0 0 10px rgba(0,0,0,0.3)',
-                alignItems: 'stretch'
+                alignItems: 'stretch',
+                overflow: 'visible'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', marginBottom: '4px', flexShrink: 0 }}>
                     {renderDragHandle()}
                     {renderShortcutsSelector()}
                 </div>
                 <div style={{ height: '1px', width: '100%', background: isGreen ? '#1e7556' : '#235985', marginBottom: '2px', flexShrink: 0 }}></div>
-                {renderClassicShortcutsList()}
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    overflowY: 'auto',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    flex: 1,
+                    overflowX: 'visible',
+                    alignItems: 'stretch'
+                }}>
+                    {renderClassicShortcutsList(true)}
+                </div>
             </div>
         );
     };
@@ -5777,15 +5858,6 @@ function Home() {
                     }}>
                         {/* Group 1: Navigation & Shift */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            {/* Dashboard */}
-                            <button
-                                onClick={() => navigate('/dashboard')}
-                                className="so-btn-primary active:scale-95"
-                                style={{ padding: '0 0.75rem', height: '1.85rem', borderRadius: '0.375rem', background: '#0f172a', border: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}
-                            >
-                                <LayoutDashboard size={11} /> Dashboard
-                            </button>
-
                             {/* Active Orders */}
                             <button
                                 onClick={() => setShowDraftsModal(true)}
@@ -5928,6 +6000,23 @@ function Home() {
                                             Configuration
                                         </div>
 
+                                        {/* Dashboard Button */}
+                                        <button
+                                            onClick={() => {
+                                                navigate('/dashboard');
+                                                setShowSettingsMenu(false);
+                                            }}
+                                            className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                        >
+                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
+                                                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:scale-110 transition-transform">
+                                                    <LayoutDashboard size={14} />
+                                                </div>
+                                                Admin Dashboard
+                                            </div>
+                                            <ChevronRight size={14} className="text-slate-400" />
+                                        </button>
+
                                         {/* Theme Switcher Button */}
                                         <button
                                             onClick={() => {
@@ -5982,6 +6071,18 @@ function Home() {
                                             <ChevronRight size={18} />
                                         </button>
                                     )}
+
+                                    {/* Premium In Stock Only Toggle */}
+                                    <div 
+                                        onClick={() => setShowAvailableOnly(!showAvailableOnly)}
+                                        className="flex items-center gap-2.5 cursor-pointer select-none bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition-all ml-auto"
+                                        style={{ height: '36px' }}
+                                    >
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">In Stock Only</span>
+                                        <div className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${showAvailableOnly ? 'bg-emerald-500' : 'bg-slate-200'}`} style={{ width: '2rem', height: '1.125rem', borderRadius: '9999px', padding: '2px', display: 'flex', alignItems: 'center' }}>
+                                            <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${showAvailableOnly ? 'translate-x-3.5' : 'translate-x-0'}`} style={{ width: '0.875rem', height: '0.875rem', borderRadius: '9999px', backgroundColor: '#ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {theme === 'modern_no_image' ? (
@@ -6705,6 +6806,23 @@ function Home() {
                                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
                                             Configuration
                                         </div>
+
+                                        {/* Dashboard Button */}
+                                        <button
+                                            onClick={() => {
+                                                navigate('/dashboard');
+                                                setShowSettingsMenu(false);
+                                            }}
+                                            className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                        >
+                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
+                                                <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-500'} group-hover:scale-110 transition-transform`}>
+                                                    <LayoutDashboard size={14} />
+                                                </div>
+                                                Admin Dashboard
+                                            </div>
+                                            <ChevronRight size={14} className="text-slate-400" />
+                                        </button>
 
                                         {/* Theme Switcher Button */}
                                         <button
