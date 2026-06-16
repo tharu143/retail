@@ -9,9 +9,10 @@ import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import AttachmentSection from './AttachmentSection';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -241,7 +242,8 @@ function PurchaseInvoiceList() {
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const barcodeRef = useRef(null);
 
-  const [filterName, setFilterName] = useState('');
+  const location = useLocation();
+  const [filterName, setFilterName] = useState(location.state?.search || '');
   const [filterSupplier, setFilterSupplier] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
@@ -3015,6 +3017,7 @@ function PurchaseInvoiceList() {
               </div>
             </div>
 
+            <AttachmentSection doctype="Purchase Invoice" docname={docName} />
           </div>
         </div>
       </>

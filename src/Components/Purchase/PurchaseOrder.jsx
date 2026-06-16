@@ -15,6 +15,7 @@ import ColumnConfigModal from './ColumnConfigModal';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './Purchase.css';
 import '../Headers/LegacyPOS.css';
+import AttachmentSection from '../Admin/AttachmentSection';
 
 const DEFAULT_PO_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
@@ -3121,6 +3122,9 @@ function PurchaseOrder() {
                   </div>
                 </div>
               </div>
+              
+              {/* Attachments Section */}
+              <AttachmentSection doctype="Purchase Order" docname={formData.name} />
             </div>
           </div>
         </div>

@@ -1,20 +1,30 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { 
     Loader2, FileText, AlertCircle, CheckCircle2, 
     Calendar, Search, Filter, Palette, RefreshCw, 
-    Download, Printer, ChevronDown, Package, Tag
+    Download, Printer, ChevronDown, Package, Tag, ExternalLink, Settings
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import PrintConfigModal from './PrintConfigModal';
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+
 
 
 function ItemWiseSalesReport() {
+  const navigate = useNavigate();
+  const { warehouse, user_roles, user } = useSelector(state => state.user || {});
+  
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [columnConfig, setColumnConfig] = useState([]);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [hasGenerated, setHasGenerated] = useState(false);
   
   // Print Customization State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -50,12 +60,13 @@ function ItemWiseSalesReport() {
   useEffect(() => {
     fetchCustomers();
     fetchItems();
-    fetchReport(filters);
-  }, []);
+  }, [warehouse]);
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_customers_list_rpt`, { 
+      const params = new URLSearchParams();
+      if (warehouse) params.append('warehouse', warehouse);
+      const res = await fetch(`${API_PATH}.get_customers_list_rpt?${params.toString()}`, { 
         headers: { 'X-Frappe-SID': getSession() }, 
         credentials: 'include' 
       });
@@ -66,7 +77,9 @@ function ItemWiseSalesReport() {
 
   const fetchItems = async () => {
     try {
-      const res = await fetch(`${API_PATH}.get_items`, { 
+      const params = new URLSearchParams();
+      if (warehouse) params.append('warehouse', warehouse);
+      const res = await fetch(`${API_PATH}.get_items?${params.toString()}`, { 
         headers: { 'X-Frappe-SID': getSession() }, 
         credentials: 'include' 
       });
@@ -93,7 +106,45 @@ function ItemWiseSalesReport() {
 
       if (payload.status === 'success') {
         setData(payload.data || []);
-        setColumns(payload.columns || []);
+        setHasGenerated(true);
+        const fetchedCols = payload.columns || [];
+        setColumns(fetchedCols);
+        
+        // Merge with local storage config
+        const savedConfigStr = localStorage.getItem('itemwise_sales_report_columns');
+        const savedConfig = savedConfigStr ? JSON.parse(savedConfigStr) : null;
+        
+        let mergedCols = fetchedCols.map(c => ({
+          id: c.fieldname,
+          label: c.label,
+          visible: true,
+          width: (c.width ? c.width + 'px' : '150px'),
+          align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
+          original: c
+        }));
+        
+        if (savedConfig && Array.isArray(savedConfig)) {
+          const configMap = {};
+          savedConfig.forEach(sc => configMap[sc.id] = sc);
+          
+          mergedCols = mergedCols.map(mc => {
+            if (configMap[mc.id]) {
+              return { ...mc, visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true, width: configMap[mc.id].width, align: configMap[mc.id].align };
+            }
+            return mc;
+          });
+          
+          mergedCols.sort((a, b) => {
+            const idxA = savedConfig.findIndex(sc => sc.id === a.id);
+            const idxB = savedConfig.findIndex(sc => sc.id === b.id);
+            if (idxA === -1 && idxB === -1) return 0;
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+          });
+        }
+        
+        setColumnConfig(mergedCols);
         setSuccess(`Loaded ${payload.total_records || payload.data?.length || 0} records`);
       } else {
         setError(payload.message || 'Failed to generate report');
@@ -108,7 +159,24 @@ function ItemWiseSalesReport() {
   const handleFilterUpdate = (key, value) => {
     const next = { ...filters, [key]: value };
     setFilters(next);
-    fetchReport(next);
+  };
+
+  const handleColumnUpdate = (newConfig) => {
+    if (!newConfig) {
+      localStorage.removeItem('itemwise_sales_report_columns');
+      const defaultCols = columns.map(c => ({
+        id: c.fieldname,
+        label: c.label,
+        visible: true,
+        width: (c.width ? c.width + 'px' : '150px'),
+        align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
+        original: c
+      }));
+      setColumnConfig(defaultCols);
+      return;
+    }
+    setColumnConfig(newConfig);
+    localStorage.setItem('itemwise_sales_report_columns', JSON.stringify(newConfig));
   };
 
   const handlePrint = () => {
@@ -159,6 +227,14 @@ function ItemWiseSalesReport() {
           </button>
           <button className="so-btn-primary" style={{ height: '38px', padding: '0 1.25rem' }}>
              <Download size={16} /> Export
+          </button>
+          <button 
+            className="so-btn-secondary" 
+            style={{ height: '38px', padding: '0 0.75rem' }}
+            onClick={() => setShowConfigModal(true)}
+            title="Configure Columns"
+          >
+             <Settings size={16} style={{ color: themeColor }} />
           </button>
         </div>
       </div>
@@ -251,10 +327,21 @@ function ItemWiseSalesReport() {
              onClick={() => {
                const reset = { from_date: '', to_date: '', customer: '', item_code: '', pos_invoice: '' };
                setFilters(reset);
-               fetchReport(reset);
+               setData([]);
+               setHasGenerated(false);
              }}
           >
             Clear
+          </button>
+          
+          <button 
+             className="so-btn-primary" 
+             style={{ width: 'auto', padding: '0 1.5rem', height: '36px', margin: 0, alignSelf: 'flex-end', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+             onClick={() => fetchReport(filters)}
+             disabled={loading}
+          >
+             {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+             Generate Report
           </button>
         </div>
 
@@ -279,51 +366,73 @@ function ItemWiseSalesReport() {
 
           <div className="so-table-card">
             <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
-              <table className="so-table">
+              <table className="so-table premium-stock-table" style={{ tableLayout: 'fixed', minWidth: '100%', width: 'max-content' }}>
                 <thead>
                   <tr>
-                    {columns.filter(col => selectedPrintColumns.includes(col.fieldname)).map((col, i) => (
-                      <th key={i}>{col.label}</th>
+                    {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col, i) => (
+                      <th key={col.id} style={{ width: col.width, minWidth: col.width, maxWidth: col.width, textAlign: col.align }}>
+                        {col.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {loading && data.length === 0 ? (
                     <tr>
-                      <td colSpan={columns.filter(col => selectedPrintColumns.includes(col.fieldname)).length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
+                      <td colSpan={columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
                         <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                         <p style={{ marginTop: '0.75rem', fontWeight: 700, color: '#94a3b8', fontSize: '0.6rem', textTransform: 'uppercase' }}>Building Report Matrix...</p>
                       </td>
                     </tr>
                   ) : data.length === 0 ? (
                     <tr>
-                      <td colSpan={columns.filter(col => selectedPrintColumns.includes(col.fieldname)).length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
+                      <td colSpan={columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
                         <div style={{ opacity: 0.1, marginBottom: '0.75rem' }}>
                            <Package size={40} style={{ margin: '0 auto' }} />
                         </div>
-                        <p style={{ fontSize: '0.8rem' }}>No inventory sales records found.</p>
+                        <p style={{ fontSize: '0.8rem' }}>{hasGenerated ? "No inventory sales records found." : "Select filters and click 'Generate Report' to view data."}</p>
                       </td>
                     </tr>
                   ) : (
                     data.map((row, idx) => (
                       <tr key={idx}>
-                        {columns.filter(col => selectedPrintColumns.includes(col.fieldname)).map((col, cIdx) => (
-                          <td key={cIdx} style={
-                            col.label?.toLowerCase().includes('qty') || 
-                            col.label?.toLowerCase().includes('amount') || 
-                            col.label?.toLowerCase().includes('total') ||
-                            col.label?.toLowerCase().includes('rate')
-                            ? { textAlign: 'right', fontWeight: 600 } : {}
-                          }>
-                            {row[col.fieldname] !== null && row[col.fieldname] !== undefined ? (
-                                typeof row[col.fieldname] === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate')) ? 
-                                row[col.fieldname].toLocaleString(undefined, { minimumFractionDigits: 2 }) : 
-                                typeof row[col.fieldname] === 'string' && row[col.fieldname].startsWith('<b>') ?
-                                <span dangerouslySetInnerHTML={{ __html: row[col.fieldname] }} /> :
-                                String(row[col.fieldname]).replace(' - KSPL', '')
-                            ) : '-'}
-                          </td>
-                        ))}
+                        {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col, cIdx) => {
+                          const fieldname = col.original.fieldname;
+                          const cellValue = row[fieldname];
+                          return (
+                            <td 
+                              key={col.id} 
+                              style={{ 
+                                textAlign: col.align,
+                                fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'monospace' : 'inherit',
+                                width: col.width,
+                                minWidth: col.width,
+                                maxWidth: col.width,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                fontWeight: (col.label?.toLowerCase().includes('qty') || col.label?.toLowerCase().includes('amount') || col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate')) ? 600 : 400
+                              }}
+                              title={String(cellValue)}
+                            >
+                              {cellValue !== null && cellValue !== undefined ? (
+                                  (fieldname === 'name' || fieldname === 'voucher_no' || fieldname === 'pos_invoice') ? (
+                                      <span onClick={() => navigate('/salesinvoicelist', { state: { search: cellValue } })} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer" style={{ fontWeight: 600, color: '#475569', justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}>
+                                          {String(cellValue).replace(' - KSPL', '')}
+                                      </span>
+                                  ) : fieldname === 'item_code' ? (
+                                      <span onClick={() => navigate('/itemlist', { state: { search: cellValue } })} className="group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer" style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}>
+                                          {String(cellValue).replace(' - KSPL', '')}
+                                      </span>
+                                  ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate')) ? 
+                                  cellValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) : 
+                                  typeof cellValue === 'string' && cellValue.startsWith('<b>') ?
+                                  <span dangerouslySetInnerHTML={{ __html: cellValue }} /> :
+                                  String(cellValue).replace(' - KSPL', '')
+                              ) : '-'}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))
                   )}
@@ -375,6 +484,15 @@ function ItemWiseSalesReport() {
         orientation={printOrientation}
         onOrientationChange={setPrintOrientation}
         onPrint={executePrint}
+        themeColor={themeColor}
+      />
+      
+      <ColumnConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        config={columnConfig}
+        onUpdate={handleColumnUpdate}
+        doctype="Item-Wise Sales Report"
         themeColor={themeColor}
       />
     </div>

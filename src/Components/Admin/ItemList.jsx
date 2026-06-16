@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
@@ -458,7 +458,8 @@ export default function ItemList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewType, setViewType] = useState('list');
 
-  const [filterName, setFilterName] = useState('');
+  const location = useLocation();
+  const [filterName, setFilterName] = useState(location.state?.search || '');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterHasVariants, setFilterHasVariants] = useState('');
@@ -1977,7 +1978,7 @@ export default function ItemList() {
                               <label className="il-form-label">Unit (UOM)</label>
                               <div style={{ position: 'relative' }}>
                                 <select className="il-select" value={priceForm.uom} onChange={e => setPriceForm(p => ({ ...p, uom: e.target.value }))}>
-                                  {[form.default_uom, ...(form.uoms || []).map(u => u.uom)].filter((v, i, a) => v && a.indexOf(v) === i).map(u => <option key={u}>{u}</option>)}
+                                  {[form.default_uom, ...(form.uoms || []).map(u => u.uom), ...uoms.map(u => u.value)].filter((v, i, a) => v && a.indexOf(v) === i).map(u => <option key={u}>{u}</option>)}
                                 </select>
                                 <ChevronDown size={13} style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: T.textMuted }} />
                               </div>
@@ -1985,7 +1986,7 @@ export default function ItemList() {
                           </div>
                           <div className="il-form-field">
                             <label className="il-form-label flex items-center gap-1">Rate (<DirhamIcon size={10} />)</label>
-                            <input type="number" className="il-input" style={{ fontSize: 22, fontWeight: 700, height: 52, color: T.blue }} value={priceForm.price_list_rate} onChange={e => setPriceForm(p => ({ ...p, price_list_rate: Number(e.target.value) }))} />
+                            <input type="number" className="il-input" style={{ fontSize: 22, fontWeight: 700, height: 52, color: T.blue }} value={priceForm.price_list_rate} onChange={e => setPriceForm(p => ({ ...p, price_list_rate: Number(e.target.value) }))} onFocus={e => e.target.select()} />
                           </div>
                           <div style={{ display: 'flex', gap: 10 }}>
                             <button className={`il-price-toggle buying ${priceForm.buying ? 'on' : ''}`} onClick={() => setPriceForm(p => ({ ...p, buying: p.buying ? 0 : 1 }))}>

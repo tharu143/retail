@@ -198,6 +198,22 @@ const POSService = {
             method: 'kyle_retail.retail_api.api.delete_draft_invoice',
             args: { invoice_name: invoiceName }
         });
+    },
+
+    getStockEntryDetails: async (name) => {
+        return await frappeCall({
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_stock_entry_details',
+            args: { name: name },
+            type: 'GET'
+        });
+    },
+
+    getStockEntries: async (args = {}) => {
+        return await frappeCall({
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_stock_entries',
+            args: args,
+            type: 'GET'
+        });
     }
 };
 

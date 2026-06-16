@@ -56,6 +56,16 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/app': {
+        target: 'http://75.119.130.59',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/assets': {
+        target: 'http://75.119.130.59',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   build: {

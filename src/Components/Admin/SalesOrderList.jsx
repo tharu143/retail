@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
@@ -143,7 +143,8 @@ export default function SalesOrderList() {
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const location = useLocation();
+  const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
 
   // Theme logic
   const { themeColor, themeLight, toggleTheme, legacySubTheme, isGreen } = useLegacyTheme();

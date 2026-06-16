@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import { ExternalLink } from 'lucide-react';
 
 const UAE_DENOMS = [
     { value: 1000, label: '1000 AED' },
@@ -149,7 +150,7 @@ function DailySalesReport() {
     };
 
     return (
-        <div className="so-page p-6 max-w-7xl mx-auto space-y-6">
+        <div className="so-page p-6 max-w-7xl mx-auto space-y-6" style={{ overflowY: 'auto', height: '100%', maxHeight: '100vh' }}>
             
             {/* Header section */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5 no-print">
@@ -388,7 +389,12 @@ function DailySalesReport() {
                                     <tbody className="divide-y divide-slate-100">
                                         {data.invoices?.map((inv) => (
                                             <tr key={inv.name} className="hover:bg-slate-50/40 text-slate-700">
-                                                <td className="py-3 px-4 font-bold text-slate-900 border border-slate-200">{inv.name}</td>
+                                                <td className="py-3 px-4 font-bold border border-slate-200">
+                                                    <span onClick={() => navigate('/salesinvoicelist', { state: { search: inv.name } })} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer text-slate-900" style={{ fontFamily: 'monospace' }}>
+                                                        {inv.name}
+                                                        <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                                    </span>
+                                                </td>
                                                 <td className="py-3 px-4 font-semibold border border-slate-200">{inv.customer_name}</td>
                                                 <td className="py-3 px-4 border border-slate-200">{inv.owner?.split('@')[0]}</td>
                                                 <td className="py-3 px-4 text-slate-500 border border-slate-200">{inv.posting_time}</td>
@@ -476,7 +482,10 @@ function DailySalesReport() {
                                     <div key={op.name} className="border border-slate-100 rounded-2xl p-5 bg-slate-50/40 space-y-4">
                                         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-3">
                                             <div className="flex items-center gap-3">
-                                                <span className="text-sm font-black text-slate-900">{op.name}</span>
+                                                <span onClick={() => navigate('/openingentry', { state: { search: op.name } })} className="group flex items-center gap-1.5 text-sm font-black text-slate-900 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                                    {op.name}
+                                                    <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                                </span>
                                                 <span className="bg-blue-50 text-blue-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
                                                     {op.status}
                                                 </span>
@@ -541,9 +550,13 @@ function DailySalesReport() {
                                     <div key={cl.name} className="border border-slate-100 rounded-2xl p-5 bg-slate-50/40 space-y-4">
                                         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-3">
                                             <div className="flex items-center gap-3">
-                                                <span className="text-sm font-black text-slate-900">{cl.name}</span>
-                                                <span className="bg-slate-100 text-slate-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                                                <span onClick={() => navigate('/closingentrylist', { state: { search: cl.name } })} className="group flex items-center gap-1.5 text-sm font-black text-slate-900 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                                    {cl.name}
+                                                    <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                                </span>
+                                                <span onClick={() => navigate('/openingentry', { state: { search: cl.pos_opening_entry } })} className="bg-slate-100 text-slate-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full cursor-pointer hover:bg-slate-200 transition-colors flex items-center gap-1">
                                                     Link Opening: {cl.pos_opening_entry}
+                                                    <ExternalLink size={10} className="text-slate-400" />
                                                 </span>
                                             </div>
                                             <div className="flex flex-wrap gap-4 text-[10px] font-bold text-slate-500">

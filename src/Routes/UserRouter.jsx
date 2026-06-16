@@ -25,6 +25,7 @@ import POSHealthPage from '../Pages/POSHealthPage'
 import CustomerList from '../Components/Admin/CustomerList'
 import CustomerEditPage from '../Pages/CustomerEditPage';
 import CustomerDetails from '../Components/Admin/CustomerDetails';
+import ItemDetails from '../Components/Admin/ItemDetails';
 import ItemGroupList from '../Components/Admin/ItemGroupList'
 import ItemList from '../Components/Admin/ItemList'
 import ItemPriceList from '../Components/Admin/ItemPriceList'
@@ -53,6 +54,8 @@ import SalesReturnPage from '../Pages/SalesReturnPage'
 import PurchaseReturnList from '../Components/Admin/PurchaseReturnList'
 import InterBranchTransferList from '../Components/Admin/InterBranchTransferList'
 import InterBranchTransferDetails from '../Components/Admin/InterBranchTransferDetails'
+import StockEntryDetails from '../Components/Admin/StockEntryDetails'
+import StockEntryList from '../Components/Admin/StockEntryList'
 
 function UserRouter() {
   const location = useLocation();
@@ -227,6 +230,7 @@ function UserRouter() {
           <Route path='customer-details/new' element={<CustomerEditPage />} />
           <Route path='itemgrouplist' element={<ItemGroupList />} />
           <Route path='itemlist' element={<ItemList />} />
+          <Route path='item-details/:id' element={<ItemDetails />} />
           <Route path='itempricelist' element={<ItemPriceList />} />
           <Route path='posclosingentrylist' element={<PosClosingEntryList />} />
           <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
@@ -255,6 +259,8 @@ function UserRouter() {
           <Route path='interbranchrequests' element={<InterBranchTransferList />} />
           <Route path='newinterbranchrequest' element={<InterBranchTransferDetails />} />
           <Route path='interbranchrequest/:name' element={<InterBranchTransferDetails />} />
+          <Route path='stock-entry/:id' element={<StockEntryDetails />} />
+          <Route path='stock-entries' element={<StockEntryList />} />
         </Routes>
       </div>
     </>

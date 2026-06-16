@@ -13,6 +13,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import AttachmentSection from './AttachmentSection';
 
 const DEFAULT_SO_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
@@ -2212,6 +2213,9 @@ export default function SalesOrderDetails() {
                                 </div>
                             </div>
                         </div>
+                    )}
+                    {!isNew && (
+                        <AttachmentSection doctype="Sales Order" docname={name} />
                     )}
                 </div>
             </div>

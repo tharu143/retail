@@ -32,39 +32,55 @@ export const FilterBar = ({
 }) => {
   return (
     <div className="dashboard-filter-bar flex-wrap">
-      <div className="filter-group">
-        <span className="filter-label">From:</span>
-        <input 
-          type="date"
-          className="filter-select"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          onClick={(e) => e.target.showPicker && e.target.showPicker()}
-        />
-      </div>
-      
-      <div className="filter-group">
-        <span className="filter-label">To:</span>
-        <input 
-          type="date"
-          className="filter-select"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          onClick={(e) => e.target.showPicker && e.target.showPicker()}
-        />
-      </div>
+      {isAdmin ? (
+        <>
+          <div className="filter-group">
+            <span className="filter-label">From:</span>
+            <input 
+              type="date"
+              className="filter-select"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              onClick={(e) => e.target.showPicker && e.target.showPicker()}
+            />
+          </div>
+          
+          <div className="filter-group">
+            <span className="filter-label">To:</span>
+            <input 
+              type="date"
+              className="filter-select"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              onClick={(e) => e.target.showPicker && e.target.showPicker()}
+            />
+          </div>
 
-      {isAdmin && (
-        <div className="filter-group ml-auto">
-          <span className="filter-label">Branch:</span>
-          <select 
+          <div className="filter-group ml-auto">
+            <span className="filter-label">Branch:</span>
+            <select 
+              className="filter-select"
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+            >
+              <option value="All Branches">All Branches</option>
+              {branches.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+            </select>
+          </div>
+        </>
+      ) : (
+        <div className="filter-group">
+          <span className="filter-label">Date:</span>
+          <input 
+            type="date"
             className="filter-select"
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-          >
-            <option value="All Branches">All Branches</option>
-            {branches.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
-          </select>
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setEndDate(e.target.value);
+            }}
+            onClick={(e) => e.target.showPicker && e.target.showPicker()}
+          />
         </div>
       )}
     </div>

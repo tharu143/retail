@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { KpiCard, FilterBar, SalesTrendChart, PurchaseTrendChart, ReceivablesPayablesChart, CustomerTrendChart, StockDistributionChart, PendingOperationsChart } from './DashboardWidgets';
 import { getDashboardMetrics } from '../../utils/dashboardService';
+import { authFetchBase } from '../../utils/authFetch';
 import {
   ArrowRight,
   ShoppingCart,
@@ -26,6 +27,7 @@ import {
   Settings as SettingsIcon,
   UserCheck,
   PlusCircle,
+  Activity,
   RotateCcw,
   Home,
   Sun,
@@ -47,7 +49,7 @@ import SalesReturnList from './SalesReturnList';
 import ItemList from './ItemList';
 import ItemGroupList from './ItemGroupList';
 import ItemPriceList from './ItemPriceList';
-import QuickStockInStandalone from './QuickStockInStandalone';
+import StockEntryList from './StockEntryList';
 import StockBalanceReport from '../Reports/StockBalanceReport';
 import StockLedgerReport from '../Reports/StockLedgerReport';
 import PosProfileList from './PosProfileList';
@@ -97,7 +99,7 @@ const routeMap = {
   'Item List': { icon: Boxes },
   'Price List': { icon: Tag },
   'Item Group': { icon: Layers },
-  'Quick Stock-In': { icon: PlusCircle },
+  'Stock Entry': { icon: Activity },
   'Stock Balance Report': { icon: FileText },
   'Stock Ledger Report': { icon: FileText },
 
@@ -125,7 +127,7 @@ const routeMap = {
 };
 
 function Dashboard() {
-  const user = useSelector(state => state.user.user);
+  const { user, warehouse, user_roles } = useSelector(state => state.user || {});
   
   // Navigation State
   const [activeItem, setActiveItem] = useState('home');
@@ -142,13 +144,46 @@ function Dashboard() {
   const [startDate, setStartDate] = useState(firstDayOfMonth);
   const [endDate, setEndDate] = useState(todayDate);
   
-  const userWarehouse = localStorage.getItem('warehouse') || "All Branches";
-  const [selectedBranch, setSelectedBranch] = useState(userWarehouse);
+  const [selectedBranch, setSelectedBranch] = useState(warehouse || "All Branches");
   const [loading, setLoading] = useState(true);
+  const [branches, setBranches] = useState([]);
 
   // Role detection and branches for now (In real app, fetch from Redux/API)
-  const isAdmin = typeof user === 'string' ? true : user?.role === 'Administrator' || user?.role === 'System Manager';
-  const mockBranches = [{ name: 'Dubai Branch' }, { name: 'Abu Dhabi Branch' }, { name: userWarehouse }];
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setStartDate(todayDate);
+      setEndDate(todayDate);
+    } else {
+      setStartDate(firstDayOfMonth);
+      setEndDate(todayDate);
+    }
+  }, [isAdmin, todayDate, firstDayOfMonth]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      const fetchWarehouses = async () => {
+        try {
+          const res = await authFetchBase('custom_retailpos.custom_retailpos.retail_api.retail.get_company_warehouses');
+          if (res.ok) {
+            const json = await res.json();
+            const list = json.message || json.data || [];
+            setBranches([{ name: 'All Branches' }, ...list.map(w => ({ name: w.name }))]);
+          } else {
+            setBranches([{ name: 'All Branches' }, { name: warehouse || 'Default Warehouse' }]);
+          }
+        } catch (err) {
+          console.error("Failed to fetch warehouses:", err);
+          setBranches([{ name: 'All Branches' }, { name: warehouse || 'Default Warehouse' }]);
+        }
+      };
+      fetchWarehouses();
+    } else {
+      setBranches([{ name: warehouse || 'Default Warehouse' }]);
+      setSelectedBranch(warehouse || 'Default Warehouse');
+    }
+  }, [isAdmin, warehouse]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -190,7 +225,7 @@ function Dashboard() {
     'Sales & Returns': false,
     'Stock Management': false,
     'POS Operations': false,
-    'Analytics': false,
+    'Reports': false,
     'Inventory Logistics': false,
     'Administration': false
   });
@@ -223,7 +258,7 @@ function Dashboard() {
       icon: Boxes,
       colorClass: 'icon-items',
       cardClass: 'card-items',
-      items: ['Item List', 'Item Group', 'Price List', 'Quick Stock-In', 'Stock Balance Report', 'Stock Ledger Report'],
+      items: ['Item List', 'Item Group', 'Price List', 'Stock Entry', 'Stock Balance Report', 'Stock Ledger Report'],
     },
     {
       title: 'POS Operations',
@@ -233,7 +268,7 @@ function Dashboard() {
       items: ['POS Profile', 'Opening Entry', 'Closing Entry List'],
     },
     {
-      title: 'Analytics',
+      title: 'Reports',
       icon: BarChart3,
       colorClass: 'icon-reports',
       cardClass: 'card-reports',
@@ -286,8 +321,8 @@ function Dashboard() {
         return <ItemPriceList />;
       case 'Item Group':
         return <ItemGroupList />;
-      case 'Quick Stock-In':
-        return <QuickStockInStandalone />;
+      case 'Stock Entry':
+        return <StockEntryList />;
       case 'Stock Balance Report':
         return <StockBalanceReport />;
       case 'Stock Ledger Report':
@@ -323,18 +358,18 @@ function Dashboard() {
       case 'Sync Manager':
         return <SyncManager />;
       case 'Procurement':
-        return <ProcurementDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} mockBranches={mockBranches} />;
+        return <ProcurementDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
       case 'Sales & Returns':
-        return <SalesReturnsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} mockBranches={mockBranches} />;
+        return <SalesReturnsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
       case 'Stock Management':
-        return <StockManagementDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} mockBranches={mockBranches} />;
+        return <StockManagementDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
       case 'POS Operations':
-        return <POSOperationsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} mockBranches={mockBranches} />;
+        return <POSOperationsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
       case 'Inventory Logistics':
-        return <InventoryLogisticsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} mockBranches={mockBranches} />;
+        return <InventoryLogisticsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
       case 'home':
       default:
-        return <DashboardHome user={user} sections={sections} setActiveItem={setActiveItem} metrics={metrics} loading={loading} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} mockBranches={mockBranches} />;
+        return <DashboardHome user={user} sections={sections} setActiveItem={setActiveItem} metrics={metrics} loading={loading} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
     }
   };
 
@@ -459,7 +494,7 @@ function Dashboard() {
 
 
 // Inner Component for Dashboard Homepage
-function DashboardHome({ user, sections, setActiveItem, metrics, loading, startDate, setStartDate, endDate, setEndDate, selectedBranch, setSelectedBranch, isAdmin, mockBranches }) {
+function DashboardHome({ user, sections, setActiveItem, metrics, loading, startDate, setStartDate, endDate, setEndDate, selectedBranch, setSelectedBranch, isAdmin, branches }) {
   return (
     <div className="dashboard-modern-container">
       <div className="max-w-7xl mx-auto">
@@ -472,7 +507,7 @@ function DashboardHome({ user, sections, setActiveItem, metrics, loading, startD
 
         <FilterBar 
           isAdmin={isAdmin}
-          branches={mockBranches}
+          branches={branches}
           selectedBranch={selectedBranch}
           setSelectedBranch={setSelectedBranch}
           startDate={startDate}
@@ -493,14 +528,16 @@ function DashboardHome({ user, sections, setActiveItem, metrics, loading, startD
               <KpiCard title="Receivables" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {metrics.metrics?.accounts_receivable ?? 0}</span>} icon={Receipt} colorClass="icon-reports" />
             </div>
 
-            <div className="dashboard-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))', gap: '2rem', marginBottom: '2rem' }}>
-              <SalesTrendChart data={metrics.charts?.sales_trend || []} />
-              <PurchaseTrendChart data={metrics.charts?.purchase_trend || []} />
-              <ReceivablesPayablesChart data={metrics.charts?.receivables_payables_trend || []} />
-              <CustomerTrendChart data={metrics.charts?.customer_trend || []} />
-              <StockDistributionChart data={metrics.charts?.stock_distribution || []} />
-              <PendingOperationsChart data={metrics.charts?.pending_operations || []} />
-            </div>
+            {isAdmin && (
+              <div className="dashboard-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+                <SalesTrendChart data={metrics.charts?.sales_trend || []} />
+                <PurchaseTrendChart data={metrics.charts?.purchase_trend || []} />
+                <ReceivablesPayablesChart data={metrics.charts?.receivables_payables_trend || []} />
+                <CustomerTrendChart data={metrics.charts?.customer_trend || []} />
+                <StockDistributionChart data={metrics.charts?.stock_distribution || []} />
+                <PendingOperationsChart data={metrics.charts?.pending_operations || []} />
+              </div>
+            )}
           </>
         ) : (
           <div className="p-8 text-center text-red-500">

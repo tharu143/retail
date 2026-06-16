@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { 
     Loader2, FileText, AlertCircle, CheckCircle2, 
     Calendar, Search, Filter, Palette, RefreshCw, 
-    Download, Printer, ChevronDown, TrendingUp, DollarSign, CreditCard, Layers, Zap, Coins
+    Download, Printer, ChevronDown, TrendingUp, DollarSign, CreditCard, Layers, Zap, Coins, ExternalLink, Settings
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
@@ -11,11 +11,15 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import PrintConfigModal from './PrintConfigModal';
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+
 
 function SalesReport() {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [columnConfig, setColumnConfig] = useState([]);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -140,7 +144,44 @@ function SalesReport() {
 
       if (payload.status === 'success') {
         setData(payload.data || []);
-        setColumns(payload.columns || []);
+        const fetchedCols = payload.columns || [];
+        setColumns(fetchedCols);
+        
+        // Merge with local storage config
+        const savedConfigStr = localStorage.getItem('sales_report_columns');
+        const savedConfig = savedConfigStr ? JSON.parse(savedConfigStr) : null;
+        
+        let mergedCols = fetchedCols.map(c => ({
+          id: c.fieldname,
+          label: c.label,
+          visible: true,
+          width: (c.width ? c.width + 'px' : '150px'),
+          align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
+          original: c
+        }));
+        
+        if (savedConfig && Array.isArray(savedConfig)) {
+          const configMap = {};
+          savedConfig.forEach(sc => configMap[sc.id] = sc);
+          
+          mergedCols = mergedCols.map(mc => {
+            if (configMap[mc.id]) {
+              return { ...mc, visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true, width: configMap[mc.id].width, align: configMap[mc.id].align };
+            }
+            return mc;
+          });
+          
+          mergedCols.sort((a, b) => {
+            const idxA = savedConfig.findIndex(sc => sc.id === a.id);
+            const idxB = savedConfig.findIndex(sc => sc.id === b.id);
+            if (idxA === -1 && idxB === -1) return 0;
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+          });
+        }
+        
+        setColumnConfig(mergedCols);
         setBreakdown(payload.payment_breakdown || { grand_total: 0, net_total: 0, cash: 0, card: 0, instapay: 0, credit: 0, other: 0 });
         setSuccess('Report generated successfully');
       } else {
@@ -157,6 +198,24 @@ function SalesReport() {
     const next = { ...filters, [key]: value };
     setFilters(next);
     fetchReport(next);
+  };
+
+  const handleColumnUpdate = (newConfig) => {
+    if (!newConfig) {
+      localStorage.removeItem('sales_report_columns');
+      const defaultCols = columns.map(c => ({
+        id: c.fieldname,
+        label: c.label,
+        visible: true,
+        width: (c.width ? c.width + 'px' : '150px'),
+        align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
+        original: c
+      }));
+      setColumnConfig(defaultCols);
+      return;
+    }
+    setColumnConfig(newConfig);
+    localStorage.setItem('sales_report_columns', JSON.stringify(newConfig));
   };
 
   const handlePrint = () => {
@@ -221,6 +280,14 @@ function SalesReport() {
           </button>
           <button onClick={handleExportCSV} className="so-btn-primary" style={{ height: '38px', padding: '0 1.25rem', background: themeColor, borderColor: themeColor }}>
              <Download size={16} /> Export CSV
+          </button>
+          <button 
+            className="so-btn-secondary" 
+            style={{ height: '38px', padding: '0 0.75rem' }}
+            onClick={() => setShowConfigModal(true)}
+            title="Configure Columns"
+          >
+             <Settings size={16} style={{ color: themeColor }} />
           </button>
         </div>
       </div>
@@ -470,25 +537,27 @@ function SalesReport() {
 
           <div className="so-table-card">
             <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
-              <table className="so-table">
+              <table className="so-table premium-stock-table" style={{ tableLayout: 'fixed', minWidth: '100%', width: 'max-content' }}>
                 <thead>
                   <tr>
-                    {columns.filter(col => selectedPrintColumns.includes(col.fieldname)).map((col, i) => (
-                      <th key={i}>{col.label}</th>
+                    {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col, i) => (
+                      <th key={col.id} style={{ width: col.width, minWidth: col.width, maxWidth: col.width, textAlign: col.align }}>
+                        {col.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {loading && data.length === 0 ? (
                     <tr>
-                      <td colSpan={columns.filter(col => selectedPrintColumns.includes(col.fieldname)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
+                      <td colSpan={columnConfig.filter(c => c.show && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
                         <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                         <p style={{ marginTop: '1rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.65rem' }}>Processing Data Streams...</p>
                       </td>
                     </tr>
                   ) : data.length === 0 ? (
                     <tr>
-                      <td colSpan={columns.filter(col => selectedPrintColumns.includes(col.fieldname)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
+                      <td colSpan={columnConfig.filter(c => c.show && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
                         <div style={{ opacity: 0.2, marginBottom: '1rem' }}>
                            <FileText size={48} style={{ margin: '0 auto' }} />
                         </div>
@@ -498,15 +567,42 @@ function SalesReport() {
                   ) : (
                     data.map((row, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
-                        {columns.filter(col => selectedPrintColumns.includes(col.fieldname)).map((col, cIdx) => (
-                          <td key={cIdx} style={col.label?.toLowerCase().includes('amount') || col.label?.toLowerCase().includes('total') ? { textAlign: 'right', fontWeight: 600 } : {}}>
-                            {row[col.fieldname] !== null && row[col.fieldname] !== undefined ? (
-                                typeof row[col.fieldname] === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('amount')) ? 
-                                row[col.fieldname].toLocaleString(undefined, { minimumFractionDigits: 2 }) : 
-                                String(row[col.fieldname]).replace(' - KSPL', '')
-                            ) : '-'}
-                          </td>
-                        ))}
+                        {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col, cIdx) => {
+                          const fieldname = col.original.fieldname;
+                          const cellValue = row[fieldname];
+                          return (
+                            <td 
+                              key={col.id} 
+                              style={{ 
+                                textAlign: col.align,
+                                fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'monospace' : 'inherit',
+                                width: col.width,
+                                minWidth: col.width,
+                                maxWidth: col.width,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={String(cellValue ?? '')}
+                            >
+                              {cellValue !== null && cellValue !== undefined ? (
+                                  (fieldname === 'name' || fieldname === 'voucher_no') ? (
+                                      <span onClick={() => navigate('/salesinvoicelist', { state: { search: cellValue } })} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer" style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569', justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}>
+                                          {String(cellValue).replace(' - KSPL', '')}
+                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                      </span>
+                                  ) : fieldname === 'item_code' ? (
+                                      <span onClick={() => navigate('/itemlist', { state: { search: cellValue } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer" style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}>
+                                          {String(cellValue).replace(' - KSPL', '')}
+                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      </span>
+                                  ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('amount')) ? 
+                                  cellValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) : 
+                                  String(cellValue).replace(' - KSPL', '')
+                              ) : '-'}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))
                   )}
@@ -570,6 +666,15 @@ function SalesReport() {
         orientation={printOrientation}
         onOrientationChange={setPrintOrientation}
         onPrint={executePrint}
+        themeColor={themeColor}
+      />
+      
+      <ColumnConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        config={columnConfig}
+        onUpdate={handleColumnUpdate}
+        doctype="Sales Report"
         themeColor={themeColor}
       />
     </div>

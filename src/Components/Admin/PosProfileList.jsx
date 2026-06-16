@@ -1,5 +1,6 @@
 // src/pages/PosProfileList.jsx
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Plus, Building, Warehouse, Users, CreditCard,
   ChevronLeft, ChevronRight, X, Check, AlertCircle, Trash2, Search, Filter,
@@ -11,6 +12,9 @@ const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retai
 const getSession = () => localStorage.getItem('session') || '';
 
 export default function PosProfileList() {
+  const { user, user_roles } = useSelector(state => state.user || {});
+  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
+
   const [profiles, setProfiles] = useState([]);
   const [filteredProfiles, setFilteredProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +101,13 @@ export default function PosProfileList() {
   useEffect(() => {
     let filtered = profiles;
 
+    const isSuperAdmin = user?.toLowerCase() === 'administrator';
+    if (!isSuperAdmin && user) {
+      filtered = filtered.filter(p =>
+        (p.users || []).some(u => u.user?.toLowerCase() === user.toLowerCase())
+      );
+    }
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(p =>
@@ -110,8 +121,9 @@ export default function PosProfileList() {
     }
 
     setFilteredProfiles(filtered);
+    setTotal(filtered.length);
     setCurrentPage(1);
-  }, [searchTerm, companyFilter, statusFilter, profiles]);
+  }, [searchTerm, companyFilter, statusFilter, profiles, user]);
 
   const fetchDropdowns = async () => {
     try {

@@ -8,6 +8,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import AttachmentSection from './AttachmentSection';
 
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
@@ -41,12 +42,14 @@ const SalesInvoiceList = () => {
   }, [siTheme, themeColor, themeColorHover, themeLight]);
 
   // Filters
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
   const [titleFilter, setTitleFilter] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -381,9 +384,15 @@ const SalesInvoiceList = () => {
         return true;
       });
     }
+    if (dateStart) {
+      filtered = filtered.filter(inv => inv.posting_date >= dateStart);
+    }
+    if (dateEnd) {
+      filtered = filtered.filter(inv => inv.posting_date <= dateEnd);
+    }
     setFilteredInvoices(filtered);
     setCurrentPage(1);
-  }, [searchTerm, titleFilter, customerFilter, statusFilter, minAmount, maxAmount, invoices]);
+  }, [searchTerm, titleFilter, customerFilter, statusFilter, minAmount, maxAmount, dateStart, dateEnd, invoices]);
 
 
   const getStatusColor = (status) => {
@@ -1180,6 +1189,16 @@ const SalesInvoiceList = () => {
               </select>
             </div>
 
+            <div className="so-filter-group" style={{ minWidth: '130px', flex: 1 }}>
+              <label className="so-filter-label">From Date</label>
+              <input className="so-filter-input" type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} onClick={(e) => e.target.showPicker && e.target.showPicker()} />
+            </div>
+
+            <div className="so-filter-group" style={{ minWidth: '130px', flex: 1 }}>
+              <label className="so-filter-label">To Date</label>
+              <input className="so-filter-input" type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} onClick={(e) => e.target.showPicker && e.target.showPicker()} />
+            </div>
+
             <div className="so-filter-group" style={{ minWidth: '140px', flex: 1 }}>
               <label className="so-filter-label">Amount Range</label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -1188,7 +1207,7 @@ const SalesInvoiceList = () => {
               </div>
             </div>
 
-            <button className="so-clear-btn" style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem' }} onClick={() => { setSearchTerm(''); setTitleFilter(''); setCustomerFilter(''); setStatusFilter('all'); setMinAmount(''); setMaxAmount(''); }}>
+            <button className="so-clear-btn" style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem' }} onClick={() => { setSearchTerm(''); setTitleFilter(''); setCustomerFilter(''); setStatusFilter('all'); setMinAmount(''); setMaxAmount(''); setDateStart(''); setDateEnd(''); }}>
               Clear Filters
             </button>
           </div>
@@ -1202,10 +1221,10 @@ const SalesInvoiceList = () => {
                     <tr>
                       <th>Title</th>
                       <th>Status</th>
+                      <th>Date</th>
                       <th>Customer</th>
                       <th style={{ textAlign: 'right' }}>Grand Total</th>
                       <th>ID</th>
-                      <th style={{ width: '100px' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1226,22 +1245,14 @@ const SalesInvoiceList = () => {
                               {inv.status || 'Draft'} {inv.is_return ? '(CN)' : ''}
                             </span>
                           </td>
+                          <td style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                            {inv.posting_date ? new Date(inv.posting_date).toLocaleDateString('en-GB') : '-'}
+                          </td>
                           <td style={{ fontSize: '0.8rem' }}>{inv.customer_name || 'Customer'}</td>
                           <td style={{ textAlign: 'right', fontWeight: 700 }}>
                             {getCurrencySymbol(inv.currency || 'AED')}{inv.is_return ? '-' : ''}{Math.abs(Number(inv.grand_total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
                           <td style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--so-text-muted)' }}>{inv.name}</td>
-                          <td onClick={e => e.stopPropagation()}>
-                            {(inv.status === 'Submitted' || inv.status === 'Unpaid') && !inv.is_return && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); loadForReturn(inv.name); }}
-                                className="so-btn-primary"
-                                style={{ fontSize: '0.65rem', padding: '0.25rem 0.5rem' }}
-                              >
-                                <ArrowLeft size={10} /> Credit Note
-                              </button>
-                            )}
-                          </td>
                         </tr>
                       ))
                     )}
@@ -1288,7 +1299,7 @@ const SalesInvoiceList = () => {
                   {isReturnMode ? (
                     <><ArrowLeft size={16} style={{ display: 'inline', marginRight: '0.4rem' }} /> Credit Note — Return Against: {returnAgainst}</>
                   ) : (
-                    form.name ? `Edit — ${form.name}` : 'New Sales Invoice'
+                    form.name ? (form.docstatus === 1 || form.status !== 'Draft' ? `View — ${form.name}` : `Edit — ${form.name}`) : 'New Sales Invoice'
                   )}
                 </h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1321,13 +1332,15 @@ const SalesInvoiceList = () => {
                       >
                         Print Invoice
                       </button>
-                      <button
-                        className="so-btn-primary"
-                        onClick={() => setIsViewOnly(false)}
-                        style={{ minWidth: '120px', backgroundColor: themeColor, padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
-                      >
-                        Edit Invoice
-                      </button>
+                      {(form.docstatus === 0 || form.status === 'Draft') && (
+                        <button
+                          className="so-btn-primary"
+                          onClick={() => setIsViewOnly(false)}
+                          style={{ minWidth: '120px', backgroundColor: themeColor, padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
+                        >
+                          Edit Invoice
+                        </button>
+                      )}
                     </>
                   ) : (
                     <>
@@ -2074,6 +2087,7 @@ const SalesInvoiceList = () => {
                     </div>
                   </>
                 )}
+                <AttachmentSection doctype="Sales Invoice" docname={form.name} />
               </div>
             </div>
           </div>

@@ -2,15 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { 
     Loader2, FileText, AlertCircle, CheckCircle2, 
     Calendar, Search, Filter, Palette, RefreshCw, 
-    Download, Printer, ChevronDown, Truck, Package
+    Download, Printer, ChevronDown, Truck, Package, ExternalLink, Settings
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
-
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 
 function PurchaseReport() {
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [columnConfig, setColumnConfig] = useState([]);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -70,7 +74,44 @@ function PurchaseReport() {
 
       if (payload.status === 'success') {
         setData(payload.data || []);
-        setColumns(payload.columns || []);
+        const fetchedCols = payload.columns || [];
+        setColumns(fetchedCols);
+        
+        // Merge with local storage config
+        const savedConfigStr = localStorage.getItem('purchase_report_columns');
+        const savedConfig = savedConfigStr ? JSON.parse(savedConfigStr) : null;
+        
+        let mergedCols = fetchedCols.map(c => ({
+          id: c.fieldname,
+          label: c.label,
+          visible: true,
+          width: (c.width ? c.width + 'px' : '150px'),
+          align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
+          original: c
+        }));
+        
+        if (savedConfig && Array.isArray(savedConfig)) {
+          const configMap = {};
+          savedConfig.forEach(sc => configMap[sc.id] = sc);
+          
+          mergedCols = mergedCols.map(mc => {
+            if (configMap[mc.id]) {
+              return { ...mc, visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true, width: configMap[mc.id].width, align: configMap[mc.id].align };
+            }
+            return mc;
+          });
+          
+          mergedCols.sort((a, b) => {
+            const idxA = savedConfig.findIndex(sc => sc.id === a.id);
+            const idxB = savedConfig.findIndex(sc => sc.id === b.id);
+            if (idxA === -1 && idxB === -1) return 0;
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+          });
+        }
+        
+        setColumnConfig(mergedCols);
         setSuccess('Purchase records loaded');
       } else {
         setError(payload.message || 'Failed to generate report');
@@ -86,6 +127,24 @@ function PurchaseReport() {
     const next = { ...filters, [key]: value };
     setFilters(next);
     fetchReport(next);
+  };
+
+  const handleColumnUpdate = (newConfig) => {
+    if (!newConfig) {
+      localStorage.removeItem('purchase_report_columns');
+      const defaultCols = columns.map(c => ({
+        id: c.fieldname,
+        label: c.label,
+        visible: true,
+        width: (c.width ? c.width + 'px' : '150px'),
+        align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
+        original: c
+      }));
+      setColumnConfig(defaultCols);
+      return;
+    }
+    setColumnConfig(newConfig);
+    localStorage.setItem('purchase_report_columns', JSON.stringify(newConfig));
   };
 
   return (
@@ -126,6 +185,14 @@ function PurchaseReport() {
           </button>
           <button className="so-btn-primary" style={{ height: '38px', padding: '0 1.25rem' }}>
              <Download size={16} /> Export
+          </button>
+          <button 
+            className="so-btn-secondary" 
+            style={{ height: '38px', padding: '0 0.75rem' }}
+            onClick={() => setShowConfigModal(true)}
+            title="Configure Columns"
+          >
+             <Settings size={16} style={{ color: themeColor }} />
           </button>
         </div>
       </div>
@@ -217,11 +284,13 @@ function PurchaseReport() {
 
           <div className="so-table-card">
             <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
-              <table className="so-table">
+              <table className="so-table premium-stock-table" style={{ tableLayout: 'fixed', minWidth: '100%', width: 'max-content' }}>
                 <thead>
                   <tr>
-                    {columns.map((col, i) => (
-                      <th key={i}>{col.label}</th>
+                    {columnConfig.filter(c => c.visible).map((col, i) => (
+                      <th key={col.id} style={{ width: col.width, minWidth: col.width, maxWidth: col.width, textAlign: col.align }}>
+                        {col.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -245,21 +314,42 @@ function PurchaseReport() {
                   ) : (
                     data.map((row, idx) => (
                       <tr key={idx}>
-                        {columns.map((col, cIdx) => (
-                          <td key={cIdx} style={
-                            col.label?.toLowerCase().includes('amount') || 
-                            col.label?.toLowerCase().includes('total') ||
-                            col.label?.toLowerCase().includes('qty') ||
-                            col.label?.toLowerCase().includes('rate')
-                            ? { textAlign: 'right', fontWeight: 600 } : {}
-                          }>
-                            {row[col.fieldname] !== null && row[col.fieldname] !== undefined ? (
-                                typeof row[col.fieldname] === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate')) ? 
-                                row[col.fieldname].toLocaleString(undefined, { minimumFractionDigits: 2 }) : 
-                                row[col.fieldname]
-                            ) : '-'}
-                          </td>
-                        ))}
+                        {columnConfig.filter(c => c.visible).map((col, cIdx) => {
+                          const fieldname = col.original.fieldname;
+                          const cellValue = row[fieldname];
+                          return (
+                            <td 
+                              key={col.id} 
+                              style={{ 
+                                textAlign: col.align,
+                                fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'monospace' : 'inherit',
+                                width: col.width,
+                                minWidth: col.width,
+                                maxWidth: col.width,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={String(cellValue)}
+                            >
+                              {cellValue !== null && cellValue !== undefined ? (
+                                  (fieldname === 'name' || fieldname === 'voucher_no') ? (
+                                      <span onClick={() => navigate('/purchaseinvoicelist', { state: { search: cellValue } })} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer" style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}>
+                                          {cellValue}
+                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                      </span>
+                                  ) : fieldname === 'item_code' ? (
+                                      <span onClick={() => navigate('/itemlist', { state: { search: cellValue } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer" style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}>
+                                          {cellValue}
+                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      </span>
+                                  ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate')) ? 
+                                  cellValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) : 
+                                  cellValue
+                              ) : '-'}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))
                   )}
@@ -269,6 +359,15 @@ function PurchaseReport() {
           </div>
         </main>
       </div>
+      
+      <ColumnConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        config={columnConfig}
+        onUpdate={handleColumnUpdate}
+        doctype="Purchase Report"
+        themeColor={themeColor}
+      />
     </div>
   );
 }

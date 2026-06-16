@@ -8,7 +8,7 @@ import {
   TrendingUp, Activity, MapPin, Tag
 } from 'lucide-react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Swal from 'sweetalert2';
 import './SalesOrder.css';
@@ -38,7 +38,8 @@ export default function SupplierList() {
   const { isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
 
   // Filters
-  const [filterSearch, setFilterSearch] = useState('');
+  const location = useLocation();
+  const [filterSearch, setFilterSearch] = useState(location.state?.search || '');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');

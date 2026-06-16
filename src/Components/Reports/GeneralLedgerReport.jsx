@@ -3,13 +3,28 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
     Loader2, FileText, AlertCircle, Calendar, 
     RefreshCw, Download, Printer, 
-    ChevronDown, DollarSign, TrendingUp, TrendingDown, ClipboardList, ChevronLeft
+    ChevronDown, DollarSign, TrendingUp, TrendingDown, ClipboardList, ChevronLeft, ExternalLink, Settings
 } from 'lucide-react';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { authFetchBase } from '../../utils/authFetch';
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import './GeneralLedgerReport.css';
+
+// Map voucher types to ERPNext URL slugs
+const getVoucherUrl = (voucherType, voucherNo) => {
+  if (!voucherType || !voucherNo) return null;
+  const no = encodeURIComponent(voucherNo);
+  switch (voucherType) {
+    case 'Sales Invoice': return `/salesinvoice?invoice=${no}`;
+    case 'Purchase Invoice': return `/purchaseinvoicelist?name=${no}`;
+    case 'Purchase Receipt': return `/purchasereceiptlist?name=${no}`;
+    case 'Delivery Note': return `/deliverynote-details/${no}`;
+    case 'Sales Order': return `/salesorder-details/${no}`;
+    default: return null;
+  }
+};
 
 const DEFAULT_GL_COLUMNS = [
   { id: 'posting_date', label: 'Posting Date', visible: true, width: 120 },
@@ -29,6 +44,8 @@ function GeneralLedgerReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [columnConfig, setColumnConfig] = useState([]);
+  const [showConfigModal, setShowConfigModal] = useState(false);
 
   // Theme Hook
   const { legacySubTheme, themeColor, toggleTheme } = useLegacyTheme();
@@ -74,6 +91,39 @@ function GeneralLedgerReport() {
       setSelectedPartyObj(null);
     }
     fetchReport(initialFilters);
+
+    // Column Config initialization
+    const savedConfigStr = localStorage.getItem('general_ledger_columns');
+    const savedConfig = savedConfigStr ? JSON.parse(savedConfigStr) : null;
+    
+    let defaultCols = DEFAULT_GL_COLUMNS.map(c => ({
+      id: c.id,
+      label: c.label,
+      show: c.visible,
+      width: c.width + 'px',
+      align: ['debit', 'credit', 'balance'].includes(c.id) ? 'right' : 'left',
+      original: c
+    }));
+
+    if (savedConfig && Array.isArray(savedConfig)) {
+      const configMap = {};
+      savedConfig.forEach(sc => configMap[sc.id] = sc);
+      defaultCols = defaultCols.map(mc => {
+        if (configMap[mc.id]) {
+          return { ...mc, show: configMap[mc.id].show, width: configMap[mc.id].width, align: configMap[mc.id].align };
+        }
+        return mc;
+      });
+      defaultCols.sort((a, b) => {
+        const idxA = savedConfig.findIndex(sc => sc.id === a.id);
+        const idxB = savedConfig.findIndex(sc => sc.id === b.id);
+        if (idxA === -1 && idxB === -1) return 0;
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+      });
+    }
+    setColumnConfig(defaultCols);
   }, [searchParams]);
 
   const fetchReport = async (activeFilters = filters) => {
@@ -129,6 +179,24 @@ function GeneralLedgerReport() {
     setSearchParams(newParams);
   };
 
+  const handleColumnUpdate = (newConfig) => {
+    if (!newConfig) {
+      localStorage.removeItem('general_ledger_columns');
+      const defaultCols = DEFAULT_GL_COLUMNS.map(c => ({
+        id: c.id,
+        label: c.label,
+        visible: c.visible,
+        width: c.width + 'px',
+        align: ['debit', 'credit', 'balance'].includes(c.id) ? 'right' : 'left',
+        original: c
+      }));
+      setColumnConfig(defaultCols);
+      return;
+    }
+    setColumnConfig(newConfig);
+    localStorage.setItem('general_ledger_columns', JSON.stringify(newConfig));
+  };
+
   // Search Customers/Suppliers dynamically from backend API
   const fetchPartiesAPI = async (query) => {
     try {
@@ -162,7 +230,7 @@ function GeneralLedgerReport() {
   // CSV Export
   const exportCSV = () => {
     if (data.length === 0) return;
-    const activeCols = DEFAULT_GL_COLUMNS.filter(c => c.visible);
+    const activeCols = columnConfig.filter(c => c.show);
     const headers = activeCols.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
     const rows = data.map(row => {
       return activeCols.map(col => {
@@ -192,12 +260,39 @@ function GeneralLedgerReport() {
 
   const handleBackClick = () => {
     if (filters.party_type === 'Customer' && filters.party) {
-      navigate(`/customer-details/${filters.party}`);
+      navigate('/customerlist', { state: { search: filters.party } });
     } else if (filters.party_type === 'Supplier' && filters.party) {
-      navigate(`/supplier-details/${filters.party}`);
+      navigate('/supplierlist', { state: { search: filters.party } });
     } else {
       navigate(-1);
     }
+  };
+
+  // Render voucher_no cell — clickable link or plain text
+  const renderVoucherNoCell = (row) => {
+    const url = getVoucherUrl(row.voucher_type, row.voucher_no);
+    if (url) {
+      return (
+        <span
+          onClick={() => navigate(url)}
+          style={{
+            color: themeColor,
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'all 0.15s ease'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; e.currentTarget.style.opacity = '0.85'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; e.currentTarget.style.opacity = '1'; }}
+        >
+          {row.voucher_no}
+          <ExternalLink size={11} style={{ opacity: 0.5, flexShrink: 0 }} />
+        </span>
+      );
+    }
+    return row.voucher_no;
   };
 
   return (
@@ -231,6 +326,14 @@ function GeneralLedgerReport() {
           </button>
           <button className="so-btn-primary" onClick={exportCSV} disabled={data.length === 0} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: 'none', background: themeColor, color: 'white', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', opacity: data.length === 0 ? 0.6 : 1 }}>
              <Download size={16} /> Export CSV
+          </button>
+          <button 
+            className="so-btn-secondary" 
+            style={{ height: '38px', padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer' }}
+            onClick={() => setShowConfigModal(true)}
+            title="Configure Columns"
+          >
+             <Settings size={16} style={{ color: themeColor }} />
           </button>
         </div>
       </div>
@@ -391,16 +494,17 @@ function GeneralLedgerReport() {
 
           <div className="so-table-card table-outer-box">
             <div className="so-table-wrapper scrollable-table-area" style={{ overflowX: 'auto' }}>
-              <table className="so-table premium-stock-table">
+              <table className="so-table premium-stock-table" style={{ tableLayout: 'fixed', minWidth: '100%', width: 'max-content' }}>
                 <thead>
                   <tr>
-                    {DEFAULT_GL_COLUMNS.filter(c => c.visible).map(col => (
+                    {columnConfig.filter(c => c.visible).map(col => (
                       <th 
                         key={col.id} 
                         style={{ 
                           width: col.width, 
                           minWidth: col.width,
-                          textAlign: ['debit', 'credit', 'balance'].includes(col.id) ? 'right' : 'left'
+                          maxWidth: col.width,
+                          textAlign: col.align
                         }}
                       >
                         {col.label}
@@ -411,26 +515,52 @@ function GeneralLedgerReport() {
                 <tbody>
                   {data.length === 0 ? (
                     <tr>
-                      <td colSpan={DEFAULT_GL_COLUMNS.length} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+                      <td colSpan={columnConfig.filter(c => c.visible).length} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', fontSize: '0.85rem' }}>
                         {filters.party ? 'No ledger entries found for the selected criteria.' : 'Please select a Customer or Supplier to view their ledger.'}
                       </td>
                     </tr>
                   ) : (
                     data.map((row, idx) => (
-                      <tr key={row.name || idx}>
-                        {DEFAULT_GL_COLUMNS.filter(c => c.visible).map(col => {
+                      <tr key={row.name || idx} className="hover:bg-slate-50/50 transition-colors">
+                        {columnConfig.filter(c => c.visible).map(col => {
                           let cellValue = row[col.id];
                           if (['debit', 'credit', 'balance'].includes(col.id)) {
                             cellValue = cellValue !== undefined ? parseFloat(cellValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
                           }
+
+                          // Render voucher_no as clickable link
+                          if (col.id === 'voucher_no') {
+                            return (
+                              <td 
+                                key={col.id}
+                                style={{ 
+                                  textAlign: col.align,
+                                  fontFamily: 'monospace',
+                                  width: col.width, 
+                                  minWidth: col.width,
+                                  maxWidth: col.width
+                                }}
+                              >
+                                {renderVoucherNoCell(row)}
+                              </td>
+                            );
+                          }
+
                           return (
                             <td 
                               key={col.id}
                               style={{ 
-                                textAlign: ['debit', 'credit', 'balance'].includes(col.id) ? 'right' : 'left',
+                                textAlign: col.align,
                                 fontFamily: ['debit', 'credit', 'balance', 'posting_date', 'voucher_no'].includes(col.id) ? 'monospace' : 'inherit',
-                                fontWeight: col.id === 'balance' ? 700 : 'inherit'
+                                fontWeight: col.id === 'balance' ? 700 : 'inherit',
+                                width: col.width, 
+                                minWidth: col.width,
+                                maxWidth: col.width,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
                               }}
+                              title={String(col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' : col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' : cellValue)}
                             >
                               {col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' :
                                col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' :
@@ -448,6 +578,15 @@ function GeneralLedgerReport() {
         </main>
 
       </div>
+      
+      <ColumnConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        config={columnConfig}
+        onUpdate={handleColumnUpdate}
+        doctype="General Ledger Report"
+        themeColor={themeColor}
+      />
     </div>
   );
 }

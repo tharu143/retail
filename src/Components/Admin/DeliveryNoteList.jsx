@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import NavBar from '../Nav/NavBar';
 import {
@@ -226,7 +226,8 @@ const DeliveryNoteList = () => {
     }, []);
 
     // Filters
-    const [searchTerm, setSearchTerm] = useState('');
+    const location = useLocation();
+    const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
     const [titleFilter, setTitleFilter] = useState('');
     const [customerFilter, setCustomerFilter] = useState('');
     const [companyFilter, setCompanyFilter] = useState('');

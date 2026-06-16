@@ -3,7 +3,7 @@ import {
   Plus, X, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
   Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -12,6 +12,7 @@ import '../Admin/SalesOrder.css';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import AttachmentSection from './AttachmentSection';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -164,7 +165,8 @@ function PurchaseReceiptList() {
   const [warehouses, setWarehouses] = useState([]);
   const [taxesTemplates, setTaxesTemplates] = useState([]);
   const [taxTypes, setTaxTypes] = useState(['Actual', 'On Net Total', 'On Previous Row Amount', 'On Previous Row Total', 'Compound']); // charge_types
-  const [filterName, setFilterName] = useState('');
+  const location = useLocation();
+  const [filterName, setFilterName] = useState(location.state?.search || '');
   const [filterSupplier, setFilterSupplier] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
@@ -4015,6 +4017,7 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
+                <AttachmentSection doctype="Purchase Receipt" docname={docName} />
               </div> {/* Closes so-modal-body */}
             </div>
           </div>

@@ -17,6 +17,7 @@ import '../Admin/SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import AttachmentSection from './AttachmentSection';
 
 const DEFAULT_DN_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
@@ -2042,6 +2043,9 @@ const DeliveryNoteDetails = () => {
                                 </div>
                             </div>
                         </div>
+                    )}
+                    {!isNew && (
+                        <AttachmentSection doctype="Delivery Note" docname={form.name} />
                     )}
                 </div>
             </div>

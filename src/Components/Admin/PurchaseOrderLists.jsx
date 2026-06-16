@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
   Plus, Filter, MoreVertical, Search, Calendar, Building2,
@@ -23,7 +24,8 @@ function PurchaseOrderLists() {
   const [showActions, setShowActions] = useState(null);
 
   // Filters
-  const [filterSupplier, setFilterSupplier] = useState('');
+  const location = useLocation();
+  const [filterSupplier, setFilterSupplier] = useState(location.state?.search || '');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');

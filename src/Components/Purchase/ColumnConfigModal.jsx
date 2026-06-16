@@ -84,8 +84,11 @@ const SortableItem = ({ id, column, onToggle, onWidthChange, onMoveUp, onMoveDow
         <label className="text-[10px] font-bold text-slate-400">WIDTH</label>
         <input 
           type="number" 
-          value={column.width || 100} 
-          onChange={(e) => onWidthChange(id, parseInt(e.target.value) || 0)}
+          value={parseInt(column.width) || ''} 
+          onChange={(e) => {
+            const val = e.target.value;
+            onWidthChange(id, val ? parseInt(val) + "px" : "100px");
+          }}
           className="w-16 h-8 text-center text-xs font-bold border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
           min="20"
           max="800"

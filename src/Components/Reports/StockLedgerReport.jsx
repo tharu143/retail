@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
     Loader2, FileText, AlertCircle, Calendar, Search, 
     Filter, Palette, RefreshCw, Download, Printer, 
     ChevronDown, Boxes, Layers, Package, TrendingUp, TrendingDown, DollarSign,
-    Settings, Activity
+    Settings, Activity, ExternalLink
 } from 'lucide-react';
 import { db } from '../../db';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
@@ -12,6 +12,21 @@ import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './StockLedgerReport.css';
+
+const getVoucherUrl = (voucherType, voucherNo) => {
+  if (!voucherType || !voucherNo) return null;
+  const no = encodeURIComponent(voucherNo);
+  switch (voucherType) {
+    case 'Sales Invoice': return `/salesinvoice?invoice=${no}`;
+    case 'Purchase Invoice': return `/purchaseinvoicelist?name=${no}`;
+    case 'Purchase Receipt': return `/purchasereceiptlist?name=${no}`;
+    case 'Delivery Note': return `/deliverynote-details/${no}`;
+    case 'Sales Order': return `/salesorder-details/${no}`;
+    case 'Stock Entry': return `/stock-entry/${no}`;
+    case 'POS Invoice': return `/app/pos-invoice/${no}`;
+    default: return `/app/${voucherType.toLowerCase().replace(/ /g, '-')}/${no}`;
+  }
+};
 
 const DEFAULT_LEDGER_COLUMNS = [
   { id: 'date', label: 'Date', visible: true, width: 120 },
@@ -31,6 +46,7 @@ const DEFAULT_LEDGER_COLUMNS = [
 
 function StockLedgerReport() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -647,7 +663,10 @@ function StockLedgerReport() {
                               case 'item_code':
                                 return (
                                   <td key={col.id} className="item-code-cell">
-                                    <span className="code-capsule">{row.item_code}</span>
+                                    <span onClick={() => navigate('/itemlist', { state: { search: row.item_code } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer">
+                                      {row.item_code}
+                                      <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </span>
                                   </td>
                                 );
                               case 'item_name':
@@ -666,9 +685,25 @@ function StockLedgerReport() {
                                   <td key={col.id}><span className="badge-item-group">{row.voucher_type}</span></td>
                                 );
                               case 'voucher_no':
+                                const url = getVoucherUrl(row.voucher_type, row.voucher_no);
+                                const isExternal = url && url.startsWith('/app/');
                                 return (
                                   <td key={col.id} style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>
-                                    {row.voucher_no}
+                                    {url ? (
+                                      isExternal ? (
+                                        <a href={url} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                          {row.voucher_no}
+                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                        </a>
+                                      ) : (
+                                        <span onClick={() => navigate(url)} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                          {row.voucher_no}
+                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                        </span>
+                                      )
+                                    ) : (
+                                      row.voucher_no
+                                    )}
                                   </td>
                                 );
                               case 'in_qty':

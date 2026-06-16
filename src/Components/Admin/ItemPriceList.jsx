@@ -83,6 +83,7 @@ function ItemPriceList() {
       price_list: 'Standard Selling', buying: 0, selling: 1,
       price_list_rate: 0, currency: 'AED'
    });
+   const [uoms, setUoms] = useState([]);
 
    /* Item search inside form */
    const [items, setItems] = useState([]);
@@ -104,6 +105,15 @@ function ItemPriceList() {
             const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_price_lists', { withCredentials: true });
             const lists = res.data?.message?.data || [];
             setPriceLists(lists);
+
+            // Load UOMs
+            try {
+               const uomRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_uoms_retail', { withCredentials: true });
+               const uomData = uomRes.data?.message?.data || uomRes.data?.message || [];
+               setUoms(uomData.map(u => typeof u === 'string' ? u : (u.name || u.uom || u.value)));
+            } catch (err) {
+               console.error("Failed to load UOMs:", err);
+            }
 
             // Derive unique branch names (strip "Selling"/"Buying" suffix)
             const branches = new Set();
@@ -723,7 +733,9 @@ function ItemPriceList() {
                         </div>
                         <div className="so-field">
                            <label className="so-label">UOM</label>
-                           <input type="text" className="so-input" value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))} />
+                           <select className="so-select" value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))}>
+                              {[form.uom, ...uoms].filter((v, i, a) => v && a.indexOf(v) === i).map(u => <option key={u} value={u}>{u}</option>)}
+                           </select>
                         </div>
                      </div>
 
@@ -737,6 +749,7 @@ function ItemPriceList() {
                            style={{ height: '4rem', fontSize: '2rem', fontWeight: 800, color: themeColor, textAlign: 'center' }}
                            value={form.price_list_rate}
                            onChange={e => setForm(f => ({ ...f, price_list_rate: e.target.value }))}
+                           onFocus={e => e.target.select()}
                         />
                      </div>
 

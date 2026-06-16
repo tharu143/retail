@@ -257,7 +257,7 @@ function Home() {
         padding: 1px 4.5px !important;
       }
       .classic-shortcut-guide.horizontal .classic-shortcut-label {
-        font-size: 9.5px !important;
+        font-size: 12px !important;
       }
       .classic-shortcut-badge {
         display: flex;
@@ -303,7 +303,7 @@ function Home() {
         transform: translateY(1px);
       }
       .classic-shortcut-label {
-        font-size: 10px;
+        font-size: 13px;
         font-weight: 950;
         color: #ffffff !important;
         text-transform: uppercase;
@@ -878,10 +878,9 @@ function Home() {
                             </div>
                         </div>
 
-                        {/* Section: Color Palette (Only shown for legacy/classic layout) */}
-                        {theme === 'legacy' && (
+                        {/* Section: Color Palette (Available for all layouts) */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-                                <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Classic Accent Color</label>
+                                <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Accent Color</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                     <button
                                         onClick={() => setLegacySubTheme('green')}
@@ -921,7 +920,6 @@ function Home() {
                                     </button>
                                 </div>
                             </div>
-                        )}
 
                         <div style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9', paddingTop: '16px', textAlign: 'center' }}>
                             <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.1em' }}>RETAIL POS v1.2</span>
@@ -6035,6 +6033,26 @@ function Home() {
                                                 {legacySubTheme.toUpperCase()}
                                             </span>
                                         </button>
+
+                                        {/* Direct Color Switcher */}
+                                        {theme === 'legacy' && (
+                                            <button
+                                                onClick={() => {
+                                                    toggleTheme();
+                                                }}
+                                                className="w-full mt-2 p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                            >
+                                                <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
+                                                    <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-sky-50 text-sky-500' : 'bg-emerald-50 text-emerald-500'} group-hover:scale-110 transition-transform`}>
+                                                        <Palette size={14} />
+                                                    </div>
+                                                    Switch Color
+                                                </div>
+                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                    {isGreen ? 'BLUE' : 'GREEN'}
+                                                </span>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -6842,6 +6860,26 @@ function Home() {
                                                 {legacySubTheme.toUpperCase()}
                                             </span>
                                         </button>
+
+                                        {/* Direct Color Switcher */}
+                                        {theme === 'legacy' && (
+                                            <button
+                                                onClick={() => {
+                                                    toggleTheme();
+                                                }}
+                                                className="w-full mt-2 p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                            >
+                                                <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
+                                                    <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-sky-50 text-sky-500' : 'bg-emerald-50 text-emerald-500'} group-hover:scale-110 transition-transform`}>
+                                                        <Palette size={14} />
+                                                    </div>
+                                                    Switch Color
+                                                </div>
+                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                    {isGreen ? 'BLUE' : 'GREEN'}
+                                                </span>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -7375,13 +7413,6 @@ function Home() {
                                         <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-amber-600 border border-amber-200">Esc</kbd>
                                         <span className="text-[10px] font-black text-amber-900 uppercase tracking-tight">Clear</span>
                                     </div>
-                                    <button
-                                        onClick={() => navigate('/quickstockin')}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-xl border border-slate-800 hover:bg-slate-800 transition-all cursor-pointer shadow-lg active:scale-95"
-                                    >
-                                        <Package size={14} className="text-white" />
-                                        <span className="text-[10px] font-black text-white uppercase tracking-tight">Quick Stock-In</span>
-                                    </button>
                                     <button
                                         onClick={() => dispatch(toggleTheme())}
                                         className="flex items-center gap-2 px-3 py-1.5 bg-sky-500 rounded-xl border border-sky-400 hover:bg-sky-400 transition-all cursor-pointer shadow-lg active:scale-95"

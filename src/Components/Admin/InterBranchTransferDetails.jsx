@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { 
   Save, CheckCircle2, XCircle, Package, Building2, 
-  Search, Trash2, Loader2, AlertTriangle, ArrowRight, Info, Plus, Scan, MapPin, X, Copy, Edit3
+  Search, Trash2, Loader2, AlertTriangle, ArrowRight, Info, Plus, Scan, MapPin, X, Copy, Edit3, FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
@@ -1178,6 +1178,16 @@ function InterBranchTransferDetails() {
               <div className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg font-bold text-[10px] uppercase tracking-widest border border-emerald-100 flex items-center gap-1.5">
                 <CheckCircle2 size={13} /> Transfer Complete
               </div>
+            )}
+            {/* Stock Entry Link */}
+            {!isNew && doc.custom_stock_entry && (
+              <button
+                onClick={() => navigate(`/stock-entry/${doc.custom_stock_entry}`)}
+                className="po-btn-secondary flex items-center gap-1.5"
+                style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem', color: '#0f172a', borderColor: '#cbd5e1' }}
+              >
+                <FileText size={13} /> View Stock Entry: {doc.custom_stock_entry}
+              </button>
             )}
             {/* View Dispatch Prices Button — for Branch A when Dispatched or Transferred */}
             {!isNew && (doc.status === 'Dispatched' || doc.status === 'Transferred') && doc.set_warehouse === currentWarehouse && (

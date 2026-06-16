@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
     Loader2, FileText, AlertCircle, Calendar, Search, 
     Filter, Palette, RefreshCw, Download, Printer, 
     ChevronDown, Boxes, Layers, Package, TrendingUp, TrendingDown, DollarSign,
-    Settings
+    Settings, ExternalLink
 } from 'lucide-react';
 import { db } from '../../db';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
@@ -31,6 +31,7 @@ const DEFAULT_STOCK_COLUMNS = [
 ];
 
 function StockBalanceReport() {
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -641,7 +642,10 @@ function StockBalanceReport() {
                               case 'item_code':
                                 return (
                                   <td key={col.id} className="item-code-cell">
-                                    <span className="code-capsule">{row.item_code}</span>
+                                    <span onClick={() => navigate('/itemlist', { state: { search: row.item_code } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer">
+                                      {row.item_code}
+                                      <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </span>
                                   </td>
                                 );
                               case 'item_name':
