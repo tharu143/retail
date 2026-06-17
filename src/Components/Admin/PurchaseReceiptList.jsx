@@ -1319,12 +1319,12 @@ function PurchaseReceiptList() {
             {formData.docstatus === 1 && (formData.per_billed < 100) && (
               <div style={{ padding: '0.75rem', background: 'white', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
                 <p style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Actions</p>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <button
                     onClick={handleCreateInvoice}
                     disabled={saving}
                     className="so-btn-primary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem' }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', padding: '0.5rem 1rem', fontSize: '0.7rem' }}
                   >
                     <Plus size={14} /> Create Purchase Invoice
                   </button>
@@ -1332,7 +1332,7 @@ function PurchaseReceiptList() {
                     onClick={handleCreateReturn}
                     disabled={saving}
                     className="so-btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem', color: '#ef4444', borderColor: '#ef4444' }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', padding: '0.5rem 1rem', fontSize: '0.7rem', color: '#ef4444', borderColor: '#ef4444' }}
                   >
                     <Link size={14} /> Create Purchase Return
                   </button>
@@ -1341,13 +1341,13 @@ function PurchaseReceiptList() {
             )}
 
             {/* Links Section */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {[...new Set(Object.values(categories).flat())].map(dt => {
                 const links = linkedDocs[dt] || [];
                 if (links.length === 0) return null;
 
                 return (
-                  <div key={dt} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', minWidth: '160px', padding: '0.85rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                  <div key={dt} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%', padding: '0.85rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', marginBottom: '0.2rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: `${themeColor}10`, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -3223,9 +3223,19 @@ function PurchaseReceiptList() {
                 </div>
               </div>
 
-              <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
-                {renderConnectionsDashboard()}
-                {/* Basic Details Card */}
+              <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
+                <div className="flex flex-col lg:flex-row gap-6 relative items-start">
+                  {/* STICKY SIDEBAR: Linked Documents & Attachments */}
+                  <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
+                    <div className="sticky top-0 space-y-4">
+                      {renderConnectionsDashboard()}
+                      <AttachmentSection doctype="Purchase Receipt" docname={docName} compact={true} />
+                    </div>
+                  </div>
+
+                  {/* MAIN CONTENT AREA */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-6">
+                    {/* Basic Details Card */}
                 <div className="so-card">
                   <div className="so-card-header">
                     <p className="so-card-title">Basic Details</p>
@@ -4017,7 +4027,8 @@ function PurchaseReceiptList() {
                     </div>
                   </div>
                 </div>
-                <AttachmentSection doctype="Purchase Receipt" docname={docName} />
+                </div> {/* Closes MAIN CONTENT AREA */}
+                </div> {/* Closes outer flex container */}
               </div> {/* Closes so-modal-body */}
             </div>
           </div>

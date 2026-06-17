@@ -1607,7 +1607,7 @@ function Home() {
                 method: 'POST',
                 body: formData,
             });
-
+  
             const result = await res.json();
             const inner = result.message || result;
 
@@ -3143,17 +3143,25 @@ function Home() {
     }, [showDraftsModal]);
 
     // ---------- COMPLETE PAYMENT ----------
-    const completePayment = async () => {
+    const completePayment = async (directMode = null) => {
         if (paymentLoading) return;
-        let finalPayments = [...payments];
+        let finalPayments = [];
 
-        // AUTO-CAPTURE: If there's an amount entered but not added to list, include it
-        const amt = parseFloat(tenderedAmount) || 0;
-        if (selectedPaymentMode && amt > 0) {
+        if (directMode) {
             finalPayments.push({
-                mode_of_payment: selectedPaymentMode,
-                amount: round2(amt)
+                mode_of_payment: directMode,
+                amount: round2(grandTotal)
             });
+        } else {
+            finalPayments = [...payments];
+            // AUTO-CAPTURE: If there's an amount entered but not added to list, include it
+            const amt = parseFloat(tenderedAmount) || 0;
+            if (selectedPaymentMode && amt > 0) {
+                finalPayments.push({
+                    mode_of_payment: selectedPaymentMode,
+                    amount: round2(amt)
+                });
+            }
         }
 
         if (finalPayments.length === 0) {
@@ -5114,6 +5122,22 @@ function Home() {
                 }
             }
 
+            // Alt + 1: Direct Cash
+            if (e.altKey && e.key === '1') {
+                e.preventDefault();
+                if (billItems.length > 0) {
+                    completePayment('Cash');
+                }
+            }
+
+            // Alt + 2: Direct Card
+            if (e.altKey && e.key === '2') {
+                e.preventDefault();
+                if (billItems.length > 0) {
+                    completePayment('Card');
+                }
+            }
+
             // Alt + I: Grid Card Selection Mode (Modern Themes) or Swap Item (Classic Theme)
             if (e.altKey && e.key?.toLowerCase() === 'i') {
                 e.preventDefault();
@@ -5323,6 +5347,16 @@ function Home() {
                 <div className="so-shortcut-badge rose" style={getBadgeStyle('rose')} onClick={clearBillHandler}>
                     <span className="so-shortcut-key">ALT+C</span>
                     <span className="so-shortcut-label" style={getLabelStyle()}>Clear</span>
+                </div>
+                {/* 12a. ALT+1 (Direct Cash) */}
+                <div className="so-shortcut-badge emerald" style={getBadgeStyle('emerald')} onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}>
+                    <span className="so-shortcut-key">ALT+1</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Direct Cash</span>
+                </div>
+                {/* 12b. ALT+2 (Direct Card) */}
+                <div className="so-shortcut-badge indigo" style={getBadgeStyle('indigo')} onClick={() => { if (billItems.length > 0) completePayment('Card'); }}>
+                    <span className="so-shortcut-key">ALT+2</span>
+                    <span className="so-shortcut-label" style={getLabelStyle()}>Direct Card</span>
                 </div>
                 {/* 13. ALT+I (Select Item / Swap Item) */}
                 {theme !== 'legacy' ? (
@@ -6213,27 +6247,27 @@ function Home() {
                         <aside className="so-bill-side">
                             <div className="so-bill-header flex flex-col gap-3">
                                 <div className="relative group">
-                                    <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white focus-within:border-emerald-500 transition-all">
+                                    <div className="flex items-center border-2 border-slate-200 rounded-lg overflow-hidden bg-white focus-within:border-emerald-500 transition-all">
                                         <select
                                             value={countryCodePrefix}
                                             onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                            className="h-9 px-1.5 bg-slate-50 border-r border-slate-200 text-[11px] font-black text-slate-700 outline-none cursor-pointer"
-                                            style={{ minWidth: '60px' }}
+                                            className="h-12 px-3 bg-slate-50 border-r border-slate-200 text-xs font-black text-slate-700 outline-none cursor-pointer"
+                                            style={{ minWidth: '75px' }}
                                             title="Country Code (Press F4 to toggle)"
                                         >
                                             <option value="+971">🇦🇪 +971</option>
                                             <option value="+91">🇮🇳 +91</option>
                                         </select>
                                         <div className="relative flex-1">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+                                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                                <UserPlus size={18} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
                                             </div>
                                             <input
                                                 ref={nameInputRef}
                                                 type="text"
                                                 placeholder="Customer Name..."
                                                 value={customerName === 'Cash' ? '' : customerName}
-                                                className="w-full pl-9 pr-3 py-2 text-sm font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
+                                                className="w-full pl-10 pr-3 py-2.5 text-lg font-black text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
                                                 onChange={e => {
                                                     let val = e.target.value;
                                                     if (/^[\d+]*$/.test(val)) {
@@ -6443,15 +6477,15 @@ function Home() {
                                     {showDropdown && (
                                         <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-[300] mt-1 max-h-56 overflow-y-auto">
                                             {searchResults.map(c => (
-                                                <div key={c.name} onMouseDown={() => pickCustomer(c)} className="p-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
+                                                <div key={c.name} onMouseDown={() => pickCustomer(c)} className="p-3.5 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
                                                     <div>
-                                                        <div className="font-black text-[12px] text-slate-800 uppercase">{c.customer_name}</div>
-                                                        <div className="text-[10px] text-slate-400 font-bold">{c.mobile_no}</div>
+                                                        <div className="font-black text-sm text-slate-800 uppercase">{c.customer_name}</div>
+                                                        <div className="text-xs text-slate-400 font-bold">{c.mobile_no}</div>
                                                     </div>
-                                                    <ChevronRight size={12} className="text-slate-300 group-hover:text-emerald-500" />
+                                                    <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500" />
                                                 </div>
                                             ))}
-                                            <div onMouseDown={openCreate} className="p-3 bg-emerald-50 text-emerald-600 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
+                                            <div onMouseDown={openCreate} className="p-3.5 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
                                                 + Register New Customer
                                             </div>
                                         </div>
@@ -6640,6 +6674,25 @@ function Home() {
                                         style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
                                     >
                                         <Trash2 size={14} /> Reset <span className="btn-shortcut-key">Alt+C</span>
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-1.5 mb-4">
+                                    <button
+                                        onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}
+                                        className="so-btn-secondary flex-1"
+                                        style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
+                                        disabled={grandTotal <= 0 || paymentLoading}
+                                    >
+                                        💵 Direct Cash <span className="btn-shortcut-key">Alt+1</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
+                                        className="so-btn-secondary flex-1"
+                                        style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
+                                        disabled={grandTotal <= 0 || paymentLoading}
+                                    >
+                                        💳 Direct Card <span className="btn-shortcut-key">Alt+2</span>
                                     </button>
                                 </div>
 
@@ -6892,16 +6945,16 @@ function Home() {
 
                 {/* CLASSIC HEADER FORM */}
                 <div className="classic-header-form">
-                    <div className="classic-field flex items-center gap-3 relative">
+                    <div className="classic-field flex items-center gap-3 relative flex-1">
                         <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
-                        <div className="relative group" ref={dropdownRef}>
+                        <div className="relative group flex-1" ref={dropdownRef}>
                             {/* Country code + mobile input wrapper */}
-                            <div className="flex items-center h-8 border border-slate-200 rounded-lg overflow-hidden bg-slate-50/50 focus-within:border-sky-500 transition-all">
+                            <div className="flex items-center h-11 border-2 border-slate-200 rounded-xl overflow-hidden bg-slate-50/50 focus-within:border-sky-500 transition-all w-full">
                                 <select
                                     value={countryCodePrefix}
                                     onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                    className="h-full px-1.5 bg-slate-100 border-r border-slate-200 text-[11px] font-black text-slate-700 outline-none cursor-pointer"
-                                    style={{ minWidth: '52px' }}
+                                    className="h-full px-2.5 bg-slate-100 border-r-2 border-slate-200 text-xs font-black text-slate-700 outline-none cursor-pointer"
+                                    style={{ minWidth: '65px' }}
                                     title="Country Code (Press F4 to toggle)"
                                 >
                                     <option value="+971">🇦🇪 +971</option>
@@ -6927,7 +6980,7 @@ function Home() {
                                     onClick={() => { setSearchContext('customer'); setShowDropdown(true); }}
                                     onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
                                     onKeyDown={handleMobileEnter}
-                                    className="flex-1 h-full px-2 text-[13px] font-bold text-slate-900 outline-none bg-transparent"
+                                    className="flex-1 h-full px-3 text-base font-black text-slate-900 outline-none bg-transparent"
                                     placeholder="Mobile or Name..."
                                     style={{ minWidth: '110px' }}
                                 />
@@ -6938,9 +6991,9 @@ function Home() {
                                 )}
                             </div>
                             {showDropdown && searchResults.length > 0 && (
-                                <div className="absolute top-full left-0 w-64 bg-white border-2 border-slate-900 shadow-[4px_4px_0_rgba(0,0,0,0.1)] z-[9999] max-h-48 overflow-y-auto mt-1">
+                                <div className="absolute top-full left-0 w-full bg-white border-2 border-slate-900 shadow-[4px_4px_0_rgba(0,0,0,0.1)] z-[9999] max-h-48 overflow-y-auto mt-1">
                                     {searchResults.map(c => (
-                                        <div key={c.name} className={`p-2 border-b border-slate-100 hover:bg-slate-50 cursor-pointer text-[11px] font-bold text-slate-900`} onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); }}>
+                                        <div key={c.name} className={`p-2.5 border-b border-slate-100 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-900`} onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); }}>
                                             {c.customer_name} — {c.mobile_no}
                                         </div>
                                     ))}
@@ -6962,23 +7015,17 @@ function Home() {
                                 onClick={() => { setBarcodeInput(''); setSearchContext('header'); setShowItemDropdown(false); }}
                                 onBlur={() => setTimeout(() => setShowItemDropdown(false), 300)}
                                 id="legacy-header-search"
-                                className="w-48 h-8 px-3 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-900 outline-none focus:border-sky-500 transition-all bg-amber-50/30"
+                                className="w-48 h-11 px-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-sky-500 transition-all bg-amber-50/30"
                                 autoFocus
                             />
                             <div className="flex items-center gap-1">
                                 <button
                                     onClick={() => setShowCamera(true)}
-                                    className="w-8 h-8 bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center hover:bg-slate-200 transition-all rounded-lg shadow-sm"
+                                    className="w-11 h-11 bg-slate-100 text-slate-600 border-2 border-slate-200 flex items-center justify-center hover:bg-slate-200 transition-all rounded-xl shadow-sm"
                                     title="Camera Scanner"
                                 >
-                                    <Camera size={16} />
+                                    <Camera size={18} />
                                 </button>
-                                <label className="w-8 h-8 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg cursor-pointer shadow-sm relative flex items-center justify-center" title="Upload Image File" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <div className="flex items-center justify-center mt-1">
-                                        <Upload size={16} />
-                                    </div>
-                                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={handleImageScan} />
-                                </label>
                             </div>
                         </div>
                     </div>
@@ -7264,6 +7311,7 @@ function Home() {
                             >
                                 <Package size={14} />
                                 <span className="classic-active-orders-text">Active Orders</span>
+                                <span className="btn-shortcut-key">F9</span>
                                 {pendingSyncCount > 0 && (
                                     <span className="classic-active-orders-badge">
                                         {pendingSyncCount}
@@ -7318,40 +7366,71 @@ function Home() {
                         </div>
 
                         {/* ACTION BAR */}
-                        <div className="flex flex-wrap items-center justify-end gap-3 px-4 py-2 bg-white border-t border-slate-100">
+                        <div className="flex bg-white border-t border-slate-200 w-full px-3 py-2 items-center">
                             <div className="flex-1" />
-                            <button
-                                className={`px-6 py-2.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
-                                onClick={() => setShowDiscountModal(true)}
-                            >
-                                <Palette size={14} /> % DISCOUNT <span className="btn-shortcut-key">F1</span>
-                            </button>
-                            <button
-                                className={`px-6 py-2.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
-                                onClick={handleLoyaltyPointsClick}
-                            >
-                                <Award size={14} /> LOYALTY <span className="btn-shortcut-key">F12</span>
-                            </button>
-                            <button
-                                className={`px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[12px] rounded shadow-sm uppercase tracking-wide flex items-center gap-2`}
-                                onClick={clearBillHandler}
-                            >
-                                <Trash2 size={14} /> CLEAR BILL <span className="btn-shortcut-key">Alt+C</span>
-                            </button>
-                            <button
-                                className={`px-8 py-2.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[13px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center gap-2 ml-4`}
-                                onClick={handleSaveDraft}
-                                disabled={billItems.length === 0}
-                            >
-                                <Package size={16} /> SAVE DRAFT <span className="btn-shortcut-key">F10</span>
-                            </button>
-                            <button
-                                className={`px-12 py-2.5 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[14px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center gap-2`}
-                                onClick={handleCheckout}
-                                disabled={grandTotal <= 0}
-                            >
-                                <CreditCard size={18} /> PROCESS PAYMENT <span className="btn-shortcut-key">Space / F7</span>
-                            </button>
+                            <div className="grid grid-cols-4 gap-2 w-full max-w-[720px]">
+                                {/* Column 1: Discount & Clear Bill */}
+                                <div className="col-span-1 flex flex-col gap-1.5">
+                                    <button
+                                        className={`py-1.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
+                                        onClick={() => setShowDiscountModal(true)}
+                                    >
+                                        <Palette size={12} /> DISCOUNT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F1</span>
+                                    </button>
+                                    <button
+                                        className={`py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
+                                        onClick={clearBillHandler}
+                                    >
+                                        <Trash2 size={12} /> CLEAR BILL <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+C</span>
+                                    </button>
+                                </div>
+
+                                {/* Column 2: Loyalty & Save Draft */}
+                                <div className="col-span-1 flex flex-col gap-1.5">
+                                    <button
+                                        className={`py-1.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
+                                        onClick={handleLoyaltyPointsClick}
+                                    >
+                                        <Award size={12} /> LOYALTY <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F12</span>
+                                    </button>
+                                    <button
+                                        className={`py-1.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1`}
+                                        onClick={handleSaveDraft}
+                                        disabled={billItems.length === 0}
+                                    >
+                                        <Package size={12} /> SAVE DRAFT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F10</span>
+                                    </button>
+                                </div>
+
+                                {/* Column 3 & 4 (col-span-2): Direct Checkout (top) and Process Payment (bottom) */}
+                                <div className="col-span-2 flex flex-col gap-1.5">
+                                    {/* Row 1: Direct Cash & Direct Card */}
+                                    <div className="flex gap-1.5">
+                                        <button
+                                            className="flex-1 py-1.5 bg-emerald-700 text-white border-none hover:bg-emerald-800 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
+                                            onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}
+                                            disabled={grandTotal <= 0 || paymentLoading}
+                                        >
+                                            💵 CASH <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+1</span>
+                                        </button>
+                                        <button
+                                            className="flex-1 py-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
+                                            onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
+                                            disabled={grandTotal <= 0 || paymentLoading}
+                                        >
+                                            💳 CARD <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+2</span>
+                                        </button>
+                                    </div>
+                                    {/* Row 2: Process Payment */}
+                                    <button
+                                        className={`py-2 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[12px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5`}
+                                        onClick={handleCheckout}
+                                        disabled={grandTotal <= 0}
+                                    >
+                                        <CreditCard size={14} /> PROCESS PAYMENT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Space / F7</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* STATUS BAR */}
@@ -7705,14 +7784,14 @@ function Home() {
                                 {/* CUSTOMER SELECTION - PREMIUM STYLE */}
                                 <div className="relative group mb-3">
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <UserPlus size={18} className="text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+                                        <UserPlus size={20} className="text-slate-400 group-focus-within:text-sky-600 transition-colors" />
                                     </div>
                                     <input
                                         ref={nameInputRef}
                                         type="text"
                                         placeholder="CUSTOMER NAME (TYPE TO SEARCH...)"
                                         value={customerName}
-                                        className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
+                                        className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-lg font-black text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
                                         onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
                                         onFocus={() => { if (customerName.trim() === 'Cash') nameInputRef.current?.select(); customerName.trim().length >= 2 && setShowDropdown(true); }}
                                         onKeyDown={e => { if (e.key === 'Enter' && customerName.trim()) { const existing = searchResults.find(c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase()); if (existing) pickCustomer(existing); else if (customerName.trim().length >= 2) openCreate(); } }}

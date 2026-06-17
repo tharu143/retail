@@ -5,7 +5,7 @@ import { Paperclip, Trash2, Download, Upload, Loader2, FileText, CheckCircle } f
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-export default function AttachmentSection({ doctype, docname }) {
+export default function AttachmentSection({ doctype, docname, compact = false }) {
   const { themeColor, themeLight } = useLegacyTheme();
   const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -118,18 +118,37 @@ export default function AttachmentSection({ doctype, docname }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
-  if (!docname) return null;
+  if (!docname) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden mt-4 shadow-sm opacity-70">
+        <div className={`px-4 py-3.5 border-b border-slate-50 flex ${compact ? 'flex-col gap-2.5 items-stretch' : 'items-center justify-between'} bg-slate-50/20`}>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
+            <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Paperclip size={14} style={{ color: themeColor }} />
+              Attachments (0)
+            </div>
+          </div>
+        </div>
+        <div className="p-4 text-center py-6">
+          <Paperclip size={24} className="mx-auto text-slate-300 mb-2" />
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unsaved Document</p>
+          <p className="text-[9px] text-slate-400 mt-1 font-semibold">Please save as draft to upload attachments.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden mt-4 shadow-sm">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/20">
+      <div className={`px-4 py-3.5 border-b border-slate-50 flex ${compact ? 'flex-col gap-2.5 items-stretch' : 'items-center justify-between'} bg-slate-50/20`}>
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }} />
-          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
+          <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
             <Paperclip size={14} style={{ color: themeColor }} />
             Attachments ({attachments.length})
-          </h3>
+          </div>
         </div>
 
         <label className="cursor-pointer">
@@ -141,7 +160,7 @@ export default function AttachmentSection({ doctype, docname }) {
             disabled={uploading}
           />
           <span
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border text-white hover:opacity-95"
+            className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border text-white hover:opacity-95 ${compact ? 'w-full text-center' : ''}`}
             style={{ backgroundColor: themeColor, borderColor: themeColor }}
           >
             {uploading ? (

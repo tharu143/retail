@@ -56,6 +56,7 @@ import InterBranchTransferList from '../Components/Admin/InterBranchTransferList
 import InterBranchTransferDetails from '../Components/Admin/InterBranchTransferDetails'
 import StockEntryDetails from '../Components/Admin/StockEntryDetails'
 import StockEntryList from '../Components/Admin/StockEntryList'
+import SidebarLayout from '../Components/Nav/SidebarLayout'
 
 function UserRouter() {
   const location = useLocation();
@@ -211,56 +212,59 @@ function UserRouter() {
         <Routes>
           <Route path='/' element={<LoginPage />} />
           <Route path='homepage' element={<HomePage />} />
-          <Route path='closingentry' element={<ClosingEntryPage />} />
-          <Route path='invoicelist' element={<InvoiceListPage />} />
-          <Route path='purchaseorder' element={<PurchaseOrderPage />} />
-          <Route path='purchaseorderlist' element={<PurchaseOrderListPage />} />
-          <Route path='salesreport' element={<SalesReportPage />} />
-          <Route path='dailysalesreport' element={<DailySalesReportPage />} />
-          <Route path='purchasereport' element={<PurchaseReportPage />} />
-          <Route path='itemwisereport' element={<ItemWiseSalesReportPage />} />
-          <Route path='stockbalancereport' element={<StockBalanceReportPage />} />
-          <Route path='stockledgerreport' element={<StockLedgerReportPage />} />
-          <Route path='generalledgerreport' element={<GeneralLedgerReportPage />} />
           <Route path='dashboard' element={<DashboardPage />} />
-          <Route path='poshealth' element={<POSHealthPage />} />
-          <Route path='customerlist' element={<CustomerList />} />
-          <Route path='customer-edit/:id' element={<CustomerEditPage />} />
-          <Route path='customer-details/:id' element={<CustomerDetails />} />
-          <Route path='customer-details/new' element={<CustomerEditPage />} />
-          <Route path='itemgrouplist' element={<ItemGroupList />} />
-          <Route path='itemlist' element={<ItemList />} />
-          <Route path='item-details/:id' element={<ItemDetails />} />
-          <Route path='itempricelist' element={<ItemPriceList />} />
-          <Route path='posclosingentrylist' element={<PosClosingEntryList />} />
-          <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
-          <Route path='posprofilelist' element={<PosProfileList />} />
-          <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
-          <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />
-          <Route path='supplierlist' element={<SupplierList />} />
-          <Route path='salesorderlist' element={<SalesOrderList />} />
-          <Route path='salesorder-details/:name' element={<SalesOrderDetailsPage />} />
-          <Route path='salesorder/create' element={<SalesOrderDetailsPage />} />
-          <Route path='salesinvoice' element={<SalesInvoiceList />} />
-          <Route path='deliverynote' element={<DeliveryNoteList />} />
-          <Route path='deliverynote-details/:name' element={<DeliveryNoteDetailsPage />} />
-          <Route path='deliverynote/create' element={<DeliveryNoteDetailsPage />} />
-          <Route path='syncmanager' element={<SyncManagerPage />} />
-          <Route path='settings' element={<SettingsPage />} />
-          <Route path='purchasetools' element={<PurchaseToolsPage />} />
-          <Route path='quickstockin' element={<QuickStockInPage />} />
-          <Route path='salesreturn' element={<SalesReturnPage />} />
-          <Route path='purchasereturn' element={<PurchaseReturnList />} />
-          <Route path='supplier-details/new' element={<SupplierDetailsPage />} />
-          <Route path='supplier-details/:name' element={<SupplierDetailsPage />} />
-          <Route path='supplier-edit/:name' element={<SupplierEditPage />} />
-          <Route path='addresslist' element={<AddressList />} />
-          <Route path='contactlist' element={<ContactList />} />
-          <Route path='interbranchrequests' element={<InterBranchTransferList />} />
-          <Route path='newinterbranchrequest' element={<InterBranchTransferDetails />} />
-          <Route path='interbranchrequest/:name' element={<InterBranchTransferDetails />} />
-          <Route path='stock-entry/:id' element={<StockEntryDetails />} />
-          <Route path='stock-entries' element={<StockEntryList />} />
+          
+          <Route element={<SidebarLayout />}>
+            <Route path='closingentry' element={<ClosingEntryPage />} />
+            <Route path='invoicelist' element={<InvoiceListPage />} />
+            <Route path='purchaseorder' element={<PurchaseOrderPage />} />
+            <Route path='purchaseorderlist' element={<PurchaseOrderListPage />} />
+            <Route path='salesreport' element={<SalesReportPage />} />
+            <Route path='dailysalesreport' element={<DailySalesReportPage />} />
+            <Route path='purchasereport' element={<PurchaseReportPage />} />
+            <Route path='itemwisereport' element={<ItemWiseSalesReportPage />} />
+            <Route path='stockbalancereport' element={<StockBalanceReportPage />} />
+            <Route path='stockledgerreport' element={<StockLedgerReportPage />} />
+            <Route path='generalledgerreport' element={<GeneralLedgerReportPage />} />
+            <Route path='poshealth' element={<POSHealthPage />} />
+            <Route path='customerlist' element={<CustomerList />} />
+            <Route path='customer-edit/:id' element={<CustomerEditPage />} />
+            <Route path='customer-details/:id' element={<CustomerDetails />} />
+            <Route path='customer-details/new' element={<CustomerEditPage />} />
+            <Route path='itemgrouplist' element={<ItemGroupList />} />
+            <Route path='itemlist' element={<ItemList />} />
+            <Route path='item-details/:id' element={<ItemDetails />} />
+            <Route path='itempricelist' element={<ItemPriceList />} />
+            <Route path='posclosingentrylist' element={<PosClosingEntryList />} />
+            <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
+            <Route path='posprofilelist' element={<PosProfileList />} />
+            <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
+            <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />
+            <Route path='supplierlist' element={<SupplierList />} />
+            <Route path='salesorderlist' element={<SalesOrderList />} />
+            <Route path='salesorder-details/:name' element={<SalesOrderDetailsPage />} />
+            <Route path='salesorder/create' element={<SalesOrderDetailsPage />} />
+            <Route path='salesinvoice' element={<SalesInvoiceList />} />
+            <Route path='deliverynote' element={<DeliveryNoteList />} />
+            <Route path='deliverynote-details/:name' element={<DeliveryNoteDetailsPage />} />
+            <Route path='deliverynote/create' element={<DeliveryNoteDetailsPage />} />
+            <Route path='syncmanager' element={<SyncManagerPage />} />
+            <Route path='settings' element={<SettingsPage />} />
+            <Route path='purchasetools' element={<PurchaseToolsPage />} />
+            <Route path='quickstockin' element={<QuickStockInPage />} />
+            <Route path='salesreturn' element={<SalesReturnPage />} />
+            <Route path='purchasereturn' element={<PurchaseReturnList />} />
+            <Route path='supplier-details/new' element={<SupplierDetailsPage />} />
+            <Route path='supplier-details/:name' element={<SupplierDetailsPage />} />
+            <Route path='supplier-edit/:name' element={<SupplierEditPage />} />
+            <Route path='addresslist' element={<AddressList />} />
+            <Route path='contactlist' element={<ContactList />} />
+            <Route path='interbranchrequests' element={<InterBranchTransferList />} />
+            <Route path='newinterbranchrequest' element={<InterBranchTransferDetails />} />
+            <Route path='interbranchrequest/:name' element={<InterBranchTransferDetails />} />
+            <Route path='stock-entry/:id' element={<StockEntryDetails />} />
+            <Route path='stock-entries' element={<StockEntryList />} />
+          </Route>
         </Routes>
       </div>
     </>

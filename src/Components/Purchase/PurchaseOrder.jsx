@@ -2382,90 +2382,95 @@ function PurchaseOrder() {
         <div className="po-layout-container !pt-4 pb-20">
           <div className="flex flex-col lg:flex-row gap-6 relative">
             {/* STICKY SIDEBAR: Linked Documents Dashboard */}
-            {formData.name && (
-              <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
-                <div className="sticky top-24 space-y-4 bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl p-4 shadow-sm">
-                  <div className="flex flex-col items-center justify-center py-4 border-b border-slate-100 mb-6">
-                    <Zap className="w-4 h-4 text-indigo-500 mb-1.5 opacity-80 shrink-0" />
-                    <h3 className="font-black text-slate-400 uppercase leading-none whitespace-nowrap" style={{ fontSize: '8px', letterSpacing: '0.2em' }}>
-                      Connections
-                    </h3>
-                  </div>
-
-                  {/* Primary Workflow Actions */}
-                  {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
-                    <div className="flex flex-col gap-2 mb-6">
-                      {formData.per_received < 100 && (
-                        <button
-                          onClick={() => handleCreateFlow('receipt')}
-                          disabled={loadingLinks}
-                          className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Create Receipt
-                        </button>
-                      )}
-                      {formData.per_billed < 100 && (
-                        <button
-                          onClick={() => handleCreateFlow('invoice')}
-                          disabled={loadingLinks}
-                          className="w-full flex items-center justify-center gap-2 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-sky-200 transition-all active:scale-95 disabled:opacity-50"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Create Invoice
-                        </button>
-                      )}
+            <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
+              <div className="sticky top-24 space-y-4">
+                {formData.name && (
+                  <div className="bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl p-4 shadow-sm">
+                    <div className="flex flex-col items-center justify-center py-4 border-b border-slate-100 mb-6">
+                      <Zap className="w-4 h-4 text-indigo-500 mb-1.5 opacity-80 shrink-0" />
+                      <h3 className="font-black text-slate-400 uppercase leading-none whitespace-nowrap" style={{ fontSize: '8px', letterSpacing: '0.2em' }}>
+                        Connections
+                      </h3>
                     </div>
-                  )}
-                  <div className="flex flex-col gap-5 overflow-y-auto max-h-[70vh] pr-1 po-sidebar-scroll">
-                    {linkedConnections.length > 0 ? (
-                      linkedConnections.filter(g => g.items.some(i => i.count > 0)).map((group) => (
-                        <div key={group.group} className="flex flex-col gap-2.5">
-                          <span className="text-[9px] font-black text-slate-300 uppercase tracking-tight">{group.group}</span>
-                          <div className="flex flex-row flex-wrap gap-3">
-                            {group.items.filter(item => item.count > 0).map((item) => (
-                              <div key={item.label} className="bg-slate-50/50 rounded-xl p-3 border border-slate-100/50">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <Link size={10} className="text-slate-400" />
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{item.label}</span>
-                                  </div>
-                                  <span className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded-md font-bold">{item.count}</span>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {(item.names || []).map(id => {
-                                    const s = linkedDocStatuses[id];
-                                    const isSub = s?.docstatus === 1;
-                                    return (
-                                      <button
-                                        key={id}
-                                        onClick={() => navigateToDoc(item.label, id)}
-                                        className="group/id flex items-center gap-1.5 p-1 px-2 bg-white border border-slate-100 rounded-md transition-all hover:border-indigo-200 hover:shadow-sm"
-                                        title={`View ${item.label}: ${id}`}
-                                      >
-                                        <div className={`w-1 h-1 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
-                                        <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{id}</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="py-4 text-center">
-                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 opacity-50">
-                          <Box size={16} className="text-slate-300" />
-                        </div>
-                        <p className="text-[9px] font-bold text-slate-400 italic">No connections yet</p>
+
+                    {/* Primary Workflow Actions */}
+                    {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
+                      <div className="flex flex-col gap-2 mb-6">
+                        {formData.per_received < 100 && (
+                          <button
+                            onClick={() => handleCreateFlow('receipt')}
+                            disabled={loadingLinks}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create Receipt
+                          </button>
+                        )}
+                        {formData.per_billed < 100 && (
+                          <button
+                            onClick={() => handleCreateFlow('invoice')}
+                            disabled={loadingLinks}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-sky-200 transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create Invoice
+                          </button>
+                        )}
                       </div>
                     )}
+                    <div className="flex flex-col gap-5 overflow-y-auto max-h-[70vh] pr-1 po-sidebar-scroll">
+                      {linkedConnections.length > 0 ? (
+                        linkedConnections.filter(g => g.items.some(i => i.count > 0)).map((group) => (
+                          <div key={group.group} className="flex flex-col gap-2.5">
+                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-tight">{group.group}</span>
+                            <div className="flex flex-row flex-wrap gap-3">
+                              {group.items.filter(item => item.count > 0).map((item) => (
+                                <div key={item.label} className="bg-slate-50/50 rounded-xl p-3 border border-slate-100/50">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Link size={10} className="text-slate-400" />
+                                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{item.label}</span>
+                                    </div>
+                                    <span className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded-md font-bold">{item.count}</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {(item.names || []).map(id => {
+                                      const s = linkedDocStatuses[id];
+                                      const isSub = s?.docstatus === 1;
+                                      return (
+                                        <button
+                                          key={id}
+                                          onClick={() => navigateToDoc(item.label, id)}
+                                          className="group/id flex items-center gap-1.5 p-1 px-2 bg-white border border-slate-100 rounded-md transition-all hover:border-indigo-200 hover:shadow-sm"
+                                          title={`View ${item.label}: ${id}`}
+                                        >
+                                          <div className={`w-1 h-1 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
+                                          <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{id}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-4 text-center">
+                          <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 opacity-50">
+                            <Box size={16} className="text-slate-300" />
+                          </div>
+                          <p className="text-[9px] font-bold text-slate-400 italic">No connections yet</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
+                
+                {/* Attachments Section */}
+                <AttachmentSection doctype="Purchase Order" docname={formData.name} compact={true} />
               </div>
-            )}
+            </div>
 
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 min-w-0 flex flex-col gap-6">
@@ -3122,9 +3127,6 @@ function PurchaseOrder() {
                   </div>
                 </div>
               </div>
-              
-              {/* Attachments Section */}
-              <AttachmentSection doctype="Purchase Order" docname={formData.name} />
             </div>
           </div>
         </div>

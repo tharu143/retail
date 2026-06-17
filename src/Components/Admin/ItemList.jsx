@@ -105,7 +105,10 @@ const GlobalStyle = () => (
     .il-sync-row:hover { background: ${T.bg}; }
     .il-sync-row.selected { background: ${T.blueLight}; border-color: ${T.blue}30; }
     .il-sync-footer { padding: 16px 24px; border-top: 1px solid ${T.border}; display: flex; align-items: center; gap: 12px; flex-shrink: 0; background: ${T.bg}; border-radius: 0 0 0 0; }
-    .il-modal-panel { position: fixed; top: 56px; bottom: 0; left: 0; right: 0; z-index: 10000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
+    .il-modal-panel { position: fixed; top: 56px; bottom: 0; left: 280px; right: 0; z-index: 10000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
+    @media (max-width: 768px) {
+      .il-modal-panel { left: 0; }
+    }
     .il-modal-header { background: ${T.surface}; border-bottom: 1.5px solid ${T.border}; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
     .il-modal-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
     .il-modal-footer { background: ${T.surface}; border-top: 1.5px solid ${T.border}; padding: 14px 28px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }

@@ -67,6 +67,7 @@ import GeneralLedgerReport from '../Reports/GeneralLedgerReport';
 import POSHealth from './POSHealth';
 import Settings from './Settings';
 import SyncManager from './SyncManager';
+import Sidebar from '../Nav/Sidebar';
 
 import {
   ProcurementDashboard,
@@ -130,9 +131,14 @@ function Dashboard() {
   const { user, warehouse, user_roles } = useSelector(state => state.user || {});
   
   // Navigation State
-  const [activeItem, setActiveItem] = useState('home');
-  const [sidebarTheme, setSidebarTheme] = useState(() => localStorage.getItem('sidebarTheme') || 'light');
-  
+  const [activeItem, setActiveItem] = useState(() => {
+    return localStorage.getItem('dashboardActiveItem') || 'home';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dashboardActiveItem', activeItem);
+  }, [activeItem]);
+
   // Dashboard Global State
   const [metrics, setMetrics] = useState(null); 
   
@@ -213,30 +219,6 @@ function Dashboard() {
     };
     fetchMetrics();
   }, [selectedBranch, startDate, endDate]);
-  
-  const toggleSidebarTheme = () => {
-    const nextTheme = sidebarTheme === 'light' ? 'dark' : 'light';
-    setSidebarTheme(nextTheme);
-    localStorage.setItem('sidebarTheme', nextTheme);
-  };
-
-  const [expandedSections, setExpandedSections] = useState({
-    'Procurement': true,
-    'Sales & Returns': false,
-    'Stock Management': false,
-    'POS Operations': false,
-    'Reports': false,
-    'Inventory Logistics': false,
-    'Administration': false
-  });
-
-  const toggleSection = (sectionTitle) => {
-    setActiveItem(sectionTitle);
-    setExpandedSections(prev => ({
-      ...prev,
-      [sectionTitle]: !prev[sectionTitle]
-    }));
-  };
 
   const sections = [
     {
@@ -376,113 +358,11 @@ function Dashboard() {
   return (
     <div className="dashboard-layout-wrapper">
       {/* Left Navigation Sidebar */}
-      <aside className={`sidebar-nav ${sidebarTheme === 'dark' ? 'dark' : ''}`}>
-        <div className="sidebar-header">
-          <div className="sidebar-brand">
-            POS<span>8</span>
-          </div>
-          <div className="sidebar-brand-subtitle">{typeof user === 'string' && user ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase()) : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋</div>
-        </div>
-
-        <div className="sidebar-menu">
-          {/* Dashboard Home menu item */}
-          <div 
-            onClick={() => setActiveItem('home')} 
-            className={`sidebar-home-link ${activeItem === 'home' ? 'active' : ''}`}
-          >
-            <Home size={18} />
-            <span>Dashboard Home</span>
-          </div>
-
-          {/* Section dropdowns */}
-          {sections.map((section, idx) => {
-            const SectionIcon = section.icon;
-            const isExpanded = expandedSections[section.title];
-            
-            return (
-              <div key={idx} className="sidebar-section">
-                <div 
-                  onClick={() => toggleSection(section.title)}
-                  className={`sidebar-section-toggle ${isExpanded ? 'expanded' : ''}`}
-                >
-                  <div className="sidebar-section-title">
-                    <SectionIcon size={18} />
-                    <span>{section.title}</span>
-                  </div>
-                  <ChevronRight 
-                    size={14} 
-                    className={`sidebar-arrow ${isExpanded ? 'expanded' : ''}`} 
-                  />
-                </div>
-
-                {isExpanded && (
-                  <div className="sidebar-sub-links">
-                    {section.items.map((itemName, itemIdx) => {
-                      const itemMeta = routeMap[itemName];
-                      if (!itemMeta) return null;
-                      const SubIcon = itemMeta.icon;
-                      
-                      return (
-                        <div 
-                          key={itemIdx}
-                          onClick={() => setActiveItem(itemName)}
-                          className={`sidebar-sub-item ${activeItem === itemName ? 'active' : ''}`}
-                        >
-                          <SubIcon size={14} />
-                          <span>{itemName}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Sidebar Footer with Theme Toggle */}
-        <div 
-          className="sidebar-footer" 
-          style={{ 
-            borderTop: sidebarTheme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #f1f5f9', 
-            paddingTop: '1rem', 
-            marginTop: 'auto' 
-          }}
-        >
-          <button 
-            onClick={toggleSidebarTheme}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              gap: '0.5rem', 
-              width: '100%', 
-              padding: '0.6rem', 
-              borderRadius: '0.5rem', 
-              border: sidebarTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0', 
-              background: sidebarTheme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f8fafc',
-              color: sidebarTheme === 'dark' ? '#f8fafc' : '#334155',
-              fontWeight: 700,
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-              textTransform: 'uppercase',
-              transition: 'all 0.2s'
-            }}
-          >
-            {sidebarTheme === 'dark' ? (
-              <>
-                <Sun size={14} />
-                <span>Light</span>
-              </>
-            ) : (
-              <>
-                <Moon size={14} />
-                <span>Dark</span>
-              </>
-            )}
-          </button>
-        </div>
-      </aside>
+      <Sidebar 
+        activeItem={activeItem} 
+        setActiveItem={setActiveItem} 
+        isStandalone={false} 
+      />
 
       {/* Right Dynamic Content Panel */}
       <main className="right-content-panel">
