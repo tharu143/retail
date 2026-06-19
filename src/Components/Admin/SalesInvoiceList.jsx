@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import {
   Plus, X, Search, Filter, ChevronDown, FileText,
-  Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck
+  Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck,
+  Zap, Link as LinkIcon
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -97,6 +98,72 @@ const SalesInvoiceList = () => {
   const [defaultIncomeAccount, setDefaultIncomeAccount] = useState('');
 
   const company = loggedCompany || '';
+
+  const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+  const createDropdownRef = useRef(null);
+  const [linkedDocs, setLinkedDocs] = useState({});
+  const [loadingLinks, setLoadingLinks] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (createDropdownRef.current && !createDropdownRef.current.contains(e.target)) {
+        setShowCreateDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const navigateToDoc = (doctype, docname) => {
+    const routes = {
+      'Sales Order': (id) => `/salesorder-details/${encodeURIComponent(id)}`,
+      'Delivery Note': (id) => `/deliverynote-details/${encodeURIComponent(id)}`,
+      'Sales Invoice': (id) => `/salesinvoice?invoice=${encodeURIComponent(id)}`,
+    };
+    const getRoute = routes[doctype];
+    if (getRoute) {
+      if (doctype === 'Sales Invoice') {
+        setShowCreateDropdown(false);
+        loadInvoiceForEdit(docname);
+      } else {
+        setShowModal(false);
+        resetForm();
+        navigate(getRoute(docname));
+      }
+    }
+  };
+
+  const fetchLinkedDocuments = async (invoiceName) => {
+    if (!invoiceName) return;
+    setLoadingLinks(true);
+    try {
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_linked_documents', {
+        params: { doctype: 'Sales Invoice', name: invoiceName },
+        withCredentials: true
+      });
+      if (res.data.message?.success || res.data.message?.status === 'success') {
+        const payload = res.data.message.data || res.data.message;
+        const categories = payload.categories || {};
+
+        const flatDocs = {};
+        Object.values(categories).forEach(cat => {
+          if (cat && typeof cat === 'object') {
+            Object.entries(cat).forEach(([dt, rows]) => {
+              if (rows && rows.length > 0) {
+                flatDocs[dt] = rows;
+              }
+            });
+          }
+        });
+
+        setLinkedDocs(flatDocs);
+      }
+    } catch (err) {
+      console.error('Failed to fetch linked documents', err);
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
 
 
   const getCurrencySymbol = (curr = form.currency) => {
@@ -688,6 +755,8 @@ const SalesInvoiceList = () => {
     setItemQueries({});
     setActiveItemRow(null);
     setDropdownPosition(null);
+    setLinkedDocs({});
+    setShowCreateDropdown(false);
   };
 
   const createSalesInvoice = async (submit = false) => {
@@ -899,6 +968,7 @@ const SalesInvoiceList = () => {
       setIsViewOnly(inv.status !== 'Draft');
       setShowModal(true);
       calculateTotals();
+      fetchLinkedDocuments(invoiceName);
     } catch (err) {
       alert("Error loading invoice for edit");
       console.error(err);
@@ -1707,26 +1777,83 @@ const SalesInvoiceList = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   {isViewOnly ? (
                     <>
-                      {(() => {
-                        const isFullyDelivered = form.update_stock || (form.items && form.items.length > 0 && form.items.every(item => (parseFloat(item.delivered_qty) || 0) >= (parseFloat(item.qty) || 0)));
-                        const showCreateDN = form.name && (form.status === 'Submitted' || form.status === 'Paid' || form.status === 'Unpaid') && !form.update_stock && !form.is_return && !isFullyDelivered;
-                        if (showCreateDN) {
-                          return (
-                            <button
-                              className="so-btn-primary"
-                              onClick={() => {
-                                setShowModal(false);
-                                resetForm();
-                                navigate(`/deliverynote/create?si=${encodeURIComponent(form.name)}`);
-                              }}
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#10b981', borderColor: '#10b981', padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
-                            >
-                              <Truck size={16} /> Create DN
-                            </button>
-                          );
-                        }
-                        return null;
-                      })()}
+                      {form.name && (
+                        <div className="relative" ref={createDropdownRef}>
+                          <button
+                            onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                            className="so-btn-secondary"
+                            style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                          >
+                            <Plus size={14} /> CREATE <ChevronDown size={14} />
+                          </button>
+                          {showCreateDropdown && (
+                            <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-4 animate-fadeIn text-left" style={{ textTransform: 'none' }}>
+                              <div className="flex items-center gap-2 pb-2 mb-3 border-b border-slate-100">
+                                <Zap className="w-4 h-4 text-indigo-500 opacity-80 shrink-0" />
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-extrabold">Create & Connections</span>
+                              </div>
+
+                              {/* Primary Workflow Actions */}
+                              {(() => {
+                                const isFullyDelivered = form.update_stock || (form.items && form.items.length > 0 && form.items.every(item => (parseFloat(item.delivered_qty) || 0) >= (parseFloat(item.qty) || 0)));
+                                const showCreateDN = form.name && (form.status === 'Submitted' || form.status === 'Paid' || form.status === 'Unpaid') && !form.update_stock && !form.is_return && !isFullyDelivered;
+                                if (showCreateDN) {
+                                  return (
+                                    <div className="flex flex-col gap-2 mb-4">
+                                      <button
+                                        onClick={() => {
+                                          setShowCreateDropdown(false);
+                                          setShowModal(false);
+                                          resetForm();
+                                          navigate(`/deliverynote/create?si=${encodeURIComponent(form.name)}`);
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                        Create Delivery Note
+                                      </button>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+
+                              {/* Connected Docs */}
+                              <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                                {Object.keys(linkedDocs).some(dt => (linkedDocs[dt] || []).length > 0) ? (
+                                  Object.entries(linkedDocs)
+                                    .filter(([dt, links]) => links && links.length > 0)
+                                    .map(([dt, links]) => (
+                                      <div key={dt} className="flex flex-col gap-1.5 text-left">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight text-slate-400">{dt}</span>
+                                        <div className="flex flex-wrap gap-1">
+                                          {links.map(link => (
+                                            <button
+                                              key={link.name}
+                                              onClick={() => {
+                                                setShowCreateDropdown(false);
+                                                navigateToDoc(dt, link.name);
+                                              }}
+                                              className="group/id flex items-center gap-1 p-0.5 px-1.5 bg-white border border-slate-100 rounded transition-all hover:border-indigo-200 hover:shadow-sm"
+                                              title={`View ${dt}: ${link.name}`}
+                                            >
+                                              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${link.docstatus === 1 ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : (link.docstatus === 2 ? 'bg-rose-400' : 'bg-orange-400 animate-pulse')}`} />
+                                              <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{link.name}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))
+                                ) : (
+                                  <div className="py-2 text-center">
+                                    <p className="text-[9px] font-bold text-slate-400 italic text-slate-400 font-semibold">No connections yet</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <button
                         className="so-btn-secondary"
                         onClick={() => handlePrint(form)}

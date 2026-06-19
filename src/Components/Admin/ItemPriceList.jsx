@@ -45,8 +45,8 @@ function ItemPriceList() {
    const user_roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
    const isAdmin = user_roles.includes('Administrator') || user_roles.includes('System Manager');
    const userWarehouse = localStorage.getItem('warehouse') || '';
-   // Derive branch name from warehouse (e.g. "Shamkha Warehouse" → "Shamkha")
-   const userBranch = userWarehouse ? userWarehouse.replace(/\s*Warehouse\s*$/i, '').trim() : '';
+   // Derive branch name from warehouse (e.g. "Shamkha Warehouse - NS" → "Shamkha")
+   const userBranch = userWarehouse ? userWarehouse.replace(/\s*(?:Warehouse|-).*$/i, '').trim() : '';
 
    /* Theme */
    const [pollTheme, setPollTheme] = useState(localStorage.getItem('legacySubTheme') || 'blue');

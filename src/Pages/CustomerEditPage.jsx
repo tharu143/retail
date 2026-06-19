@@ -53,7 +53,7 @@ export default function CustomerEditPage() {
   const [form, setForm] = useState({
     customer_name: '', mobile_no: '+971', email_id: '', salutation: '',
     customer_type: 'Individual', customer_group: 'All Customer Groups',
-    territory: 'All Territories', gender: '', tax_id: '',
+    territory: 'All Territories', gender: '', tax_id: '', custom_trn: '',
     account_manager: '', prospect_name: '', image: '',
     default_price_list: '', is_internal_customer: 0, customer_pos_id: '',
     customer_details: '', tax_category: '', payment_terms: '',
@@ -140,6 +140,7 @@ export default function CustomerEditPage() {
           territory: fullCustomer.territory || 'All Territories',
           gender: fullCustomer.gender || '',
           tax_id: fullCustomer.tax_id || '',
+          custom_trn: fullCustomer.custom_trn || '',
           account_manager: fullCustomer.account_manager || '',
           prospect_name: fullCustomer.prospect_name || '',
           image: fullCustomer.image || '',
@@ -528,6 +529,32 @@ export default function CustomerEditPage() {
                       value={form.tax_id}
 
                       onChange={e => setForm({ ...form, tax_id: e.target.value })}
+
+                    />
+
+                  </div>
+
+                  <div className="space-y-1.5">
+
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+
+                      TRN
+
+                    </label>
+
+                    <input
+
+                      className="w-full h-8 px-3 border rounded-lg text-[11px] font-bold text-slate-700 bg-white"
+
+                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
+
+                      value={form.custom_trn}
+
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 15);
+                        setForm({ ...form, custom_trn: val });
+                      }}
+                      placeholder="Enter 15-digit TRN"
 
                     />
 

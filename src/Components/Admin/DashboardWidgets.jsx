@@ -368,3 +368,38 @@ export const PendingOperationsChart = ({ data }) => {
     </div>
   );
 };
+
+export const ModeOfPaymentsChart = ({ data }) => {
+  if (!data || data.length === 0) return null;
+  return (
+    <div className="dashboard-chart-card">
+      <h3 className="chart-title">Mode of Payments Breakdown</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
+        {data.map((item, idx) => (
+          <div key={idx} style={{ 
+            padding: '1.25rem 1rem', 
+            background: '#f8fafc', 
+            border: '1.5px solid #e2e8f0', 
+            borderRadius: '0.75rem', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: '0.5rem',
+            transition: 'all 0.2s',
+            cursor: 'default'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#f8fafc'; }}
+          >
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.name}</span>
+            <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a' }}>
+              <span style={{ fontSize: '0.85rem', marginRight: '0.2rem', color: '#94a3b8' }}>AED</span>
+              {parseFloat(item.value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};

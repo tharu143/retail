@@ -9,7 +9,7 @@ import {
     Loader2, ChevronLeft, ChevronRight, ArrowLeft, FileMinus, Palette,
     Save, CheckCircle2, Trash2, Edit3, AlertCircle, Printer, Send,
     Settings, Link as LinkIcon, Info, CreditCard, Percent, ArrowRight,
-    Camera, ScanLine
+    Camera, ScanLine, Zap
 } from 'lucide-react';
 import { frappeCall } from '../../utils/frappe';
 import Swal from 'sweetalert2';
@@ -263,6 +263,30 @@ const DeliveryNoteDetails = () => {
     const [connections, setConnections] = useState({});
     const [namingSeriesOptions, setNamingSeriesOptions] = useState([]);
     const [allowedActions, setAllowedActions] = useState(['save', 'submit', 'delete']);
+    const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+    const createDropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (createDropdownRef.current && !createDropdownRef.current.contains(e.target)) {
+                setShowCreateDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const navigateToDoc = (doctype, docname) => {
+        const routes = {
+            'Sales Order': (id) => `/salesorder-details/${encodeURIComponent(id)}`,
+            'Delivery Note': (id) => `/deliverynote-details/${encodeURIComponent(id)}`,
+            'Sales Invoice': (id) => `/salesinvoice?invoice=${encodeURIComponent(id)}`,
+        };
+        const getRoute = routes[doctype];
+        if (getRoute) {
+            navigate(getRoute(docname));
+        }
+    };
 
     const [itemQueries, setItemQueries] = useState({});
     const [activeItemRow, setActiveItemRow] = useState(null);
@@ -581,7 +605,18 @@ const DeliveryNoteDetails = () => {
             });
             setCustomerQuery(dn.customer_name || '');
             setAllowedActions(statusRes.data.data?.allowed_actions || []);
-            setConnections(connectionsRes.data.data || {});
+            const payload = connectionsRes.data.message?.categories || {};
+            const flatDocs = {};
+            Object.values(payload).forEach(cat => {
+                if (cat && typeof cat === 'object') {
+                    Object.entries(cat).forEach(([dt, rows]) => {
+                        if (rows && rows.length > 0) {
+                            flatDocs[dt] = rows;
+                        }
+                    });
+                }
+            });
+            setConnections(flatDocs);
             setIsViewOnly(dn.docstatus !== 0);
             setIsDirty(false);
             setActiveTab('details');
@@ -1057,15 +1092,12 @@ const DeliveryNoteDetails = () => {
     // Helper to extract linked docs safely
     const getLinkedDocs = (doctype) => {
         const list = [];
-        Object.entries(connections || {}).forEach(([cat, docs]) => {
-            if (docs && docs[doctype]) {
-                docs[doctype].forEach(d => {
-                    if (d && typeof d === 'object') {
-                        list.push(d.name);
-                    } else if (typeof d === 'string') {
-                        list.push(d);
-                    }
-                });
+        const docs = connections[doctype] || [];
+        docs.forEach(d => {
+            if (d && typeof d === 'object') {
+                list.push(d.name);
+            } else if (typeof d === 'string') {
+                list.push(d);
             }
         });
         return list;
@@ -1166,15 +1198,6 @@ const DeliveryNoteDetails = () => {
                             )}
                             {form.docstatus === 1 && (
                                 <>
-                                    {(form.per_billed || 0) < 99.9 && (
-                                        <button
-                                            onClick={handleCreateInvoice}
-                                            className="so-btn-primary"
-                                            style={{ background: '#3b82f6', borderColor: '#3b82f6' }}
-                                        >
-                                            <FileText size={16} /> Create Invoice
-                                        </button>
-                                    )}
                                     {allowedActions.includes('cancel') && (
                                         <button
                                             onClick={() => handleDocAction('cancel')}
@@ -1186,6 +1209,76 @@ const DeliveryNoteDetails = () => {
                                         </button>
                                     )}
                                 </>
+                            )}
+                            {form.name && (
+                                <div className="relative" ref={createDropdownRef}>
+                                    <button
+                                        onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                                        className="so-btn-secondary"
+                                        style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                                    >
+                                        <Plus size={14} /> CREATE <ChevronDown size={14} />
+                                    </button>
+                                    {showCreateDropdown && (
+                                        <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-4 animate-fadeIn text-left">
+                                            <div className="flex items-center gap-2 pb-2 mb-3 border-b border-slate-100">
+                                                <Zap className="w-4 h-4 text-indigo-500 opacity-80 shrink-0" />
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-extrabold">Create & Connections</span>
+                                            </div>
+
+                                            {/* Primary Workflow Actions */}
+                                            {form.docstatus === 1 && (
+                                                <div className="flex flex-col gap-2 mb-4">
+                                                    {(form.per_billed || 0) < 99.9 && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowCreateDropdown(false);
+                                                                handleCreateInvoice();
+                                                            }}
+                                                            className="w-full flex items-center justify-center gap-2 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                                                        >
+                                                            <Plus className="w-4 h-4" />
+                                                            Create Sales Invoice
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Connected Docs */}
+                                            <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                                                {Object.keys(connections).some(dt => (connections[dt] || []).length > 0) ? (
+                                                    Object.entries(connections)
+                                                        .filter(([dt, links]) => links && links.length > 0)
+                                                        .map(([dt, links]) => (
+                                                            <div key={dt} className="flex flex-col gap-1.5 text-left">
+                                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight text-slate-400">{dt}</span>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {links.map(link => (
+                                                                        <button
+                                                                            key={link.name}
+                                                                            onClick={() => {
+                                                                                setShowCreateDropdown(false);
+                                                                                navigateToDoc(dt, link.name);
+                                                                            }}
+                                                                            className="group/id flex items-center gap-1 p-0.5 px-1.5 bg-white border border-slate-100 rounded transition-all hover:border-indigo-200 hover:shadow-sm"
+                                                                            title={`View ${dt}: ${link.name}`}
+                                                                        >
+                                                                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${link.docstatus === 1 ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : (link.docstatus === 2 ? 'bg-rose-400' : 'bg-orange-400 animate-pulse')}`} />
+                                                                            <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{link.name}</span>
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                ) : (
+                                                    <div className="py-2 text-center">
+                                                        <p className="text-[9px] font-bold text-slate-400 italic text-slate-400 font-semibold">No connections yet</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                             {form.docstatus === 2 && allowedActions.includes('amend') && (
                                 <button

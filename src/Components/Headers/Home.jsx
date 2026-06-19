@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     RefreshCw, ExternalLink, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
     Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
@@ -19,7 +19,9 @@ import {
     Award,
     Coins,
     Barcode,
-    Bell
+    Bell,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -94,9 +96,6 @@ const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount,
 
     return (
         <div className="flex items-center gap-1.5">
-            <div className="h-8 px-3 flex items-center bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest shadow-sm">
-                SEQUENCE
-            </div>
             <input
                 value={displayString}
                 readOnly
@@ -109,6 +108,64 @@ const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount,
 
 function Home() {
     const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        if (location.state?.loadSalesOrder) {
+            loadSalesOrderIntoPOS(location.state.loadSalesOrder);
+            // Clear the state so it doesn't loop
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
+
+    const loadSalesOrderIntoPOS = async (soName) => {
+        try {
+            Swal.fire({ title: 'Loading Sales Order...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            const soDoc = await frappeCall({
+                method: 'frappe.client.get',
+                args: { doctype: 'Sales Order', name: soName }
+            });
+
+            if (soDoc) {
+                // Set Customer
+                setCustomerName(soDoc.customer_name || soDoc.customer);
+                setSelectedCustomer({
+                    name: soDoc.customer,
+                    customer_name: soDoc.customer_name,
+                    customer_group: soDoc.customer_group
+                });
+                
+                // Set Items
+                const mappedItems = soDoc.items.map(i => ({
+                    id: i.item_code,
+                    name: i.item_name,
+                    qty: i.qty,
+                    uom: i.uom,
+                    price: i.rate,
+                    is_tax_inclusive: true,
+                    custom_pieces_per_box: i.custom_pieces_per_box || 1,
+                    sales_order: soDoc.name,
+                    so_detail: i.name
+                }));
+                
+                setBillItems(mappedItems);
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: `Sales Order ${soName} Loaded`,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            }
+        } catch (e) {
+            console.error("Error loading Sales Order:", e);
+            Swal.fire('Error', 'Failed to load Sales Order details into POS', 'error');
+        }
+    };
+
     const dispatch = useDispatch();
     const user = useSelector((state) => state.user.user);
     const theme = useSelector((state) => state.user.theme);
@@ -539,6 +596,7 @@ function Home() {
             {showDiscountModal && renderDiscountModal()}
             {showLoyaltyModal && renderLoyaltyModal()}
             {showPaymentModal && renderPaymentModal()}
+            {showCreateModal && renderCreateModal()}
             {showOpeningModal && (
                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
                     <div className="home-modal" style={{ maxWidth: '950px', maxHeight: '95vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
@@ -936,10 +994,58 @@ function Home() {
             navigate('/');
             return;
         }
-        if (!isAdmin && !posOpeningEntry) {
-            setShowOpeningModal(true);
-        }
-    }, [user, session, navigate, posOpeningEntry, isAdmin]);
+        // Admin users never need an opening entry
+        if (isAdmin) return;
+
+        // For non-admin users: check the backend for the last opening entry status
+        const checkOpeningEntry = async () => {
+            try {
+                const resp = await frappeCall('custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries', {
+                    method: 'GET',
+                    params: { warehouse }
+                });
+                const data = resp?.message || resp;
+                const entries = data?.data || [];
+
+                if (entries.length > 0) {
+                    // There's an active (open, no closing) opening entry — auto-use it
+                    const activeEntry = entries[0];
+                    localStorage.setItem('posOpeningEntry', activeEntry.name);
+                    setPosOpeningEntry(activeEntry.name);
+                    setShowOpeningModal(false);
+                } else {
+                    // No active opening entry found.
+                    // Check if there is ANY opening entry for this user (even closed ones).
+                    // If yes → they had a shift before but it was closed → prompt for new one.
+                    // If no entry ever existed → don't prompt (they may be a non-POS user).
+                    const anyEntryResp = await frappeCall('custom_retailpos.custom_retailpos.retail_api.retail.get_any_opening_entry', {
+                        method: 'GET',
+                        params: { warehouse }
+                    });
+                    const anyData = anyEntryResp?.message || anyEntryResp;
+                    const hasAnyEntry = anyData?.has_entry || false;
+
+                    if (hasAnyEntry) {
+                        // Previous shift was closed — prompt to open a new one
+                        localStorage.removeItem('posOpeningEntry');
+                        setPosOpeningEntry('');
+                        setShowOpeningModal(true);
+                    } else {
+                        // Never had a shift — don't prompt
+                        setShowOpeningModal(false);
+                    }
+                }
+            } catch (e) {
+                console.error('[Home] Error checking opening entry:', e);
+                // Fallback: if localStorage has one, trust it
+                if (!posOpeningEntry) {
+                    setShowOpeningModal(false);
+                }
+            }
+        };
+
+        checkOpeningEntry();
+    }, [user, session, navigate, isAdmin, warehouse]);
 
     const handleOpeningSuccess = (entryId) => {
         localStorage.setItem('posOpeningEntry', entryId);
@@ -1055,7 +1161,51 @@ function Home() {
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [createForm, setCreateForm] = useState({ name: '', phone: '', address: '', email: '' });
+    const [createForm, setCreateForm] = useState({ 
+        name: '', phone: '', email: '', 
+        address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
+        custom_trn: '' 
+    });
+
+    const [hiddenShortcuts, setHiddenShortcuts] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('pos_hidden_shortcuts')) || [];
+        } catch {
+            return [];
+        }
+    });
+
+    const toggleHideShortcut = (key) => {
+        setHiddenShortcuts(prev => {
+            const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
+            localStorage.setItem('pos_hidden_shortcuts', JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const isShortcutShown = (key) => !hiddenShortcuts.includes(key);
+
+    const allShortcutsList = [
+        { key: 'F1', label: 'Discount' },
+        { key: 'F2', label: 'Customer' },
+        { key: 'F3', label: 'Search' },
+        { key: 'F4', label: 'Country Code (CC)' },
+        { key: 'F5', label: 'Stock' },
+        { key: 'F6', label: 'Bulk Qty' },
+        { key: 'F7', label: 'Pay (Classic)' },
+        { key: 'F8', label: 'UOM Toggle' },
+        { key: 'F9', label: 'Orders' },
+        { key: 'F10', label: 'Save Draft' },
+        { key: 'F12', label: 'Loyalty' },
+        { key: 'SPACE', label: 'Pay (Modern)' },
+        { key: 'ALT+C', label: 'Clear' },
+        { key: 'ALT+1', label: 'Direct Cash' },
+        { key: 'ALT+2', label: 'Direct Card' },
+        { key: 'ALT+I', label: 'Select / Swap Item' },
+        { key: '↑↓', label: 'Navigate' },
+        { key: '+/-', label: 'Adjust Qty' },
+        { key: '←→', label: 'Tax Toggle' }
+    ];
 
     // Tax
     const [taxTemplates, setTaxTemplates] = useState([]);
@@ -1361,14 +1511,45 @@ function Home() {
     }, [barcodeInput, Items, searchContext, showItemDropdown]);
 
     // ---------- CUSTOMER HANDLERS ----------
-    const openCreate = () => {
-        let cleanPhone = phoneNumber || "";
-        if (phoneNumber) {
-            cleanPhone = phoneNumber
+    const openCreate = (passedName) => {
+        let nameVal = "";
+        let phoneVal = "";
+
+        const nameToUse = (typeof passedName === 'string' ? passedName : '');
+        const searchVal = (nameToUse || (customerName && customerName !== 'Cash' ? customerName : '') || (customerMobile && customerMobile !== 'Cash' ? customerMobile : '') || "").trim();
+        
+        // Check if searchVal is a number (mobile number)
+        const isNumeric = /^\d+$/.test(searchVal.replace(/\+/g, '').replace(/\D/g, ''));
+        
+        if (isNumeric) {
+            phoneVal = searchVal
                 .replace(/^\+?(971|91)/, '')   // remove UAE (+971) or India (+91) prefix
                 .replace(/\D/g, '');            // remove any remaining non-digits
+        } else {
+            nameVal = searchVal.replace(/[^a-zA-Z\s]/g, '');
+            // Also check if customerMobile is numeric to prefill phoneVal
+            if (customerMobile && /^\d+$/.test(customerMobile.replace(/\+/g, '').replace(/\D/g, ''))) {
+                phoneVal = customerMobile
+                    .replace(/^\+?(971|91)/, '')
+                    .replace(/\D/g, '');
+            } else if (phoneNumber) {
+                phoneVal = phoneNumber
+                    .replace(/^\+?(971|91)/, '')
+                    .replace(/\D/g, '');
+            }
         }
-        setCreateForm({ name: customerName.trim(), phone: cleanPhone, address: '', email: '' });
+
+        setCreateForm({
+            name: nameVal,
+            phone: phoneVal,
+            email: '',
+            address_line1: '',
+            address_line2: '',
+            city: '',
+            emirate: '',
+            country: 'United Arab Emirates',
+            custom_trn: ''
+        });
         setShowCreateModal(true); setShowDropdown(false);
     };
 
@@ -1521,22 +1702,37 @@ function Home() {
             return;
         }
 
+        if (createForm.custom_trn && createForm.custom_trn.length !== 15) {
+            Swal.fire('Validation Error', 'TRN must be exactly 15 digits.', 'warning');
+            return;
+        }
+
         const formattedPhone = `${countryCodePrefix}${strippedNumber}`;
         setCreatingCustomer(true);
+
+        const addr_parts = [createForm.address_line1, createForm.address_line2, createForm.city, createForm.emirate, createForm.country];
+        const addr_text = addr_parts.filter(Boolean).join(", ");
 
         try {
             const formData = new FormData();
             formData.append("customer_name", createForm.name.trim());
             formData.append("customer_group", "Retail Customer");
             if (formattedPhone) formData.append("phone", formattedPhone);
-            if (createForm.address) formData.append("address", createForm.address);
             if (createForm.email) formData.append("email", createForm.email);
             if (warehouse) formData.append("warehouse", warehouse);
+            if (createForm.address_line1) formData.append("address_line1", createForm.address_line1);
+            if (createForm.address_line2) formData.append("address_line2", createForm.address_line2);
+            if (createForm.city) formData.append("city", createForm.city);
+            if (createForm.emirate) formData.append("emirate", createForm.emirate);
+            if (createForm.country) formData.append("country", createForm.country);
+            if (createForm.custom_trn) formData.append("custom_trn", createForm.custom_trn);
 
             const hostname = window.location.hostname.toLowerCase();
             if (hostname.includes('retailpos') || hostname.includes('kyleretail') || hostname.includes('retail.kylesolutions.com')) {
-                formData.append("country", "United Arab Emirates");
-                formData.append("territory", "United Arab Emirates");
+                if (!createForm.country) {
+                    formData.append("country", "United Arab Emirates");
+                    formData.append("territory", "United Arab Emirates");
+                }
             }
 
             const res = await authFetch('custom_retailpos.custom_retailpos.retail_api.retail.create_customer', {
@@ -1559,14 +1755,19 @@ function Home() {
                     name: inner.customer_id || inner.name,
                     customer_name: createForm.name.trim(),
                     mobile_no: formattedPhone || "",
-                    primary_address: createForm.address || "",
+                    primary_address: addr_text || "",
                     email_id: createForm.email || "",
+                    custom_trn: createForm.custom_trn || "",
                     is_synced: 1
                 };
                 await db.customers.put(newCust); // Keep local searchable copy
                 pickCustomer(newCust);
                 setShowCreateModal(false);
-                setCreateForm({ name: '', phone: '', address: '', email: '' });
+                setCreateForm({
+                    name: '', phone: '', email: '',
+                    address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
+                    custom_trn: ''
+                });
             } else {
                 Swal.fire('Error', inner.message || "Failed to create customer", 'error');
             }
@@ -1578,8 +1779,9 @@ function Home() {
                     name: `OFFLINE-CUST-${Date.now()}`,
                     customer_name: createForm.name.trim(),
                     mobile_no: formattedPhone || "",
-                    primary_address: createForm.address || "",
+                    primary_address: addr_text || "",
                     email_id: createForm.email || "",
+                    custom_trn: createForm.custom_trn || "",
                     is_synced: 0,
                     is_offline: true
                 };
@@ -3247,7 +3449,9 @@ function Home() {
                     rate: item.price,
                     price_list_rate: item.price,
                     income_account: 'Sales of I/C - KSPL',
-                    warehouse: warehouse
+                    warehouse: warehouse,
+                    sales_order: item.sales_order || null,
+                    so_detail: item.so_detail || null
                 };
             }),
             company,
@@ -3554,13 +3758,17 @@ function Home() {
             // The lookup term: use stripped if it's a valid number, otherwise use raw
             const searchTerm = /^\d{7,}$/.test(strippedNumber) ? strippedNumber : rawTerm;
 
-            // 1. If we have active suggestions, pick the first one
-            if (searchResults.length > 0) {
-                pickCustomer(searchResults[0]);
+            // 1. Check for exact match in suggestions
+            const exactMatch = searchResults.find(c => 
+                c.customer_name.toLowerCase() === rawTerm.toLowerCase() ||
+                (c.mobile_no && c.mobile_no.replace(/\D/g, '') === strippedNumber)
+            );
+            if (exactMatch) {
+                pickCustomer(exactMatch);
                 const Toast = Swal.mixin({
                     toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
                 });
-                Toast.fire({ icon: 'success', title: `Customer: ${searchResults[0].customer_name}` });
+                Toast.fire({ icon: 'success', title: `Customer: ${exactMatch.customer_name}` });
                 return;
             }
 
@@ -3626,109 +3834,8 @@ function Home() {
                     setCustomerLoading(false);
                 }
             } else {
-                // It's a name/non-numeric string, show input popup to enter mobile number with country prefix switch
-                const cleanName = rawTerm.trim();
-                const result = await Swal.fire({
-                    title: 'Create Customer',
-                    text: `Enter mobile number for "${cleanName}":`,
-                    html: `
-                        <div style="display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 15px;">
-                            <select id="swal-country-code" style="height: 38px; padding: 0 8px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; outline: none; cursor: pointer;">
-                                <option value="+971" ${countryCodePrefix === '+971' ? 'selected' : ''}>🇦🇪 +971</option>
-                                <option value="+91" ${countryCodePrefix === '+91' ? 'selected' : ''}>🇮🇳 +91</option>
-                            </select>
-                            <input id="swal-mobile-input" type="tel" placeholder="Enter mobile number..." style="height: 38px; padding: 0 12px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; flex: 1; outline: none;" />
-                        </div>
-                    `,
-                    showCancelButton: true,
-                    confirmButtonText: 'Create Customer',
-                    cancelButtonText: 'Cancel',
-                    confirmButtonColor: '#2563eb',
-                    allowEnterKey: false,
-                    didOpen: () => {
-                        const select = document.getElementById('swal-country-code');
-                        const input = document.getElementById('swal-mobile-input');
-                        if (select && input) {
-                            input.focus();
-                            const getLimit = () => select.value === '+971' ? 9 : 10;
-                            input.addEventListener('input', (e) => {
-                                let val = e.target.value.replace(/\D/g, '');
-                                const maxDigits = getLimit();
-                                if (val.length > maxDigits) {
-                                    val = val.substring(0, maxDigits);
-                                }
-                                e.target.value = val;
-                            });
-                            input.addEventListener('keydown', (e) => {
-                                const maxDigits = getLimit();
-                                const stripped = input.value.replace(/\D/g, '');
-                                if (stripped.length >= maxDigits &&
-                                    !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
-                                    e.preventDefault();
-                                }
-                            });
-                            select.addEventListener('change', () => {
-                                let val = input.value.replace(/\D/g, '');
-                                const maxDigits = getLimit();
-                                if (val.length > maxDigits) {
-                                    val = val.substring(0, maxDigits);
-                                }
-                                input.value = val;
-                                input.focus();
-                            });
-                        }
-                    },
-                    preConfirm: () => {
-                        const code = document.getElementById('swal-country-code').value;
-                        const number = document.getElementById('swal-mobile-input').value;
-                        const stripped = number.replace(/\D/g, '');
-                        if (!stripped) {
-                            Swal.showValidationMessage('Mobile number is required!');
-                            return false;
-                        }
-                        if (code === '+971' && stripped.length !== 9) {
-                            Swal.showValidationMessage('UAE mobile number must be exactly 9 digits.');
-                            return false;
-                        }
-                        if (code === '+91' && stripped.length !== 10) {
-                            Swal.showValidationMessage('India mobile number must be exactly 10 digits.');
-                            return false;
-                        }
-                        return { code, number: stripped };
-                    }
-                });
-                if (result.isConfirmed && result.value) {
-                    const { code, number } = result.value;
-                    const mobileWithCode = `${code}${number}`;
-                    setCustomerLoading(true);
-                    try {
-                        const res = await frappeCall({
-                            method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
-                            args: {
-                                mobile_no: mobileWithCode,
-                                customer_name: cleanName,
-                                warehouse: warehouse,
-                                customer_group: 'Retail Customer'
-                            }
-                        });
-                        if (res && res.name) {
-                            pickCustomer(res);
-                            const Toast = Swal.mixin({
-                                toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                            });
-                            Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name || res.name}` });
-                            setCustomerMobile('');
-                            barcodeInputRef.current?.focus();
-                        } else {
-                            Swal.fire('Error', "Failed to create customer", 'error');
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        Swal.fire('Error', err.message || "Failed to create customer", 'error');
-                    } finally {
-                        setCustomerLoading(false);
-                    }
-                }
+                // It's a name/non-numeric string, open the custom React modal to enter mobile number, TRN, and address details
+                openCreate(rawTerm);
             }
         }
     };
@@ -3907,6 +4014,220 @@ function Home() {
         </div>
     );
 
+    const renderCreateModal = () => (
+        <div 
+            className="home-modal-overlay" 
+            onClick={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}
+            style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(8px)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10000
+            }}
+        >
+            <div 
+                className="home-modal animate-in zoom-in-95 duration-200" 
+                onClick={e => e.stopPropagation()} 
+                style={{ 
+                    width: '100%',
+                    maxWidth: '680px', 
+                    backgroundColor: '#ffffff', 
+                    borderRadius: '24px', 
+                    overflow: 'hidden', 
+                    boxShadow: '0 20px 40px -15px rgba(0,0,0,0.3)', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    margin: '15px' 
+                }}
+            >
+                <div className="home-modal-header bg-slate-50 border-b border-slate-100 px-5 py-3.5 flex justify-between items-center">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-emerald-600 text-white rounded-lg flex items-center justify-center shadow-md shadow-emerald-100">
+                            <UserPlus size={16} />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-black text-slate-800 uppercase tracking-tight m-0">Create New Customer</h3>
+                        </div>
+                    </div>
+                    <button
+                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
+                        onClick={() => setShowCreateModal(false)}
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+                
+                <div className="home-modal-body px-5 py-4 flex flex-col gap-3">
+                    {/* Row 1: Name and Phone */}
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Customer Name *</label>
+                            <input
+                                type="text"
+                                placeholder="Customer Name"
+                                value={createForm.name}
+                                onChange={e => {
+                                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                                    setCreateForm({ ...createForm, name: val });
+                                }}
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                            />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Phone Number *</label>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <select
+                                    value={countryCodePrefix}
+                                    onChange={e => {
+                                        const newPrefix = e.target.value;
+                                        setCountryCodePrefix(newPrefix);
+                                        localStorage.setItem('pos_country_code', newPrefix);
+                                        const limit = newPrefix === '+971' ? 9 : 10;
+                                        if (createForm.phone.length > limit) {
+                                            setCreateForm(prev => ({ ...prev, phone: prev.phone.slice(0, limit) }));
+                                        }
+                                    }}
+                                    className="px-2 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none cursor-pointer focus:bg-white focus:border-emerald-500 transition-all shrink-0"
+                                    style={{ width: '85px' }}
+                                >
+                                    <option value="+971">🇦🇪 +971</option>
+                                    <option value="+91">🇮🇳 +91</option>
+                                </select>
+                                <input
+                                    type="tel"
+                                    placeholder={`${countryCodePrefix === '+971' ? '9-digit' : '10-digit'} phone`}
+                                    value={createForm.phone}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(/\D/g, '');
+                                        const limit = countryCodePrefix === '+971' ? 9 : 10;
+                                        if (val.length <= limit) {
+                                            setCreateForm({ ...createForm, phone: val });
+                                        }
+                                    }}
+                                    className="flex-1 min-w-0 px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 2: TRN and Email */}
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">TRN (optional)</label>
+                            <input
+                                type="text"
+                                placeholder="15-digit Tax ID"
+                                value={createForm.custom_trn}
+                                onChange={e => {
+                                    const val = e.target.value.replace(/\D/g, '').slice(0, 15);
+                                    setCreateForm({ ...createForm, custom_trn: val });
+                                }}
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                            />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Email (optional)</label>
+                            <input 
+                                type="email" 
+                                placeholder="customer@example.com" 
+                                value={createForm.email} 
+                                onChange={e => setCreateForm({ ...createForm, email: e.target.value })} 
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400" 
+                            />
+                        </div>
+                    </div>
+                    
+                    {/* Row 3: Address Line 1 and Address Line 2 */}
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Address Line 1 (optional)</label>
+                            <input
+                                type="text"
+                                placeholder="Street, Building, Flat"
+                                value={createForm.address_line1}
+                                onChange={e => setCreateForm({ ...createForm, address_line1: e.target.value })}
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                            />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Address Line 2 (optional)</label>
+                            <input
+                                type="text"
+                                placeholder="Area, Landmark"
+                                value={createForm.address_line2}
+                                onChange={e => setCreateForm({ ...createForm, address_line2: e.target.value })}
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Row 4: City, Emirate, Country */}
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">City (optional)</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. Dubai"
+                                value={createForm.city}
+                                onChange={e => setCreateForm({ ...createForm, city: e.target.value })}
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                            />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Emirate (optional)</label>
+                            <select
+                                value={createForm.emirate}
+                                onChange={e => setCreateForm({ ...createForm, emirate: e.target.value })}
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none cursor-pointer focus:bg-white focus:border-emerald-500 transition-all"
+                            >
+                                <option value="">Select Emirate</option>
+                                {["Abu Dhabi", "Ajman", "Dubai", "Fujairah", "Ras Al Khaimah", "Sharjah", "Umm Al Quwain"].map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Country</label>
+                            <input
+                                type="text"
+                                placeholder="Country"
+                                value={createForm.country}
+                                onChange={e => setCreateForm({ ...createForm, country: e.target.value })}
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                            />
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="px-5 py-4 bg-slate-50 flex gap-3 items-center border-t border-slate-100">
+                    <button
+                        className="flex-1 py-3 text-slate-500 bg-white border border-slate-200 rounded-xl font-bold uppercase tracking-wider hover:bg-slate-100 hover:text-slate-700 transition-all text-xs"
+                        onClick={() => setShowCreateModal(false)}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={createCustomer}
+                        disabled={creatingCustomer}
+                        className="flex-[1.5] py-3 bg-emerald-600 text-white rounded-xl font-bold uppercase tracking-wider shadow-md shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5"
+                    >
+                        {creatingCustomer ? (
+                            <>
+                                <Loader2 size={14} className="animate-spin mr-1" />
+                                Creating...
+                            </>
+                        ) : (
+                            "Create Customer"
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 
     const renderLoyaltyModal = () => {
         const points = parseInt(loyaltyInput) || 0;
@@ -4797,7 +5118,7 @@ function Home() {
             }
             lastKeyTime.current = now;
 
-            if (e.key.length === 1 && /^[0-9]$/.test(e.key) && !isInputFocused) {
+            if (e.key && e.key.length === 1 && /^[0-9]$/.test(e.key) && !isInputFocused) {
                 scannerBuffer.current += e.key;
             } else if (e.key === 'Enter' && scannerBuffer.current.length >= 6 && !isInputFocused) {
                 // Hardware Scanner finished sequence (min 6 chars for retail codes)
@@ -5265,25 +5586,12 @@ function Home() {
             textAlign: isVertical ? 'right' : 'left'
         });
 
-        return (
-            <>
-                {/* 1. F1 (Discount) */}
-                <div className="so-shortcut-badge violet" style={getBadgeStyle('violet')} onClick={() => setShowDiscountModal(prev => !prev)}>
-                    <span className="so-shortcut-key">F1</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Discount</span>
-                </div>
-                {/* 2. F2 (Customer) */}
-                <div className="so-shortcut-badge blue" style={getBadgeStyle('blue')} onClick={() => mobileInputRef.current?.focus()}>
-                    <span className="so-shortcut-key">F2</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Customer</span>
-                </div>
-                {/* 3. F3 (Search) */}
-                <div className="so-shortcut-badge indigo" style={getBadgeStyle('indigo')} onClick={() => barcodeInputRef.current?.focus()}>
-                    <span className="so-shortcut-key">F3</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Search</span>
-                </div>
-                {/* 4. F4 (CC) */}
-                <div className="so-shortcut-badge cyan" style={getBadgeStyle('cyan')} onClick={() => {
+        const modernShortcutsData = [
+            { key: 'F1', label: 'Discount', colorClass: 'violet', action: () => setShowDiscountModal(prev => !prev) },
+            { key: 'F2', label: 'Customer', colorClass: 'blue', action: () => mobileInputRef.current?.focus() },
+            { key: 'F3', label: 'Search', colorClass: 'indigo', action: () => barcodeInputRef.current?.focus() },
+            {
+                key: 'F4', label: `CC (${countryCodePrefix})`, colorClass: 'cyan', action: () => {
                     setCountryCodePrefix(prev => {
                         const next = prev === '+971' ? '+91' : '+971';
                         localStorage.setItem('pos_country_code', next);
@@ -5293,25 +5601,17 @@ function Home() {
                         Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
                         return next;
                     });
-                }}>
-                    <span className="so-shortcut-key">F4</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>CC ({countryCodePrefix})</span>
-                </div>
-                {/* 5. F5 (Stock) */}
-                <div className="so-shortcut-badge amber" style={getBadgeStyle('amber')} onClick={() => {
+                }
+            },
+            {
+                key: 'F5', label: 'Stock', colorClass: 'amber', action: () => {
                     if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
                     else Swal.fire('Info', 'Select or scan an item first.', 'info');
-                }}>
-                    <span className="so-shortcut-key">F5</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Stock</span>
-                </div>
-                {/* 6. F6 (Bulk Qty) */}
-                <div className="so-shortcut-badge pink" style={getBadgeStyle('pink')} onClick={handleBulkQtyUpdate}>
-                    <span className="so-shortcut-key">F6</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Bulk Qty</span>
-                </div>
-                {/* 7. F8 (UOM) */}
-                <div className="so-shortcut-badge violet" style={getBadgeStyle('violet')} onClick={() => {
+                }
+            },
+            { key: 'F6', label: 'Bulk Qty', colorClass: 'pink', action: handleBulkQtyUpdate },
+            {
+                key: 'F8', label: 'UOM', colorClass: 'violet', action: () => {
                     if (selectedBillIndex !== -1) {
                         const item = billItems[selectedBillIndex];
                         const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
@@ -5319,76 +5619,53 @@ function Home() {
                     } else {
                         Swal.fire('Info', 'Select an item in cart first', 'info');
                     }
-                }}>
-                    <span className="so-shortcut-key">F8</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>UOM</span>
-                </div>
-                {/* 8. F9 (Orders) */}
-                <div className="so-shortcut-badge sky" style={getBadgeStyle('sky')} onClick={() => setShowDraftsModal(prev => !prev)}>
-                    <span className="so-shortcut-key">F9</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Orders</span>
-                </div>
-                {/* 9. F10 (Save Draft) */}
-                <div className="so-shortcut-badge amber" style={getBadgeStyle('amber')} onClick={handleSaveDraft}>
-                    <span className="so-shortcut-key">F10</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Save Draft</span>
-                </div>
-                {/* 10. F12 (Loyalty) */}
-                <div className="so-shortcut-badge emerald" style={getBadgeStyle('emerald')} onClick={handleLoyaltyPointsClick}>
-                    <span className="so-shortcut-key">F12</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Loyalty</span>
-                </div>
-                {/* 11. SPACE (Pay) */}
-                <div className="so-shortcut-badge emerald" style={getBadgeStyle('emerald')} onClick={handleCheckout}>
-                    <span className="so-shortcut-key">SPACE</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Pay</span>
-                </div>
-                {/* 12. ALT+C (Clear) */}
-                <div className="so-shortcut-badge rose" style={getBadgeStyle('rose')} onClick={clearBillHandler}>
-                    <span className="so-shortcut-key">ALT+C</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Clear</span>
-                </div>
-                {/* 12a. ALT+1 (Direct Cash) */}
-                <div className="so-shortcut-badge emerald" style={getBadgeStyle('emerald')} onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}>
-                    <span className="so-shortcut-key">ALT+1</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Direct Cash</span>
-                </div>
-                {/* 12b. ALT+2 (Direct Card) */}
-                <div className="so-shortcut-badge indigo" style={getBadgeStyle('indigo')} onClick={() => { if (billItems.length > 0) completePayment('Card'); }}>
-                    <span className="so-shortcut-key">ALT+2</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Direct Card</span>
-                </div>
-                {/* 13. ALT+I (Select Item / Swap Item) */}
-                {theme !== 'legacy' ? (
-                    <div className="so-shortcut-badge indigo" style={getBadgeStyle('indigo')} onClick={() => {
+                }
+            },
+            { key: 'F9', label: 'Orders', colorClass: 'sky', action: () => setShowDraftsModal(prev => !prev) },
+            { key: 'F10', label: 'Save Draft', colorClass: 'amber', action: handleSaveDraft },
+            { key: 'F12', label: 'Loyalty', colorClass: 'emerald', action: handleLoyaltyPointsClick },
+            { key: 'SPACE', label: 'Pay', colorClass: 'emerald', action: handleCheckout },
+            { key: 'ALT+C', label: 'Clear', colorClass: 'rose', action: clearBillHandler },
+            { key: 'ALT+1', label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
+            { key: 'ALT+2', label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) completePayment('Card'); } },
+            {
+                key: 'ALT+I', label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
+                    if (theme !== 'legacy') {
                         if (filteredItems.length > 0) {
                             setActiveCardIndex(prev => prev === -1 ? 0 : -1);
                         }
-                    }}>
-                        <span className="so-shortcut-key">ALT+I</span>
-                        <span className="so-shortcut-label" style={getLabelStyle()}>Select Item</span>
+                    } else {
+                        triggerSwapItem();
+                    }
+                }
+            },
+            { key: '↑ ↓', label: 'Navigate', colorClass: 'slate' },
+            { key: '+ / -', label: 'Qty', colorClass: 'slate' },
+            { key: '← / →', label: 'Tax Toggle', colorClass: 'slate' }
+        ];
+
+        return (
+            <>
+                {modernShortcutsData.filter(s => isShortcutShown(s.key)).map((s, idx) => (
+                    <div
+                        key={idx}
+                        className={`so-shortcut-badge ${s.colorClass} group/badge relative`}
+                        style={getBadgeStyle(s.colorClass)}
+                        onClick={s.action}
+                    >
+                        <span className="so-shortcut-key">{s.key}</span>
+                        <span className="so-shortcut-label" style={getLabelStyle()}>{s.label}</span>
+                        {s.action && (
+                            <span
+                                onClick={(e) => { e.stopPropagation(); toggleHideShortcut(s.key); }}
+                                className="ml-1 opacity-0 group-hover/badge:opacity-100 transition-opacity hover:text-red-500 cursor-pointer flex items-center justify-center"
+                                title="Hide Shortcut"
+                            >
+                                <EyeOff size={11} />
+                            </span>
+                        )}
                     </div>
-                ) : (
-                    <div className="so-shortcut-badge indigo" style={getBadgeStyle('indigo')} onClick={triggerSwapItem}>
-                        <span className="so-shortcut-key">ALT+I</span>
-                        <span className="so-shortcut-label" style={getLabelStyle()}>Swap Item</span>
-                    </div>
-                )}
-                {/* 14. ↑ ↓ (Navigate) */}
-                <div className="so-shortcut-badge slate" style={getBadgeStyle('slate')}>
-                    <span className="so-shortcut-key">↑ ↓</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Navigate</span>
-                </div>
-                {/* 15. + / - (Qty) */}
-                <div className="so-shortcut-badge slate" style={getBadgeStyle('slate')}>
-                    <span className="so-shortcut-key">+ / -</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Qty</span>
-                </div>
-                {/* 16. ← / → (Tax Toggle) */}
-                <div className="so-shortcut-badge slate" style={getBadgeStyle('slate')}>
-                    <span className="so-shortcut-key">← / →</span>
-                    <span className="so-shortcut-label" style={getLabelStyle()}>Tax Toggle</span>
-                </div>
+                ))}
             </>
         );
     };
@@ -5756,10 +6033,10 @@ function Home() {
             { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
         ];
 
-        return classicShortcutsData.map((s, idx) => (
+        return classicShortcutsData.filter(s => isShortcutShown(s.key)).map((s, idx) => (
             <div
                 key={idx}
-                className="classic-shortcut-badge"
+                className="classic-shortcut-badge group"
                 onClick={s.action}
                 style={{
                     flexShrink: 0,
@@ -5782,6 +6059,16 @@ function Home() {
                 }}>
                     {s.label}
                 </span>
+                {s.action && (
+                    <span 
+                        onClick={(e) => { e.stopPropagation(); toggleHideShortcut(s.key); }}
+                        className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400 cursor-pointer flex items-center justify-center shrink-0"
+                        title="Hide Shortcut"
+                        style={{ color: '#ef4444' }}
+                    >
+                        <EyeOff size={11} />
+                    </span>
+                )}
             </div>
         ));
     };
@@ -6087,6 +6374,39 @@ function Home() {
                                                 </span>
                                             </button>
                                         )}
+
+                                        {/* Hidden Shortcuts Panel */}
+                                        <div className="border-t border-slate-100 pt-3 mt-1 text-left">
+                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
+                                                Hidden Shortcuts ({hiddenShortcuts.length})
+                                            </div>
+                                            {hiddenShortcuts.length === 0 ? (
+                                                <div className="text-[11px] font-bold text-slate-400 italic px-2">
+                                                    No hidden shortcuts
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto px-1">
+                                                    {allShortcutsList.filter(s => hiddenShortcuts.includes(s.key)).map(s => (
+                                                        <div key={s.key} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-lg">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[9px] font-black bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider">{s.key}</span>
+                                                                <span className="text-[11px] font-bold text-slate-600">{s.label}</span>
+                                                            </div>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    toggleHideShortcut(s.key);
+                                                                }}
+                                                                className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded transition-all border-none bg-transparent cursor-pointer"
+                                                                title="Show Shortcut"
+                                                            >
+                                                                <Eye size={12} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -6290,28 +6610,25 @@ function Home() {
                                                         const term = customerName.trim();
                                                         if (!term || term === 'Cash') return;
 
-                                                        // Check if it is a mobile number (7+ digits after stripping prefix)
                                                         const strippedNumber = term
                                                             .replace(/^\+?(971|91)/, '')
                                                             .replace(/\D/g, '');
                                                         const isMobile = /^\d{7,}$/.test(strippedNumber) || /^\d{7,}$/.test(term);
 
-                                                        // 1. If we have search results matching, pick the first one
-                                                        if (searchResults.length > 0) {
-                                                            const matched = searchResults.find(c =>
-                                                                c.customer_name.toLowerCase() === term.toLowerCase() ||
-                                                                (c.mobile_no && c.mobile_no.replace(/\D/g, '').includes(strippedNumber))
-                                                            ) || searchResults[0];
+                                                        const exactMatch = searchResults.find(c =>
+                                                            c.customer_name.toLowerCase() === term.toLowerCase() ||
+                                                            (c.mobile_no && c.mobile_no.replace(/\D/g, '').includes(strippedNumber))
+                                                        );
 
-                                                            pickCustomer(matched);
+                                                        if (exactMatch) {
+                                                            pickCustomer(exactMatch);
                                                             const Toast = Swal.mixin({
                                                                 toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
                                                             });
-                                                            Toast.fire({ icon: 'success', title: `Customer: ${matched.customer_name}` });
+                                                            Toast.fire({ icon: 'success', title: `Customer: ${exactMatch.customer_name}` });
                                                             return;
                                                         }
 
-                                                        // 2. If it is a mobile number, register via speed checkout
                                                         if (isMobile) {
                                                             const fullMobile = strippedNumber || term.replace(/\D/g, '');
                                                             if (countryCodePrefix === '+971' && fullMobile.length !== 9) {
@@ -6346,7 +6663,6 @@ function Home() {
                                                                 }
                                                             } catch (err) {
                                                                 console.error(err);
-                                                                // Offline creation if network fails
                                                                 if (!navigator.onLine) {
                                                                     const offlineCustomer = {
                                                                         name: `OFFLINE-CUST-${Date.now()}`,
@@ -6367,108 +6683,9 @@ function Home() {
                                                                 setCustomerLoading(false);
                                                             }
                                                         } else {
-                                                            // It's a name, show input popup to enter mobile number with country prefix switch
-                                                            const result = await Swal.fire({
-                                                                title: 'Create Customer',
-                                                                text: `Enter mobile number for "${term}":`,
-                                                                html: `
-                                                                     <div style="display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 15px;">
-                                                                         <select id="swal-country-code" style="height: 38px; padding: 0 8px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; outline: none; cursor: pointer;">
-                                                                             <option value="+971" ${countryCodePrefix === '+971' ? 'selected' : ''}>🇦🇪 +971</option>
-                                                                             <option value="+91" ${countryCodePrefix === '+91' ? 'selected' : ''}>🇮🇳 +91</option>
-                                                                         </select>
-                                                                         <input id="swal-mobile-input" type="tel" placeholder="Enter mobile number..." style="height: 38px; padding: 0 12px; border: 1px solid #d1d5db; border-radius: 6px; font-weight: bold; flex: 1; outline: none;" />
-                                                                     </div>
-                                                                 `,
-                                                                showCancelButton: true,
-                                                                confirmButtonText: 'Create Customer',
-                                                                cancelButtonText: 'Cancel',
-                                                                confirmButtonColor: '#2563eb',
-                                                                allowEnterKey: false,
-                                                                didOpen: () => {
-                                                                    const select = document.getElementById('swal-country-code');
-                                                                    const input = document.getElementById('swal-mobile-input');
-                                                                    if (select && input) {
-                                                                        input.focus();
-                                                                        const getLimit = () => select.value === '+971' ? 9 : 10;
-                                                                        input.addEventListener('input', (e) => {
-                                                                            let val = e.target.value.replace(/\D/g, '');
-                                                                            const maxDigits = getLimit();
-                                                                            if (val.length > maxDigits) {
-                                                                                val = val.substring(0, maxDigits);
-                                                                            }
-                                                                            e.target.value = val;
-                                                                        });
-                                                                        input.addEventListener('keydown', (e) => {
-                                                                            const maxDigits = getLimit();
-                                                                            const stripped = input.value.replace(/\D/g, '');
-                                                                            if (stripped.length >= maxDigits &&
-                                                                                !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
-                                                                                e.preventDefault();
-                                                                            }
-                                                                        });
-                                                                        select.addEventListener('change', () => {
-                                                                            let val = input.value.replace(/\D/g, '');
-                                                                            const maxDigits = getLimit();
-                                                                            if (val.length > maxDigits) {
-                                                                                val = val.substring(0, maxDigits);
-                                                                            }
-                                                                            input.value = val;
-                                                                            input.focus();
-                                                                        });
-                                                                    }
-                                                                },
-                                                                preConfirm: () => {
-                                                                    const code = document.getElementById('swal-country-code').value;
-                                                                    const number = document.getElementById('swal-mobile-input').value;
-                                                                    const stripped = number.replace(/\D/g, '');
-                                                                    if (!stripped) {
-                                                                        Swal.showValidationMessage('Mobile number is required!');
-                                                                        return false;
-                                                                    }
-                                                                    if (code === '+971' && stripped.length !== 9) {
-                                                                        Swal.showValidationMessage('UAE mobile number must be exactly 9 digits.');
-                                                                        return false;
-                                                                    }
-                                                                    if (code === '+91' && stripped.length !== 10) {
-                                                                        Swal.showValidationMessage('India mobile number must be exactly 10 digits.');
-                                                                        return false;
-                                                                    }
-                                                                    return { code, number: stripped };
-                                                                }
-                                                            });
-                                                            if (result.isConfirmed && result.value) {
-                                                                const { code, number } = result.value;
-                                                                const mobileWithCode = `${code}${number}`;
-                                                                setCustomerLoading(true);
-                                                                try {
-                                                                    const res = await frappeCall({
-                                                                        method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
-                                                                        args: {
-                                                                            mobile_no: mobileWithCode,
-                                                                            customer_name: term,
-                                                                            warehouse: warehouse,
-                                                                            customer_group: 'Retail Customer'
-                                                                        }
-                                                                    });
-                                                                    if (res && res.name) {
-                                                                        pickCustomer(res);
-                                                                        const Toast = Swal.mixin({
-                                                                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true,
-                                                                        });
-                                                                        Toast.fire({ icon: 'success', title: `Customer: ${res.customer_name}` });
-                                                                    } else {
-                                                                        Swal.fire('Error', "Failed to create customer", 'error');
-                                                                    }
-                                                                } catch (err) {
-                                                                    console.error(err);
-                                                                    Swal.fire('Error', err.message || "Failed to create customer", 'error');
-                                                                } finally {
-                                                                    setCustomerLoading(false);
-                                                                }
-                                                            }
-                                                            setShowDropdown(false);
+                                                            openCreate(term);
                                                         }
+                                                        setShowDropdown(false);
                                                     }
                                                 }}
                                             />
@@ -6485,7 +6702,7 @@ function Home() {
                                                     <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500" />
                                                 </div>
                                             ))}
-                                            <div onMouseDown={openCreate} className="p-3.5 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
+                                            <div onMouseDown={() => openCreate(customerName.trim())} className="p-3.5 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
                                                 + Register New Customer
                                             </div>
                                         </div>
@@ -6933,6 +7150,39 @@ function Home() {
                                                 </span>
                                             </button>
                                         )}
+
+                                        {/* Hidden Shortcuts Panel */}
+                                        <div className="border-t border-slate-100 pt-3 mt-1 text-left">
+                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
+                                                Hidden Shortcuts ({hiddenShortcuts.length})
+                                            </div>
+                                            {hiddenShortcuts.length === 0 ? (
+                                                <div className="text-[11px] font-bold text-slate-400 italic px-2">
+                                                    No hidden shortcuts
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto px-1">
+                                                    {allShortcutsList.filter(s => hiddenShortcuts.includes(s.key)).map(s => (
+                                                        <div key={s.key} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-lg">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[9px] font-black bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider">{s.key}</span>
+                                                                <span className="text-[11px] font-bold text-slate-600">{s.label}</span>
+                                                            </div>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    toggleHideShortcut(s.key);
+                                                                }}
+                                                                className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded transition-all border-none bg-transparent cursor-pointer"
+                                                                title="Show Shortcut"
+                                                            >
+                                                                <Eye size={12} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -6990,15 +7240,27 @@ function Home() {
                                     </div>
                                 )}
                             </div>
-                            {showDropdown && searchResults.length > 0 && (
+                            {showDropdown && (
                                 <div className="absolute top-full left-0 w-full bg-white border-2 border-slate-900 shadow-[4px_4px_0_rgba(0,0,0,0.1)] z-[9999] max-h-48 overflow-y-auto mt-1">
-                                    {searchResults.map(c => (
+                                    {searchResults.length === 0 ? (
+                                        <div style={{ padding: '0.75rem', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                                            {(customerMobile || customerName).trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}
+                                        </div>
+                                    ) : searchResults.map(c => (
                                         <div key={c.name} className={`p-2.5 border-b border-slate-100 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-900`} onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); }}>
                                             {c.customer_name} — {c.mobile_no}
                                         </div>
                                     ))}
+                                    {searchResults.every(c => c.customer_name.toLowerCase() !== (customerMobile || customerName).trim().toLowerCase()) && (customerMobile || customerName).trim() && (
+                                        <div onMouseDown={(e) => { e.preventDefault(); openCreate((customerMobile || customerName).trim()); }} className="p-2.5 bg-sky-50 text-sky-600 font-black text-xs uppercase tracking-wider cursor-pointer hover:bg-sky-100 text-center">
+                                            + Register New Customer
+                                        </div>
+                                    )}
                                 </div>
                             )}
+                        </div>
+                        <div className="h-11 px-3 flex items-center bg-slate-100 border-2 border-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
+                            {selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}
                         </div>
                     </div>
 
@@ -7782,33 +8044,38 @@ function Home() {
                                 </div>
 
                                 {/* CUSTOMER SELECTION - PREMIUM STYLE */}
-                                <div className="relative group mb-3">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <UserPlus size={20} className="text-slate-400 group-focus-within:text-sky-600 transition-colors" />
-                                    </div>
-                                    <input
-                                        ref={nameInputRef}
-                                        type="text"
-                                        placeholder="CUSTOMER NAME (TYPE TO SEARCH...)"
-                                        value={customerName}
-                                        className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-lg font-black text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
-                                        onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
-                                        onFocus={() => { if (customerName.trim() === 'Cash') nameInputRef.current?.select(); customerName.trim().length >= 2 && setShowDropdown(true); }}
-                                        onKeyDown={e => { if (e.key === 'Enter' && customerName.trim()) { const existing = searchResults.find(c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase()); if (existing) pickCustomer(existing); else if (customerName.trim().length >= 2) openCreate(); } }}
-                                        autoComplete="off"
-                                    />
-                                    {searchLoading && <Loader2 size={18} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
-                                    {showDropdown && (
-                                        <div ref={dropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '220px', overflowY: 'auto', zIndex: 10, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                                            {searchResults.length === 0 ? <div style={{ padding: '0.75rem', color: '#64748b', textAlign: 'center' }}>{customerName.trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}</div> : searchResults.map(c => (
-                                                <div key={c.name} onClick={() => pickCustomer(c)} style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}>
-                                                    <div><div style={{ fontWeight: 600 }}>{c.customer_name}</div>{c.mobile_no && <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{c.mobile_no}</div>}</div>
-                                                    <Search size={16} style={{ color: '#94a3b8' }} />
-                                                </div>
-                                            ))}
-                                            {searchResults.every(c => c.customer_name.toLowerCase() !== customerName.trim().toLowerCase()) && <div onClick={openCreate} style={{ padding: '0.75rem 1rem', cursor: 'pointer', background: '#eef2ff', color: '#4338ca', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><UserPlus size={18} /> Create "{customerName.trim()}"</div>}
+                                <div className="flex gap-2 mb-3">
+                                    <div className="relative group flex-1">
+                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                            <UserPlus size={20} className="text-slate-400 group-focus-within:text-sky-600 transition-colors" />
                                         </div>
-                                    )}
+                                        <input
+                                            ref={nameInputRef}
+                                            type="text"
+                                            placeholder="CUSTOMER NAME (TYPE TO SEARCH...)"
+                                            value={customerName}
+                                            className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-lg font-black text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
+                                            onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
+                                            onFocus={() => { if (customerName.trim() === 'Cash') nameInputRef.current?.select(); customerName.trim().length >= 2 && setShowDropdown(true); }}
+                                            onKeyDown={e => { if (e.key === 'Enter' && customerName.trim()) { const existing = searchResults.find(c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase()); if (existing) pickCustomer(existing); else openCreate(customerName.trim()); } }}
+                                            autoComplete="off"
+                                        />
+                                        {searchLoading && <Loader2 size={18} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
+                                        {showDropdown && (
+                                            <div ref={dropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '220px', overflowY: 'auto', zIndex: 10, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                                {searchResults.length === 0 ? <div style={{ padding: '0.75rem', color: '#64748b', textAlign: 'center' }}>{customerName.trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}</div> : searchResults.map(c => (
+                                                    <div key={c.name} onClick={() => pickCustomer(c)} style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}>
+                                                        <div><div style={{ fontWeight: 600 }}>{c.customer_name}</div>{c.mobile_no && <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{c.mobile_no}</div>}</div>
+                                                        <Search size={16} style={{ color: '#94a3b8' }} />
+                                                    </div>
+                                                ))}
+                                                {searchResults.every(c => c.customer_name.toLowerCase() !== customerName.trim().toLowerCase()) && <div onClick={() => openCreate(customerName.trim())} style={{ padding: '0.75rem 1rem', cursor: 'pointer', background: '#eef2ff', color: '#4338ca', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><UserPlus size={18} /> Create "{customerName.trim()}"</div>}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center px-4 bg-slate-50 border-2 border-slate-100 text-slate-700 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
+                                        {selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}
+                                    </div>
                                 </div>
                                 <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => {
                                     const cleaned = e.target.value.replace(/\D/g, '');
@@ -7904,124 +8171,6 @@ function Home() {
                     </div>
                 </div> {/* close home-layout */}
             </div> {/* close home-content */}
-
-            {/* ---------- MODALS ---------- */}
-            {showDiscountModal && (
-                <div className="home-modal-overlay" onClick={() => setShowDiscountModal(false)}>
-                    <div className="home-modal" onClick={e => e.stopPropagation()}>
-                        <div className="home-modal-header">
-                            <h3>Apply Discount</h3>
-                            <button className="home-modal-close" onClick={() => setShowDiscountModal(false)}><X size={20} /></button>
-                        </div>
-                        <div className="home-modal-body">
-                            <div className="home-discount-type">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><input type="radio" name="type" checked={discount.type === 'amount'} onChange={() => setDiscount({ ...discount, type: 'amount' })} /> Amount (<DirhamIcon size={12} />)</label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><input type="radio" name="type" checked={discount.type === 'percent'} onChange={() => setDiscount({ ...discount, type: 'percent' })} /> Percentage (%)</label>
-                            </div>
-                            <input
-                                type="number"
-                                placeholder={discount.type === 'percent' ? 'Enter %' : 'Enter AED'}
-                                value={discountInput}
-                                onChange={e => setDiscountInput(e.target.value)}
-                                className="home-discount-input"
-                                min="0"
-                                step={discount.type === 'percent' ? '0.01' : '1'}
-                            />
-                        </div>
-                        <div className="home-modal-footer">
-                            <button className="home-modal-cancel" onClick={() => setShowDiscountModal(false)}>Cancel</button>
-                            {discount.value > 0 && (
-                                <button
-                                    className="home-modal-cancel"
-                                    onClick={clearDiscount}
-                                    style={{ backgroundColor: '#fee2e2', color: '#ef4444', borderColor: '#fecaca' }}
-                                >
-                                    Remove Discount
-                                </button>
-                            )}
-                            <button className="home-modal-apply" onClick={applyDiscountHandler}>Apply</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showCreateModal && (
-                <div className="home-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}>
-                    <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px' }}>
-                        <div className="home-modal-header">
-                            <h3>Create New Customer</h3>
-                            <button className="home-modal-close" onClick={() => setShowCreateModal(false)}><X size={20} /></button>
-                        </div>
-                        <div className="home-modal-body">
-                            <input
-                                type="text"
-                                placeholder="Customer Name *"
-                                value={createForm.name}
-                                onChange={e => {
-                                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                                    setCreateForm({ ...createForm, name: val });
-                                }}
-                                className="home-customer-input"
-                                style={{ marginBottom: '0.75rem' }}
-                            />
-                            <div style={{ display: 'flex', gap: '8px', marginBottom: '0.75rem' }}>
-                                <select
-                                    value={countryCodePrefix}
-                                    onChange={e => {
-                                        const newPrefix = e.target.value;
-                                        setCountryCodePrefix(newPrefix);
-                                        localStorage.setItem('pos_country_code', newPrefix);
-                                        const limit = newPrefix === '+971' ? 9 : 10;
-                                        if (createForm.phone.length > limit) {
-                                            setCreateForm(prev => ({ ...prev, phone: prev.phone.slice(0, limit) }));
-                                        }
-                                    }}
-                                    className="home-customer-input"
-                                    style={{ width: '100px', cursor: 'pointer', fontWeight: 700 }}
-                                >
-                                    <option value="+971">🇦🇪 +971</option>
-                                    <option value="+91">🇮🇳 +91</option>
-                                </select>
-                                <input
-                                    type="tel"
-                                    placeholder={`Phone (${countryCodePrefix === '+971' ? '9 digits' : '10 digits'}) *`}
-                                    value={createForm.phone}
-                                    onChange={e => {
-                                        const val = e.target.value.replace(/\D/g, '');
-                                        const limit = countryCodePrefix === '+971' ? 9 : 10;
-                                        if (val.length <= limit) {
-                                            setCreateForm({ ...createForm, phone: val });
-                                        }
-                                    }}
-                                    className="home-customer-input"
-                                    style={{ flex: 1, margin: 0 }}
-                                />
-                            </div>
-                            <input type="text" placeholder="Address (optional)" value={createForm.address} onChange={e => setCreateForm({ ...createForm, address: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
-                            <input type="email" placeholder="Email (optional)" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} className="home-customer-input" style={{ marginBottom: '0.75rem' }} />
-                        </div>
-                        <div className="home-modal-footer">
-                            <button className="home-modal-cancel" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                            <button
-                                className="home-modal-apply"
-                                onClick={createCustomer}
-                                disabled={creatingCustomer}  // ← disables double click
-                            >
-                                {creatingCustomer ? (
-                                    <>
-                                        <Loader2 size={18} className="animate-spin mr-2" />
-                                        Creating...
-                                    </>
-                                ) : (
-                                    "Create Customer"
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showPaymentModal && renderPaymentModal()}
 
             {/* Common Modals */}
             {renderCommonModals()}

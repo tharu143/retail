@@ -343,7 +343,7 @@ const CustomerDetails = () => {
   const [form, setForm] = useState({
     customer_name: '', mobile_no: '+971', email_id: '', salutation: '',
     customer_type: 'Individual', customer_group: 'All Customer Groups',
-    territory: 'All Territories', gender: '', tax_id: '',
+    territory: 'All Territories', gender: '', tax_id: '', custom_trn: '',
     account_manager: '', prospect_name: '', image: '',
     default_price_list: '', is_internal_customer: 0, customer_pos_id: '',
     customer_details: '', tax_category: '', payment_terms: '',
@@ -417,6 +417,7 @@ const CustomerDetails = () => {
         territory: cust.territory || 'All Territories',
         gender: cust.gender || '',
         tax_id: cust.tax_id || '',
+        custom_trn: cust.custom_trn || '',
         account_manager: cust.account_manager || '',
         prospect_name: cust.prospect_name || '',
         image: cust.image || '',
@@ -704,7 +705,8 @@ const CustomerDetails = () => {
                 <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.1 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden flex-1 flex flex-col">
                   <SectionHeader text="Financials & Governance" themeColor={themeColor} />
                   <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
-                    <DetailRow label="Tax Id / TRN" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
+                    <DetailRow label="Tax Id" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
+                    <DetailRow label="TRN" value={customer?.custom_trn} icon={Hash} themeColor={themeColor} />
                     <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
                     <DetailRow label="Pricing Matrix" value={customer?.default_price_list} icon={ShoppingCart} themeColor={themeColor} />
                     <DetailRow label="Payment Terms Protocol" value={customer?.payment_terms} icon={Clock} themeColor={themeColor} />
@@ -1267,7 +1269,7 @@ const CustomerDetails = () => {
                 <SectionHeader text="Financials & Governance" themeColor={themeColor} />
                 <div className="p-6 grid grid-cols-1 gap-5">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Id / TRN</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Tax Id</label>
                     <input
                       className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
                       style={getInputStyle('tax_id')}
@@ -1275,7 +1277,23 @@ const CustomerDetails = () => {
                       onBlur={() => setFocusedField(null)}
                       value={form.tax_id}
                       onChange={e => setForm({ ...form, tax_id: e.target.value })}
-                      placeholder="TRN Number"
+                      placeholder="Tax ID"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">TRN</label>
+                    <input
+                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                      style={getInputStyle('custom_trn')}
+                      onFocus={() => setFocusedField('custom_trn')}
+                      onBlur={() => setFocusedField(null)}
+                      value={form.custom_trn}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 15);
+                        setForm({ ...form, custom_trn: val });
+                      }}
+                      placeholder="Enter 15-digit TRN"
                     />
                   </div>
 

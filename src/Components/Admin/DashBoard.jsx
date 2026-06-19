@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { KpiCard, FilterBar, SalesTrendChart, PurchaseTrendChart, ReceivablesPayablesChart, CustomerTrendChart, StockDistributionChart, PendingOperationsChart } from './DashboardWidgets';
+import { KpiCard, FilterBar, SalesTrendChart, PurchaseTrendChart, ReceivablesPayablesChart, CustomerTrendChart, StockDistributionChart, PendingOperationsChart, ModeOfPaymentsChart } from './DashboardWidgets';
 import { getDashboardMetrics } from '../../utils/dashboardService';
 import { authFetchBase } from '../../utils/authFetch';
 import {
@@ -226,7 +226,7 @@ function Dashboard() {
       icon: ShoppingCart,
       colorClass: 'icon-purchase',
       cardClass: 'card-purchase',
-      items: ['Supplier', 'New Purchase Order', 'Purchase Order List', 'Purchase Receipt', 'Purchase Invoice', 'Purchase Return'],
+      items: ['Supplier', 'Purchase Order List', 'Purchase Receipt', 'Purchase Invoice', 'Purchase Return'],
     },
     {
       title: 'Sales & Returns',
@@ -408,9 +408,15 @@ function DashboardHome({ user, sections, setActiveItem, metrics, loading, startD
               <KpiCard title="Receivables" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {metrics.metrics?.accounts_receivable ?? 0}</span>} icon={Receipt} colorClass="icon-reports" />
             </div>
 
+            {!isAdmin && (
+              <div className="dashboard-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+                <ModeOfPaymentsChart data={metrics.charts?.mode_of_payments || []} />
+              </div>
+            )}
             {isAdmin && (
               <div className="dashboard-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))', gap: '2rem', marginBottom: '2rem' }}>
                 <SalesTrendChart data={metrics.charts?.sales_trend || []} />
+                <ModeOfPaymentsChart data={metrics.charts?.mode_of_payments || []} />
                 <PurchaseTrendChart data={metrics.charts?.purchase_trend || []} />
                 <ReceivablesPayablesChart data={metrics.charts?.receivables_payables_trend || []} />
                 <CustomerTrendChart data={metrics.charts?.customer_trend || []} />
