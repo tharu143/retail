@@ -15,6 +15,7 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import SupplierFormModal from './SupplierFormModal';
 import { Palette } from 'lucide-react';
 import { ChevronDown } from "lucide-react";
+import AttachmentSection from './AttachmentSection';
 
 /* ==================== UI COMPONENTS ==================== */
 const ScrollReveal = ({ children, delay = 0, className = '', style = {} }) => {
@@ -518,6 +519,11 @@ const SupplierDetails = () => {
           </div>
         </div>
 
+        {/* Attachment Section moved to the top */}
+        <div className="mt-4">
+           <AttachmentSection doctype="Supplier" docname={name} />
+        </div>
+
         {/* Intelligence Navigation Tabs Container */}
         <div className="tabs-navigation-panel">
           <div className="tabs-navigation-container">
@@ -937,6 +943,7 @@ const SupplierDetails = () => {
             </div>
           )}
         </div>
+
       </div>
 
 

@@ -11,6 +11,7 @@ import Swal from 'sweetalert2';
 import { motion } from 'framer-motion';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './CustomerDetails.css';
+import AttachmentSection from './AttachmentSection';
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
 const countryPhoneCodes = {
@@ -647,6 +648,11 @@ const CustomerDetails = () => {
             /* TWO-COLUMN DASHBOARD - VIEW PROFILE */
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in fade-in duration-300 pb-12">
 
+              {/* Attachment Section at the top */}
+              <div className="lg:col-span-2">
+                <AttachmentSection doctype="Customer" docname={id} />
+              </div>
+
               {/* TOP FULL WIDTH ROW: Loyalty Balance Banner */}
               <div className="lg:col-span-2">
                 <div className="rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-row items-center justify-between transition-all duration-300 hover:shadow-2xl hover:-translate-y-1" style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}>
@@ -774,6 +780,7 @@ const CustomerDetails = () => {
                   </div>
                 </motion.div>
               </div>
+
             </div>
           ) : (
             /* LOYALTY LEDGER TAB */
@@ -861,6 +868,11 @@ const CustomerDetails = () => {
         ) : (
           /* TWO-COLUMN DASHBOARD - EDIT CUSTOMER PROFILE */
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-bottom-4 duration-300 pb-12">
+
+            {/* Attachment Section at the top */}
+            <div className="lg:col-span-3">
+              <AttachmentSection doctype="Customer" docname={isNew ? null : id} />
+            </div>
 
             {/* LEFT COLUMN: Customer identity inputs and geospatial address forms */}
             <div className="lg:col-span-2 space-y-8">
@@ -1501,6 +1513,7 @@ const CustomerDetails = () => {
                 </div>
               </div>
             </div>
+
           </div>
         )}
       </div>

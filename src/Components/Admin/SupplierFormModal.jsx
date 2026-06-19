@@ -8,6 +8,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './SupplierFormModal.css';
+import AttachmentSection from './AttachmentSection';
 
 const ScrollReveal = ({ children, delay = 0 }) => {
    const [isVisible, setIsVisible] = useState(false);
@@ -308,6 +309,10 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
 
          {/* Form Body - Direct 2-Column Grid to align Heights perfectly across Row 1 and Row 2 */}
          <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-6">
+            <div className="mb-6">
+               <AttachmentSection doctype="Supplier" docname={editingSupplier ? editingSupplier.name : null} />
+            </div>
+
             <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12 items-stretch">
 
                {/* Row 1 - Col 1: Section 1 (General Specification) */}
@@ -1030,10 +1035,10 @@ const SupplierFormModal = ({ isOpen, onClose, onSave, editingSupplier = null, us
                         )})}
                      </div>
                   </div>
-               </div>
-               </ScrollReveal>
+                </div>
+                </ScrollReveal>
 
-            </div>
+             </div>
          </div>
       </div>
    );

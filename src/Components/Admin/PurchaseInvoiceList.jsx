@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Edit2, Settings, Copy
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
@@ -252,6 +252,8 @@ function PurchaseInvoiceList() {
   const [showActions, setShowActions] = useState(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState({});
+  const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+  const createDropdownRef = useRef(null);
 
   const supplierRef = useRef(null);
   const itemRefs = useRef({});
@@ -364,6 +366,18 @@ function PurchaseInvoiceList() {
   useEffect(() => {
     if (docName) fetchWorkflowActions();
   }, [docName, docStatus]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (createDropdownRef.current && !createDropdownRef.current.contains(event.target)) {
+        setShowCreateDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [createDropdownRef]);
 
 
 
@@ -2262,6 +2276,87 @@ function PurchaseInvoiceList() {
                     )}
                   </>
                 )}
+                {/* NEW: CREATE & CONNECTIONS DROPDOWN BUTTON */}
+                {docName && (
+                  <div className="relative" ref={createDropdownRef}>
+                    <button
+                      onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                      className="so-btn-secondary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                    >
+                      <Plus size={14} /> CREATE <ChevronDown size={14} />
+                    </button>
+                    {showCreateDropdown && (
+                      <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-4 animate-fadeIn text-left">
+                        <div className="flex items-center gap-2 pb-2 mb-3 border-b border-slate-100">
+                          <Zap className="w-4 h-4 text-indigo-500 opacity-80 shrink-0" />
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-extrabold">Create & Connections</span>
+                        </div>
+
+                        {/* Actions Section */}
+                        {formData.docstatus === 1 && (
+                          <div className="flex flex-col gap-2 mb-4">
+                            <button
+                              onClick={() => {
+                                setShowCreateDropdown(false);
+                                handleCreatePayment();
+                              }}
+                              disabled={saving}
+                              className="w-full flex items-center justify-center gap-2 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Create Payment Entry
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowCreateDropdown(false);
+                                handleCreateReturn();
+                              }}
+                              disabled={saving}
+                              className="w-full flex items-center justify-center gap-2 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              <Link size={14} />
+                              Create Debit Note
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Connected Docs / Links */}
+                        <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                          {Object.keys(linkedDocs).some(dt => (linkedDocs[dt] || []).length > 0) ? (
+                            Object.entries(linkedDocs)
+                              .filter(([dt, links]) => links && links.length > 0)
+                              .map(([dt, links]) => (
+                                <div key={dt} className="flex flex-col gap-1.5 text-left">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">{dt}</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {links.map(link => (
+                                      <button
+                                        key={link.name}
+                                        onClick={() => {
+                                          setShowCreateDropdown(false);
+                                          navigateToDoc(dt, link.name);
+                                        }}
+                                        className="group/id flex items-center gap-1 p-0.5 px-1.5 bg-white border border-slate-100 rounded transition-all hover:border-indigo-200 hover:shadow-sm"
+                                        title={`View ${dt}: ${link.name}`}
+                                      >
+                                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${link.docstatus === 1 ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : (link.docstatus === 2 ? 'bg-rose-400' : 'bg-orange-400 animate-pulse')}`} />
+                                        <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{link.name}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))
+                          ) : (
+                            <div className="py-2 text-center">
+                              <p className="text-[9px] font-bold text-slate-400 italic text-slate-450 font-semibold">No connections yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <button onClick={closeModal} className="so-btn-secondary" style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                 <ChevronLeft size={16} /> Back to List
@@ -2331,17 +2426,8 @@ function PurchaseInvoiceList() {
           </div>
 
           <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
-            <div className="flex flex-col lg:flex-row gap-6 relative items-start">
-              {/* STICKY SIDEBAR: Linked Documents & Attachments */}
-              <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
-                <div className="sticky top-0 space-y-4">
-                  {renderConnectionsDashboard()}
-                  <AttachmentSection doctype="Purchase Invoice" docname={docName} compact={true} />
-                </div>
-              </div>
-
-              {/* MAIN CONTENT AREA */}
-              <div className="flex-1 min-w-0 flex flex-col gap-6">
+            <AttachmentSection doctype="Purchase Invoice" docname={docName} />
+            <div className="w-full flex flex-col gap-6 mt-4">
                 {/* Basic Details Card */}
             <div className="so-card">
               <div className="so-card-header">
@@ -3026,11 +3112,10 @@ function PurchaseInvoiceList() {
                 </div>
               </div>
             </div>
-            </div> {/* Closes MAIN CONTENT AREA */}
-            </div> {/* Closes outer flex container */}
           </div>
         </div>
-      </>
+      </div>
+    </>
     );
   }
 

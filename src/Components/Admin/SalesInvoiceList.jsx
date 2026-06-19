@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import {
   Plus, X, Search, Filter, ChevronDown, FileText,
   Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck
@@ -40,6 +41,8 @@ const SalesInvoiceList = () => {
     document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
     document.documentElement.style.setProperty('--so-primary-light', themeLight);
   }, [siTheme, themeColor, themeColorHover, themeLight]);
+
+
 
   // Filters
   const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
@@ -94,6 +97,7 @@ const SalesInvoiceList = () => {
   const [defaultIncomeAccount, setDefaultIncomeAccount] = useState('');
 
   const company = loggedCompany || '';
+
 
   const getCurrencySymbol = (curr = form.currency) => {
     switch (curr) {
@@ -1109,6 +1113,404 @@ const SalesInvoiceList = () => {
   const totalPages = Math.ceil(filteredInvoices.length / pageSize);
   const canSubmit = !form.name || form.status !== 'Submitted';
 
+  // Global Keyboard Shortcuts hook for Edit Modal
+  useEffect(() => {
+    if (!showModal) return;
+    const handleGlobalShortcuts = (e) => {
+      const activeEl = document.activeElement;
+      const inItemsTable = activeEl?.closest('table.so-items-table');
+
+      let activeRowIndex = -1;
+      if (inItemsTable) {
+        const tr = activeEl.closest('tr');
+        if (tr && tr.parentNode) {
+          const index = Array.from(tr.parentNode.children).indexOf(tr);
+          if (index !== -1 && index < form.items.length) {
+            activeRowIndex = index;
+          }
+        }
+      }
+
+      // Ctrl+ArrowDown, Ctrl+ArrowUp, or Shift+F3: Jump focus into items table rows
+      if ((e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) || (e.shiftKey && e.key === 'F3')) {
+        const rows = document.querySelectorAll('table.so-items-table tbody tr');
+        if (rows.length > 0) {
+          e.preventDefault();
+          const targetRow = (e.key === 'ArrowUp') ? rows[rows.length - 1] : rows[0];
+          if (targetRow) {
+            targetRow.focus();
+            return;
+          }
+        }
+      }
+
+      // 1. Focus Customer Search: F2
+      if (e.key === 'F2') {
+        e.preventDefault();
+        const customerInput = document.querySelector('input[placeholder="Search customer..."]');
+        if (customerInput) {
+          customerInput.focus();
+          customerInput.select?.();
+        }
+      }
+
+      // F3: Focus Item Search (first row if empty, else last row)
+      if (e.key === 'F3') {
+        e.preventDefault();
+        const itemInputs = document.querySelectorAll('input[placeholder="Search item..."]');
+        if (itemInputs.length > 0) {
+          const firstInput = itemInputs[0];
+          const targetInput = (firstInput && !firstInput.value) ? firstInput : itemInputs[itemInputs.length - 1];
+          if (targetInput) {
+            targetInput.focus();
+            targetInput.select?.();
+          }
+        }
+      }
+
+      // 2. Focus Barcode/Scan input: F4
+      if (e.key === 'F4') {
+        e.preventDefault();
+        const scanInput = document.getElementById('barcode-scan-input');
+        if (scanInput) {
+          scanInput.focus();
+          scanInput.select?.();
+        }
+      }
+
+      // F6: Bulk Quantity Update popup
+      if (e.key === 'F6') {
+        e.preventDefault();
+        if (isViewOnly) return;
+        let rowIndex = inItemsTable ? activeRowIndex : (form.items.length - 1);
+
+        if (rowIndex >= 0 && rowIndex < form.items.length) {
+          const item = form.items[rowIndex];
+          if (item && item.item_code) {
+            Swal.fire({
+              title: 'Bulk Quantity',
+              html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
+                \${item.item_name || item.item_code}
+              </div>`,
+              input: 'number',
+              inputPlaceholder: 'Enter quantity...',
+              inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || ''),
+              showCancelButton: true,
+              confirmButtonText: 'Update',
+              confirmButtonColor: '#10b981',
+              cancelButtonColor: '#64748b'
+            }).then(result => {
+              if (result.isConfirmed && result.value !== undefined) {
+                const newQty = parseFloat(result.value) || 0;
+                if (item.use_box_entry) {
+                  updateItem(rowIndex, 'custom_box_qty', newQty);
+                } else {
+                  updateItem(rowIndex, 'qty', newQty);
+                }
+              }
+            });
+          }
+        }
+      }
+
+      // F8: Toggle UOM of active row (or last row)
+      if (e.key === 'F8') {
+        e.preventDefault();
+        if (isViewOnly) return;
+        let rowIndex = inItemsTable ? activeRowIndex : (form.items.length - 1);
+
+        if (rowIndex >= 0 && rowIndex < form.items.length) {
+          const item = form.items[rowIndex];
+          if (item && item.item_code) {
+            let nextUom = '';
+            const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
+            const uomList = item.uom_list || [];
+
+            if (uomList.length > 1) {
+              const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
+              const nextIndex = (currentIndex + 1) % uomList.length;
+              nextUom = uomList[nextIndex].uom;
+            } else {
+              nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
+            }
+
+            handleUOMChangeDetails(nextUom, rowIndex);
+            Swal.fire({
+              icon: 'info',
+              title: 'UOM Switched',
+              text: `Row \${rowIndex + 1}: Switched UOM to \${nextUom}`,
+              toast: true,
+              position: 'top-end',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          }
+        }
+      }
+
+      // F7: Save Draft / Update Draft
+      if (e.key === 'F7' || (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS'))) {
+        e.preventDefault();
+        if (isViewOnly) return;
+        if (!saving && (form.docstatus === 0 || form.docstatus === undefined)) {
+          createSalesInvoice(false);
+        }
+      }
+
+      // F10 or Alt+A / Alt+a: Add Item Row
+      if (e.key === 'F10' || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
+        e.preventDefault();
+        if (isViewOnly) return;
+        addItemRow();
+      }
+
+      // F9: Focus Branch Select
+      if (e.key === 'F9') {
+        e.preventDefault();
+        const warehouseSelect = document.querySelector('select.so-select') || document.querySelector('select');
+        if (warehouseSelect) {
+          warehouseSelect.focus();
+        }
+      }
+
+      // F12 / Ctrl+Enter: Submit document
+      if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
+        e.preventDefault();
+        if (isViewOnly) return;
+        if (!saving && (form.docstatus === 0 || form.docstatus === undefined)) {
+          createSalesInvoice(true);
+        }
+      }
+
+      // Escape: Close configuration modals, reset selection
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowModal(false);
+        resetForm();
+      }
+
+      // Tab Key Navigation Inside Table (Do not close or leave)
+      if (e.key === 'Tab') {
+        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr && tr.parentNode) {
+            const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+            const inputIndex = rowInputs.indexOf(activeEl);
+
+            if (inputIndex === rowInputs.length - 1 && !e.shiftKey) {
+              e.preventDefault();
+              const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+              const isLastRow = rowIndex === form.items.length - 1;
+
+              if (isLastRow) {
+                addItemRow();
+                setTimeout(() => {
+                  const tableBody = tr.parentNode;
+                  const newTr = tableBody.lastElementChild;
+                  if (newTr) {
+                    const firstInput = newTr.querySelector('input:not([disabled]), select:not([disabled])');
+                    if (firstInput) {
+                      firstInput.focus();
+                      firstInput.select?.();
+                    }
+                  }
+                }, 50);
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const firstInput = nextTr.querySelector('input:not([disabled]), select:not([disabled])');
+                  if (firstInput) {
+                    firstInput.focus();
+                    firstInput.select?.();
+                  }
+                }
+              }
+            } else if (inputIndex === 0 && e.shiftKey) {
+              const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+              if (rowIndex > 0) {
+                e.preventDefault();
+                const prevTr = tr.previousElementSibling;
+                if (prevTr) {
+                  const prevInputs = Array.from(prevTr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+                  if (prevInputs.length > 0) {
+                    const lastInput = prevInputs[prevInputs.length - 1];
+                    lastInput.focus();
+                    lastInput.select?.();
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Enter key inside table inputs: add row or navigate down
+      if (e.key === 'Enter') {
+        if (inItemsTable && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+          const isSearchInput = activeEl.placeholder === 'Search item...';
+          const isDropdownOpen = document.querySelector('.so-dropdown');
+          if (isSearchInput && isDropdownOpen) return; // Let search dropdown handle it
+
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr && tr.parentNode) {
+            e.preventDefault();
+            const colIndex = Array.from(tr.children).indexOf(td);
+            const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+            const isLastRow = rowIndex === form.items.length - 1;
+            const isRateField = activeEl.name === 'rate' || activeEl.name === 'custom_box_price';
+
+            if (isRateField) {
+              if (isLastRow) {
+                addItemRow();
+                setTimeout(() => {
+                  const tableBody = tr.parentNode;
+                  const newTr = tableBody.lastElementChild;
+                  if (newTr) {
+                    const firstInput = newTr.querySelector('input[placeholder="Search item..."]');
+                    if (firstInput) {
+                      firstInput.focus();
+                      firstInput.select?.();
+                    }
+                  }
+                }, 50);
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const firstInput = nextTr.querySelector('input[placeholder="Search item..."]');
+                  if (firstInput) {
+                    firstInput.focus();
+                    firstInput.select?.();
+                  }
+                }
+              }
+            } else {
+              if (isLastRow) {
+                addItemRow();
+                setTimeout(() => {
+                  const tableBody = tr.parentNode;
+                  const newTr = tableBody.lastElementChild;
+                  if (newTr) {
+                    const targetTd = newTr.children[colIndex];
+                    if (targetTd) {
+                      const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                      if (targetInput) {
+                        targetInput.focus();
+                        targetInput.select?.();
+                      }
+                    }
+                  }
+                }, 50);
+              } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) {
+                  const targetTd = nextTr.children[colIndex];
+                  if (targetTd) {
+                    const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                    if (targetInput) {
+                      targetInput.focus();
+                      targetInput.select?.();
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Escape key inside table input to select/focus the parent row (TR) itself
+      if (e.key === 'Escape') {
+        if (inItemsTable && activeEl && activeEl.tagName !== 'TR') {
+          const tr = activeEl.closest('tr');
+          if (tr) {
+            e.preventDefault();
+            tr.focus();
+            return;
+          }
+        }
+      }
+
+      // Keyboard actions when the row itself is focused
+      if (activeEl && activeEl.tagName === 'TR' && activeEl.closest('table.so-items-table')) {
+        const tr = activeEl;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          const targetTr = e.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling;
+          if (targetTr && targetTr.tagName === 'TR') {
+            targetTr.focus();
+          }
+        }
+
+        if (e.key === 'Enter' || e.key === 'F3' || e.key === ' ') {
+          e.preventDefault();
+          const firstInput = tr.querySelector('input:not([disabled]), select:not([disabled])');
+          if (firstInput) {
+            firstInput.focus();
+            firstInput.select?.();
+          }
+        }
+
+        if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+          const isPlus = e.key === '+' || e.key === '=';
+          const qtyInput = tr.querySelector('input[name="qty"]:not([disabled])') || tr.querySelector('input[name="custom_box_qty"]:not([disabled])');
+          if (qtyInput && activeRowIndex !== -1) {
+            e.preventDefault();
+            const currentVal = parseFloat(qtyInput.value) || 0;
+            const diff = isPlus ? 1 : -1;
+            const newVal = Math.max(0, currentVal + diff);
+            updateItem(activeRowIndex, qtyInput.name, newVal);
+          }
+        }
+      }
+
+      // Arrow Up/Down navigation inside table inputs
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
+          const isSearchInput = activeEl.placeholder === 'Search item...';
+          const isDropdownOpen = document.querySelector('.so-dropdown');
+          if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+
+          const td = activeEl.closest('td');
+          const tr = activeEl.closest('tr');
+          if (td && tr) {
+            e.preventDefault();
+            const colIndex = Array.from(tr.children).indexOf(td);
+            const targetTr = e.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling;
+            if (targetTr) {
+              const targetTd = targetTr.children[colIndex];
+              if (targetTd) {
+                const targetInput = targetTd.querySelector('input:not([disabled]), select:not([disabled])');
+                if (targetInput) {
+                  targetInput.focus();
+                  targetInput.select?.();
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // + / -: Increase / Decrease focused row quantity
+      if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
+        if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
+          const isQtyField = activeEl.name === 'qty' || activeEl.name === 'custom_box_qty';
+          if (isQtyField && activeRowIndex !== -1) {
+            e.preventDefault();
+            const currentVal = parseFloat(activeEl.value) || 0;
+            const diff = (e.key === '+' || e.key === '=') ? 1 : -1;
+            const newVal = Math.max(0, currentVal + diff);
+            updateItem(activeRowIndex, activeEl.name, newVal);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [showModal, form, saving, isViewOnly]);
+
   return (
     <>
       {!showModal && (
@@ -1371,9 +1773,71 @@ const SalesInvoiceList = () => {
                   </button>
                 </div>
               </div>
+              
+              {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
+              <div className="w-full bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-sky-50/50 backdrop-blur-md border-b border-emerald-100/60 px-8 py-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-[11px] font-medium text-slate-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
+                <div className="flex items-center gap-1.5 text-emerald-800 font-bold uppercase tracking-wider text-[10px]">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  Quick Shortcuts
+                </div>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F2</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Customer</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F3</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
+                    <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
+                    <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F10 / Alt+A</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Branch</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Submit</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Qty Adjust</span>
+                  </div>
+                </div>
+              </div>
 
               {/* Body - Alignment Fix Here */}
               <div className="so-modal-body" style={{ flex: 1, overflowY: "auto", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                <AttachmentSection doctype="Sales Invoice" docname={form.name} />
 
                 {isViewOnly ? (
                   /* GORGEOUS SALES INVOICE DETAILS VIEW */
@@ -2087,7 +2551,6 @@ const SalesInvoiceList = () => {
                     </div>
                   </>
                 )}
-                <AttachmentSection doctype="Sales Invoice" docname={form.name} />
               </div>
             </div>
           </div>

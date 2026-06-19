@@ -2336,6 +2336,7 @@ function PurchaseReceiptList() {
           </div>
 
           <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
+            <AttachmentSection doctype="Purchase Receipt" docname={docName} />
             {renderConnectionsDashboard()}
             {/* Basic Details Card */}
             <div className="so-card">
@@ -3224,12 +3225,12 @@ function PurchaseReceiptList() {
               </div>
 
               <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
-                <div className="flex flex-col lg:flex-row gap-6 relative items-start">
-                  {/* STICKY SIDEBAR: Linked Documents & Attachments */}
+                <AttachmentSection doctype="Purchase Receipt" docname={docName} />
+                <div className="flex flex-col lg:flex-row gap-6 relative items-start mt-4">
+                  {/* STICKY SIDEBAR: Linked Documents */}
                   <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
                     <div className="sticky top-0 space-y-4">
                       {renderConnectionsDashboard()}
-                      <AttachmentSection doctype="Purchase Receipt" docname={docName} compact={true} />
                     </div>
                   </div>
 

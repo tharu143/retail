@@ -10,6 +10,7 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import AttachmentSection from './AttachmentSection';
 
 const renderCurrency = (currencyCode, size = 12, className = "") => {
   if (currencyCode === 'AED') {
@@ -830,6 +831,7 @@ function PurchaseReturnList() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-6">
+                    <AttachmentSection doctype="Purchase Invoice" docname={null} />
                     {/* Invoice Meta details */}
                     <div className="so-card">
                       <div className="so-card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem' }}>
@@ -1121,6 +1123,7 @@ function PurchaseReturnList() {
           {/* 2. Main Page Layout */}
           <div className="so-layout">
             <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+              <AttachmentSection doctype="Purchase Invoice" docname={selectedReturnDoc?.name} />
               {/* Summary Bar for Stats */}
               <div className="so-summary-bar">
                 <div className="so-summary-item">

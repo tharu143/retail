@@ -11,6 +11,7 @@ import Swal from 'sweetalert2';
 import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../hooks/useLegacyTheme';
 import './CustomerEditPage.css';
+import AttachmentSection from '../Components/Admin/AttachmentSection';
 
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
@@ -274,6 +275,9 @@ export default function CustomerEditPage() {
           {/* Form Body - Masonry Style Layout */}
           <div className="flex-1 overflow-y-auto bg-[#f5f6fa] p-4">
             <div className="w-full flex flex-col gap-4 pb-12">
+              <div className="w-full">
+                <AttachmentSection doctype="Customer" docname={isNew ? null : id} />
+              </div>
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-stretch">
                 
                   {/* Row 1 - Col 1: Section 1 (Core Customer Specifications) */}

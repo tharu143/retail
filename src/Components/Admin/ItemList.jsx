@@ -2103,7 +2103,7 @@ export default function ItemList() {
 
             {/* ===== EDIT/CREATE FORM ===== */}
             {!isViewMode && (
-              <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {/* Specifications */}
                 <CardSection title="Specifications" icon={<Package size={14} />}>
                   <div style={{ padding: 20 }}>

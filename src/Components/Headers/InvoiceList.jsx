@@ -10,6 +10,8 @@ import { db } from '../../db';
 import "../Admin/SalesOrder.css";
 import { useLegacyTheme } from "../../hooks/useLegacyTheme";
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import AttachmentSection from "../Admin/AttachmentSection";
+
 
 const formatDateToDMY = (dateStr) => {
     if (!dateStr) return '';
@@ -500,6 +502,14 @@ function InvoiceList() {
                     {/* FULL SCREEN BODY */}
                     <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6">
                         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            
+                            {/* Attachment Section at the top */}
+                            <div className="lg:col-span-3">
+                                <AttachmentSection 
+                                    doctype="Sales Invoice" 
+                                    docname={(selectedInvoice._source === 'server' || selectedInvoice._source === 'synced_local') ? selectedInvoice.name : null} 
+                                />
+                            </div>
                             
                             {/* LEFT: SUMMARY CARDS */}
                             <div className="lg:col-span-1 flex flex-col gap-4">

@@ -118,7 +118,10 @@ const StockEntryDetails = () => {
 
             {/* 2. MAIN LAYOUT GRID */}
             <div className="p-6">
-                <div className="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto items-start">
+                <div className="max-w-7xl mx-auto flex flex-col gap-6">
+                    {/* Attachments Section moved to the top */}
+                    <AttachmentSection doctype="Stock Entry" docname={entry.name} />
+                    <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
                     
                     {/* LEFT PANEL - Logistics & Metadata Details */}
                     <div className="w-full lg:w-[350px] flex flex-col gap-6 shrink-0">
@@ -289,12 +292,11 @@ const StockEntryDetails = () => {
                             </div>
                         </div>
 
-                        {/* Attachments Section */}
-                        <AttachmentSection doctype="Stock Entry" docname={entry.name} />
                     </div>
 
                 </div>
             </div>
+        </div>
             
             <style dangerouslySetInnerHTML={{__html: `
                 .so-page { --primary-color: ${themeColor}; }

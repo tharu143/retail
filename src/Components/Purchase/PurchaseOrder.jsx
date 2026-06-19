@@ -140,6 +140,21 @@ function PurchaseOrder() {
   const [loadingLinks, setLoadingLinks] = useState(false);
   const html5QrcodeRef = useRef(null);
 
+  const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+  const createDropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (createDropdownRef.current && !createDropdownRef.current.contains(event.target)) {
+        setShowCreateDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [createDropdownRef]);
+
   const getSession = () => localStorage.getItem('session') || '';
   const BASE_URL = '';
   const API_PATH = `/api/method/kyle_retail.retail_api.api`;
@@ -1977,15 +1992,15 @@ function PurchaseOrder() {
         setSuccess(`${type === 'receipt' ? '📦 Receipt' : '🧾 Invoice'} ${docName} created successfully (Draft)!`);
         setCreatedDocName(docName);
 
-        // Route immediately to the respective draft details screen in a NEW TAB
+        // Route immediately to the respective draft details screen in the same view
         if (type === 'receipt') {
-          window.open(`/#/purchasereceiptlist?name=${docName}`, "_blank");
+          navigate(`/purchasereceiptlist?name=${encodeURIComponent(docName)}`);
         } else {
-          window.open(`/#/purchaseinvoicelist?name=${docName}`, "_blank");
+          navigate(`/purchaseinvoicelist?name=${encodeURIComponent(docName)}`);
         }
         Swal.fire({
           title: 'Success',
-          text: `${type === 'receipt' ? 'Receipt' : 'Invoice'} ${docName} created and opened in a new tab.`,
+          text: `${type === 'receipt' ? 'Receipt' : 'Invoice'} ${docName} created successfully.`,
           icon: 'success'
         });
       }
@@ -2231,6 +2246,107 @@ function PurchaseOrder() {
               </button>
             )}
 
+            {/* NEW: CREATE & CONNECTIONS DROPDOWN BUTTON */}
+            {formData.name && (
+              <div className="relative" ref={createDropdownRef}>
+                <button
+                  onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                  className="so-btn-secondary"
+                  style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                >
+                  <Plus size={14} /> CREATE <ChevronDown size={14} />
+                </button>
+                {showCreateDropdown && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-4 animate-fadeIn text-left">
+                    <div className="flex items-center gap-2 pb-2 mb-3 border-b border-slate-100">
+                      <Zap className="w-4 h-4 text-indigo-500 opacity-80 shrink-0" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Create & Connections</span>
+                    </div>
+
+                    {/* Primary Workflow Actions */}
+                    {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
+                      <div className="flex flex-col gap-2 mb-4">
+                        {formData.per_received < 100 && (
+                          <button
+                            onClick={() => {
+                              setShowCreateDropdown(false);
+                              handleCreateFlow('receipt');
+                            }}
+                            disabled={loadingLinks}
+                            className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create Receipt
+                          </button>
+                        )}
+                        {formData.per_billed < 100 && (
+                          <button
+                            onClick={() => {
+                              setShowCreateDropdown(false);
+                              handleCreateFlow('invoice');
+                            }}
+                            disabled={loadingLinks}
+                            className="w-full flex items-center justify-center gap-2 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create Invoice
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Connected Docs */}
+                    <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                      {linkedConnections.length > 0 ? (
+                        linkedConnections.filter(g => g.items.some(i => i.count > 0)).map((group) => (
+                          <div key={group.group} className="flex flex-col gap-1.5 text-left">
+                            <span className="text-[9px] font-black text-slate-450 uppercase tracking-tight text-slate-450">{group.group}</span>
+                            <div className="flex flex-col gap-2">
+                              {group.items.filter(item => item.count > 0).map((item) => (
+                                <div key={item.label} className="bg-slate-50/50 rounded-lg p-2 border border-slate-100/50">
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <Link size={10} className="text-slate-450" />
+                                      <span className="text-[9px] font-black text-slate-550 uppercase tracking-wider text-slate-600">{item.label}</span>
+                                    </div>
+                                    <span className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded font-bold">{item.count}</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {(item.names || []).map(id => {
+                                      const s = linkedDocStatuses[id];
+                                      const isSub = s?.docstatus === 1;
+                                      return (
+                                        <button
+                                          key={id}
+                                          onClick={() => {
+                                            setShowCreateDropdown(false);
+                                            navigateToDoc(item.label, id);
+                                          }}
+                                          className="group/id flex items-center gap-1 p-0.5 px-1.5 bg-white border border-slate-100 rounded transition-all hover:border-indigo-200 hover:shadow-sm"
+                                          title={`View ${item.label}: ${id}`}
+                                        >
+                                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
+                                          <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{id}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-2 text-center">
+                          <p className="text-[9px] font-bold text-slate-450 italic text-slate-400">No connections yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Always show EDIT DRAFT as secondary action on the left of primary when in view mode */}
             {formData.name && formData.docstatus === 0 && isViewOnly && (
               <button
@@ -2380,100 +2496,12 @@ function PurchaseOrder() {
         </div>
 
         <div className="po-layout-container !pt-4 pb-20">
-          <div className="flex flex-col lg:flex-row gap-6 relative">
-            {/* STICKY SIDEBAR: Linked Documents Dashboard */}
-            <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
-              <div className="sticky top-24 space-y-4">
-                {formData.name && (
-                  <div className="bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl p-4 shadow-sm">
-                    <div className="flex flex-col items-center justify-center py-4 border-b border-slate-100 mb-6">
-                      <Zap className="w-4 h-4 text-indigo-500 mb-1.5 opacity-80 shrink-0" />
-                      <h3 className="font-black text-slate-400 uppercase leading-none whitespace-nowrap" style={{ fontSize: '8px', letterSpacing: '0.2em' }}>
-                        Connections
-                      </h3>
-                    </div>
-
-                    {/* Primary Workflow Actions */}
-                    {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
-                      <div className="flex flex-col gap-2 mb-6">
-                        {formData.per_received < 100 && (
-                          <button
-                            onClick={() => handleCreateFlow('receipt')}
-                            disabled={loadingLinks}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Create Receipt
-                          </button>
-                        )}
-                        {formData.per_billed < 100 && (
-                          <button
-                            onClick={() => handleCreateFlow('invoice')}
-                            disabled={loadingLinks}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black shadow-lg shadow-sky-200 transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Create Invoice
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex flex-col gap-5 overflow-y-auto max-h-[70vh] pr-1 po-sidebar-scroll">
-                      {linkedConnections.length > 0 ? (
-                        linkedConnections.filter(g => g.items.some(i => i.count > 0)).map((group) => (
-                          <div key={group.group} className="flex flex-col gap-2.5">
-                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-tight">{group.group}</span>
-                            <div className="flex flex-row flex-wrap gap-3">
-                              {group.items.filter(item => item.count > 0).map((item) => (
-                                <div key={item.label} className="bg-slate-50/50 rounded-xl p-3 border border-slate-100/50">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <Link size={10} className="text-slate-400" />
-                                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{item.label}</span>
-                                    </div>
-                                    <span className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded-md font-bold">{item.count}</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {(item.names || []).map(id => {
-                                      const s = linkedDocStatuses[id];
-                                      const isSub = s?.docstatus === 1;
-                                      return (
-                                        <button
-                                          key={id}
-                                          onClick={() => navigateToDoc(item.label, id)}
-                                          className="group/id flex items-center gap-1.5 p-1 px-2 bg-white border border-slate-100 rounded-md transition-all hover:border-indigo-200 hover:shadow-sm"
-                                          title={`View ${item.label}: ${id}`}
-                                        >
-                                          <div className={`w-1 h-1 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
-                                          <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{id}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="py-4 text-center">
-                          <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 opacity-50">
-                            <Box size={16} className="text-slate-300" />
-                          </div>
-                          <p className="text-[9px] font-bold text-slate-400 italic">No connections yet</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Attachments Section */}
-                <AttachmentSection doctype="Purchase Order" docname={formData.name} compact={true} />
-              </div>
-            </div>
+          <div className="w-full flex flex-col gap-6 relative">
+            {/* Attachments Section */}
+            <AttachmentSection doctype="Purchase Order" docname={formData.name} />
 
             {/* MAIN CONTENT AREA */}
-            <div className="flex-1 min-w-0 flex flex-col gap-6">
+            <div className="w-full flex flex-col gap-6">
               {error && (
                 <div className="mb-6 bg-red-50 border border-red-100 rounded-lg p-4 flex items-center gap-3 animate-fadeIn">
                   <AlertCircle className="w-5 h-5 text-red-500" />

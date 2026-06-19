@@ -1220,6 +1220,7 @@ const DeliveryNoteDetails = () => {
             {/* 2. Main Page Layout */}
             <div className="so-layout">
                 <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <AttachmentSection doctype="Delivery Note" docname={isNew ? null : form.name} />
                     {isEditing ? (
                         /* PREMIUM DELIVERY NOTE EDIT FORM */
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }} className="animate-in fade-in duration-300">
@@ -2043,9 +2044,6 @@ const DeliveryNoteDetails = () => {
                                 </div>
                             </div>
                         </div>
-                    )}
-                    {!isNew && (
-                        <AttachmentSection doctype="Delivery Note" docname={form.name} />
                     )}
                 </div>
             </div>
