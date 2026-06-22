@@ -297,6 +297,11 @@ function GeneralLedgerReport() {
 
   return (
     <div className="so-page general-ledger-report-container">
+      <style dangerouslySetInnerHTML={{__html: `
+        .so-filter-bar .so-filter-input {
+          padding-left: 2.5rem !important;
+        }
+      `}} />
       
       {/* 1. PREMIUM HEADER */}
       <div className="so-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>

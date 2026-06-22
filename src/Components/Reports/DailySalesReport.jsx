@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { ExternalLink } from 'lucide-react';
+import '../Admin/SalesOrder.css';
 
 const UAE_DENOMS = [
     { value: 1000, label: '1000 AED' },
@@ -150,29 +151,29 @@ function DailySalesReport() {
     };
 
     return (
-        <div className="so-page p-6 max-w-7xl mx-auto space-y-6" style={{ overflowY: 'auto', height: '100%', maxHeight: '100vh' }}>
+        <div className="so-page" style={{ overflowY: 'auto', height: '100%', maxHeight: '100vh' }}>
             
             {/* Header section */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5 no-print">
+            <div className="so-page-header no-print">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2 tracking-tight">
-                        <FileText className="w-7 h-7 text-indigo-600" />
+                    <h1 className="so-page-title flex items-center gap-2">
+                        <FileText size={22} style={{ color: '#604BE8' }} />
                         Daily Shift & Sales Report
                     </h1>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">
-                        Shift float opening counts, daily sales payments, and closing reconciliations
-                    </p>
+                    <p className="so-page-subtitle">Shift float opening counts, daily sales payments, and closing reconciliations</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={handlePrint}
-                        className="px-4 py-2 border-2 border-slate-200/80 rounded-xl hover:bg-slate-50 transition-all font-bold text-xs uppercase tracking-wider text-slate-600 flex items-center gap-2 bg-white"
+                        className="so-btn-secondary"
+                        style={{ height: '38px', padding: '0 1rem' }}
                     >
                         <Printer className="w-4 h-4" /> Print Report
                     </button>
                     <button 
                         onClick={fetchDailyReport}
-                        className="px-4 py-2 border-2 border-slate-200/80 rounded-xl hover:bg-slate-50 transition-all font-bold text-xs uppercase tracking-wider text-slate-600 flex items-center gap-2 bg-white"
+                        className="so-btn-secondary"
+                        style={{ height: '38px', padding: '0 1rem' }}
                     >
                         <RefreshCw className="w-4 h-4" /> Refresh
                     </button>
@@ -180,7 +181,7 @@ function DailySalesReport() {
             </div>
 
             {/* Print Only Header */}
-            <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6">
+            <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6" style={{ padding: '1rem 2rem' }}>
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight">Daily Shift & Sales Report</h1>
                 <div className="mt-2 grid grid-cols-2 gap-4 text-xs font-bold text-slate-700">
                     <div>Date: {selectedDate}</div>
@@ -188,77 +189,81 @@ function DailySalesReport() {
                 </div>
             </div>
 
-            {/* Filters Bar */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-5 items-end no-print">
-                {/* Date Input - Clicking anywhere on this input block opens the datepicker */}
-                <div 
-                    className="space-y-1.5 cursor-pointer"
-                    onClick={() => {
-                        try {
-                            if (dateInputRef.current) {
-                                dateInputRef.current.showPicker();
-                            }
-                        } catch (err) {}
-                    }}
-                >
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                        Select Date
-                    </label>
-                    <div className="relative">
-                        <input 
-                            ref={dateInputRef}
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-bold text-slate-800 bg-white cursor-pointer"
-                        />
+            <div className="so-layout">
+                {/* Filters Bar */}
+                <div className="so-filter-bar no-print" style={{ padding: '1rem 2rem', gap: '1.5rem' }}>
+                    {/* Date Input - Clicking anywhere on this input block opens the datepicker */}
+                    <div style={{ flex: '1 1 200px' }}>
+                        <label className="so-filter-label">Select Date</label>
+                        <div className="so-relative">
+                            <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#604BE8' }} />
+                            <input 
+                                ref={dateInputRef}
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="so-filter-input so-filter-input-icon"
+                                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                            />
+                        </div>
                     </div>
+
+                    {/* Branch Selection */}
+                    {isAdmin ? (
+                        <div style={{ flex: '1 1 250px' }}>
+                            <label className="so-filter-label">Branch / Warehouse</label>
+                            <div className="so-relative">
+                                <Filter size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                <select
+                                    value={selectedBranch}
+                                    onChange={(e) => setSelectedBranch(e.target.value)}
+                                    className="so-filter-select so-filter-input-icon"
+                                >
+                                    <option value="">All Branches</option>
+                                    {warehouses.map(w => (
+                                        <option key={w.value} value={w.value}>{w.label}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }} />
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ flex: '1 1 250px' }}>
+                            <label className="so-filter-label">Active Branch</label>
+                            <div style={{
+                                height: '42px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                background: '#f8fafc',
+                                border: '1.5px solid #e2e8f0',
+                                borderRadius: '12px',
+                                padding: '0 12px',
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                color: '#475569'
+                            }}>
+                                <Shield size={14} style={{ color: '#604BE8' }} />
+                                {warehouse || 'Branch User'}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Reset Button */}
+                    <button
+                        onClick={() => {
+                            setSelectedDate(new Date().toISOString().split('T')[0]);
+                            if (isAdmin) setSelectedBranch('');
+                        }}
+                        className="so-clear-btn"
+                        style={{ height: '42px', width: 'auto', padding: '0 1.5rem', margin: 0 }}
+                    >
+                        Reset to Today
+                    </button>
                 </div>
 
-                {/* Branch Selection */}
-                {isAdmin ? (
-                    <div className="space-y-1.5">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            <Filter className="w-3.5 h-3.5 text-indigo-500" />
-                            Branch / Warehouse
-                        </label>
-                        <div className="relative">
-                            <select
-                                value={selectedBranch}
-                                onChange={(e) => setSelectedBranch(e.target.value)}
-                                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-bold text-slate-800 bg-white"
-                            >
-                                <option value="">All Branches</option>
-                                {warehouses.map(w => (
-                                    <option key={w.value} value={w.value}>{w.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-1.5">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            <Shield className="w-3.5 h-3.5 text-indigo-500" />
-                            Branch
-                        </label>
-                        <div className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl font-bold text-sm">
-                            {warehouse || 'Branch User'}
-                        </div>
-                    </div>
-                )}
-
-                {/* Reset Button */}
-                <button
-                    onClick={() => {
-                        setSelectedDate(new Date().toISOString().split('T')[0]);
-                        if (isAdmin) setSelectedBranch('');
-                    }}
-                    className="w-full py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
-                >
-                    Reset to Today
-                </button>
-            </div>
+                <main className="so-content" style={{ padding: '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
             {/* Error Message */}
             {error && (
@@ -634,6 +639,8 @@ function DailySalesReport() {
 
                 </div>
             )}
+            </main>
+        </div>
         </div>
     );
 }

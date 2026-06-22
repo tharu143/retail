@@ -558,3 +558,86 @@
   margin-bottom: 1.5rem;
 }
 
+/* Sidebar Nav transitions and collapsed state styles */
+.sidebar-nav {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.sidebar-nav.collapsed {
+  width: 80px !important;
+  min-width: 80px !important;
+  padding: 1.5rem 0.5rem !important;
+  align-items: center !important;
+}
+
+.sidebar-nav.collapsed .sidebar-header {
+  padding: 0.5rem 0 1.5rem !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+.sidebar-nav.collapsed .sidebar-brand-subtitle {
+  display: none !important;
+}
+
+.sidebar-nav.collapsed .sidebar-home-link span,
+.sidebar-nav.collapsed .sidebar-section-toggle span,
+.sidebar-nav.collapsed .sidebar-sub-item span,
+.sidebar-nav.collapsed .sidebar-arrow {
+  display: none !important;
+}
+
+.sidebar-nav.collapsed .sidebar-home-link,
+.sidebar-nav.collapsed .sidebar-section-toggle {
+  justify-content: center !important;
+  padding: 0.75rem !important;
+  width: 50px !important;
+  height: 42px !important;
+  margin: 0.15rem auto !important;
+  border-radius: 0.5rem !important;
+}
+
+.sidebar-nav.collapsed .sidebar-section-title {
+  justify-content: center !important;
+  gap: 0 !important;
+  width: auto !important;
+}
+
+.sidebar-nav.collapsed .sidebar-sub-links {
+  display: none !important;
+}
+
+/* Sidebar Footer Collapsed */
+.sidebar-nav.collapsed .sidebar-footer {
+  padding: 0.5rem 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.sidebar-nav.collapsed .sidebar-footer button {
+  width: 50px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  border-radius: 0.5rem !important;
+}
+
+.sidebar-nav.collapsed .sidebar-footer button span {
+  display: none !important;
+}
+
+/* Collapse toggle hover styles */
+.sidebar-collapse-toggle:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.sidebar-nav.dark .sidebar-collapse-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+}
+
+

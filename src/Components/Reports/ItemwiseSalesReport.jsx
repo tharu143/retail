@@ -192,6 +192,12 @@ function ItemWiseSalesReport() {
 
   return (
     <div className="so-page">
+      <style dangerouslySetInnerHTML={{__html: `
+        .so-filter-bar input.so-filter-input-icon,
+        .so-filter-bar select.so-filter-input-icon {
+          padding-left: 2.5rem !important;
+        }
+      `}} />
       
       {/* 1. PREMIUM HEADER */}
       <div className="so-page-header">
@@ -248,8 +254,8 @@ function ItemWiseSalesReport() {
                <Calendar size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: themeColor }} />
                <input 
                  type="date" 
-                 className="so-filter-input" 
-                 style={{ paddingLeft: '2.2rem', fontSize: '0.75rem' }}
+                 className="so-filter-input so-filter-input-icon" 
+                 style={{ fontSize: '0.75rem' }}
                  value={filters.from_date}
                  onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
                  onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
@@ -264,8 +270,8 @@ function ItemWiseSalesReport() {
                <Calendar size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: themeColor }} />
                <input 
                  type="date" 
-                 className="so-filter-input" 
-                 style={{ paddingLeft: '2.2rem', fontSize: '0.75rem' }}
+                 className="so-filter-input so-filter-input-icon" 
+                 style={{ fontSize: '0.75rem' }}
                  value={filters.to_date}
                  onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
                  onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
@@ -279,8 +285,8 @@ function ItemWiseSalesReport() {
             <div className="so-relative">
                <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                <select 
-                 className="so-filter-select" 
-                 style={{ paddingLeft: '2.2rem', fontSize: '0.75rem' }}
+                 className="so-filter-select so-filter-input-icon" 
+                 style={{ fontSize: '0.75rem' }}
                  value={filters.customer}
                  onChange={(e) => handleFilterUpdate('customer', e.target.value)}
                >
@@ -295,8 +301,8 @@ function ItemWiseSalesReport() {
             <div className="so-relative">
                <Package size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                <select 
-                 className="so-filter-select" 
-                 style={{ paddingLeft: '2.2rem', fontSize: '0.75rem' }}
+                 className="so-filter-select so-filter-input-icon" 
+                 style={{ fontSize: '0.75rem' }}
                  value={filters.item_code}
                  onChange={(e) => handleFilterUpdate('item_code', e.target.value)}
                >
@@ -312,9 +318,9 @@ function ItemWiseSalesReport() {
                <Tag size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                <input 
                  type="text" 
-                 className="so-filter-input" 
+                 className="so-filter-input so-filter-input-icon" 
                  placeholder="POS-INV-..."
-                 style={{ paddingLeft: '2.2rem', fontSize: '0.75rem' }}
+                 style={{ fontSize: '0.75rem' }}
                  value={filters.pos_invoice}
                  onChange={(e) => handleFilterUpdate('pos_invoice', e.target.value)}
                />

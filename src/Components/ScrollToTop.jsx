@@ -9,10 +9,33 @@ function ScrollToTop() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    const resetScroll = () => {
+      // Scroll window
+      window.scrollTo(0, 0);
+
+      // Scroll main content scrollable panel and layout containers
+      const scrollContainers = document.querySelectorAll(
+        '.right-content-panel, .so-page, .so-content, .dashboard-layout-wrapper'
+      );
+      scrollContainers.forEach(container => {
+        if (container) {
+          container.scrollTop = 0;
+        }
+      });
+    };
+
+    // Reset immediately
+    resetScroll();
+
+    // Reset again after a brief delay to override any browser default scroll-restoration
+    const timer = setTimeout(resetScroll, 50);
+
+    return () => clearTimeout(timer);
   }, [pathname]);
+
 
   return null;
 }
 
 export default ScrollToTop;
+

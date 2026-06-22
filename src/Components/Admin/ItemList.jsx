@@ -44,18 +44,18 @@ const T = {
 /* ========== GLOBAL STYLES ========== */
 const GlobalStyle = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'DM Sans', sans-serif; background: ${T.bg}; color: ${T.text}; }
+    @import url('https://fonts.cdnfonts.com/css/gilroy-bold');
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Gilroy', sans-serif; }
+    body { font-family: 'Gilroy', sans-serif; background: ${T.bg}; color: ${T.text}; }
     .il-page { min-height: 100vh; background: ${T.bg}; overflow-x: hidden; position: relative; }
     .il-card { background: ${T.surface}; border: 1px solid ${T.border}; border-radius: ${T.radiusMd}; box-shadow: ${T.shadow}; }
-    .il-input { width: 100%; padding: 9px 13px; background: ${T.surface}; border: 1.5px solid ${T.border}; border-radius: ${T.radius}; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; color: ${T.text}; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+    .il-input { width: 100%; padding: 9px 13px; background: ${T.surface}; border: 1.5px solid ${T.border}; border-radius: ${T.radius}; font-family: 'Gilroy', sans-serif !important; font-size: 14px !important; font-weight: 500; color: ${T.text}; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
     .il-input:focus { border-color: ${T.blue}; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
     .il-input::placeholder { color: ${T.textMuted}; font-weight: 400; }
     .il-input:disabled { background: ${T.bg}; color: ${T.textMuted}; cursor: not-allowed; }
-    .il-select { appearance: none; width: 100%; padding: 9px 34px 9px 13px; background: ${T.surface}; border: 1.5px solid ${T.border}; border-radius: ${T.radius}; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; color: ${T.text}; outline: none; cursor: pointer; transition: border-color 0.15s; }
+    .il-select { appearance: none; width: 100%; padding: 9px 34px 9px 13px; background: ${T.surface}; border: 1.5px solid ${T.border}; border-radius: ${T.radius}; font-family: 'Gilroy', sans-serif !important; font-size: 14px !important; font-weight: 500; color: ${T.text}; outline: none; cursor: pointer; transition: border-color 0.15s; }
     .il-select:focus { border-color: ${T.blue}; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-    .il-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border-radius: ${T.radius}; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: none; white-space: nowrap; }
+    .il-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border-radius: ${T.radius}; font-family: 'Gilroy', sans-serif !important; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: none; white-space: nowrap; }
     .il-btn-primary { background: ${T.blue}; color: white; }
     .il-btn-primary:hover { background: #1D4ED8; }
     .il-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -66,12 +66,10 @@ const GlobalStyle = () => (
     .il-btn-danger { background: ${T.redLight}; color: ${T.red}; border: 1.5px solid #FECACA; }
     .il-btn-danger:hover { background: #FEE2E2; }
     .il-table { width: 100%; border-collapse: collapse; }
-    .il-table thead tr { background: ${T.bg}; border-bottom: 2px solid ${T.border}; }
-    .il-table thead th { padding: 10px 18px; text-align: left; font-size: 11px; font-weight: 700; color: ${T.textMuted}; text-transform: uppercase; letter-spacing: 0.6px; white-space: nowrap; }
-    .il-table tbody tr { border-bottom: 1px solid ${T.borderLight}; cursor: pointer; transition: background 0.1s; }
-    .il-table tbody tr:last-child { border-bottom: none; }
-    .il-table tbody tr:hover { background: #F6F9FF; }
-    .il-table tbody td { padding: 13px 18px; font-size: 14px; vertical-align: middle; }
+    .il-table thead th { background: ${T.green} !important; color: white !important; font-size: 14px !important; font-weight: 700 !important; text-transform: capitalize !important; letter-spacing: 0.02em !important; padding: 1rem 1.25rem !important; border: none !important; border-bottom: 1px solid ${T.border} !important; text-align: left !important; }
+    .il-table tbody tr { cursor: pointer !important; transition: background 0.15s !important; background: white !important; }
+    .il-table tbody tr:hover { background: #f8fafc !important; }
+    .il-table tbody td { padding: 1rem 1.25rem !important; font-size: 14px !important; color: ${T.text} !important; border: none !important; border-bottom: 1px solid #f1f5f9 !important; vertical-align: middle; }
     .il-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 600; }
     .il-badge-green { background: ${T.greenLight}; color: ${T.green}; border: 1px solid #BBF7D0; }
     .il-badge-red { background: ${T.redLight}; color: ${T.red}; border: 1px solid #FECACA; }

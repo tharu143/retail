@@ -10,6 +10,7 @@ import {
   Monitor,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   TrendingUp,
   PackageCheck,
   Receipt,
@@ -137,6 +138,11 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
   const { user } = useSelector(state => state.user || {});
   
   const [sidebarTheme, setSidebarTheme] = useState(() => localStorage.getItem('sidebarTheme') || 'light');
+  const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+  }, [isCollapsed]);
 
   const getActiveItemFromPath = (pathname) => {
     if (pathname.includes('/supplier')) return 'Supplier';
@@ -221,10 +227,17 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
   }, [activeItem]);
 
   const toggleSection = (sectionTitle) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [sectionTitle]: !prev[sectionTitle]
-    }));
+    if (isCollapsed) {
+      setIsCollapsed(false);
+      setExpandedSections({
+        [sectionTitle]: true
+      });
+    } else {
+      setExpandedSections(prev => ({
+        ...prev,
+        [sectionTitle]: !prev[sectionTitle]
+      }));
+    }
   };
 
   const getBranchName = (wh) => {
@@ -233,16 +246,45 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
   };
 
   return (
-    <aside className={`sidebar-nav ${sidebarTheme === 'dark' ? 'dark' : ''}`}>
+    <aside className={`sidebar-nav ${sidebarTheme === 'dark' ? 'dark' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
-        <div className="sidebar-brand">
-          POS<span>8</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', width: '100%' }}>
+          {!isCollapsed ? (
+            <div className="sidebar-brand">
+              POS<span>8</span>
+            </div>
+          ) : (
+            <div className="sidebar-brand" style={{ fontSize: '1.5rem', paddingLeft: '4px' }}>
+              P<span>8</span>
+            </div>
+          )}
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="sidebar-collapse-toggle"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: sidebarTheme === 'dark' ? '#94a3b8' : '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px',
+              borderRadius: '4px',
+              transition: 'all 0.2s',
+            }}
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
         </div>
-        <div className="sidebar-brand-subtitle">
-          {typeof user === 'string' && user 
-            ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase()) 
-            : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋
-        </div>
+        {!isCollapsed && (
+          <div className="sidebar-brand-subtitle">
+            {typeof user === 'string' && user 
+              ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase()) 
+              : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋
+          </div>
+        )}
       </div>
 
       <div className="sidebar-menu">
@@ -250,6 +292,7 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
         <div 
           onClick={() => handleItemClick('home')} 
           className={`sidebar-home-link ${activeItem === 'home' ? 'active' : ''}`}
+          title={isCollapsed ? "Dashboard Home" : ""}
         >
           <Home size={18} />
           <span>Dashboard Home</span>
@@ -265,6 +308,7 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
               <div 
                 onClick={() => toggleSection(section.title)}
                 className={`sidebar-section-toggle ${isExpanded ? 'expanded' : ''}`}
+                title={isCollapsed ? section.title : ""}
               >
                 <div className="sidebar-section-title">
                   <SectionIcon size={18} />
@@ -276,7 +320,7 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
                 />
               </div>
 
-              {isExpanded && (
+              {isExpanded && !isCollapsed && (
                 <div className="sidebar-sub-links">
                   {section.items.map((itemName, itemIdx) => {
                     const itemMeta = routeMap[itemName];

@@ -149,6 +149,12 @@ function PurchaseReport() {
 
   return (
     <div className="so-page">
+      <style dangerouslySetInnerHTML={{__html: `
+        .so-filter-bar input.so-filter-input-icon,
+        .so-filter-bar select.so-filter-input-icon {
+          padding-left: 2.5rem !important;
+        }
+      `}} />
       
       {/* 1. PREMIUM HEADER */}
       <div className="so-page-header">
@@ -206,8 +212,7 @@ function PurchaseReport() {
                <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: themeColor }} />
                <input 
                  type="date" 
-                 className="so-filter-input" 
-                 style={{ paddingLeft: '2.5rem' }}
+                 className="so-filter-input so-filter-input-icon" 
                  value={filters.from_date}
                  onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
                  onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
@@ -222,8 +227,7 @@ function PurchaseReport() {
                <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: themeColor }} />
                <input 
                  type="date" 
-                 className="so-filter-input" 
-                 style={{ paddingLeft: '2.5rem' }}
+                 className="so-filter-input so-filter-input-icon" 
                  value={filters.to_date}
                  onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
                  onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
@@ -237,8 +241,7 @@ function PurchaseReport() {
             <div className="so-relative">
                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                <select 
-                 className="so-filter-select" 
-                 style={{ paddingLeft: '2.5rem' }}
+                 className="so-filter-select so-filter-input-icon" 
                  value={filters.supplier}
                  onChange={(e) => handleFilterUpdate('supplier', e.target.value)}
                >
