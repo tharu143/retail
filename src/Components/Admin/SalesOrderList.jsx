@@ -1402,37 +1402,41 @@ export default function SalesOrderList() {
       <div className="so-page">
         {/* 1. Header Section */}
         {!isModalOpen && (
-          <div className="so-page-header">
-            <div>
-              <h1 className="so-page-title">
-                <ShoppingCart size={20} /> Sales Orders
-              </h1>
-              <p className="so-page-subtitle">Manage and track all sales</p>
+          <div className="so-page-header-container">
+            <div className="so-page-tabs">
+              <span className="so-page-tab active">Sales Order</span>
+              <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>Reports</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <button
-                onClick={toggleTheme}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.4rem',
-                  padding: '0.45rem 0.9rem',
-                  background: '#f8fafc',
-                  border: `1.5px solid ${themeColor}`,
-                  borderRadius: '0.375rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: themeColor,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em'
-                }}
-              >
-                <Palette size={13} />
-                {legacySubTheme.toUpperCase()}
-              </button>
-              <button className="so-btn-primary" onClick={openCreateModal}>
-                <Plus size={16} /> Create Sales Order
-              </button>
+            <div className="so-page-header">
+              <div>
+                <h1 className="so-page-title">Sales Order Management</h1>
+                <p className="so-page-subtitle">Manage and track all sales</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button
+                  onClick={toggleTheme}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    padding: '0.45rem 0.9rem',
+                    background: '#f8fafc',
+                    border: `1.5px solid ${themeColor}`,
+                    borderRadius: '0.375rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: themeColor,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
+                  }}
+                >
+                  <Palette size={13} />
+                  {legacySubTheme.toUpperCase()}
+                </button>
+                <button className="so-btn-primary" onClick={openCreateModal}>
+                  <Plus size={16} /> Create Sales Order
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -13,31 +13,32 @@ import { useSelector } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import './SalesOrder.css';
 
 /* ========== DESIGN TOKENS ========== */
 const T = {
-  bg: '#F7F8FA',
+  bg: '#f8fafc',
   surface: '#FFFFFF',
-  border: '#E8ECF0',
-  borderLight: '#F1F4F8',
-  text: '#0D1117',
-  textSub: '#5A6478',
-  textMuted: '#9CA8BB',
-  blue: '#2563EB',
-  blueLight: '#EEF3FF',
-  blueMid: '#DBEAFE',
-  green: '#16A34A',
-  greenLight: '#F0FDF4',
-  amber: '#D97706',
-  amberLight: '#FFFBEB',
-  red: '#DC2626',
-  redLight: '#FEF2F2',
-  purple: '#7C3AED',
-  purpleLight: '#F5F3FF',
-  shadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-  shadowMd: '0 4px 12px rgba(0,0,0,0.06)',
-  radius: '10px',
-  radiusMd: '14px',
+  border: '#C3CDE4',
+  borderLight: '#f1f5f9',
+  text: '#302D3D',
+  textSub: '#969DB6',
+  textMuted: '#969DB6',
+  blue: '#604BE8',
+  blueLight: '#f0f2fe',
+  blueMid: '#C3CDE4',
+  green: '#06D6A0',
+  greenLight: '#e6fcf5',
+  amber: '#FF9F04',
+  amberLight: '#fffbeb',
+  red: '#FF595E',
+  redLight: '#fef2f2',
+  purple: '#604BE8',
+  purpleLight: '#f0f2fe',
+  shadow: '0 4px 20px rgba(195, 205, 228, 0.15)',
+  shadowMd: '0 10px 30px rgba(96, 75, 232, 0.15)',
+  radius: '12px',
+  radiusMd: '16px',
 };
 
 /* ========== GLOBAL STYLES ========== */
@@ -1122,30 +1123,29 @@ export default function ItemList() {
       <div className="il-page">
 
         {/* PAGE HEADER */}
-        <div style={{ background: T.surface, borderBottom: `1.5px solid ${T.border}`, padding: '0 28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 34, height: 34, background: T.blueLight, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Package size={17} color={T.blue} />
+        <div className="so-page-header-container">
+          <div className="so-page-tabs">
+            <span className="so-page-tab active">Item</span>
+            <span className="so-page-tab" onClick={() => navigate('/stockledgerreport')} style={{ cursor: 'pointer' }}>Reports</span>
+          </div>
+          <div className="so-page-header">
+            <div>
+              <h1 className="so-page-title">Item Management</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: T.textMuted }}>{total} records</div>
+                <div className="il-tabs">
+                  <button className={`il-tab ${viewType === 'list' ? 'active' : ''}`} onClick={() => setViewType('list')} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><List size={13} />List</button>
+                  <button className={`il-tab ${viewType === 'card' ? 'active' : ''}`} onClick={() => setViewType('card')} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><LayoutGrid size={13} />Grid</button>
                 </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: T.text, lineHeight: 1 }}>Item Master</div>
-                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{total} records</div>
-                </div>
-              </div>
-              <div className="il-tabs">
-                <button className={`il-tab ${viewType === 'list' ? 'active' : ''}`} onClick={() => setViewType('list')} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><List size={13} />List</button>
-                <button className={`il-tab ${viewType === 'card' ? 'active' : ''}`} onClick={() => setViewType('card')} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><LayoutGrid size={13} />Grid</button>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button className="il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}><Scale size={14} />Price Master</button>
               <button className="il-btn il-btn-secondary" onClick={fetchItems} title="Refresh"><RefreshCw size={14} /></button>
               <button
                 className="il-btn il-btn-secondary"
                 onClick={openSyncModal}
-                style={{ color: '#7C3AED', borderColor: '#DDD6FE', background: '#F5F3FF', gap: 6 }}
+                style={{ color: '#604BE8', borderColor: '#C3CDE4', background: '#f0f2fe', gap: 6 }}
               >
                 <Warehouse size={14} />Sync Items to Branch
               </button>

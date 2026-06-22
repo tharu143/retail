@@ -1291,7 +1291,7 @@ function PurchaseReceiptList() {
   };
 
   const renderConnectionsDashboard = () => {
-    if (!docName || !formData.docstatus) return null;
+    if (!docName || formData.docstatus === undefined || formData.docstatus === null) return null;
 
     const categories = {
       "Related": ["Purchase Order", "Purchase Invoice", "Quality Inspection"],
@@ -2335,10 +2335,19 @@ function PurchaseReceiptList() {
             </div>
           </div>
 
-          <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.25rem 2rem' }}>
-            <AttachmentSection doctype="Purchase Receipt" docname={docName} />
-            {renderConnectionsDashboard()}
-            {/* Basic Details Card */}
+          <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
+            <div className="flex flex-col lg:flex-row gap-6 relative items-start">
+              {/* STICKY SIDEBAR: Linked Documents */}
+              <div className="w-full lg:w-[260px] flex-shrink-0 animate-fadeIn">
+                <div className="sticky top-0 space-y-4">
+                  {renderConnectionsDashboard()}
+                  <AttachmentSection doctype="Purchase Receipt" docname={docName} compact={true} />
+                </div>
+              </div>
+
+              {/* MAIN CONTENT AREA */}
+              <div className="flex-1 min-w-0 flex flex-col gap-6">
+                {/* Basic Details Card */}
             <div className="so-card">
               <div className="so-card-header">
                 <p className="so-card-title">Basic Details</p>
@@ -2752,8 +2761,10 @@ function PurchaseReceiptList() {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </div> {/* Closes MAIN CONTENT AREA */}
+            </div> {/* Closes outer flex container */}
+            </div> {/* Closes so-modal-body */}
+          </div> {/* Closes so-page */}
         </div>
       </>
     );
@@ -2764,35 +2775,38 @@ function PurchaseReceiptList() {
     <>
       <div className="so-page">
         {/* Header */}
-        <div className="so-page-header">
-          <div className="so-page-left">
-            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Package size={20} style={{ color: themeColor }} />
-              Purchase Receipts
-            </h1>
-            <p className="so-page-subtitle">{total} total record(s) found</p>
+        <div className="so-page-header-container">
+          <div className="so-page-tabs">
+            <span className="so-page-tab active">Purchase Receipt</span>
+            <span className="so-page-tab" onClick={() => navigate('/purchasereport')} style={{ cursor: 'pointer' }}>Reports</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Theme Toggle */}
-            <button
-              onClick={() => setPrTheme(isGreen ? 'blue' : 'green')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.45rem 0.9rem', background: '#f8fafc',
-                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                cursor: 'pointer', transition: 'all 0.2s',
-                textTransform: 'uppercase', letterSpacing: '0.04em'
-              }}
-              title="Toggle Theme"
-            >
-              <Palette size={13} />
-              {prTheme.toUpperCase()}
-            </button>
+          <div className="so-page-header">
+            <div className="so-page-left">
+              <h1 className="so-page-title">Purchase Receipt Management</h1>
+              <p className="so-page-subtitle">{total} total record(s) found</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {/* Theme Toggle */}
+              <button
+                onClick={() => setPrTheme(isGreen ? 'blue' : 'green')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0.45rem 0.9rem', background: '#f8fafc',
+                  border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                  fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  textTransform: 'uppercase', letterSpacing: '0.04em'
+                }}
+                title="Toggle Theme"
+              >
+                <Palette size={13} />
+                {prTheme.toUpperCase()}
+              </button>
 
-            <button onClick={() => setSearchParams({ name: 'new' })} className="so-btn-primary">
-              <Plus size={16} /> Create Receipt
-            </button>
+              <button onClick={() => setSearchParams({ name: 'new' })} className="so-btn-primary">
+                <Plus size={16} /> Create Receipt
+              </button>
+            </div>
           </div>
         </div>
 
@@ -3030,9 +3044,7 @@ function PurchaseReceiptList() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                  {/* ACTIONS CONTAINER */}
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    {/* Always show DUPLICATE if docName exists */}
                     {docName && (
                       <button
                         onClick={handleDuplicate}
@@ -3043,10 +3055,8 @@ function PurchaseReceiptList() {
                       </button>
                     )}
 
-                    {/* DRAFT PHASE */}
                     {(formData.docstatus === 0 || formData.docstatus === undefined) && (
                       <>
-                        {/* 1. DELETE button (if allowed) */}
                         {docName && allowedActions.includes('delete') && (
                           <button
                             onClick={() => handleDocAction('delete')}
@@ -3057,7 +3067,6 @@ function PurchaseReceiptList() {
                           </button>
                         )}
 
-                        {/* 2. EDIT DRAFT button (only if in view mode) */}
                         {docName && isViewMode && (
                           <button
                             onClick={() => setIsViewMode(false)}
@@ -3068,9 +3077,7 @@ function PurchaseReceiptList() {
                           </button>
                         )}
 
-                        {/* 3. The SINGLE PRIMARY action button */}
                         {!docName ? (
-                          // New Document -> SAVE DRAFT
                           <button
                             onClick={() => handleDocAction('save')}
                             disabled={saving}
@@ -3080,7 +3087,6 @@ function PurchaseReceiptList() {
                             {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                           </button>
                         ) : (
-                          // Saved Document -> Show BOTH Update and Submit (if allowed)
                           <div style={{ display: 'flex', gap: '0.75rem' }}>
                             {!isViewMode && (
                               <button

@@ -780,20 +780,24 @@ function CustomerList() {
       {/* ────────────────────── LIST VIEW ────────────────────── */}
       {view === 'list' && (
         <div className="animate-in fade-in duration-500">
-          <div className="so-page-header">
-            <h1 className="so-page-title">
-              <Users size={20} /> Customers
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button className="so-btn-secondary" onClick={handleGlobalSearch} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
-                <Globe size={16} /> Global Search
-              </button>
-              <button className="so-btn-secondary" onClick={toggleTheme} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
-                <Palette size={16} /> {legacySubTheme.toUpperCase()}
-              </button>
-              <button className="so-btn-primary" onClick={() => navigate('/customer-edit/new')}>
-                <Plus size={16} /> Create Customer
-              </button>
+          <div className="so-page-header-container">
+            <div className="so-page-tabs">
+              <span className="so-page-tab active">Customer</span>
+              <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>Reports</span>
+            </div>
+            <div className="so-page-header">
+              <h1 className="so-page-title">Customer Management</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="so-btn-secondary" onClick={handleGlobalSearch} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
+                  <Globe size={16} /> Global Search
+                </button>
+                <button className="so-btn-secondary" onClick={toggleTheme} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
+                  <Palette size={16} /> {legacySubTheme.toUpperCase()}
+                </button>
+                <button className="so-btn-primary" onClick={() => navigate('/customer-edit/new')}>
+                  <Plus size={16} /> Create Customer
+                </button>
+              </div>
             </div>
           </div>
 

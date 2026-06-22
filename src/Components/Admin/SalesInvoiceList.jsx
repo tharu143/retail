@@ -1586,36 +1586,40 @@ const SalesInvoiceList = () => {
       {!showModal && (
         <div className="so-page">
         {/* Page Header */}
-        <div className="so-page-header">
-          <div>
-            <h1 className="so-page-title">
-              <FileText size={20} /> Sales Invoice
-            </h1>
-            <p className="so-page-subtitle">Manage and track all invoices</p>
+        <div className="so-page-header-container">
+          <div className="so-page-tabs">
+            <span className="so-page-tab active">Sales Invoice</span>
+            <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>Reports</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Theme Toggle */}
-            <button
-              onClick={() => setSiTheme(isGreen ? 'blue' : 'green')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.45rem 0.9rem', background: '#f8fafc',
-                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                cursor: 'pointer', transition: 'all 0.2s',
-                textTransform: 'uppercase', letterSpacing: '0.04em'
-              }}
-              title="Toggle Theme"
-            >
-              <Palette size={13} />
-              {siTheme.toUpperCase()}
-            </button>
-            <button
-              className="so-btn-primary"
-              onClick={() => navigate('/homepage')}
-            >
-              <Plus size={16} /> Create Invoice
-            </button>
+          <div className="so-page-header">
+            <div>
+              <h1 className="so-page-title">Sales Invoice Management</h1>
+              <p className="so-page-subtitle">Manage and track all invoices</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {/* Theme Toggle */}
+              <button
+                onClick={() => setSiTheme(isGreen ? 'blue' : 'green')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0.45rem 0.9rem', background: '#f8fafc',
+                  border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                  fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  textTransform: 'uppercase', letterSpacing: '0.04em'
+                }}
+                title="Toggle Theme"
+              >
+                <Palette size={13} />
+                {siTheme.toUpperCase()}
+              </button>
+              <button
+                className="so-btn-primary"
+                onClick={() => navigate('/homepage')}
+              >
+                <Plus size={16} /> Create Invoice
+              </button>
+            </div>
           </div>
         </div>
 

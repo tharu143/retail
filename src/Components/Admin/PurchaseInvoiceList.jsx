@@ -3123,35 +3123,38 @@ function PurchaseInvoiceList() {
     <>
       <div className="so-page">
         {/* Header */}
-        <div className="so-page-header" style={{ display: isModalOpen ? 'none' : 'flex' }}>
-          <div className="so-page-left">
-            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Package size={20} style={{ color: themeColor }} />
-              Purchase Invoices
-            </h1>
-            <p className="so-page-subtitle">{total} total record(s) found</p>
+        <div className="so-page-header-container" style={{ display: isModalOpen ? 'none' : 'block' }}>
+          <div className="so-page-tabs">
+            <span className="so-page-tab active">Purchase Invoice</span>
+            <span className="so-page-tab" onClick={() => navigate('/purchasereport')} style={{ cursor: 'pointer' }}>Reports</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Theme Toggle */}
-            <button
-              onClick={() => setPiTheme(isGreen ? 'blue' : 'green')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.45rem 0.9rem', background: '#f8fafc',
-                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                cursor: 'pointer', transition: 'all 0.2s',
-                textTransform: 'uppercase', letterSpacing: '0.04em'
-              }}
-              title="Toggle Theme"
-            >
-              <Palette size={13} />
-              {piTheme.toUpperCase()}
-            </button>
+          <div className="so-page-header">
+            <div className="so-page-left">
+              <h1 className="so-page-title">Purchase Invoice Management</h1>
+              <p className="so-page-subtitle">{total} total record(s) found</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {/* Theme Toggle */}
+              <button
+                onClick={() => setPiTheme(isGreen ? 'blue' : 'green')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0.45rem 0.9rem', background: '#f8fafc',
+                  border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                  fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  textTransform: 'uppercase', letterSpacing: '0.04em'
+                }}
+                title="Toggle Theme"
+              >
+                <Palette size={13} />
+                {piTheme.toUpperCase()}
+              </button>
 
-            <button onClick={() => setSearchParams({ name: 'new' })} className="so-btn-primary">
-              <Plus size={16} /> Create Invoice
-            </button>
+              <button onClick={() => setSearchParams({ name: 'new' })} className="so-btn-primary">
+                <Plus size={16} /> Create Invoice
+              </button>
+            </div>
           </div>
         </div>
 
