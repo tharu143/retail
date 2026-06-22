@@ -783,27 +783,33 @@ const DeliveryNoteList = () => {
     return (
         <>
             <div className="so-page">
-                <div className="so-page-header">
-                    <div>
-                        <h1 className="so-page-title"><Package size={20} /> Delivery Note</h1>
-                        <p className="so-page-subtitle">Manage and track all delivery notes</p>
+                <div className="so-page-header-container">
+                    <div className="so-page-tabs">
+                        <span className="so-page-tab active">Delivery Note</span>
+                        <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>Reports</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <button
-                            onClick={() => setDnTheme(isGreen ? 'blue' : 'green')}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                padding: '0.45rem 0.9rem', background: '#f8fafc',
-                                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                                cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase'
-                            }}
-                        >
-                            <Palette size={13} /> {dnTheme.toUpperCase()}
-                        </button>
-                        <button className="so-btn-primary" onClick={() => navigate('/deliverynote/create')}>
-                            <Plus size={16} /> New Delivery Note
-                        </button>
+                    <div className="so-page-header">
+                        <div>
+                            <h1 className="so-page-title">Delivery Note Management</h1>
+                            <p className="so-page-subtitle">Manage and track all delivery notes</p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <button
+                                onClick={() => setDnTheme(isGreen ? 'blue' : 'green')}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                    padding: '0.45rem 0.9rem', background: '#f8fafc',
+                                    border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                                    fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                                    cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase'
+                                }}
+                            >
+                                <Palette size={13} /> {dnTheme.toUpperCase()}
+                            </button>
+                            <button className="so-btn-primary" onClick={() => navigate('/deliverynote/create')}>
+                                <Plus size={16} /> New Delivery Note
+                            </button>
+                        </div>
                     </div>
                 </div>
 

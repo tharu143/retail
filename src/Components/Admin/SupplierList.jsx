@@ -369,34 +369,36 @@ export default function SupplierList() {
     <>
       <div className="so-page" style={{ height: 'auto', minHeight: '100vh', overflow: 'visible' }}>
         {/* Page Header */}
-        <div className="so-page-header">
-          <div>
-            <h1 className="so-page-title">
-              <Building2 size={20} /> Suppliers
-            </h1>
-            <p className="so-page-subtitle">Manage procurement and vendor records</p>
+        <div className="so-page-header-container">
+          <div className="so-page-tabs">
+            <span className="so-page-tab active">Supplier</span>
+            <span className="so-page-tab" onClick={() => navigate('/purchasereport')} style={{ cursor: 'pointer' }}>Reports</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button
-              onClick={toggleTheme}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.45rem 0.9rem', background: '#f8fafc',
-                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                cursor: 'pointer', transition: 'all 0.2s',
-                textTransform: 'uppercase', letterSpacing: '0.04em'
-              }}
-            >
-              <Palette size={13} />
-              {isGreen ? 'BLUE' : 'GREEN'}
-            </button>
+          <div className="so-page-header">
+            <div>
+              <h1 className="so-page-title">Supplier Management</h1>
+              <p className="so-page-subtitle">Manage procurement and vendor records</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                onClick={toggleTheme}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0.45rem 0.9rem', background: '#f8fafc',
+                  border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
+                  fontSize: '0.75rem', fontWeight: 700, color: themeColor,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  textTransform: 'uppercase', letterSpacing: '0.04em'
+                }}
+              >
+                <Palette size={13} />
+                {isGreen ? 'BLUE' : 'GREEN'}
+              </button>
 
-
-
-            <button className="so-btn-primary" onClick={() => navigate('/supplier-edit/new')}>
-              <Plus size={16} /> Create Supplier
-            </button>
+              <button className="so-btn-primary" onClick={() => navigate('/supplier-edit/new')}>
+                <Plus size={16} /> Create Supplier
+              </button>
+            </div>
           </div>
         </div>
 

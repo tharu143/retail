@@ -998,3 +998,330 @@ input[type=number].so-td-input::-webkit-outer-spin-button {
   border-top-right-radius: 6px;
   border-bottom-right-radius: 6px;
 }
+
+/* =========================================================================
+   PREMIUM CUSTOM DESIGN OVERRIDES (Matching Mockup exactly)
+   ========================================================================= */
+
+/* Core Variables Overrides */
+:root {
+  --so-primary: #604BE8 !important;
+  --so-primary-hover: #4B76E6 !important;
+  --so-primary-light: #f0f2fe !important;
+  --so-success: #06D6A0 !important;
+  --so-success-hover: #38DEB3 !important;
+  --so-border: #C3CDE4 !important;
+  --so-text-heading: #302D3D !important;
+  --so-text-body: #302D3D !important;
+  --so-text-muted: #969DB6 !important;
+  --so-danger: #FF595E !important;
+  --so-danger-hover: #FF7A7E !important;
+  --so-warning: #FF9F04 !important;
+  --so-warning-hover: #FFB236 !important;
+  --so-bg: #f8fafc !important;
+}
+
+/* Page Style Override */
+.so-page {
+  font-family: 'DM Sans', 'Outfit', sans-serif !important;
+  background: var(--so-bg) !important;
+  color: var(--so-text-body) !important;
+}
+
+/* Tabs and Headings Overrides */
+.so-page-header-container {
+  background: var(--so-white) !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.so-page-tabs {
+  display: flex !important;
+  gap: 0.5rem !important;
+  padding: 1.25rem 1.5rem 0.25rem 1.5rem !important;
+}
+
+.so-page-tab {
+  padding: 0.5rem 1.25rem !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: var(--so-text-muted) !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.so-page-tab.active {
+  background: var(--so-success) !important;
+  color: var(--so-white) !important;
+}
+
+.so-page-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0.75rem 1.5rem 1.25rem 1.5rem !important;
+  background: var(--so-white) !important;
+  border: none !important;
+}
+
+.so-page-title {
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  color: var(--so-text-heading) !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.so-page-title svg {
+  color: var(--so-primary) !important;
+}
+
+/* Filter bar controls */
+.so-filter-bar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 1.25rem !important;
+  padding: 1.25rem 1.5rem !important;
+  background: var(--so-white) !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  align-items: flex-end !important;
+}
+
+.so-filter-label {
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: var(--so-text-heading) !important;
+  text-transform: capitalize !important;
+  letter-spacing: 0.02em !important;
+}
+
+.so-filter-input,
+.so-filter-select,
+.so-filter-bar select,
+.so-filter-bar input {
+  height: 42px !important;
+  padding: 0.5rem 1rem !important;
+  border: 1px solid var(--so-border) !important;
+  border-radius: 12px !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  color: var(--so-text-heading) !important;
+  background: var(--so-white) !important;
+  outline: none !important;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box !important;
+}
+
+.so-filter-input[placeholder*="Search"],
+.so-filter-input[placeholder*="Name"],
+.so-filter-input[placeholder*="Filter"] {
+  padding-left: 2.5rem !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23604BE8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-search'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' x2='16.65' y1='21' y2='16.65'%3E%3C/line%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: 0.85rem center !important;
+}
+
+.so-filter-input:focus,
+.so-filter-select:focus,
+.so-filter-bar select:focus,
+.so-filter-bar input:focus {
+  border-color: var(--so-primary) !important;
+  box-shadow: 0 0 0 3px rgba(96, 75, 232, 0.12) !important;
+}
+
+.so-clear-btn {
+  padding: 0.5rem 1.5rem !important;
+  border: 1px solid var(--so-border) !important;
+  background: var(--so-white) !important;
+  border-radius: 12px !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: var(--so-text-muted) !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  height: 42px !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+.so-clear-btn:hover {
+  background: #f1f5f9 !important;
+  color: var(--so-text-heading) !important;
+}
+
+/* Buttons style overrides */
+.so-btn-primary {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  padding: 0.65rem 1.25rem !important;
+  background: var(--so-primary) !important;
+  color: white !important;
+  border: 1px solid var(--so-primary) !important;
+  border-radius: 12px !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 4px 12px rgba(96, 75, 232, 0.18) !important;
+  white-space: nowrap !important;
+}
+
+.so-btn-primary:hover:not(:disabled) {
+  background: var(--so-primary-hover) !important;
+  border-color: var(--so-primary-hover) !important;
+  box-shadow: 0 6px 16px rgba(96, 75, 232, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+.so-btn-secondary {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  padding: 0.65rem 1.25rem !important;
+  background: var(--so-white) !important;
+  color: var(--so-primary) !important;
+  border: 1px solid var(--so-border) !important;
+  border-radius: 12px !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.so-btn-secondary:hover:not(:disabled) {
+  border-color: var(--so-primary) !important;
+  background: var(--so-primary-light) !important;
+}
+
+/* Tables styling overrides */
+.so-table-card {
+  background: var(--so-white) !important;
+  border: 1px solid var(--so-border) !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 20px rgba(195, 205, 228, 0.15) !important;
+}
+
+.so-table thead th {
+  background: var(--so-success) !important;
+  color: var(--so-white) !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  text-transform: capitalize !important;
+  letter-spacing: 0.02em !important;
+  padding: 1rem 1.25rem !important;
+  border: none !important;
+  border-bottom: 1px solid var(--so-border) !important;
+  text-align: left !important;
+}
+
+.so-table tbody tr {
+  cursor: pointer !important;
+  transition: background 0.15s !important;
+  background: var(--so-white) !important;
+}
+
+.so-table tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+.so-table td {
+  padding: 1rem 1.25rem !important;
+  font-size: 0.85rem !important;
+  color: var(--so-text-heading) !important;
+  border: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+/* Row Action Buttons inside Cells styling overrides */
+.so-table td .so-btn-ghost {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  border: 1.5px solid var(--so-border) !important;
+  background: var(--so-white) !important;
+  color: var(--so-text-muted) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  margin: 0 0.15rem !important;
+}
+
+/* Actions cell default hover */
+.so-table td .so-btn-ghost:hover {
+  background: var(--so-primary-light) !important;
+  border-color: var(--so-primary) !important;
+  color: var(--so-primary) !important;
+}
+
+/* Edit icon hover state (Orange box in row 2 of mockup) */
+.so-table td .so-btn-ghost:has(svg.lucide-edit):hover,
+.so-table td .so-btn-ghost:has(svg.lucide-edit2):hover,
+.so-table td .so-btn-ghost[title*="Edit"]:hover,
+.so-table td .so-btn-ghost[style*="d97706"]:hover {
+  background: #fffbeb !important;
+  border-color: var(--so-warning) !important;
+  color: var(--so-warning) !important;
+}
+
+/* Delete icon hover state (Red box in row 1 of mockup) */
+.so-table td .so-btn-ghost:has(svg.lucide-trash2):hover,
+.so-table td .so-btn-ghost[title*="Delete"]:hover,
+.so-table td .so-btn-ghost[title*="Remove"]:hover,
+.so-table td .so-btn-ghost[style*="red"]:hover,
+.so-table td .so-btn-ghost[style*="ef4444"]:hover {
+  background: #fef2f2 !important;
+  border-color: var(--so-danger) !important;
+  color: var(--so-danger) !important;
+}
+
+/* Pagination Overrides */
+.so-pagination {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 1.25rem 2rem !important;
+  background: var(--so-white) !important;
+  border-top: 1px solid #f1f5f9 !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  color: var(--so-text-muted) !important;
+}
+
+.so-page-btn {
+  height: 36px !important;
+  padding: 0 1rem !important;
+  border: 1px solid var(--so-border) !important;
+  border-radius: 8px !important;
+  background: var(--so-white) !important;
+  color: var(--so-text-heading) !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.so-page-btn:hover:not(:disabled) {
+  border-color: var(--so-primary) !important;
+  background: var(--so-primary-light) !important;
+  color: var(--so-primary) !important;
+}
+
+.so-page-btn:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+.so-page-btn.active {
+  background: var(--so-primary) !important;
+  color: white !important;
+  border-color: var(--so-primary) !important;
+}
