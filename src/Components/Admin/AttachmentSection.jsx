@@ -5,8 +5,10 @@ import { Paperclip, Trash2, Download, Upload, Loader2, FileText, CheckCircle } f
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-export default function AttachmentSection({ doctype, docname, compact = false }) {
-  const { themeColor, themeLight } = useLegacyTheme();
+export default function AttachmentSection({ doctype, docname, compact = false, themeColor: customThemeColor, themeLight: customThemeLight }) {
+  const { themeColor: defaultThemeColor, themeLight: defaultThemeLight } = useLegacyTheme();
+  const themeColor = customThemeColor || defaultThemeColor;
+  const themeLight = customThemeLight || defaultThemeLight;
   const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);

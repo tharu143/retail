@@ -183,8 +183,7 @@ function InvoiceList() {
         const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoice.name}&scale=2&height=10`;
         const dirhamSvgHtml = `<svg viewBox="0 0 344.84 299.91" style="width: 12px; height: 10px; display: inline-block; vertical-align: middle; fill: currentColor; margin-right: 2px;"><path d="M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z"/></svg>`;
 
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
+        const htmlContent = `
             <html>
                 <head>
                     <title>Bill Print - ${invoice.name}</title>
@@ -259,7 +258,7 @@ function InvoiceList() {
                             <div class="info-row"><span>${p.mode_of_payment}:</span><span>${parseFloat(p.amount).toFixed(2)}</span></div>
                         `).join('')}
                     </div>
-
+ 
                     ${taxes.length > 0 ? `
                         <div class="divider"></div>
                         <span class="bold" style="font-size: 9px;">TAX BREAKDOWN:</span>
@@ -269,7 +268,7 @@ function InvoiceList() {
                             `).join('')}
                         </table>
                     ` : ''}
-
+ 
                     ${invoice.loyalty_points > 0 || invoice.redeem_loyalty_points > 0 ? `
                         <div class="loyalty-box center">
                             <div class="bold">LOYALTY PROGRAM</div>
@@ -277,7 +276,7 @@ function InvoiceList() {
                             <div class="info-row"><span>Points Redeemed:</span><span>${invoice.redeem_loyalty_points || 0}</span></div>
                         </div>
                     ` : ''}
-
+ 
                     <div class="divider"></div>
                     <div class="center" style="font-size: 10px; margin-top: 10px;">
                         <p class="bold">THANK YOU FOR YOUR BUSINESS!</p>
@@ -287,8 +286,10 @@ function InvoiceList() {
                     <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };</script>
                 </body>
             </html>
-        `);
-        printWindow.document.close();
+        `;
+        const printKey = 'print_' + (invoice.name || Date.now());
+        localStorage.setItem(printKey, htmlContent);
+        window.open('/print.html#' + printKey, '_blank', 'noopener');
     };
 
     return (

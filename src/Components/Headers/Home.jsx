@@ -121,7 +121,7 @@ function Home() {
     const loadSalesOrderIntoPOS = async (soName) => {
         try {
             Swal.fire({ title: 'Loading Sales Order...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            
+
             const soDoc = await frappeCall({
                 method: 'frappe.client.get',
                 args: { doctype: 'Sales Order', name: soName }
@@ -135,7 +135,7 @@ function Home() {
                     customer_name: soDoc.customer_name,
                     customer_group: soDoc.customer_group
                 });
-                
+
                 // Set Items
                 const mappedItems = soDoc.items.map(i => ({
                     id: i.item_code,
@@ -148,9 +148,9 @@ function Home() {
                     sales_order: soDoc.name,
                     so_detail: i.name
                 }));
-                
+
                 setBillItems(mappedItems);
-                
+
                 Swal.fire({
                     icon: 'success',
                     title: `Sales Order ${soName} Loaded`,
@@ -937,47 +937,47 @@ function Home() {
                         </div>
 
                         {/* Section: Color Palette (Available for all layouts) */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-                                <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Accent Color</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                    <button
-                                        onClick={() => setLegacySubTheme('green')}
-                                        style={{
-                                            padding: '12px',
-                                            borderRadius: '10px',
-                                            border: '2px solid',
-                                            borderColor: legacySubTheme === 'green' ? '#10b981' : '#e2e8f0',
-                                            background: legacySubTheme === 'green' ? '#ecfdf5' : '#ffffff',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px'
-                                        }}
-                                    >
-                                        <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10b981' }} />
-                                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e293b' }}>Green Theme</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setLegacySubTheme('blue')}
-                                        style={{
-                                            padding: '12px',
-                                            borderRadius: '10px',
-                                            border: '2px solid',
-                                            borderColor: legacySubTheme === 'blue' ? '#0ea5e9' : '#e2e8f0',
-                                            background: legacySubTheme === 'blue' ? '#f0f9ff' : '#ffffff',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px'
-                                        }}
-                                    >
-                                        <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#0ea5e9' }} />
-                                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e293b' }}>Blue Theme</span>
-                                    </button>
-                                </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+                            <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Accent Color</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <button
+                                    onClick={() => setLegacySubTheme('green')}
+                                    style={{
+                                        padding: '12px',
+                                        borderRadius: '10px',
+                                        border: '2px solid',
+                                        borderColor: legacySubTheme === 'green' ? '#10b981' : '#e2e8f0',
+                                        background: legacySubTheme === 'green' ? '#ecfdf5' : '#ffffff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10b981' }} />
+                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e293b' }}>Green Theme</span>
+                                </button>
+                                <button
+                                    onClick={() => setLegacySubTheme('blue')}
+                                    style={{
+                                        padding: '12px',
+                                        borderRadius: '10px',
+                                        border: '2px solid',
+                                        borderColor: legacySubTheme === 'blue' ? '#0ea5e9' : '#e2e8f0',
+                                        background: legacySubTheme === 'blue' ? '#f0f9ff' : '#ffffff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#0ea5e9' }} />
+                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e293b' }}>Blue Theme</span>
+                                </button>
                             </div>
+                        </div>
 
                         <div style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9', paddingTop: '16px', textAlign: 'center' }}>
                             <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.1em' }}>RETAIL POS v1.2</span>
@@ -1161,10 +1161,10 @@ function Home() {
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [createForm, setCreateForm] = useState({ 
-        name: '', phone: '', email: '', 
+    const [createForm, setCreateForm] = useState({
+        name: '', phone: '', email: '',
         address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
-        custom_trn: '' 
+        custom_trn: ''
     });
 
     const [hiddenShortcuts, setHiddenShortcuts] = useState(() => {
@@ -1517,16 +1517,16 @@ function Home() {
 
         const nameToUse = (typeof passedName === 'string' ? passedName : '');
         const searchVal = (nameToUse || (customerName && customerName !== 'Cash' ? customerName : '') || (customerMobile && customerMobile !== 'Cash' ? customerMobile : '') || "").trim();
-        
+
         // Check if searchVal is a number (mobile number)
         const isNumeric = /^\d+$/.test(searchVal.replace(/\+/g, '').replace(/\D/g, ''));
-        
+
         if (isNumeric) {
             phoneVal = searchVal
                 .replace(/^\+?(971|91)/, '')   // remove UAE (+971) or India (+91) prefix
                 .replace(/\D/g, '');            // remove any remaining non-digits
         } else {
-            nameVal = searchVal.replace(/[^a-zA-Z\s]/g, '');
+            nameVal = searchVal.replace(/[^a-zA-Z0-9\s.\-_/&()#]/g, '');
             // Also check if customerMobile is numeric to prefill phoneVal
             if (customerMobile && /^\d+$/.test(customerMobile.replace(/\+/g, '').replace(/\D/g, ''))) {
                 phoneVal = customerMobile
@@ -1681,9 +1681,9 @@ function Home() {
             }, 100);
         }
     }; const createCustomer = async () => {
-        const cleanedName = createForm.name.trim().replace(/[^a-zA-Z\s]/g, '');
+        const cleanedName = createForm.name.trim().replace(/[^a-zA-Z0-9\s.\-_/&()#]/g, '');
         if (!cleanedName) {
-            Swal.fire('Validation Error', 'Customer name is required and must contain only alphabets.', 'warning');
+            Swal.fire('Validation Error', 'Customer name is required and can contain letters, numbers, spaces, and basic symbols.', 'warning');
             return;
         }
 
@@ -1809,7 +1809,7 @@ function Home() {
                 method: 'POST',
                 body: formData,
             });
-  
+
             const result = await res.json();
             const inner = result.message || result;
 
@@ -3494,11 +3494,13 @@ function Home() {
                     title: isSuccess && String(data.message || data.name || "").includes("Duplicate") ? 'Already Sync Verified' : 'Invoice Created',
                     text: `Invoice: ${serverName} | Total: AED ${grandTotal.toFixed(2)}`,
                     showCancelButton: true,
-                    confirmButtonText: 'Print Receipt',
-                    cancelButtonText: 'Done',
-                    confirmButtonColor: '#16a34a'
+                    confirmButtonText: 'Done',
+                    cancelButtonText: 'Print Receipt',
+                    confirmButtonColor: '#16a34a',
+                    cancelButtonColor: '#3b82f6',
+                    focusConfirm: true
                 }).then((res) => {
-                    if (res.isConfirmed) {
+                    if (res.dismiss === 'cancel') {
                         let loyaltyData = null;
                         if (selectedCustomer?.loyalty_program && selectedCustomer?.customer_group !== 'Discount Customer') {
                             const sumOfEligible = billItems.reduce((sum, item) => sum + (item.custom_loyalty_eligible ? (parseFloat(item.price) * parseFloat(item.qty)) : 0), 0);
@@ -3528,6 +3530,9 @@ function Home() {
                             loyalty: loyaltyData
                         });
                     }
+                    setTimeout(() => {
+                        barcodeInputRef.current?.focus();
+                    }, 100);
                 });
 
                 // Save to synced history locally
@@ -3572,7 +3577,7 @@ function Home() {
 
                 // Force next fetch to refresh
                 localStorage.removeItem('last_item_sync_time');
-                finalizeOrder();
+                finalizeOrder(false);
             } else {
                 // Fallback to offline if server returns a handled error (like duplicate but not success)
                 throw new Error(data.message || "Server rejection. Saving to offline queue.");
@@ -3585,9 +3590,14 @@ function Home() {
                     icon: 'info',
                     title: 'Saved Offline',
                     text: `The server reported an error (${e.message || e}). We have saved this invoice locally. It will sync automatically when possible.`,
-                    confirmButtonColor: '#3b82f6'
+                    confirmButtonColor: '#3b82f6',
+                    focusConfirm: true
+                }).then(() => {
+                    setTimeout(() => {
+                        barcodeInputRef.current?.focus();
+                    }, 100);
                 });
-                finalizeOrder();
+                finalizeOrder(false);
             } else {
                 Swal.fire({
                     icon: 'error',
@@ -3719,7 +3729,7 @@ function Home() {
         }
     };
 
-    const finalizeOrder = () => {
+    const finalizeOrder = (shouldFocusBarcode = true) => {
         setBillItems([]);
         setSelectedBillIndex(-1);
         setDiscount({ type: 'amount', value: 0 });
@@ -3734,7 +3744,9 @@ function Home() {
         setSelectedPaymentMode(''); setTenderedAmount('');
         setPayments([]);
         setShowPaymentModal(false);
-        barcodeInputRef.current?.focus();
+        if (shouldFocusBarcode) {
+            barcodeInputRef.current?.focus();
+        }
 
         if (offlineIdType === 'continuous') {
             const nextCount = continuousOrderCount + 1;
@@ -3759,7 +3771,7 @@ function Home() {
             const searchTerm = /^\d{7,}$/.test(strippedNumber) ? strippedNumber : rawTerm;
 
             // 1. Check for exact match in suggestions
-            const exactMatch = searchResults.find(c => 
+            const exactMatch = searchResults.find(c =>
                 c.customer_name.toLowerCase() === rawTerm.toLowerCase() ||
                 (c.mobile_no && c.mobile_no.replace(/\D/g, '') === strippedNumber)
             );
@@ -4015,8 +4027,8 @@ function Home() {
     );
 
     const renderCreateModal = () => (
-        <div 
-            className="home-modal-overlay" 
+        <div
+            className="home-modal-overlay"
             onClick={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}
             style={{
                 position: 'fixed',
@@ -4029,19 +4041,19 @@ function Home() {
                 zIndex: 10000
             }}
         >
-            <div 
-                className="home-modal animate-in zoom-in-95 duration-200" 
-                onClick={e => e.stopPropagation()} 
-                style={{ 
+            <div
+                className="home-modal animate-in zoom-in-95 duration-200"
+                onClick={e => e.stopPropagation()}
+                style={{
                     width: '100%',
-                    maxWidth: '680px', 
-                    backgroundColor: '#ffffff', 
-                    borderRadius: '24px', 
-                    overflow: 'hidden', 
-                    boxShadow: '0 20px 40px -15px rgba(0,0,0,0.3)', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    margin: '15px' 
+                    maxWidth: '680px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '24px',
+                    overflow: 'hidden',
+                    boxShadow: '0 20px 40px -15px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    margin: '15px'
                 }}
             >
                 <div className="home-modal-header bg-slate-50 border-b border-slate-100 px-5 py-3.5 flex justify-between items-center">
@@ -4060,7 +4072,7 @@ function Home() {
                         <X size={16} />
                     </button>
                 </div>
-                
+
                 <div className="home-modal-body px-5 py-4 flex flex-col gap-3">
                     {/* Row 1: Name and Phone */}
                     <div style={{ display: 'flex', gap: '12px' }}>
@@ -4071,7 +4083,7 @@ function Home() {
                                 placeholder="Customer Name"
                                 value={createForm.name}
                                 onChange={e => {
-                                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                                    const val = e.target.value.replace(/[^a-zA-Z0-9\s.\-_/&()#]/g, '');
                                     setCreateForm({ ...createForm, name: val });
                                 }}
                                 className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
@@ -4131,16 +4143,16 @@ function Home() {
                         </div>
                         <div style={{ flex: 1 }}>
                             <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Email (optional)</label>
-                            <input 
-                                type="email" 
-                                placeholder="customer@example.com" 
-                                value={createForm.email} 
-                                onChange={e => setCreateForm({ ...createForm, email: e.target.value })} 
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400" 
+                            <input
+                                type="email"
+                                placeholder="customer@example.com"
+                                value={createForm.email}
+                                onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
+                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
                             />
                         </div>
                     </div>
-                    
+
                     {/* Row 3: Address Line 1 and Address Line 2 */}
                     <div style={{ display: 'flex', gap: '12px' }}>
                         <div style={{ flex: 1 }}>
@@ -4202,7 +4214,7 @@ function Home() {
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="px-5 py-4 bg-slate-50 flex gap-3 items-center border-t border-slate-100">
                     <button
                         className="flex-1 py-3 text-slate-500 bg-white border border-slate-200 rounded-xl font-bold uppercase tracking-wider hover:bg-slate-100 hover:text-slate-700 transition-all text-xs"
@@ -4624,8 +4636,7 @@ function Home() {
         const totalPaidAmount = (invoiceData.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
         const changeDue = Math.max(0, totalPaidAmount - (parseFloat(invoiceData.grand_total) || 0));
 
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
+        const htmlContent = `
         <html>
             <head>
                 <title>Receipt - ${invoiceData.name}</title>
@@ -4786,8 +4797,11 @@ function Home() {
                 </script>
             </body>
         </html>
-    `);
-        printWindow.document.close();
+        `;
+
+        const printKey = 'print_' + (invoiceData.name || Date.now());
+        localStorage.setItem(printKey, htmlContent);
+        window.open('/print.html#' + printKey, '_blank', 'noopener');
     };
 
     // Background sync logic
@@ -5108,6 +5122,9 @@ function Home() {
     // ---------- KEYBOARD SHORTCUTS ENGINE ----------
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // If SweetAlert is open, let it handle keyboard events natively
+            if (Swal.isVisible()) return;
+
             // 1. GLOBAL HID SCANNER LISTENER (Intercepts rapid digits)
             const now = Date.now();
             const isInputFocused = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
@@ -5565,10 +5582,10 @@ function Home() {
                 }}
                 style={{ opacity: 0.1, fontSize: '10px', marginTop: '20px', border: 'none', background: 'none' }}
             >
-                    Emergency Bypass
-                </button>
-            </div>
-        );
+                Emergency Bypass
+            </button>
+        </div>
+    );
 
     const renderShortcutsList = (isVertical) => {
         const getBadgeStyle = (baseColor) => ({
@@ -6060,7 +6077,7 @@ function Home() {
                     {s.label}
                 </span>
                 {s.action && (
-                    <span 
+                    <span
                         onClick={(e) => { e.stopPropagation(); toggleHideShortcut(s.key); }}
                         className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400 cursor-pointer flex items-center justify-center shrink-0"
                         title="Hide Shortcut"
@@ -6216,8 +6233,13 @@ function Home() {
                                     <span style={{ color: '#94a3b8', marginRight: '3px' }}>BR:</span>
                                     {getBranchName(warehouse)}
                                 </span>
-                                <span style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', marginTop: '1px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                                    {format(currentTime, 'MMM dd | HH:mm:ss')}
+                                <span style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', marginTop: '1px', color: '#64748b', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span>{format(currentTime, 'MMM dd')}</span>
+                                    <span style={{ color: '#94a3b8' }}>|</span>
+                                    <div className="digital-decoder-clock">
+                                        <div className="digital-decoder-bg">88:88:88</div>
+                                        <div className="digital-decoder-fg">{format(currentTime, 'HH:mm:ss')}</div>
+                                    </div>
                                 </span>
                             </div>
                             <div style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '50%', color: '#94a3b8', flexShrink: 0 }}>
@@ -6445,7 +6467,7 @@ function Home() {
                                     )}
 
                                     {/* Premium In Stock Only Toggle */}
-                                    <div 
+                                    <div
                                         onClick={() => setShowAvailableOnly(!showAvailableOnly)}
                                         className="flex items-center gap-2.5 cursor-pointer select-none bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition-all ml-auto"
                                         style={{ height: '36px' }}
@@ -6993,9 +7015,14 @@ function Home() {
                                     <span className="text-slate-400 mr-1">BRANCH:</span>
                                     <span className={isGreen ? 'text-emerald-600' : 'text-sky-600'}>{getBranchName(warehouse)}</span>
                                 </span>
-                                <span className="text-[9px] font-bold uppercase mt-1 tracking-tighter">
+                                <span className="text-[9px] font-bold uppercase mt-1 tracking-tighter flex items-center gap-1">
                                     <span className="text-slate-400 mr-1">DATE:</span>
-                                    <span className="text-slate-500">{format(currentTime, 'MMM dd, yyyy | HH:mm:ss')}</span>
+                                    <span className="text-slate-500">{format(currentTime, 'MMM dd, yyyy')}</span>
+                                    <span className="text-slate-300">|</span>
+                                    <div className="digital-decoder-clock">
+                                        <div className="digital-decoder-bg">88:88:88</div>
+                                        <div className="digital-decoder-fg">{format(currentTime, 'HH:mm:ss')}</div>
+                                    </div>
                                 </span>
                             </div>
                             <div className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400">

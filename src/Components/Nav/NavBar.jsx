@@ -384,7 +384,7 @@ function NavBar() {
   };
 
   const formattedDate = currentTime.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
-  const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
   // Do not render global NavBar when Legacy Theme is active (to avoid overflow/double header)
   if (theme === 'legacy' && location.pathname === '/homepage') return null;
@@ -593,9 +593,15 @@ function NavBar() {
 
           {/* Group 4: Cashier Profile & Logout Action */}
           <div className="d-flex align-items-center gap-3">
-            <div className="text-end">
+            <div className="text-end d-flex flex-column align-items-end">
               <span className="user-name">{user || "Guest"}</span>
-              <small className="nav-time">{formattedDate} | {formattedTime}</small>
+              <div className="d-flex align-items-center gap-2 mt-1">
+                <small className="text-muted" style={{ fontSize: '10px', fontWeight: 600 }}>{formattedDate}</small>
+                <div className="digital-decoder-clock">
+                  <div className="digital-decoder-bg">88:88:88</div>
+                  <div className="digital-decoder-fg">{formattedTime}</div>
+                </div>
+              </div>
             </div>
             <i className="bi bi-power cursor-pointer nav-icon logout fs-5" onClick={handleLogout} title="Logout"></i>
           </div>

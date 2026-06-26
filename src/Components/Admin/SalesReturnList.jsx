@@ -22,7 +22,10 @@ const renderCurrency = (currencyCode, size = 12, className = "") => {
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
 function SalesReturnList() {
-  const { themeColor, themeLight, toggleTheme, legacySubTheme } = useLegacyTheme();
+  const { toggleTheme, legacySubTheme } = useLegacyTheme();
+  const themeColor = '#b91c1c';
+  const themeLight = '#fef2f2';
+  const themeColorHover = '#7f1d1d';
   const warehouse = useSelector((state) => state.user.warehouse);
   const company = useSelector((state) => state.user.company);
   
@@ -537,10 +540,248 @@ function SalesReturnList() {
 
   /* ────────────────────── RENDER ────────────────────── */
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', position: 'relative', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{
+      '--so-primary': themeColor,
+      '--so-primary-hover': themeColorHover,
+      '--so-primary-light': themeLight,
+      '--po-primary': themeColor,
+      '--po-primary-hover': themeColorHover,
+      '--po-primary-light': themeLight,
+      minHeight: '100vh',
+      background: '#fafaf9',
+      position: 'relative',
+      fontFamily: "'DM Sans', sans-serif"
+    }}>
       <style>{`
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .split-panel { height: calc(100vh - 270px); overflow-y: auto; }
+        .split-panel { height: calc(100vh - 270px); overflow-y: auto; padding-right: 4px; }
+        
+        /* Premium Core variables */
+        .so-page,
+        .so-page * {
+          --so-primary: #be123c !important;
+          --so-primary-hover: #9f1239 !important;
+          --so-primary-light: #fff1f2 !important;
+          --po-primary: #be123c !important;
+          --po-primary-hover: #9f1239 !important;
+          --po-primary-light: #fff1f2 !important;
+          --so-success: #be123c !important;
+          --so-success-hover: #9f1239 !important;
+          --so-danger: #be123c !important;
+          --so-danger-hover: #9f1239 !important;
+          --so-warning: #d97706 !important;
+          --so-warning-hover: #b45309 !important;
+          --so-bg: #fafaf9 !important;
+        }
+
+        /* Modernized Elegant Header */
+        .so-page-header {
+          background: #ffffff !important;
+          color: #0f172a !important;
+          border-bottom: 1px solid #f1f5f9 !important;
+          border-left: 5px solid #be123c !important;
+          padding: 1.25rem 2rem !important;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02) !important;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .so-page-header .so-page-title {
+          color: #0f172a !important;
+          font-weight: 850 !important;
+          font-size: 1.35rem !important;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .so-page-header .so-page-title svg {
+          color: #be123c !important;
+        }
+        .so-page-header .so-page-subtitle {
+          color: #64748b !important;
+          font-weight: 700 !important;
+          font-size: 0.725rem !important;
+          letter-spacing: 0.08em !important;
+          text-transform: uppercase !important;
+          margin-top: 0.25rem;
+        }
+        .so-page-header .so-btn-secondary {
+          background: #ffffff !important;
+          color: #475569 !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+        .so-page-header .so-btn-secondary:hover {
+          background: #f8fafc !important;
+          border-color: #cbd5e1 !important;
+          color: #0f172a !important;
+        }
+
+        /* Modernized Inputs & Form Elements */
+        .so-input,
+        .so-select {
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 8px !important;
+          padding: 0.65rem 0.95rem !important;
+          font-size: 0.825rem !important;
+          font-weight: 600 !important;
+          color: #1e293b !important;
+          background: #ffffff !important;
+          transition: all 0.2s !important;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+        }
+        .so-input:focus,
+        .so-select:focus {
+          border-color: #be123c !important;
+          box-shadow: 0 0 0 3px rgba(190, 18, 60, 0.12) !important;
+          background: #ffffff !important;
+        }
+        .so-label {
+          font-size: 0.675rem !important;
+          font-weight: 800 !important;
+          color: #475569 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.05em !important;
+          margin-bottom: 0.25rem !important;
+        }
+
+        /* Table Card and General Card Styling */
+        .so-table-card,
+        .so-card {
+          border-radius: 12px !important;
+          border: 1px solid #e2e8f0 !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+          background: #ffffff !important;
+          overflow: hidden !important;
+          transition: all 0.2s !important;
+        }
+        .so-card:hover {
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05) !important;
+        }
+        .so-card-header {
+          border-bottom: 1px solid #f1f5f9 !important;
+          padding: 0.85rem 1.25rem !important;
+          background: #ffffff !important;
+        }
+        .so-card-title {
+          font-size: 0.75rem !important;
+          font-weight: 800 !important;
+          color: #475569 !important;
+          letter-spacing: 0.08em !important;
+        }
+
+        /* Custom Return Qty Input Table Styling */
+        .so-td-input {
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 6px !important;
+          background: #ffffff !important;
+          font-weight: 700 !important;
+          color: #0f172a !important;
+          transition: all 0.15s !important;
+        }
+        .so-td-input:hover:not(:disabled) {
+          border-color: #cbd5e1 !important;
+          background: #f8fafc !important;
+        }
+        .so-td-input:focus:not(:disabled) {
+          border-color: #be123c !important;
+          background: #ffffff !important;
+          box-shadow: 0 0 0 2px rgba(190, 18, 60, 0.1) !important;
+        }
+        .so-td-input:disabled {
+          background: #f1f5f9 !important;
+          border-color: #e2e8f0 !important;
+          color: #94a3b8 !important;
+        }
+
+        /* Table Header Customization */
+        .so-table thead th {
+          background: #fff1f2 !important;
+          color: #9f1239 !important;
+          font-weight: 800 !important;
+          font-size: 0.725rem !important;
+          letter-spacing: 0.05em !important;
+          padding: 0.95rem 1.25rem !important;
+          border: none !important;
+          border-bottom: 2px solid #ffe4e6 !important;
+          text-transform: uppercase !important;
+        }
+        .so-table tbody td {
+          padding: 0.95rem 1.25rem !important;
+          font-size: 0.825rem !important;
+          border: none !important;
+          border-bottom: 1px solid #f1f5f9 !important;
+          color: #334155 !important;
+        }
+        .so-table tbody tr {
+          transition: all 0.15s !important;
+        }
+        .so-table tbody tr:hover {
+          background: #fff8f8 !important;
+        }
+
+        /* Pill status badges */
+        .so-badge {
+          display: inline-flex !important;
+          align-items: center !important;
+          padding: 0.25rem 0.75rem !important;
+          border-radius: 9999px !important;
+          font-size: 0.675rem !important;
+          font-weight: 800 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.04em !important;
+        }
+        .so-badge-submitted {
+          background: #ffe4e6 !important;
+          color: #9f1239 !important;
+          border: 1px solid #fca5a5 !important;
+        }
+        .so-badge-draft {
+          background: #fef3c7 !important;
+          color: #b45309 !important;
+          border: 1px solid #fde68a !important;
+        }
+
+        /* Left Side Matching Invoices Cards */
+        .split-panel .so-card {
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 10px !important;
+        }
+        .split-panel .so-card:hover {
+          border-color: #be123c !important;
+          transform: translateY(-1px);
+        }
+
+        /* Checkbox color overrides */
+        input[type="checkbox"] {
+          accent-color: #be123c !important;
+          cursor: pointer !important;
+        }
+
+        /* Detail View Summary Bar */
+        .so-summary-bar {
+          background: #ffffff !important;
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 12px !important;
+          padding: 1.25rem 2rem !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+        }
+        .so-summary-label {
+          font-size: 0.725rem !important;
+          font-weight: 700 !important;
+          color: #64748b !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.05em !important;
+        }
+        .so-summary-value {
+          font-size: 1.1rem !important;
+          font-weight: 800 !important;
+          color: #1e293b !important;
+        }
+        .so-summary-value.grand {
+          color: #be123c !important;
+          font-size: 1.35rem !important;
+          font-weight: 900 !important;
+        }
       `}</style>
 
       {/* ────────────────────── LIST VIEW ────────────────────── */}
@@ -827,7 +1068,7 @@ function SalesReturnList() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-6">
-                    <AttachmentSection doctype="Sales Invoice" docname={null} />
+                    <AttachmentSection doctype="Sales Invoice" docname={null} themeColor={themeColor} themeLight={themeLight} />
                     {/* Invoice Meta details */}
                     <div className="so-card">
                       <div className="so-card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem' }}>
@@ -869,7 +1110,7 @@ function SalesReturnList() {
                                   <td style={{ textAlign: 'center' }}>
                                     <input
                                       type="checkbox"
-                                      className="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                      className="w-4 h-4 rounded text-red-700 border-gray-300 focus:ring-red-600"
                                       checked={sel.checked}
                                       onChange={e => handleItemSelectToggle(item.name, e.target.checked)}
                                       disabled={item.returnable_qty <= 0}
@@ -879,7 +1120,7 @@ function SalesReturnList() {
                                     <p className="font-bold text-xs text-slate-800" style={{ margin: 0 }}>{item.item_name}</p>
                                     <div className="flex items-center gap-2 mt-1">
                                       <span className="text-[10px] font-bold text-slate-400 fontFamily-monospace">{item.item_code}</span>
-                                      <span className="text-[9px] bg-emerald-50 text-emerald-600 border border-emerald-100 px-1 rounded font-bold uppercase tracking-tight flex items-center gap-0.5">
+                                      <span className="text-[9px] bg-red-50 text-red-700 border border-red-100 px-1 rounded font-bold uppercase tracking-tight flex items-center gap-0.5">
                                         Stock +
                                       </span>
                                     </div>
@@ -1009,12 +1250,12 @@ function SalesReturnList() {
                         </div>
                       </div>
 
-                      <div className="so-card" style={{ background: '#0f172a', color: '#ffffff', borderColor: '#1e293b' }}>
-                        <div className="so-card-header" style={{ borderColor: '#1e293b' }}>
-                          <h5 className="so-card-title" style={{ color: '#94a3b8' }}>Credit Impact Summary</h5>
+                      <div className="so-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#ffffff', borderColor: '#334155', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)' }}>
+                        <div className="so-card-header" style={{ borderColor: '#334155' }}>
+                          <h5 className="so-card-title" style={{ color: '#f43f5e', fontWeight: 900 }}>Credit Impact Summary</h5>
                         </div>
                         <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                          <div className="flex justify-between items-center text-xs font-bold text-slate-400">
+                          <div className="flex justify-between items-center text-xs font-bold" style={{ color: '#fda4af' }}>
                             <span>Subtotal Impact</span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                               <span>-</span>
@@ -1022,7 +1263,7 @@ function SalesReturnList() {
                               <span>{Math.abs(totals.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </span>
                           </div>
-                          <div className="flex justify-between items-center text-xs font-bold text-slate-400">
+                          <div className="flex justify-between items-center text-xs font-bold" style={{ color: '#fda4af' }}>
                             <span>Tax Reversal</span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                               <span>-</span>
@@ -1030,9 +1271,9 @@ function SalesReturnList() {
                               <span>{Math.abs(totals.total_taxes_and_charges || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </span>
                           </div>
-                          <div className="h-px bg-slate-800 my-1" />
+                          <div style={{ background: 'rgba(244, 63, 94, 0.2)', height: '1px', margin: '4px 0' }} />
                           <div className="flex justify-between items-end">
-                            <span className="text-xs font-black text-slate-300">Total Credit Value</span>
+                            <span className="text-xs font-black" style={{ color: '#ffe4e6' }}>Total Credit Value</span>
                             <span className="text-lg font-black text-white" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                               <span>-</span>
                               {renderCurrency(selectedInvoice.currency, 14)}
@@ -1097,10 +1338,10 @@ function SalesReturnList() {
 
               {selectedReturnDoc.docstatus === 1 && (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.10)', padding: '0.45rem 1rem', borderRadius: '0.375rem', border: '1px solid #10b98140' }}>
-                    <CheckCircle2 size={14} style={{ color: '#10b981' }} />
-                    <span style={{ fontWeight: 800, fontSize: '11px', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>LEDGER SUBMITTED</span>
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(185, 28, 28, 0.10)', padding: '0.45rem 1rem', borderRadius: '0.375rem', border: '1px solid rgba(185, 28, 28, 0.3)' }}>
+                                    <CheckCircle2 size={14} style={{ color: '#b91c1c' }} />
+                                    <span style={{ fontWeight: 800, fontSize: '11px', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>LEDGER SUBMITTED</span>
+                                  </div>
                   <button
                     onClick={() => handleDocumentAction('cancel')}
                     disabled={saving}
@@ -1125,7 +1366,7 @@ function SalesReturnList() {
           {/* 2. Main Page Layout */}
           <div className="so-layout">
             <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
-              <AttachmentSection doctype="Sales Invoice" docname={selectedReturnDoc?.name} />
+              <AttachmentSection doctype="Sales Invoice" docname={selectedReturnDoc?.name} themeColor={themeColor} themeLight={themeLight} />
               {/* Summary Bar for Stats */}
               <div className="so-summary-bar">
                 <div className="so-summary-item">
@@ -1146,8 +1387,9 @@ function SalesReturnList() {
                 <div className="so-summary-item">
                   <span className="so-summary-label">Lifecycle Status</span>
                   <span className="so-badge" style={{
-                    background: selectedReturnDoc.docstatus === 1 ? '#dcfce7' : (selectedReturnDoc.docstatus === 2 ? '#fee2e2' : '#fef9c3'),
-                    color: selectedReturnDoc.docstatus === 1 ? '#156534' : (selectedReturnDoc.docstatus === 2 ? '#b91c1c' : '#854d0e'),
+                    background: selectedReturnDoc.docstatus === 1 ? themeColor : (selectedReturnDoc.docstatus === 2 ? '#7f1d1d' : '#ffffff'),
+                    color: selectedReturnDoc.docstatus === 1 ? '#ffffff' : (selectedReturnDoc.docstatus === 2 ? '#ffffff' : themeColor),
+                    border: selectedReturnDoc.docstatus === 0 ? `1px solid ${themeColor}` : undefined,
                     fontSize: '0.65rem',
                     fontWeight: 800,
                     padding: '0.25rem 0.6rem',

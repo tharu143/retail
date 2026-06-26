@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --login-primary: #0ea5e9;
   --login-primary-hover: #0284c7;
   --login-bg: #f8fafc;
@@ -106,8 +106,10 @@
   background: #f8fafc;
   border: 2px solid transparent;
   border-radius: 1rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: 0.03em;
   color: var(--login-text);
   transition: all 0.2s;
   outline: none;

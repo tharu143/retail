@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
 /* NavBar.css */
 .nav-div {
     background: rgba(255, 255, 255, 0.95);
@@ -112,10 +114,34 @@
     display: block;
 }
 
-.nav-time {
-    color: #64748b;
-    font-size: 0.7rem;
-    display: block;
+.digital-decoder-clock {
+    position: relative !important;
+    font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+    font-size: 0.85rem !important;
+    background: #090d16 !important; /* very dark slot background */
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    border: 1px solid #1e293b !important;
+    display: inline-block !important;
+    letter-spacing: 0.05em !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+    overflow: hidden !important;
+}
+
+.digital-decoder-bg {
+    color: rgba(255, 59, 48, 0.09) !important; /* faint segment background "88:88:88" */
+    user-select: none !important;
+}
+
+.digital-decoder-fg {
+    position: absolute !important;
+    top: 3px !important;
+    left: 8px !important;
+    color: #ff3b30 !important; /* glowing neon lift red-orange */
+    text-shadow: 0 0 3px rgba(255, 59, 48, 0.6), 0 0 6px rgba(255, 59, 48, 0.4) !important;
+    pointer-events: none !important;
 }
 
 @keyframes spin {
@@ -336,9 +362,12 @@
 }
 
 @keyframes pulse-subtle {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.08);
         color: #0ea5e9;

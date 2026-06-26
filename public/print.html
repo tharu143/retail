@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Receipt Print</title>
+</head>
+<body>
+    <script>
+        const printKey = window.location.hash.substring(1);
+        if (printKey) {
+            const printHtml = localStorage.getItem(printKey);
+            if (printHtml) {
+                // Remove from localStorage to clean up
+                localStorage.removeItem(printKey);
+                // Write the receipt HTML, which includes its own print/close script
+                document.open();
+                document.write(printHtml);
+                document.close();
+            } else {
+                document.body.innerHTML = '<h2>Receipt content not found.</h2>';
+                setTimeout(() => { window.close(); }, 2000);
+            }
+        } else {
+            document.body.innerHTML = '<h2>No print key specified.</h2>';
+            setTimeout(() => { window.close(); }, 2000);
+        }
+    </script>
+</body>
+</html>

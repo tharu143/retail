@@ -985,12 +985,7 @@ const SalesInvoiceList = () => {
     const totalPaidAmount = (invoiceData.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     const changeDue = Math.max(0, totalPaidAmount - (parseFloat(invoiceData.grand_total) || 0));
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Please allow popups to print receipts.");
-      return;
-    }
-    printWindow.document.write(`
+    const htmlContent = `
     <html>
         <head>
             <title>Receipt - ${invoiceData.name}</title>
@@ -1008,8 +1003,8 @@ const SalesInvoiceList = () => {
                 .info { margin: 10px 0; font-size: 11px; }
                 .info-row { display: flex; justify-content: space-between; }
                 .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; font-size: 11px; }
-                .items-table td { padding: 4px 0; vertical-align: top; font-size: 11px; }
+                .items-table th { text-align: left; border-bottom: 1px dashed #000; padding: 4px 0; font-size: 9px; }
+                .items-table td { padding: 4px 0; vertical-align: top; font-size: 9px; }
                 .text-right { text-align: right; }
                 .totals { margin: 8px 0; }
                 .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 12px; }
@@ -1132,8 +1127,10 @@ const SalesInvoiceList = () => {
             </script>
         </body>
     </html>
-    `);
-    printWindow.document.close();
+    `;
+    const printKey = 'print_' + (invoiceData.name || Date.now());
+    localStorage.setItem(printKey, htmlContent);
+    window.open('/print.html#' + printKey, '_blank', 'noopener');
   };
 
   const loadForReturn = async (invoiceName) => {
