@@ -12,6 +12,8 @@ import { motion } from 'framer-motion';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './CustomerDetails.css';
 import AttachmentSection from './AttachmentSection';
+import LoyaltyCardModal from './LoyaltyCardModal';
+import { CreditCard } from 'lucide-react';
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
 const countryPhoneCodes = {
@@ -317,6 +319,8 @@ const CustomerDetails = () => {
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'loyalty'
   const [loyaltyLedger, setLoyaltyLedger] = useState([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
   const getInputStyle = (fieldId) => ({
@@ -588,6 +592,13 @@ const CustomerDetails = () => {
                   className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-all active:scale-95 duration-150"
                 >
                   <FileText size={11} className="text-slate-400" /> Ledger
+                </button>
+                <button
+                  onClick={() => setShowLoyaltyModal(true)}
+                  disabled={!customer?.loyalty_program}
+                  className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-all active:scale-95 duration-150 ${!customer?.loyalty_program ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-700'}`}
+                >
+                  <CreditCard size={11} className={!customer?.loyalty_program ? "text-slate-300" : "text-slate-500"} /> Print Card
                 </button>
                 <button
                   onClick={() => navigate(`/customer-edit/${id}`)}
@@ -1535,6 +1546,14 @@ const CustomerDetails = () => {
           </div>
         )}
       </div>
+
+      {showLoyaltyModal && (
+        <LoyaltyCardModal 
+          customer={customer} 
+          onClose={() => setShowLoyaltyModal(false)} 
+          themeColor={themeColor} 
+        />
+      )}
     </div>
   );
 };

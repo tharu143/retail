@@ -978,6 +978,18 @@ function Home() {
                                 </button>
                             </div>
                         </div>
+                        <div style={{ marginTop: '16px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+                            <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>UI Settings</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', cursor: 'pointer' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={hideAllShortcuts} 
+                                    onChange={toggleHideAllShortcuts} 
+                                    style={{ width: '16px', height: '16px', accentColor: '#10b981' }} 
+                                />
+                                <span style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b' }}>Maximize POS (Hide Sidebars)</span>
+                            </label>
+                        </div>
 
                         <div style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9', paddingTop: '16px', textAlign: 'center' }}>
                             <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.1em' }}>RETAIL POS v1.2</span>
@@ -1000,9 +1012,10 @@ function Home() {
         // For non-admin users: check the backend for the last opening entry status
         const checkOpeningEntry = async () => {
             try {
-                const resp = await frappeCall('custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries', {
-                    method: 'GET',
-                    params: { warehouse }
+                const resp = await frappeCall({
+                    method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_opening_entries',
+                    type: 'GET',
+                    args: { warehouse }
                 });
                 const data = resp?.message || resp;
                 const entries = data?.data || [];
@@ -1175,6 +1188,15 @@ function Home() {
         }
     });
 
+    const [hideAllShortcuts, setHideAllShortcuts] = useState(() => localStorage.getItem('pos_hide_all_shortcuts') === 'true');
+    const toggleHideAllShortcuts = () => {
+        setHideAllShortcuts(prev => {
+            const next = !prev;
+            localStorage.setItem('pos_hide_all_shortcuts', next);
+            return next;
+        });
+    };
+
     const toggleHideShortcut = (key) => {
         setHiddenShortcuts(prev => {
             const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
@@ -1239,6 +1261,10 @@ function Home() {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
     const [tenderedAmount, setTenderedAmount] = useState('');
+    const [deliveryFee, setDeliveryFee] = useState('');
+    const [showDeliveryFee, setShowDeliveryFee] = useState(false);
+    const [instapayServiceFee, setInstapayServiceFee] = useState('');
+    const [instapayTaxInclusive, setInstapayTaxInclusive] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
     const [payments, setPayments] = useState([]); // Array of { mode_of_payment, amount }
 
@@ -1310,7 +1336,7 @@ function Home() {
 
     const taxAmount = useMemo(() => flt(netTotal * (taxRate / 100)), [netTotal, taxRate]);
 
-    const grandTotal = useMemo(() => round2(netTotal + taxAmount), [netTotal, taxAmount]);
+    const grandTotal = useMemo(() => round2(netTotal + taxAmount + (parseFloat(deliveryFee) || 0) + (selectedPaymentMode === 'InstaPay' ? (parseFloat(instapayServiceFee) || 0) : 0)), [netTotal, taxAmount, deliveryFee, instapayServiceFee, selectedPaymentMode]);
 
     const displaySubtotal = round2(subtotal);
     const displayDiscount = round2(discountAmount);
@@ -3148,11 +3174,32 @@ function Home() {
     };
 
     // Checkout
-    const handleCheckout = () => {
+    // Checkout
+    const handleCheckout = async () => {
         if (grandTotal <= 0) {
             Swal.fire('Info', 'No items in bill', 'info');
             return;
         }
+
+        // Validate employee checkin status
+        const employee = user?.employee_name || user?.name;
+        if (employee) {
+            try {
+                Swal.fire({ title: 'Checking status...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const res = await axios.get(`${API_BASE}.get_employee_status`, { params: { employee } });
+                Swal.close();
+                if (res.data?.message?.status === 'success') {
+                    if (res.data.message.data.current_status !== 'IN') {
+                        Swal.fire('Access Denied', 'You must check in through the Administrator Dashboard before you can process Sales Invoices.', 'error');
+                        return;
+                    }
+                }
+            } catch (err) {
+                Swal.close();
+                console.error("Checkin status error", err);
+            }
+        }
+
         // POS opening entry shift check is bypassed
         setShowPaymentModal(true);
     };
@@ -3204,6 +3251,9 @@ function Home() {
             company,
             pos_profile: posProfile,
             warehouse: warehouse,
+            delivery_fee: parseFloat(deliveryFee) || 0,
+            instapay_service_fee: parseFloat(instapayServiceFee) || 0,
+            instapay_tax_inclusive: instapayTaxInclusive ? 1 : 0,
             pos_opening_entry: posOpeningEntry,
             payments: [{
                 mode_of_payment: 'Cash',
@@ -3346,6 +3396,7 @@ function Home() {
 
     // ---------- COMPLETE PAYMENT ----------
     const completePayment = async (directMode = null) => {
+        if (typeof directMode !== 'string') directMode = null;
         if (paymentLoading) return;
         let finalPayments = [];
 
@@ -3457,6 +3508,9 @@ function Home() {
             company,
             pos_profile: posProfile,
             warehouse: warehouse,
+            delivery_fee: parseFloat(deliveryFee) || 0,
+            instapay_service_fee: parseFloat(instapayServiceFee) || 0,
+            instapay_tax_inclusive: instapayTaxInclusive ? 1 : 0,
             pos_opening_entry: posOpeningEntry,
             payments: finalPayments.map(p => ({
                 mode_of_payment: p.mode_of_payment,
@@ -4592,6 +4646,61 @@ function Home() {
                             )}
                         </div>
                     )}
+                    
+                    {/* CUSTOM FEES SECTION */}
+                    <div className="mt-4 flex flex-col gap-2">
+                        {selectedPaymentMode === 'InstaPay' && (
+                            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 flex flex-col gap-2">
+                                <span className="text-[10px] font-black text-indigo-800 uppercase tracking-widest">InstaPay Service Fee</span>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center bg-white border border-indigo-200 rounded-lg overflow-hidden w-1/2">
+                                        <span className="pl-3 pr-2 text-xs font-black text-slate-400"><DirhamIcon size={12} /></span>
+                                        <input
+                                            type="number"
+                                            value={instapayServiceFee}
+                                            onChange={e => setInstapayServiceFee(e.target.value)}
+                                            placeholder="Fee"
+                                            className="w-full py-2 pr-3 bg-transparent text-sm font-bold outline-none"
+                                        />
+                                    </div>
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={instapayTaxInclusive} 
+                                            onChange={e => setInstapayTaxInclusive(e.target.checked)} 
+                                            className="accent-indigo-600 w-4 h-4"
+                                        />
+                                        Tax Inclusive
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col gap-2">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-black text-slate-600 uppercase tracking-widest">
+                                <input 
+                                    type="checkbox" 
+                                    checked={showDeliveryFee} 
+                                    onChange={e => setShowDeliveryFee(e.target.checked)} 
+                                    className="accent-slate-600 w-4 h-4"
+                                />
+                                Add Delivery Fee
+                            </label>
+                            {showDeliveryFee && (
+                                <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden mt-1">
+                                    <span className="pl-3 pr-2 text-xs font-black text-slate-400"><DirhamIcon size={12} /></span>
+                                    <input
+                                        type="number"
+                                        value={deliveryFee}
+                                        onChange={e => setDeliveryFee(e.target.value)}
+                                        placeholder="Amount"
+                                        className="w-full py-2 pr-3 bg-transparent text-sm font-bold outline-none"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                 </div>
 
                 <div className="home-modal-footer p-5 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
@@ -6436,12 +6545,12 @@ function Home() {
                     </div>
                 </div>
 
-                {shortcutsPosition === 'top' && renderShortcutsHorizontal()}
+                {!hideAllShortcuts && shortcutsPosition === 'top' && renderShortcutsHorizontal()}
 
                 <div style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%', overflow: 'hidden' }}>
                     <main className="so-main-layout">
                         <div style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden', height: '100%' }}>
-                            {shortcutsPosition === 'left' && renderShortcutsVertical('left')}
+                            {!hideAllShortcuts && shortcutsPosition === 'left' && renderShortcutsVertical('left')}
                             <div className="so-item-side">
                                 <div className="so-cat-bar">
                                     {categories.length > 5 && (
@@ -6583,7 +6692,7 @@ function Home() {
                                     </div>
                                 )}
                             </div>
-                            {shortcutsPosition === 'right' && renderShortcutsVertical('right')}
+                            {!hideAllShortcuts && shortcutsPosition === 'right' && renderShortcutsVertical('right')}
                         </div>
 
                         <aside className="so-bill-side">
@@ -6956,7 +7065,7 @@ function Home() {
                     </main>
                 </div>
 
-                {shortcutsPosition === 'bottom' && renderShortcutsHorizontal()}
+                {!hideAllShortcuts && shortcutsPosition === 'bottom' && renderShortcutsHorizontal()}
 
                 {isDraggingShortcuts && renderDropZones()}
 
@@ -7218,7 +7327,7 @@ function Home() {
                 </nav>
 
                 {/* CLASSIC SHORTCUTS GUIDE - RELOCATED TO TOP */}
-                {shortcutsPosition === 'top' && renderClassicShortcutsHorizontal()}
+                {!hideAllShortcuts && shortcutsPosition === 'top' && renderClassicShortcutsHorizontal()}
 
                 {/* CLASSIC HEADER FORM */}
                 <div className="classic-header-form">
@@ -7342,7 +7451,7 @@ function Home() {
 
                 {/* CLASSIC MAIN BODY */}
                 <div className="flex-1 flex overflow-hidden">
-                    {shortcutsPosition === 'left' && renderClassicShortcutsVertical('left')}
+                    {!hideAllShortcuts && shortcutsPosition === 'left' && renderClassicShortcutsVertical('left')}
 
                     <div className="classic-entry-area">
                         {/* GRID SECTION */}
@@ -7368,9 +7477,9 @@ function Home() {
                                         <th className="text-center">UOM</th>
                                         <th className="text-center">QTY</th>
                                         <th className="text-center">PCS</th>
-                                        <th className="text-center">PRICE</th>
-                                        <th className="text-center">VAT (5%)</th>
-                                        <th className="text-center">TOTAL</th>
+                                        <th className="text-right">PRICE</th>
+                                        <th className="text-right">VAT (5%)</th>
+                                        <th className="text-right">TOTAL</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -7458,7 +7567,7 @@ function Home() {
                                                         step="0.01"
                                                         value={item._price_input_val !== undefined ? item._price_input_val : (parseFloat(effectivePrice) || 0).toFixed(2)}
                                                         onChange={e => setExactPrice(item.id, e.target.value)}
-                                                        className="w-full h-full text-center px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none"
+                                                        className="w-full h-full text-right px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none"
                                                         onFocus={e => e.target.select()}
                                                         onClick={e => e.target.select()}
                                                     />
@@ -7474,12 +7583,12 @@ function Home() {
                                                         {item.is_tax_inclusive ? 'VAT INC' : 'VAT EXC'}
                                                     </div>
                                                 </td>
-                                                <td className="text-center px-2 font-bold text-slate-500 text-[10px] italic">
+                                                <td className="text-right px-2 font-bold text-slate-500 text-[10px] italic">
                                                     {item.is_tax_inclusive
                                                         ? (lineTotal - (lineTotal / (1 + (taxRate / 100)))).toFixed(2)
                                                         : (lineTotal * (taxRate / 100)).toFixed(2)}
                                                 </td>
-                                                <td className="text-center px-2 font-black text-slate-900 bg-slate-50/50 flex items-center justify-center gap-0.5">
+                                                <td className="text-right px-2 font-black text-slate-900 bg-slate-50/50 flex items-center justify-end gap-0.5">
                                                     <DirhamIcon size={12} /> {item.is_tax_inclusive
                                                         ? (parseFloat(lineTotal) || 0).toFixed(2)
                                                         : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
@@ -7739,10 +7848,10 @@ function Home() {
                             <div className="ml-auto opacity-50 font-bold">READY · SYSTEM OK</div>
                         </div>
                     </div>
-                    {shortcutsPosition === 'right' && renderClassicShortcutsVertical('right')}
+                    {!hideAllShortcuts && shortcutsPosition === 'right' && renderClassicShortcutsVertical('right')}
                 </div>
 
-                {shortcutsPosition === 'bottom' && renderClassicShortcutsHorizontal()}
+                {!hideAllShortcuts && shortcutsPosition === 'bottom' && renderClassicShortcutsHorizontal()}
 
                 {isDraggingShortcuts && renderDropZones()}
 

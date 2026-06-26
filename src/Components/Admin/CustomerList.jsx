@@ -10,6 +10,7 @@ import { useSelector } from 'react-redux';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './SalesOrder.css';
+import LoyaltyCardModal from './LoyaltyCardModal';
 
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
@@ -307,6 +308,7 @@ function CustomerList() {
   const [sortOrder, setSortOrder] = useState('desc');
 
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState('Information');
   const [dashboardData, setDashboardData] = useState({
     counts: { sales_orders: 0, sales_invoices: 0, delivery_notes: 0, payment_entries: 0, quotations: 0 },
@@ -1051,12 +1053,21 @@ function CustomerList() {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={openEditModal}
-                style={{ height: '72px', padding: '0 3.5rem', background: themeColor, borderRadius: '24px', border: 'none', color: '#fff', fontSize: '1.1rem', fontWeight: 950, display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', shadow: `0 15px 40px ${themeColor}60` }}
-              >
-                <Edit2 size={24} /> Revise Portfolio
-              </button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  onClick={() => setShowLoyaltyModal(true)}
+                  disabled={!selectedCustomer.custom_loyalty_card_number}
+                  style={{ height: '72px', padding: '0 2rem', background: '#f1f5f9', borderRadius: '24px', border: 'none', color: !selectedCustomer.custom_loyalty_card_number ? '#cbd5e1' : '#64748b', fontSize: '1.1rem', fontWeight: 950, display: 'flex', alignItems: 'center', gap: '12px', cursor: !selectedCustomer.custom_loyalty_card_number ? 'not-allowed' : 'pointer' }}
+                >
+                  <CreditCard size={24} /> Print Card
+                </button>
+                <button
+                  onClick={openEditModal}
+                  style={{ height: '72px', padding: '0 3.5rem', background: themeColor, borderRadius: '24px', border: 'none', color: '#fff', fontSize: '1.1rem', fontWeight: 950, display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', shadow: `0 15px 40px ${themeColor}60` }}
+                >
+                  <Edit2 size={24} /> Revise Portfolio
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1915,6 +1926,14 @@ function CustomerList() {
             </div>
           </div>
         </div>
+      )}
+      
+      {showLoyaltyModal && (
+        <LoyaltyCardModal 
+          customer={selectedCustomer} 
+          themeColor={themeColor} 
+          onClose={() => setShowLoyaltyModal(false)} 
+        />
       )}
     </div>
   );

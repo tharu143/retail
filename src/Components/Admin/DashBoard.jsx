@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { KpiCard, FilterBar, SalesTrendChart, PurchaseTrendChart, ReceivablesPayablesChart, CustomerTrendChart, StockDistributionChart, PendingOperationsChart, ModeOfPaymentsChart } from './DashboardWidgets';
+import { KpiCard, FilterBar, SalesTrendChart, PurchaseTrendChart, ReceivablesPayablesChart, CustomerTrendChart, StockDistributionChart, PendingOperationsChart, ModeOfPaymentsChart, EmployeeCheckinWidget } from './DashboardWidgets';
 import { getDashboardMetrics } from '../../utils/dashboardService';
 import { authFetchBase } from '../../utils/authFetch';
 import {
@@ -175,13 +175,15 @@ function Dashboard() {
           if (res.ok) {
             const json = await res.json();
             const list = json.message || json.data || [];
-            setBranches([{ name: 'All Branches' }, ...list.map(w => ({ name: w.name }))]);
+            const excluded = ['all warehouse', 'finished good', 'store', 'wrprocess', 'good transit', 'work in progress'];
+            const valid = list.filter(w => !excluded.some(ex => w.name.toLowerCase().includes(ex)));
+            setBranches(valid.map(w => ({ name: w.name })));
           } else {
-            setBranches([{ name: 'All Branches' }, { name: warehouse || 'Default Warehouse' }]);
+            setBranches([{ name: warehouse || 'Default Warehouse' }]);
           }
         } catch (err) {
           console.error("Failed to fetch warehouses:", err);
-          setBranches([{ name: 'All Branches' }, { name: warehouse || 'Default Warehouse' }]);
+          setBranches([{ name: warehouse || 'Default Warehouse' }]);
         }
       };
       fetchWarehouses();
@@ -193,32 +195,42 @@ function Dashboard() {
 
   useEffect(() => {
     const fetchMetrics = async () => {
+      if (branches.length === 0) return;
       setLoading(true);
-      const data = await getDashboardMetrics(selectedBranch, startDate, endDate);
       
-      // Unpack response data robustly
-      let parsedData = data;
-      if (typeof data === 'string') {
-        try {
-          parsedData = JSON.parse(data);
-        } catch (e) {
-          console.error("Failed to parse data string in dashboard:", e);
-        }
+      try {
+        const branchMetrics = {};
+        const fetchPromises = branches.map(async (b) => {
+          const data = await getDashboardMetrics(b.name, startDate, endDate);
+          let parsedData = data;
+          if (typeof data === 'string') {
+            try { parsedData = JSON.parse(data); } catch (e) {}
+          }
+          let current = parsedData;
+          while (current && current.message) current = current.message;
+          branchMetrics[b.name] = current && current.metrics ? current : { metrics: {}, charts: {} };
+        });
+
+        const globalPromise = (async () => {
+          const data = await getDashboardMetrics('All Branches', startDate, endDate);
+          let parsedData = data;
+          if (typeof data === 'string') {
+            try { parsedData = JSON.parse(data); } catch (e) {}
+          }
+          let current = parsedData;
+          while (current && current.message) current = current.message;
+          branchMetrics['___GLOBAL___'] = current && current.metrics ? current : { metrics: {}, charts: {} };
+        })();
+
+        await Promise.all([...fetchPromises, globalPromise]);
+        setMetrics(branchMetrics);
+      } catch (err) {
+        console.error("Failed to fetch multi-branch metrics:", err);
       }
-      
-      let current = parsedData;
-      while (current && current.message) {
-        current = current.message;
-      }
-      
-      const actualData = (current && current.metrics) ? current : null;
-      
-      // For debugging, if it fails, we store the raw data in a special property
-      setMetrics(actualData || { __debug_fail: true, raw: data, type: typeof data });
       setLoading(false);
     };
     fetchMetrics();
-  }, [selectedBranch, startDate, endDate]);
+  }, [branches, startDate, endDate]);
 
   const sections = [
     {
@@ -340,18 +352,18 @@ function Dashboard() {
       case 'Sync Manager':
         return <SyncManager />;
       case 'Procurement':
-        return <ProcurementDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
+        return <ProcurementDashboard branchMetrics={metrics} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} />;
       case 'Sales & Returns':
-        return <SalesReturnsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
+        return <SalesReturnsDashboard branchMetrics={metrics} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} />;
       case 'Stock Management':
-        return <StockManagementDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
+        return <StockManagementDashboard branchMetrics={metrics} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} />;
       case 'POS Operations':
-        return <POSOperationsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
+        return <POSOperationsDashboard branchMetrics={metrics} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} />;
       case 'Inventory Logistics':
-        return <InventoryLogisticsDashboard metrics={metrics?.metrics} charts={metrics?.charts} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
+        return <InventoryLogisticsDashboard branchMetrics={metrics} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} />;
       case 'home':
       default:
-        return <DashboardHome user={user} sections={sections} setActiveItem={setActiveItem} metrics={metrics} loading={loading} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} isAdmin={isAdmin} branches={branches} />;
+        return <DashboardHome user={user} sections={sections} setActiveItem={setActiveItem} allMetrics={metrics} loading={loading} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} />;
     }
   };
 
@@ -372,9 +384,10 @@ function Dashboard() {
   );
 }
 
-
 // Inner Component for Dashboard Homepage
-function DashboardHome({ user, sections, setActiveItem, metrics, loading, startDate, setStartDate, endDate, setEndDate, selectedBranch, setSelectedBranch, isAdmin, branches }) {
+function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, startDate, setStartDate, endDate, setEndDate, isAdmin, branches }) {
+  const globalMetrics = allMetrics?.['___GLOBAL___'];
+
   return (
     <div className="dashboard-modern-container">
       <div className="max-w-7xl mx-auto">
@@ -388,41 +401,79 @@ function DashboardHome({ user, sections, setActiveItem, metrics, loading, startD
         <FilterBar 
           isAdmin={isAdmin}
           branches={branches}
-          selectedBranch={selectedBranch}
-          setSelectedBranch={setSelectedBranch}
           startDate={startDate}
           setStartDate={setStartDate}
           endDate={endDate}
           setEndDate={setEndDate}
         />
 
+        <div style={{ marginBottom: '2rem' }}>
+          <EmployeeCheckinWidget employee={typeof user === 'object' ? user : { name: user }} />
+        </div>
+
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading metrics...</div>
-        ) : !metrics?.__debug_fail && metrics ? (
+        ) : !globalMetrics?.__debug_fail && globalMetrics ? (
           <>
-            <div className="dashboard-metrics-grid">
-              <KpiCard title="Total Sales" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {metrics.metrics?.sales ?? 0}</span>} icon={TrendingUp} colorClass="icon-sales" trend={12} />
-              <KpiCard title="Purchases" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {metrics.metrics?.purchases ?? 0}</span>} icon={ShoppingCart} colorClass="icon-purchase" trend={-5} />
-              <KpiCard title="Stock Value" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {metrics.metrics?.stock_value ?? 0}</span>} icon={Boxes} colorClass="icon-items" />
-              <KpiCard title="New Customers" value={metrics.metrics?.new_customers ?? 0} icon={Users} colorClass="icon-pos" trend={8} />
-              <KpiCard title="Receivables" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {metrics.metrics?.accounts_receivable ?? 0}</span>} icon={Receipt} colorClass="icon-reports" />
-            </div>
-
-            {!isAdmin && (
-              <div className="dashboard-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))', gap: '2rem', marginBottom: '2rem' }}>
-                <ModeOfPaymentsChart data={metrics.charts?.mode_of_payments || []} />
+            {isAdmin ? (
+              <div className="dashboard-branches-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 450px), 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+                {branches.map(branch => {
+                  const bMetrics = allMetrics?.[branch.name];
+                  if (!bMetrics) return null;
+                  return (
+                    <div key={branch.name} className="branch-dashboard-card" style={{ background: '#fff', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}>
+                      <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Building2 size={20} className="text-red-600" />
+                        {branch.name}
+                      </h2>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Total Sales</span>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                            <DirhamIcon size={16} /> {bMetrics.metrics?.sales ?? 0}
+                          </span>
+                        </div>
+                        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Purchases</span>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                            <DirhamIcon size={16} /> {bMetrics.metrics?.purchases ?? 0}
+                          </span>
+                        </div>
+                        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Stock Value</span>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                            <DirhamIcon size={16} /> {bMetrics.metrics?.stock_value ?? 0}
+                          </span>
+                        </div>
+                        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.25rem' }}>New Customers</span>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b' }}>
+                            {bMetrics.metrics?.new_customers ?? 0}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div style={{ marginTop: '1rem', height: '200px' }}>
+                         <SalesTrendChart data={bMetrics.charts?.sales_trend || []} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-            {isAdmin && (
-              <div className="dashboard-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))', gap: '2rem', marginBottom: '2rem' }}>
-                <SalesTrendChart data={metrics.charts?.sales_trend || []} />
-                <ModeOfPaymentsChart data={metrics.charts?.mode_of_payments || []} />
-                <PurchaseTrendChart data={metrics.charts?.purchase_trend || []} />
-                <ReceivablesPayablesChart data={metrics.charts?.receivables_payables_trend || []} />
-                <CustomerTrendChart data={metrics.charts?.customer_trend || []} />
-                <StockDistributionChart data={metrics.charts?.stock_distribution || []} />
-                <PendingOperationsChart data={metrics.charts?.pending_operations || []} />
-              </div>
+            ) : (
+              <>
+                <div className="dashboard-metrics-grid">
+                  <KpiCard title="Total Sales" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {globalMetrics.metrics?.sales ?? 0}</span>} icon={TrendingUp} colorClass="icon-sales" trend={12} />
+                  <KpiCard title="Purchases" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {globalMetrics.metrics?.purchases ?? 0}</span>} icon={ShoppingCart} colorClass="icon-purchase" trend={-5} />
+                  <KpiCard title="Stock Value" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {globalMetrics.metrics?.stock_value ?? 0}</span>} icon={Boxes} colorClass="icon-items" />
+                  <KpiCard title="New Customers" value={globalMetrics.metrics?.new_customers ?? 0} icon={Users} colorClass="icon-pos" trend={8} />
+                  <KpiCard title="Receivables" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><DirhamIcon size={24} /> {globalMetrics.metrics?.accounts_receivable ?? 0}</span>} icon={Receipt} colorClass="icon-reports" />
+                </div>
+                <div className="dashboard-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+                  <ModeOfPaymentsChart data={globalMetrics.charts?.mode_of_payments || []} />
+                </div>
+              </>
             )}
           </>
         ) : (
@@ -430,7 +481,7 @@ function DashboardHome({ user, sections, setActiveItem, metrics, loading, startD
             <h2 className="text-xl font-bold mb-4">Failed to load metrics.</h2>
             <div className="bg-red-50 text-red-900 p-4 text-left rounded overflow-auto max-h-96 text-xs border border-red-200">
               <p className="font-semibold mb-2">Debug - Raw API Data:</p>
-              <pre>{JSON.stringify(metrics, null, 2)}</pre>
+              <pre>{JSON.stringify(allMetrics, null, 2)}</pre>
             </div>
           </div>
         )}

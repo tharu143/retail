@@ -58,6 +58,10 @@ function SalesReturnList() {
   const [returnQueue, setReturnQueue] = useState([]);
   const [totals, setTotals] = useState({ total: 0, total_taxes_and_charges: 0, grand_total: 0, taxes: [] });
   const [calculatingTotals, setCalculatingTotals] = useState(false);
+
+  const [showItemSearchModal, setShowItemSearchModal] = useState(false);
+  const [searchingItemInvoices, setSearchingItemInvoices] = useState(false);
+  const [itemSearchResults, setItemSearchResults] = useState([]);
   
   // Saved Detail View State
   const [selectedReturnDoc, setSelectedReturnDoc] = useState(null);
@@ -155,7 +159,56 @@ function SalesReturnList() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [view, selectedCustomer, selectedInvoice, returnQueue, selectedReturnDoc, fromDate, toDate, selectedItemFilter]);
 
-  /* ────────────────────── BACKEND API WRAPPERS ────────────────────── */
+
+
+  const fetchItemHistory = async (item_code) => {
+    try {
+      setSearchingItemInvoices(true);
+      setShowItemSearchModal(true);
+      const res = await axios.get(`${API_BASE}.get_item_history_for_return`, {
+        params: {
+          doctype: 'Sales Invoice',
+          item_code: item_code,
+          party_type: 'Customer',
+          party_name: selectedCustomer?.name || undefined,
+          warehouse: warehouse || undefined
+        }
+      });
+      setItemSearchResults(res.data.message?.data || []);
+    } catch (err) {
+      console.error(err);
+      setItemSearchResults([]);
+    } finally {
+      setSearchingItemInvoices(false);
+    }
+  };
+
+  const handleSelectItemFromHistory = (itemRow) => {
+    setReturnQueue(prev => {
+      if (prev.find(q => q.parent_detail_docname === itemRow.parent_detail_docname)) {
+        Swal.fire('Info', 'This item from this invoice is already in the return queue.', 'info');
+        return prev;
+      }
+      return [...prev, {
+        name: itemRow.parent_detail_docname,
+        item_code: itemRow.item_code,
+        item_name: itemRow.item_name,
+        qty: itemRow.returnable_qty,
+        rate: itemRow.rate,
+        parent: itemRow.parent,
+        income_account: itemRow.income_account,
+        cost_center: itemRow.cost_center,
+        warehouse: itemRow.warehouse,
+        uom: itemRow.uom,
+        stock_uom: itemRow.stock_uom,
+        conversion_factor: itemRow.conversion_factor,
+        returnable_qty: itemRow.returnable_qty
+      }];
+    });
+    // Removed setShowItemSearchModal(false) to allow multiple selection
+  };
+
+  /* ────────────────────── EFFECT WRAPPERS ────────────────────── */
   const fetchReturns = async () => {
     try {
       setLoading(true);
@@ -993,9 +1046,14 @@ function SalesReturnList() {
                   <div className="so-field">
                     <span className="so-label">Filter by Item (F4)</span>
                     <CustomSearchDropdown 
-                      placeholder="Filter by item..."
+                      placeholder="Search Item for Return Popup..."
                       value={selectedItemFilter}
-                      onSelect={setSelectedItemFilter}
+                      onSelect={(val) => {
+                        setSelectedItemFilter(val);
+                        if (val) {
+                          fetchItemHistory(val.item_code);
+                        }
+                      }}
                       fetchData={fetchBranchItems}
                       optionsLabel="item_name"
                       themeColor={themeColor}
@@ -1060,7 +1118,7 @@ function SalesReturnList() {
 
               {/* Right Panel: Selected Invoice items mapping */}
               <div className="col-span-12 md:col-span-8 split-panel">
-                {!selectedInvoice ? (
+                {!selectedInvoice && returnQueue.length === 0 ? (
                   <div className="so-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center' }}>
                     <Receipt size={48} className="text-slate-300 mb-4" />
                     <h2 className="text-base font-black text-slate-800 mb-1">No Invoice Selected</h2>
@@ -1068,7 +1126,9 @@ function SalesReturnList() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-6">
-                    <AttachmentSection doctype="Sales Invoice" docname={null} themeColor={themeColor} themeLight={themeLight} />
+                    {selectedInvoice && (
+                      <>
+                        <AttachmentSection doctype="Sales Invoice" docname={null} themeColor={themeColor} themeLight={themeLight} />
                     {/* Invoice Meta details */}
                     <div className="so-card">
                       <div className="so-card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem' }}>
@@ -1079,7 +1139,7 @@ function SalesReturnList() {
                         <div className="text-right">
                           <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">original value</span>
                           <div className="text-base font-black text-slate-800" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            {renderCurrency(selectedInvoice.currency, 14)}
+                            {renderCurrency((selectedInvoice?.currency || "AED"), 14)}
                             <span>{selectedInvoice.grand_total.toLocaleString()}</span>
                           </div>
                         </div>
@@ -1144,13 +1204,13 @@ function SalesReturnList() {
                                   </td>
                                   <td style={{ textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>
                                     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
-                                      {renderCurrency(selectedInvoice.currency, 11)}
+                                      {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
                                       <span>{(item.rate || 0).toFixed(2)}</span>
                                     </div>
                                   </td>
                                   <td style={{ textAlign: 'right', fontSize: '12px', fontWeight: 'black', color: '#0f172a' }}>
                                     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
-                                      {renderCurrency(selectedInvoice.currency, 11)}
+                                      {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
                                       <span>{((sel.qty || 0) * (item.rate || 0)).toFixed(2)}</span>
                                     </div>
                                   </td>
@@ -1161,6 +1221,8 @@ function SalesReturnList() {
                         </table>
                       </div>
                     </div>
+                      </>
+                    )}
 
                     {/* Return Queue Summary Basket */}
                     {returnQueue.length > 0 && (
@@ -1240,7 +1302,7 @@ function SalesReturnList() {
                                 <div key={idx} className="flex justify-between items-center text-xs font-bold text-slate-500">
                                   <span>{t.description}</span>
                                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                    {renderCurrency(selectedInvoice.currency, 11)}
+                                    {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
                                     <span>{Math.abs(t.tax_amount).toFixed(2)}</span>
                                   </span>
                                 </div>
@@ -1259,7 +1321,7 @@ function SalesReturnList() {
                             <span>Subtotal Impact</span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                               <span>-</span>
-                              {renderCurrency(selectedInvoice.currency, 11)}
+                              {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
                               <span>{Math.abs(totals.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </span>
                           </div>
@@ -1267,7 +1329,7 @@ function SalesReturnList() {
                             <span>Tax Reversal</span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                               <span>-</span>
-                              {renderCurrency(selectedInvoice.currency, 11)}
+                              {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
                               <span>{Math.abs(totals.total_taxes_and_charges || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </span>
                           </div>
@@ -1276,7 +1338,7 @@ function SalesReturnList() {
                             <span className="text-xs font-black" style={{ color: '#ffe4e6' }}>Total Credit Value</span>
                             <span className="text-lg font-black text-white" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                               <span>-</span>
-                              {renderCurrency(selectedInvoice.currency, 14)}
+                              {renderCurrency((selectedInvoice?.currency || "AED"), 14)}
                               <span>{Math.abs(totals.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </span>
                           </div>
@@ -1508,6 +1570,103 @@ function SalesReturnList() {
           </div>
         </div>
       )}
+
+      {showItemSearchModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[85vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ background: themeColor }}>
+                  <Search size={16} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800">Return Specific Item</h3>
+                  <p className="text-xs font-semibold text-slate-400">Select an invoice to return this item from</p>
+                </div>
+              </div>
+              <button onClick={() => setShowItemSearchModal(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-0 bg-slate-50/30">
+              {searchingItemInvoices ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-slate-300 mb-4" />
+                  <span className="text-sm font-bold text-slate-400">Searching invoice history...</span>
+                </div>
+              ) : itemSearchResults.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <AlertCircle className="w-12 h-12 text-slate-200 mb-4" />
+                  <span className="text-sm font-bold text-slate-500">No returnable invoices found for this item.</span>
+                </div>
+              ) : (
+                <div className="p-4">
+                  <table className="w-full text-left border-collapse bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-3 px-4 border-b border-slate-100">Date</th>
+                        <th className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-3 px-4 border-b border-slate-100">Invoice / Customer</th>
+                        <th className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-3 px-4 border-b border-slate-100">Item Rate</th>
+                        <th className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-3 px-4 border-b border-slate-100 text-center">Returnable Qty</th>
+                        <th className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-3 px-4 border-b border-slate-100 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemSearchResults.map((row, idx) => {
+                        const isAdded = returnQueue.some(q => q.parent_detail_docname === row.parent_detail_docname);
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0 group">
+                            <td className="py-4 px-4 text-xs font-bold text-slate-800">
+                              {row.posting_date ? new Date(row.posting_date).toLocaleDateString() : ''}
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="text-xs font-black text-slate-800">{row.parent}</div>
+                              <div className="text-[10px] font-semibold text-sky-500 mt-0.5">{row.customer_name || row.customer || 'Customer'}</div>
+                            </td>
+                            <td className="py-4 px-4 text-xs font-bold text-slate-600">
+                              {renderCurrency('AED', 10)} {row.rate ? row.rate.toFixed(2) : '0.00'}
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
+                                {row.returnable_qty} {row.uom || 'Nos'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              {isAdded ? (
+                                <button disabled className="px-4 py-1.5 rounded bg-slate-100 text-slate-400 text-xs font-bold cursor-not-allowed flex items-center justify-center gap-1 mx-auto w-24">
+                                  <CheckCircle size={12} /> Added
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleSelectItemFromHistory(row)} 
+                                  className="px-4 py-1.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold transition-colors mx-auto block w-24"
+                                >
+                                  Return
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end">
+              <button 
+                onClick={() => setShowItemSearchModal(false)}
+                className="px-6 py-2 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
