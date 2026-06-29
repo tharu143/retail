@@ -981,11 +981,11 @@ function Home() {
                         <div style={{ marginTop: '16px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
                             <label style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>UI Settings</label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', cursor: 'pointer' }}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={hideAllShortcuts} 
-                                    onChange={toggleHideAllShortcuts} 
-                                    style={{ width: '16px', height: '16px', accentColor: '#10b981' }} 
+                                <input
+                                    type="checkbox"
+                                    checked={hideAllShortcuts}
+                                    onChange={toggleHideAllShortcuts}
+                                    style={{ width: '16px', height: '16px', accentColor: '#10b981' }}
                                 />
                                 <span style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b' }}>Maximize POS (Hide Sidebars)</span>
                             </label>
@@ -1271,6 +1271,34 @@ function Home() {
     const dropdownRef = useRef(null);
     const nameInputRef = useRef(null);
 
+    const prevDeliveryFeeRef = useRef(0);
+    const prevServiceFeeRef = useRef(0);
+
+    useEffect(() => {
+        const currentDelFee = parseFloat(deliveryFee) || 0;
+        const currentSvcFee = parseFloat(instapayServiceFee) || 0;
+
+        const diffDelFee = currentDelFee - prevDeliveryFeeRef.current;
+        const diffSvcFee = currentSvcFee - prevServiceFeeRef.current;
+
+        const totalDiff = diffDelFee + diffSvcFee;
+
+        if (totalDiff !== 0 && payments.length > 0) {
+            setPayments(prevPayments => {
+                if (prevPayments.length === 0) return prevPayments;
+                const updatedPayments = [...prevPayments];
+                updatedPayments[0] = {
+                    ...updatedPayments[0],
+                    amount: round2(updatedPayments[0].amount + totalDiff)
+                };
+                return updatedPayments;
+            });
+        }
+
+        prevDeliveryFeeRef.current = currentDelFee;
+        prevServiceFeeRef.current = currentSvcFee;
+    }, [deliveryFee, instapayServiceFee]);
+
     // ---------- CALCULATIONS (Defined before handlers) ----------
     const taxRate = useMemo(() => {
         // 1. GLOBAL FALLBACK: If company is KSPL, we default to 5% if API fails
@@ -1336,7 +1364,7 @@ function Home() {
 
     const taxAmount = useMemo(() => flt(netTotal * (taxRate / 100)), [netTotal, taxRate]);
 
-    const grandTotal = useMemo(() => round2(netTotal + taxAmount + (parseFloat(deliveryFee) || 0) + (selectedPaymentMode === 'InstaPay' ? (parseFloat(instapayServiceFee) || 0) : 0)), [netTotal, taxAmount, deliveryFee, instapayServiceFee, selectedPaymentMode]);
+    const grandTotal = useMemo(() => round2(netTotal + taxAmount + (parseFloat(deliveryFee) || 0) + ((selectedPaymentMode === 'InstaPay' || payments.some(p => p.mode_of_payment === 'InstaPay')) ? (parseFloat(instapayServiceFee) || 0) : 0)), [netTotal, taxAmount, deliveryFee, instapayServiceFee, selectedPaymentMode, payments]);
 
     const displaySubtotal = round2(subtotal);
     const displayDiscount = round2(discountAmount);
@@ -3233,7 +3261,9 @@ function Home() {
             customer_name: customerName,
             contact_mobile: phoneNumber,
             items: billItems.map(item => {
-                const discRate = item.price;
+                const discRate = item.is_tax_inclusive !== false
+                    ? round2(item.price / (1 + (taxRate / 100)))
+                    : item.price;
                 return {
                     item_code: item.id,
                     item_name: item.name || item.item_name,
@@ -3488,6 +3518,9 @@ function Home() {
             customer: customerId,
             contact_mobile: phoneNumber,
             items: billItems.map(item => {
+                const itemRate = item.is_tax_inclusive !== false
+                    ? round2(item.price / (1 + (taxRate / 100)))
+                    : item.price;
                 return {
                     item_code: item.id,
                     item_name: item.name,
@@ -3496,9 +3529,9 @@ function Home() {
                     uom_type: item.uom,
                     is_tax_inclusive: item.is_tax_inclusive !== false,
                     custom_pieces_per_box: item.custom_pieces_per_box,
-                    basePrice: item.price,
-                    rate: item.price,
-                    price_list_rate: item.price,
+                    basePrice: itemRate,
+                    rate: itemRate,
+                    price_list_rate: itemRate,
                     income_account: 'Sales of I/C - KSPL',
                     warehouse: warehouse,
                     sales_order: item.sales_order || null,
@@ -4626,6 +4659,7 @@ function Home() {
                                     <div className="mb-3 flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
                                         <span className="pl-4 pr-2 text-base font-black text-slate-400 flex items-center justify-center"><DirhamIcon size={16} /></span>
                                         <input
+                                            id="payment-tendered-amount"
                                             type="number"
                                             value={tenderedAmount}
                                             onChange={e => setTenderedAmount(e.target.value)}
@@ -4646,55 +4680,114 @@ function Home() {
                             )}
                         </div>
                     )}
-                    
+
                     {/* CUSTOM FEES SECTION */}
-                    <div className="mt-4 flex flex-col gap-2">
-                        {selectedPaymentMode === 'InstaPay' && (
-                            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 flex flex-col gap-2">
-                                <span className="text-[10px] font-black text-indigo-800 uppercase tracking-widest">InstaPay Service Fee</span>
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center bg-white border border-indigo-200 rounded-lg overflow-hidden w-1/2">
-                                        <span className="pl-3 pr-2 text-xs font-black text-slate-400"><DirhamIcon size={12} /></span>
+                    <div className="mt-4 flex flex-col gap-3">
+                        {(selectedPaymentMode === 'InstaPay' || payments.some(p => p.mode_of_payment === 'InstaPay')) && (
+                            <div className="bg-indigo-50/70 border border-indigo-100/80 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
+                                        <Percent size={12} />
+                                    </div>
+                                    <span className="text-xs font-black text-indigo-950 uppercase tracking-widest">
+                                        InstaPay Service Fee
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-4 mt-0.5">
+                                    <div className="flex items-center bg-white border-2 border-indigo-100 rounded-xl overflow-hidden w-1/2 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-50 transition-all">
+                                        <span className="pl-3.5 pr-2.5 text-xs font-black text-indigo-400"><DirhamIcon size={12} /></span>
                                         <input
                                             type="number"
                                             value={instapayServiceFee}
                                             onChange={e => setInstapayServiceFee(e.target.value)}
                                             placeholder="Fee"
-                                            className="w-full py-2 pr-3 bg-transparent text-sm font-bold outline-none"
+                                            className="w-full py-2.5 pr-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
                                         />
                                     </div>
-                                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={instapayTaxInclusive} 
-                                            onChange={e => setInstapayTaxInclusive(e.target.checked)} 
-                                            className="accent-indigo-600 w-4 h-4"
-                                        />
-                                        Tax Inclusive
+                                    
+                                    {/* Tax Inclusive Custom Checkbox */}
+                                    <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                                        <div className="relative flex items-center justify-center">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={instapayTaxInclusive} 
+                                                onChange={e => setInstapayTaxInclusive(e.target.checked)} 
+                                                className="sr-only"
+                                            />
+                                            <div className={`w-5 h-5 border-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${
+                                                instapayTaxInclusive 
+                                                    ? 'bg-indigo-600 border-indigo-600' 
+                                                    : 'bg-white border-indigo-200 group-hover:border-indigo-400'
+                                            }`}>
+                                                <svg 
+                                                    className={`w-3 h-3 text-white transition-all duration-200 ${
+                                                        instapayTaxInclusive ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+                                                    }`} 
+                                                    fill="none" 
+                                                    viewBox="0 0 24 24" 
+                                                    stroke="currentColor"
+                                                    strokeWidth={4}
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <span className="text-xs font-black text-indigo-800 uppercase tracking-wider group-hover:text-indigo-950 transition-colors">
+                                            Tax Inclusive
+                                        </span>
                                     </label>
                                 </div>
-                            </div>
+                              </div>
                         )}
 
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col gap-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-xs font-black text-slate-600 uppercase tracking-widest">
-                                <input 
-                                    type="checkbox" 
-                                    checked={showDeliveryFee} 
-                                    onChange={e => setShowDeliveryFee(e.target.checked)} 
-                                    className="accent-slate-600 w-4 h-4"
-                                />
-                                Add Delivery Fee
+                        <div className="bg-slate-50/70 border border-slate-100/80 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
+                            <label className="flex items-center gap-3 cursor-pointer select-none group w-full justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
+                                        showDeliveryFee ? 'bg-slate-700 text-white shadow-md shadow-slate-100' : 'bg-slate-200 text-slate-500'
+                                    }`}>
+                                        <Package size={12} />
+                                    </div>
+                                    <span className="text-xs font-black text-slate-700 uppercase tracking-widest group-hover:text-slate-900 transition-colors">
+                                        Add Delivery Fee
+                                    </span>
+                                </div>
+                                {/* Custom Checkbox */}
+                                <div className="relative flex items-center justify-center">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={showDeliveryFee} 
+                                        onChange={e => setShowDeliveryFee(e.target.checked)} 
+                                        className="sr-only"
+                                    />
+                                    <div className={`w-5 h-5 border-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${
+                                        showDeliveryFee 
+                                            ? 'bg-slate-600 border-slate-600' 
+                                            : 'bg-white border-slate-200 group-hover:border-slate-400'
+                                    }`}>
+                                        <svg 
+                                            className={`w-3 h-3 text-white transition-all duration-200 ${
+                                                showDeliveryFee ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+                                            }`} 
+                                            fill="none" 
+                                            viewBox="0 0 24 24" 
+                                            stroke="currentColor"
+                                            strokeWidth={4}
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                </div>
                             </label>
                             {showDeliveryFee && (
-                                <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden mt-1">
-                                    <span className="pl-3 pr-2 text-xs font-black text-slate-400"><DirhamIcon size={12} /></span>
+                                <div className="flex items-center bg-white border-2 border-slate-100 rounded-xl overflow-hidden mt-3 focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-50 transition-all">
+                                    <span className="pl-3.5 pr-2.5 text-xs font-black text-slate-400"><DirhamIcon size={12} /></span>
                                     <input
                                         type="number"
                                         value={deliveryFee}
                                         onChange={e => setDeliveryFee(e.target.value)}
                                         placeholder="Amount"
-                                        className="w-full py-2 pr-3 bg-transparent text-sm font-bold outline-none"
+                                        className="w-full py-2.5 pr-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
                                     />
                                 </div>
                             )}
@@ -5287,7 +5380,10 @@ function Home() {
                 }
 
                 if (e.key === 'Enter') {
-                    if (selectedPaymentMode && parseFloat(tenderedAmount) > 0) {
+                    const activeEl = document.activeElement;
+                    const isTenderedInput = activeEl && activeEl.id === 'payment-tendered-amount';
+                    // Only allow Enter key to add payment if an input is NOT focused, or if it is specifically the tendered amount input
+                    if (selectedPaymentMode && parseFloat(tenderedAmount) > 0 && (!isInputFocused || isTenderedInput)) {
                         e.preventDefault();
                         e.stopPropagation();
                         addPayment();
@@ -5297,7 +5393,7 @@ function Home() {
 
                 // Space: Complete Payment when balance is zero
                 if (e.key === ' ') {
-                    if (balanceRemaining <= 0 && !paymentLoading) {
+                    if (balanceRemaining <= 0 && !paymentLoading && !isInputFocused) {
                         e.preventDefault();
                         e.stopPropagation();
                         completePayment();
@@ -5305,7 +5401,7 @@ function Home() {
                     }
                 }
 
-                if (!selectedPaymentMode) {
+                if (!selectedPaymentMode && !isInputFocused) {
                     if (e.key === '1') {
                         e.preventDefault();
                         setSelectedPaymentMode('Cash');
