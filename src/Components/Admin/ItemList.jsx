@@ -14,6 +14,7 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './SalesOrder.css';
+import ListCustomizer from './ListCustomizer';
 
 /* ========== DESIGN TOKENS ========== */
 const T = {
@@ -454,6 +455,14 @@ export default function ItemList() {
   const navigate = useNavigate();
   const { warehouse, user_roles } = useSelector(state => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Item');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -543,7 +552,11 @@ export default function ItemList() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showForm, isScanning]);
 
-  useEffect(() => { fetchItems(); fetchBrands(); fetchUoms(); fetchCountries(); fetchSuppliers(); fetchWarehouses(); }, []);
+  useEffect(() => { fetchBrands(); fetchUoms(); fetchCountries(); fetchSuppliers(); fetchWarehouses(); }, []);
+
+  useEffect(() => {
+    fetchItems();
+  }, [customColumns]);
 
   useEffect(() => {
     if (showForm || isEditMode) { const t = setTimeout(() => fetchItemGroups(groupSearch), 300); return () => clearTimeout(t); }
@@ -555,7 +568,8 @@ export default function ItemList() {
       // Use the custom retail API which returns barcodes and other retail-ready data
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
         params: {
-          warehouse: !isAdmin ? warehouse : undefined
+          warehouse: !isAdmin ? warehouse : undefined,
+          extra_fields: JSON.stringify(customColumns)
         },
         withCredentials: true
       });
@@ -1140,6 +1154,13 @@ export default function ItemList() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button className="il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}><Scale size={14} />Price Master</button>
               <button className="il-btn il-btn-secondary" onClick={fetchItems} title="Refresh"><RefreshCw size={14} /></button>
+              <ListCustomizer
+                doctype="Item"
+                onSave={cols => setCustomColumns(cols)}
+                themeColor={T.blue}
+                btnClassName="il-btn il-btn-secondary"
+                btnStyle={{ gap: 6 }}
+              />
               <button
                 className="il-btn il-btn-secondary"
                 onClick={openSyncModal}
@@ -1303,6 +1324,9 @@ export default function ItemList() {
                       <th>UOM</th>
                       <th>Status</th>
                       <th style={{ textAlign: 'right' }}><span className="flex items-center justify-end gap-1">Valuation Rate (<DirhamIcon size={10} />)</span></th>
+                      {customColumns.map(col => (
+                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                      ))}
                       <th style={{ width: 36 }}></th>
                     </tr>
                   </thead>
@@ -1336,6 +1360,11 @@ export default function ItemList() {
                           <td><span style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>{item.stock_uom || 'Nos'}</span></td>
                           <td><StatusBadge disabled={item.disabled} /></td>
                           <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>{Number(item.valuation_rate || 0).toFixed(2)}</td>
+                          {customColumns.map(col => (
+                             <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                               {item[col] !== undefined && item[col] !== null ? String(item[col]) : '-'}
+                             </td>
+                           ))}
                           <td style={{ paddingRight: 16 }}><ChevronRight size={15} style={{ color: T.textMuted }} /></td>
                         </tr>
                       );

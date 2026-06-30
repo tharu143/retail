@@ -14,6 +14,7 @@ import Swal from 'sweetalert2';
 import './SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import SupplierFormModal from './SupplierFormModal';
+import ListCustomizer from './ListCustomizer';
 
 /* ==================== UI COMPONENTS ==================== */
 const StatusBadge = ({ isInactive, themeColor }) => (
@@ -28,6 +29,14 @@ export default function SupplierList() {
   const user_roles = useSelector((state) => state.user.user_roles || []);
   const warehouse = useSelector((state) => state.user.warehouse);
   const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Supplier');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -151,7 +160,7 @@ export default function SupplierList() {
   /* ==================== FETCH DATA ==================== */
   useEffect(() => {
     fetchSuppliers();
-  }, []);
+  }, [customColumns]);
 
   const fetchSuppliers = async () => {
     try {
@@ -159,7 +168,8 @@ export default function SupplierList() {
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_suppliers_list', {
         params: {
           warehouse: warehouse,
-          limit: 1000
+          limit: 1000,
+          extra_fields: JSON.stringify(customColumns)
         },
         withCredentials: true
       });
@@ -395,6 +405,12 @@ export default function SupplierList() {
                 {isGreen ? 'BLUE' : 'GREEN'}
               </button>
 
+              <ListCustomizer
+                doctype="Supplier"
+                onSave={cols => setCustomColumns(cols)}
+                themeColor={themeColor}
+              />
+
               <button className="so-btn-primary" onClick={() => navigate('/supplier-edit/new')}>
                 <Plus size={16} /> Create Supplier
               </button>
@@ -497,6 +513,9 @@ export default function SupplierList() {
                     <th>Organization Profile</th>
                     <th>Contact Vectors</th>
                     <th>Classification</th>
+                    {customColumns.map(col => (
+                      <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                    ))}
                     <th>Status</th>
                     <th style={{ width: '120px', textAlign: 'center' }}>Controls</th>
                   </tr>
@@ -504,13 +523,13 @@ export default function SupplierList() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="5" className="so-empty">
+                      <td colSpan={5 + customColumns.length} className="so-empty">
                         <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
                       </td>
                     </tr>
                   ) : paginatedSuppliers.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="so-empty">
+                      <td colSpan={5 + customColumns.length} className="so-empty">
                         <Building2 size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
                         <p>No partners match the current filter criteria.</p>
                         {filterSearch && (
@@ -562,6 +581,11 @@ export default function SupplierList() {
                           <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--so-text-heading)' }}>{s.supplier_type}</div>
                           <div style={{ fontSize: '0.68rem', color: themeColor, textTransform: 'uppercase', fontWeight: 800, marginTop: '0.1rem' }}>{s.supplier_group}</div>
                         </td>
+                        {customColumns.map(col => (
+                          <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                            {s[col] !== undefined && s[col] !== null ? String(s[col]) : '-'}
+                          </td>
+                        ))}
                         <td>
                           <StatusBadge isInactive={s.disabled || s.is_frozen || s.on_hold} themeColor={themeColor} />
                         </td>

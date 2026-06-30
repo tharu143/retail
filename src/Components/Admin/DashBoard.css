@@ -29,9 +29,11 @@
 .sidebar-nav::-webkit-scrollbar {
   width: 5px;
 }
+
 .sidebar-nav::-webkit-scrollbar-track {
   background: #f8fafc;
 }
+
 .sidebar-nav::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
@@ -85,7 +87,8 @@
   transition: all 0.2s ease !important;
 }
 
-.sidebar-home-link:hover, .sidebar-home-link.active {
+.sidebar-home-link:hover,
+.sidebar-home-link.active {
   color: #0f172a !important;
   background-color: #f1f5f9 !important;
 }
@@ -184,10 +187,11 @@
 }
 
 .sidebar-nav.dark::-webkit-scrollbar-track {
-  background: rgba(0,0,0,0.05);
+  background: rgba(0, 0, 0, 0.05);
 }
+
 .sidebar-nav.dark::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-nav.dark .sidebar-header {
@@ -206,7 +210,7 @@
   color: #94a3b8 !important;
 }
 
-.sidebar-nav.dark .sidebar-home-link:hover, 
+.sidebar-nav.dark .sidebar-home-link:hover,
 .sidebar-nav.dark .sidebar-home-link.active {
   color: #ffffff !important;
   background-color: rgba(255, 255, 255, 0.05) !important;
@@ -267,7 +271,9 @@
 
 /* Dashboard Home visual layout styles (kept from original) */
 .dashboard-modern-container {
-  padding: 2rem !important;
+  padding: 2rem 2rem !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
   animation: fadeIn 0.4s ease-out;
 }
 
@@ -403,44 +409,103 @@
 }
 
 /* Section Colors */
-.icon-purchase { background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); color: #e11d48; }
-.card-purchase::after { background: #e11d48; }
+.icon-purchase {
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+  color: #e11d48;
+}
 
-.icon-sales { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); color: #16a34a; }
-.card-sales::after { background: #16a34a; }
+.card-purchase::after {
+  background: #e11d48;
+}
 
-.icon-reports { background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); color: #ca8a04; }
-.card-reports::after { background: #ca8a04; }
+.icon-sales {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  color: #16a34a;
+}
 
-.icon-items { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); color: #0284c7; }
-.card-items::after { background: #0284c7; }
+.card-sales::after {
+  background: #16a34a;
+}
 
-.icon-pos { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); color: #9333ea; }
-.card-pos::after { background: #9333ea; }
+.icon-reports {
+  background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+  color: #ca8a04;
+}
+
+.card-reports::after {
+  background: #ca8a04;
+}
+
+.icon-items {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  color: #0284c7;
+}
+
+.card-items::after {
+  background: #0284c7;
+}
+
+.icon-pos {
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  color: #9333ea;
+}
+
+.card-pos::after {
+  background: #9333ea;
+}
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-15px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .sidebar-nav {
-    display: none !important; /* Hide sidebar on small screens for simplicity */
+    display: none !important;
+    /* Hide sidebar on small screens for simplicity */
   }
-  .dashboard-modern-container { padding: 1.25rem; }
-  .welcome-text h1 { font-size: 1.75rem; }
-  .sections-grid { grid-template-columns: 1fr; }
+
+  .dashboard-modern-container {
+    padding: 1.25rem;
+  }
+
+  .welcome-text h1 {
+    font-size: 1.75rem;
+  }
+
+  .sections-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Dashboard Widgets Styles */
@@ -469,11 +534,30 @@
   justify-content: center;
 }
 
-.icon-sales .kpi-icon-wrapper { background: #eff6ff; color: #3b82f6; }
-.icon-purchase .kpi-icon-wrapper { background: #fdf4ff; color: #d946ef; }
-.icon-items .kpi-icon-wrapper { background: #ecfdf5; color: #10b981; }
-.icon-pos .kpi-icon-wrapper { background: #fffbeb; color: #f59e0b; }
-.icon-reports .kpi-icon-wrapper { background: #fef2f2; color: #ef4444; }
+.icon-sales .kpi-icon-wrapper {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.icon-purchase .kpi-icon-wrapper {
+  background: #fdf4ff;
+  color: #d946ef;
+}
+
+.icon-items .kpi-icon-wrapper {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.icon-pos .kpi-icon-wrapper {
+  background: #fffbeb;
+  color: #f59e0b;
+}
+
+.icon-reports .kpi-icon-wrapper {
+  background: #fef2f2;
+  color: #ef4444;
+}
 
 .kpi-content {
   display: flex;
@@ -640,4 +724,642 @@
   color: #ffffff !important;
 }
 
+/* Executive Dashboard Structure (vnivesh image layout) */
+.exec-header-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 2rem !important;
+  flex-wrap: wrap !important;
+  gap: 1rem !important;
+}
 
+.exec-title {
+  font-size: 2.25rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  margin: 0 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.exec-quick-filters {
+  display: flex !important;
+  align-items: center !important;
+  gap: 1.5rem !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  padding-bottom: 0.25rem !important;
+}
+
+.exec-filter-tab {
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0.5rem 0.25rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  position: relative !important;
+}
+
+.exec-filter-tab:hover {
+  color: #64748b !important;
+}
+
+.exec-filter-tab.active {
+  color: #4f46e5 !important;
+}
+
+.exec-filter-tab.active::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: -6px !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 3px !important;
+  background-color: #4f46e5 !important;
+  border-radius: 9999px !important;
+}
+
+/* Executive Rows Grid */
+.exec-grid-row1 {
+  display: grid !important;
+  grid-template-columns: 2.2fr 1fr 1fr !important;
+  gap: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.exec-grid-row2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+/* Response for grids */
+@media (max-width: 1200px) {
+  .exec-grid-row1 {
+    grid-template-columns: 1.5fr 1fr !important;
+  }
+  .exec-grid-row1 > *:last-child {
+    grid-column: 1 / -1 !important;
+  }
+  .exec-grid-row2 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .exec-grid-row1 {
+    grid-template-columns: 1fr !important;
+  }
+  .exec-grid-row1 > *:last-child {
+    grid-column: auto !important;
+  }
+  .exec-grid-row2 {
+    grid-template-columns: 1fr !important;
+  }
+  .exec-header-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  .exec-quick-filters {
+    gap: 0.85rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-modern-container {
+    padding: 1rem !important;
+  }
+  .exec-title {
+    font-size: 1.6rem !important;
+  }
+  .attendance-bar-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+}
+
+
+/* Executive Main Chart Card (Sales Area Chart) */
+.exec-chart-card {
+  background: #ffffff !important;
+  border-radius: 1.25rem !important;
+  padding: 1.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+}
+
+.exec-chart-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.exec-chart-info {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.exec-chart-title {
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  margin-bottom: 0.35rem !important;
+}
+
+.exec-chart-value {
+  font-size: 2rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.exec-chart-trend {
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: #10b981 !important;
+}
+
+.exec-chart-btn {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.exec-chart-btn:hover {
+  background: #4338ca !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Executive Doughnut Income Card */
+.exec-income-card {
+  background: #ffffff !important;
+  border-radius: 1.25rem !important;
+  padding: 1.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+.exec-income-header {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 1rem !important;
+}
+
+.exec-income-title {
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+}
+
+.exec-income-select {
+  padding: 0.35rem 0.6rem !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid #cbd5e1 !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: #4f46e5 !important;
+  background: #f8fafc !important;
+  cursor: pointer !important;
+}
+
+.exec-doughnut-container {
+  position: relative !important;
+  width: 100% !important;
+  height: 180px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.exec-doughnut-center-text {
+  position: absolute !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.exec-doughnut-center-val {
+  font-size: 1.25rem !important;
+  font-weight: 850 !important;
+  color: #0f172a !important;
+}
+
+.exec-doughnut-center-label {
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+}
+
+.exec-legend-list {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-around !important;
+  margin-top: 1rem !important;
+  gap: 0.5rem !important;
+}
+
+.exec-legend-item {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  font-size: 0.75rem !important;
+}
+
+.exec-legend-bullet-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+}
+
+.exec-legend-bullet {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+}
+
+.exec-legend-percent {
+  font-size: 0.85rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  margin-top: 2px !important;
+}
+
+/* Executive KPI Card Stack */
+.exec-kpi-stack {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.25rem !important;
+  justify-content: space-between !important;
+}
+
+.stacked-kpi-card {
+  background: #ffffff !important;
+  border-radius: 1.25rem !important;
+  padding: 1.5rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+}
+
+.stacked-kpi-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.stacked-kpi-info-box {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.stacked-kpi-title {
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  margin-bottom: 0.15rem !important;
+}
+
+.stacked-kpi-trend {
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.stacked-kpi-trend.pos {
+  color: #10b981 !important;
+}
+
+.stacked-kpi-trend.neg {
+  color: #f59e0b !important;
+}
+
+.stacked-kpi-icon-box {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.stacked-kpi-icon-box.orange {
+  background: #fff7ed !important;
+  color: #ea580c !important;
+}
+
+.stacked-kpi-icon-box.green {
+  background: #f0fdf4 !important;
+  color: #16a34a !important;
+}
+
+.stacked-kpi-value {
+  font-size: 1.75rem !important;
+  font-weight: 850 !important;
+  color: #0f172a !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.stacked-kpi-progress-track {
+  width: 100% !important;
+  height: 5px !important;
+  background-color: #f1f5f9 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+}
+
+.stacked-kpi-progress-fill {
+  height: 100% !important;
+  border-radius: 999px !important;
+}
+
+.stacked-kpi-progress-fill.orange {
+  background-color: #ea580c !important;
+}
+
+.stacked-kpi-progress-fill.green {
+  background-color: #16a34a !important;
+}
+
+/* Executive Bottom Table Cards (Trending Dishes & Best Employees) */
+.exec-table-card {
+  background: #ffffff !important;
+  border-radius: 1.25rem !important;
+  padding: 1.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.exec-table-header-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.exec-table-title {
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+}
+
+.exec-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  text-align: left !important;
+}
+
+.exec-table th {
+  padding: 0.75rem 0.5rem !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  border-bottom: 1.5px solid #f1f5f9 !important;
+}
+
+.exec-table td {
+  padding: 1rem 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle !important;
+}
+
+.exec-table tr:last-child td {
+  border-bottom: none !important;
+}
+
+/* Dish Avatar / Employee User Info Row */
+.exec-user-cell {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.85rem !important;
+}
+
+.exec-avatar-circle {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+}
+
+.exec-item-tag {
+  font-size: 0.65rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  width: fit-content !important;
+  margin-bottom: 3px !important;
+}
+
+.exec-item-tag.food {
+  background-color: #fff7ed !important;
+  color: #ea580c !important;
+}
+
+.exec-item-tag.drinks {
+  background-color: #eff6ff !important;
+  color: #3b82f6 !important;
+}
+
+.exec-item-tag.others {
+  background-color: #faf5ff !important;
+  color: #9333ea !important;
+}
+
+.exec-user-name {
+  font-size: 0.875rem !important;
+  font-weight: 750 !important;
+  color: #1e293b !important;
+}
+
+.exec-user-subtext {
+  font-size: 0.75rem !important;
+  color: #64748b !important;
+  font-weight: 600 !important;
+}
+
+/* Premium Attendance Status Bar Styles */
+.attendance-bar-card {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background: #ffffff !important;
+  border-radius: 1.25rem !important;
+  padding: 1rem 1.5rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01) !important;
+  gap: 1.5rem !important;
+  flex-wrap: wrap !important;
+}
+
+.attendance-profile-box {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.85rem !important;
+}
+
+.attendance-avatar {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%) !important;
+  color: #0369a1 !important;
+}
+
+.attendance-details {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+}
+
+.attendance-title {
+  font-size: 0.875rem !important;
+  font-weight: 750 !important;
+  color: #1e293b !important;
+  margin: 0 !important;
+}
+
+.attendance-status-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.attendance-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 3px 8px !important;
+  border-radius: 9999px !important;
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+}
+
+.attendance-badge.in {
+  background-color: #ecfdf5 !important;
+  color: #059669 !important;
+}
+
+.attendance-badge.out {
+  background-color: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+.attendance-pulse-dot {
+  width: 6px !important;
+  height: 6px !important;
+  background-color: currentColor !important;
+  border-radius: 50% !important;
+  animation: attendance-pulse 1.5s infinite alternate !important;
+}
+
+@keyframes attendance-pulse {
+  from { opacity: 0.45; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1.15); }
+}
+
+.attendance-actions-box {
+  display: flex !important;
+  align-items: center !important;
+  gap: 1rem !important;
+  flex-wrap: wrap !important;
+}
+
+.attendance-btn {
+  padding: 0.55rem 1.25rem !important;
+  border-radius: 0.75rem !important;
+  font-size: 0.8rem !important;
+  font-weight: 750 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border: 1px solid transparent !important;
+  outline: none !important;
+}
+
+.attendance-btn.in {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.15) !important;
+}
+
+.attendance-btn.in:hover:not(:disabled) {
+  background-color: #4338ca !important;
+  transform: translateY(-1px) !important;
+}
+
+.attendance-btn.out {
+  background-color: #ffffff !important;
+  border-color: #f1f5f9 !important;
+  color: #ef4444 !important;
+}
+
+.attendance-btn.out:hover:not(:disabled) {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  transform: translateY(-1px) !important;
+}
+
+.attendance-btn:disabled {
+  background-color: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  border-color: #e2e8f0 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.attendance-log-text {
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  margin: 0 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+}

@@ -13,6 +13,7 @@ import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import AttachmentSection from './AttachmentSection';
+import ListCustomizer from './ListCustomizer';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -42,6 +43,14 @@ const getLocalISODate = () => {
 function PurchaseReceiptList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Purchase Receipt');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -409,7 +418,8 @@ function PurchaseReceiptList() {
           limit_page_length: 2000,
           order_by: 'modified desc',
           fields: '["name","supplier","supplier_name","posting_date","status","grand_total","rounded_total","total","net_total","base_net_total"]',
-          warehouse: !isAdmin ? warehouse : undefined
+          warehouse: !isAdmin ? warehouse : undefined,
+          extra_fields: JSON.stringify(customColumns)
         },
         withCredentials: true
       });
@@ -1645,7 +1655,7 @@ function PurchaseReceiptList() {
     fetchWarehouses();
     fetchTaxesTemplates();
     fetchTaxTypes();
-  }, []);
+  }, [customColumns]);
 
   useEffect(() => {
     const nameParam = searchParams.get('name');
@@ -2803,6 +2813,12 @@ function PurchaseReceiptList() {
                 {prTheme.toUpperCase()}
               </button>
 
+              <ListCustomizer
+                doctype="Purchase Receipt"
+                onSave={cols => setCustomColumns(cols)}
+                themeColor={themeColor}
+              />
+
               <button onClick={() => setSearchParams({ name: 'new' })} className="so-btn-primary">
                 <Plus size={16} /> Create Receipt
               </button>
@@ -2908,13 +2924,16 @@ function PurchaseReceiptList() {
                           <th>Date</th>
                           <th>Status</th>
                           <th style={{ textAlign: 'right' }}>Amount</th>
+                          {customColumns.map(col => (
+                            <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                          ))}
                           <th style={{ width: '50px' }}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginated.length === 0 ? (
                           <tr>
-                            <td colSpan="6" className="so-empty">
+                            <td colSpan={6 + customColumns.length} className="so-empty">
                               <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
                               <p>No receipts found</p>
                               <button onClick={openCreateModal} style={{ color: themeColor, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -2975,6 +2994,11 @@ function PurchaseReceiptList() {
                                   <span>{rec.is_return === 1 ? '-' : ''}{parseFloat(rec.rounded_total || rec.grand_total || rec.total || rec.base_net_total || rec.net_total || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</span>
                                 </div>
                               </td>
+                              {customColumns.map(col => (
+                                <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                  {rec[col] !== undefined && rec[col] !== null ? String(rec[col]) : '-'}
+                                </td>
+                              ))}
                               <td onClick={e => e.stopPropagation()}>
                                 <button style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
                                   <MoreVertical size={16} />

@@ -10,12 +10,21 @@ import { format } from 'date-fns';
 import './SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import ListCustomizer from './ListCustomizer';
 
 
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
 const RESOURCE_API = '/api/resource/Purchase Order';
 
 function PurchaseOrderLists() {
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Purchase Order');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -46,11 +55,11 @@ function PurchaseOrderLists() {
       setFilterSupplier(supplierParam);
       setShowFilters(true);
     }
-    // Clear URL params after reading if needed, though for filters it might be useful to keep them
-    // window.history.replaceState(null, '', window.location.hash.split('?')[0]);
+  }, []);
 
+  useEffect(() => {
     fetchOrders();
-  }, []); // Empty dependency array means this runs once on mount
+  }, [customColumns]);
 
   const fetchOrders = async () => {
     try {
@@ -59,7 +68,8 @@ function PurchaseOrderLists() {
         params: { 
           limit: 2000, 
           limit_page_length: 2000,
-          warehouse: !isAdmin ? warehouse : undefined
+          warehouse: !isAdmin ? warehouse : undefined,
+          extra_fields: JSON.stringify(customColumns)
         },
         withCredentials: true,
         headers: { 'X-Frappe-SID': getSession() }
@@ -187,6 +197,12 @@ function PurchaseOrderLists() {
               <Filter size={14} /> Filters {hasFilters ? '●' : ''}
             </button>
 
+            <ListCustomizer
+              doctype="Purchase Order"
+              onSave={cols => setCustomColumns(cols)}
+              themeColor={themeColor}
+            />
+
             <a href="/#/purchaseorder" className="so-btn-primary" style={{ textDecoration: 'none' }}>
               <Plus size={16} /> Add Purchase Order
             </a>
@@ -275,19 +291,22 @@ function PurchaseOrderLists() {
                     <th>Billed %</th>
                     <th>Received %</th>
                     <th>Last Updated</th>
+                    {customColumns.map(col => (
+                      <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                    ))}
                     <th style={{ width: '48px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="9" className="so-empty">
+                      <td colSpan={9 + customColumns.length} className="so-empty">
                         <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
                       </td>
                     </tr>
                   ) : paginated.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="so-empty">
+                      <td colSpan={9 + customColumns.length} className="so-empty">
                         <Package size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
                         No purchase orders found
                       </td>
@@ -359,6 +378,11 @@ function PurchaseOrderLists() {
                         <td style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                           {po.modified && format(new Date(po.modified), 'dd-MM-yyyy')}
                         </td>
+                        {customColumns.map(col => (
+                          <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                            {po[col] !== undefined && po[col] !== null ? String(po[col]) : '-'}
+                          </td>
+                        ))}
                         <td style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                           <button
                             onClick={(e) => { e.stopPropagation(); setShowActions(showActions === po.name ? null : po.name); }}

@@ -11,6 +11,7 @@ import "../Admin/SalesOrder.css";
 import { useLegacyTheme } from "../../hooks/useLegacyTheme";
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import AttachmentSection from "../Admin/AttachmentSection";
+import ListCustomizer from "../Admin/ListCustomizer";
 
 
 const formatDateToDMY = (dateStr) => {
@@ -24,6 +25,14 @@ const formatDateToDMY = (dateStr) => {
 
 function InvoiceList() {
     const navigate = useNavigate();
+    const [customColumns, setCustomColumns] = useState(() => {
+        const saved = localStorage.getItem('custom_columns_POS Invoice');
+        try {
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
     const [invoices, setInvoices] = useState([]);
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -91,7 +100,7 @@ function InvoiceList() {
             if (navigator.onLine) {
                 const session = getSession();
                 const response = await fetch(
-                    "/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices?limit=2000&limit_page_length=2000",
+                    `/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pos_invoices?limit=2000&limit_page_length=2000&extra_fields=${encodeURIComponent(JSON.stringify(customColumns))}`,
                     {
                         method: "GET",
                         headers: { "X-Frappe-SID": session },
@@ -121,7 +130,7 @@ function InvoiceList() {
         loadData();
         const interval = setInterval(loadData, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [customColumns]);
 
     // Filter Logic
     const filteredInvoices = useMemo(() => {
@@ -314,6 +323,11 @@ function InvoiceList() {
                         <Palette size={13} />
                         {isGreen ? 'BLUE' : 'GREEN'}
                     </button>
+                    <ListCustomizer
+                        doctype="POS Invoice"
+                        onSave={cols => setCustomColumns(cols)}
+                        themeColor={themeColor}
+                    />
                     <button 
                         className="so-btn-primary" 
                         onClick={() => navigate('/homepage')}
@@ -401,6 +415,9 @@ function InvoiceList() {
                                         <th>Posting Details</th>
                                         <th>Customer</th>
                                         <th style={{ textAlign: 'right' }}>Grand Total</th>
+                                        {customColumns.map(col => (
+                                            <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                                        ))}
                                         <th style={{ textAlign: 'center' }}>Status</th>
                                         <th style={{ textAlign: 'center' }}>Actions</th>
                                     </tr>
@@ -408,14 +425,14 @@ function InvoiceList() {
                                 <tbody>
                                     {loading && filteredInvoices.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" className="so-empty">
+                                            <td colSpan={6 + customColumns.length} className="so-empty">
                                                 <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                                                 <p style={{ marginTop: '0.5rem' }}>Synchronizing journals...</p>
                                             </td>
                                         </tr>
                                     ) : filteredInvoices.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" className="so-empty">No invoices found for the selected criteria.</td>
+                                            <td colSpan={6 + customColumns.length} className="so-empty">No invoices found for the selected criteria.</td>
                                         </tr>
                                     ) : (
                                         filteredInvoices.map((inv, idx) => (
@@ -438,6 +455,11 @@ function InvoiceList() {
                                                 <td style={{ fontWeight: 800, textAlign: 'right', fontSize: '0.9rem' }}>
                                                     <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} /> {parseFloat(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                                 </td>
+                                                {customColumns.map(col => (
+                                                    <td key={col} style={{ fontSize: '0.8rem', fontWeight: 650 }}>
+                                                        {inv[col] !== undefined && inv[col] !== null ? String(inv[col]) : '-'}
+                                                    </td>
+                                                ))}
                                                 <td style={{ textAlign: 'center' }}><StatusBadge inv={inv} /></td>
                                                 <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>

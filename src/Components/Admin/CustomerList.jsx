@@ -11,6 +11,7 @@ import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './SalesOrder.css';
 import LoyaltyCardModal from './LoyaltyCardModal';
+import ListCustomizer from './ListCustomizer';
 
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
@@ -295,6 +296,14 @@ function CustomerList() {
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
 
   // Data States
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Customer');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -411,7 +420,7 @@ function CustomerList() {
   /* ────────────────────── INITIALIZATION ────────────────────── */
   useEffect(() => {
     fetchCustomers();
-  }, [sortField, sortOrder]);
+  }, [sortField, sortOrder, customColumns]);
 
   useEffect(() => {
     fetchMeta();
@@ -424,7 +433,8 @@ function CustomerList() {
         params: { 
           order_by: `${sortField} ${sortOrder}`,
           search: filterSearch,
-          warehouse: !isAdmin ? warehouse : undefined
+          warehouse: !isAdmin ? warehouse : undefined,
+          extra_fields: JSON.stringify(customColumns)
         } 
       });
       setCustomers(Array.isArray(res.data.message?.data) ? res.data.message.data : []);
@@ -796,6 +806,11 @@ function CustomerList() {
                 <button className="so-btn-secondary" onClick={toggleTheme} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
                   <Palette size={16} /> {legacySubTheme.toUpperCase()}
                 </button>
+                <ListCustomizer
+                  doctype="Customer"
+                  onSave={cols => setCustomColumns(cols)}
+                  themeColor={themeColor}
+                />
                 <button className="so-btn-primary" onClick={() => navigate('/customer-edit/new')}>
                   <Plus size={16} /> Create Customer
                 </button>
@@ -906,6 +921,9 @@ function CustomerList() {
                       <th onClick={() => toggleSort('creation')} style={{ cursor: 'pointer' }}>
                         Created By {sortField === 'creation' && (sortOrder === 'asc' ? '↑' : '↓')}
                       </th>
+                      {customColumns.map(col => (
+                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                      ))}
                       <th>Status</th>
                       <th style={{ width: '120px', textAlign: 'center' }}>Controls</th>
                     </tr>
@@ -913,13 +931,13 @@ function CustomerList() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan="7" className="so-empty" style={{ textAlign: 'center', padding: '100px' }}>
+                        <td colSpan={7 + customColumns.length} className="so-empty" style={{ textAlign: 'center', padding: '100px' }}>
                           <Loader2 size={28} className="animate-spin" style={{ color: themeColor, margin: '0 auto' }} />
                         </td>
                       </tr>
                     ) : paginated.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="so-empty" style={{ textAlign: 'center', padding: '150px' }}>
+                        <td colSpan={7 + customColumns.length} className="so-empty" style={{ textAlign: 'center', padding: '150px' }}>
                           <Users size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
                           No customers match the current filter criteria.
                         </td>
@@ -966,6 +984,11 @@ function CustomerList() {
                               <span style={{ fontSize: '10px', color: '#94a3b8' }}>{c.custom_branch || 'Global'}</span>
                             </div>
                           </td>
+                          {customColumns.map(col => (
+                            <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                              {c[col] !== undefined && c[col] !== null ? String(c[col]) : '-'}
+                            </td>
+                          ))}
                           <td>
                             {c.is_global ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-100">OTHER BRANCH</span>

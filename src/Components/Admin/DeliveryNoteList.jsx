@@ -14,6 +14,7 @@ import Swal from 'sweetalert2';
 import { useSelector } from 'react-redux';
 import '../Admin/SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import ListCustomizer from './ListCustomizer';
 
 const CustomerDropdown = ({ query, onSelect, customers, targetRef }) => {
     const results = useMemo(() => {
@@ -171,6 +172,14 @@ const DeliveryNoteList = () => {
     const customerInputRef = useRef(null);
     const itemInputRefs = useRef({});
 
+    const [customColumns, setCustomColumns] = useState(() => {
+        const saved = localStorage.getItem('custom_columns_Delivery Note');
+        try {
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
     const [deliveryNotes, setDeliveryNotes] = useState([]);
     const [filteredNotes, setFilteredNotes] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -340,7 +349,11 @@ const DeliveryNoteList = () => {
                     params: { doctype: 'Price List', filters: { selling: 1 }, fields: ['name'] }
                 }),
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_delivery_note_list_retail', {
-                    params: { limit: 2000, warehouse: !isAdmin ? warehouse : undefined }
+                    params: { 
+                        limit: 2000, 
+                        warehouse: !isAdmin ? warehouse : undefined,
+                        extra_fields: JSON.stringify(customColumns)
+                    }
                 }),
                 axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_company_info_dn'),
                 axios.get('/api/method/kyle_retail.retail_api.api.get_naming_series_retail', { params: { doctype: 'Delivery Note' } })
@@ -382,7 +395,7 @@ const DeliveryNoteList = () => {
         }
     };
 
-    useEffect(() => { loadInitialData(); }, []);
+    useEffect(() => { loadInitialData(); }, [customColumns]);
 
     // ─── Filters ────────────────────────────────────────────────────────────────
 
@@ -806,6 +819,11 @@ const DeliveryNoteList = () => {
                             >
                                 <Palette size={13} /> {dnTheme.toUpperCase()}
                             </button>
+                            <ListCustomizer
+                                doctype="Delivery Note"
+                                onSave={cols => setCustomColumns(cols)}
+                                themeColor={themeColor}
+                            />
                             <button className="so-btn-primary" onClick={() => navigate('/deliverynote/create')}>
                                 <Plus size={16} /> New Delivery Note
                             </button>
@@ -841,18 +859,26 @@ const DeliveryNoteList = () => {
                                             <th>Status</th>
                                             <th>Customer</th>
                                             <th style={{ textAlign: 'right' }}>Grand Total</th>
+                                            {customColumns.map(col => (
+                                                <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                                            ))}
                                             <th>ID</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan="5" className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                                            <tr><td colSpan={5 + customColumns.length} className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
                                         ) : paginatedNotes.map(dn => (
                                             <tr key={dn.name} onClick={() => navigate(`/deliverynote-details/${encodeURIComponent(dn.name)}`)} style={{ cursor: 'pointer' }}>
                                                 <td style={{ fontWeight: 600 }}>{dn.title || 'Cash'}</td>
                                                 <td><span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', ...getStatusStyle(dn.docstatus) }}>{dn.docstatus === 0 ? 'Draft' : dn.docstatus === 1 ? 'Submitted' : 'Cancelled'}</span></td>
                                                 <td>{dn.customer_name}</td>
                                                 <td style={{ textAlign: 'right', fontWeight: 700 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end' }}><DirhamIcon size={12} /> {Number(dn.grand_total).toLocaleString()}</span></td>
+                                                {customColumns.map(col => (
+                                                    <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                                        {dn[col] !== undefined && dn[col] !== null ? String(dn[col]) : '-'}
+                                                    </td>
+                                                ))}
                                                 <td style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{dn.name}</td>
                                             </tr>
                                         ))}

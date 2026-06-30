@@ -10,6 +10,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import ListCustomizer from './ListCustomizer';
 
 /* ─── Branch colour palette ────────────────────────────────── */
 const BRANCH_COLORS = [
@@ -35,6 +36,14 @@ function branchFromPriceList(pl) {
 /* ═══════════════════════════════════════════════════════════ */
 function ItemPriceList() {
    const [searchParams] = useSearchParams();
+   const [customColumns, setCustomColumns] = useState(() => {
+      const saved = localStorage.getItem('custom_columns_Item Price');
+      try {
+         return saved ? JSON.parse(saved) : [];
+      } catch (e) {
+         return [];
+      }
+   });
    const [prices, setPrices] = useState([]);
    const [loading, setLoading] = useState(true);
    const [totalCount, setTotalCount] = useState(0);
@@ -184,7 +193,8 @@ function ItemPriceList() {
             filters: JSON.stringify({
                ...filterObj,
                item_code: itemCodeFilter ? ['like', `%${itemCodeFilter}%`] : undefined
-            })
+            }),
+            extra_fields: JSON.stringify(customColumns)
          };
 
          const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_price_list_all',
@@ -199,7 +209,7 @@ function ItemPriceList() {
       } finally {
          setLoading(false);
       }
-   }, [searchTerm, itemCodeFilter, currentPage, pageSize, selectedBranch, selectedType]);
+   }, [searchTerm, itemCodeFilter, currentPage, pageSize, selectedBranch, selectedType, customColumns]);
 
    useEffect(() => {
       const t = setTimeout(fetchPriceRecords, 350);
@@ -333,6 +343,11 @@ function ItemPriceList() {
                >
                   <Palette size={13} /> {isGreen ? 'BLUE' : 'GREEN'}
                </button>
+               <ListCustomizer
+                  doctype="Item Price"
+                  onSave={cols => setCustomColumns(cols)}
+                  themeColor={themeColor}
+               />
                <button
                   onClick={fetchPriceRecords}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}
@@ -510,17 +525,20 @@ function ItemPriceList() {
                               Rate (<DirhamIcon size={10} style={{ display: 'inline-block' }} />)
                            </span>
                         </th>
+                        {customColumns.map(col => (
+                           <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                        ))}
                         <th style={{ textAlign: 'center', width: 90 }}>Actions</th>
                      </tr>
                   </thead>
                   <tbody>
                      {loading ? (
-                        <tr><td colSpan="6" className="so-empty">
+                        <tr><td colSpan={6 + customColumns.length} className="so-empty">
                            <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto 0.5rem' }} />
                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Loading prices...</div>
                         </td></tr>
                      ) : prices.length === 0 ? (
-                        <tr><td colSpan="6" className="so-empty">
+                        <tr><td colSpan={6 + customColumns.length} className="so-empty">
                            <Calculator size={36} style={{ margin: '0 auto 0.75rem', color: '#e2e8f0' }} />
                            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>No price records found</div>
                            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.3rem' }}>
@@ -556,7 +574,6 @@ function ItemPriceList() {
                                  {/* Branch / Price List */}
                                  <td>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                       {branch && branch !== p.price_list.replace(' Selling','').replace(' Buying','').trim() ? null : null}
                                        <span style={{ padding: '0.2rem 0.6rem', borderRadius: '0.35rem', background: col.bg, color: col.text, border: `1px solid ${col.border}`, fontSize: '0.72rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', width: 'fit-content' }}>
                                           <Building2 size={10} />
                                           {branch || 'Standard'}
@@ -593,14 +610,17 @@ function ItemPriceList() {
                                     </span>
                                  </td>
 
-                                 {/* Rate */}
                                  <td style={{ textAlign: 'right' }}>
                                     <div style={{ fontSize: '1rem', fontWeight: 900, color: themeColor, fontVariantNumeric: 'tabular-nums' }}>
                                        <DirhamIcon size={12} style={{ marginRight: '0.15rem', display: 'inline-block', verticalAlign: 'middle' }} />
                                        {Number(p.rate ?? p.price_list_rate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </div>
                                  </td>
-
+                                 {customColumns.map(col => (
+                                    <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                       {p[col] !== undefined && p[col] !== null ? String(p[col]) : '-'}
+                                    </td>
+                                 ))}
                                  {/* Actions */}
                                  <td onClick={e => e.stopPropagation()}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>

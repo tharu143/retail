@@ -13,6 +13,7 @@ import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import ListCustomizer from './ListCustomizer';
 import { Settings } from 'lucide-react';
 
 const API_PATH_C = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -141,6 +142,14 @@ export default function SalesOrderList() {
   const navigate = useNavigate();
   const { warehouse, user_roles } = useSelector((state) => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Sales Order');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
@@ -305,7 +314,7 @@ export default function SalesOrderList() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [customColumns]);
 
   const fetchOrders = async () => {
     try {
@@ -313,7 +322,11 @@ export default function SalesOrderList() {
       const res = await axios.get('/api/resource/Sales Order', {
         params: {
           limit_page_length: 2000,
-          fields: JSON.stringify(['name', 'customer', 'customer_name', 'transaction_date', 'grand_total', 'docstatus', 'status', 'total_qty', 'base_total', 'naming_series']),
+          fields: JSON.stringify([
+            'name', 'customer', 'customer_name', 'transaction_date', 'grand_total',
+            'docstatus', 'status', 'total_qty', 'base_total', 'naming_series',
+            ...customColumns
+          ]),
           filters: !isAdmin && warehouse ? JSON.stringify([['Sales Order Item', 'warehouse', '=', warehouse]]) : undefined,
           order_by: '`tabSales Order`.modified desc'
         },
@@ -1433,7 +1446,12 @@ export default function SalesOrderList() {
                   <Palette size={13} />
                   {legacySubTheme.toUpperCase()}
                 </button>
-                <button className="so-btn-primary" onClick={openCreateModal}>
+                <ListCustomizer
+                  doctype="Sales Order"
+                  onSave={cols => setCustomColumns(cols)}
+                  themeColor={themeColor}
+                />
+                <button className="so-btn-primary" onClick={() => navigate('/salesorder/create')}>
                   <Plus size={16} /> Create Sales Order
                 </button>
               </div>
@@ -1508,20 +1526,23 @@ export default function SalesOrderList() {
                       <th>Date</th>
                       <th>Grand Total</th>
                       <th>Status</th>
+                      {customColumns.map(col => (
+                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                      ))}
                       <th style={{ width: '80px', textAlign: 'center' }}>Details</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan="6" className="so-empty">
+                        <td colSpan={6 + customColumns.length} className="so-empty">
                           <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto' }} />
                           <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Loading Orders...</p>
                         </td>
                       </tr>
                     ) : paginatedOrders.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="so-empty">
+                        <td colSpan={6 + customColumns.length} className="so-empty">
                           No orders found
                         </td>
                       </tr>
@@ -1571,6 +1592,11 @@ export default function SalesOrderList() {
                           <td>
                             <StatusBadge docstatus={order.docstatus} />
                           </td>
+                          {customColumns.map(col => (
+                            <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                              {order[col] !== undefined && order[col] !== null ? String(order[col]) : '-'}
+                            </td>
+                          ))}
                           <td>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                               <div style={{ color: themeColor }}>

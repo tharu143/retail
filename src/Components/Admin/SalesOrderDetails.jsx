@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import './SalesOrder.css';
@@ -208,8 +209,10 @@ const ConnectionCard = ({ title, links, onTransistion, loadingLinks, themeColor 
 
 export default function SalesOrderDetails() {
     const { name } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
-    const isNew = name === 'create';
+    const isNew = name === 'create' || location.pathname.includes('/salesorder/create');
+    const itemInputRefs = useRef({});
 
     const { themeColor, themeLight, isGreen, toggleTheme, legacySubTheme } = useLegacyTheme();
 
@@ -1570,37 +1573,56 @@ export default function SalesOrderDetails() {
                                     <h5 className="so-card-title">Order Context & Timeline</h5>
                                 </div>
                                 <div className="so-card-body">
-                                    <div className="so-form-grid">
-                                        <div className="so-field">
-                                            <label className="so-label">Target Customer *</label>
-                                            <div style={{ position: 'relative' }}>
-                                                <input
-                                                    className="so-input"
-                                                    type="text"
-                                                    value={searchCustomer}
-                                                    onChange={(e) => {
-                                                        setSearchCustomer(e.target.value);
-                                                        setShowCustomerDropdown(true);
-                                                    }}
-                                                    placeholder="Search customer..."
-                                                />
-                                                {showCustomerDropdown && (
-                                                    <div className="so-dropdown">
-                                                        {customers.filter(c => c.customer_name.toLowerCase().includes(searchCustomer.toLowerCase())).map(c => (
-                                                            <div key={c.name} onClick={() => {
-                                                                setForm({ ...form, customer: c.name, customer_name: c.customer_name });
-                                                                setSearchCustomer(c.customer_name);
-                                                                setShowCustomerDropdown(false);
-                                                            }} className="so-dropdown-item">
-                                                                <div className="so-dropdown-item-name">{c.customer_name}</div>
-                                                                <div className="so-dropdown-item-code">{c.name}</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                    <div className="so-form-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+                                        {/* Column 1 */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                            <div className="so-field">
+                                                <label className="so-label">Series *</label>
+                                                <select className="so-input" value={form.naming_series || 'SAL-ORD-.YYYY.-'} onChange={e => setForm({ ...form, naming_series: e.target.value })}>
+                                                    <option value="SAL-ORD-.YYYY.-">SAL-ORD-.YYYY.-</option>
+                                                </select>
+                                            </div>
+                                            <div className="so-field">
+                                                <label className="so-label">Target Customer *</label>
+                                                <div style={{ position: 'relative' }}>
+                                                    <input
+                                                        className="so-input"
+                                                        type="text"
+                                                        value={searchCustomer}
+                                                        onChange={(e) => {
+                                                            setSearchCustomer(e.target.value);
+                                                            setShowCustomerDropdown(true);
+                                                        }}
+                                                        placeholder="Search customer..."
+                                                    />
+                                                    {showCustomerDropdown && (
+                                                        <div className="so-dropdown">
+                                                            {customers.filter(c => c.customer_name.toLowerCase().includes(searchCustomer.toLowerCase())).map(c => (
+                                                                <div key={c.name} onClick={() => {
+                                                                    setForm({ ...form, customer: c.name, customer_name: c.customer_name });
+                                                                    setSearchCustomer(c.customer_name);
+                                                                    setShowCustomerDropdown(false);
+                                                                }} className="so-dropdown-item">
+                                                                    <div className="so-dropdown-item-name">{c.customer_name}</div>
+                                                                    <div className="so-dropdown-item-code">{c.name}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="so-field">
+                                                <label className="so-label">Order Type *</label>
+                                                <select className="so-input" value={form.order_type || 'Sales'} onChange={e => setForm({ ...form, order_type: e.target.value })}>
+                                                    <option value="Sales">Sales</option>
+                                                    <option value="Maintenance">Maintenance</option>
+                                                    <option value="Shopping Cart">Shopping Cart</option>
+                                                </select>
                                             </div>
                                         </div>
-                                        <div className="so-form-grid" style={{ gap: '1rem' }}>
+
+                                        {/* Column 2 */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                             <div className="so-field">
                                                 <label className="so-label">Issue Date</label>
                                                 <input
@@ -1621,6 +1643,31 @@ export default function SalesOrderDetails() {
                                                     onChange={e => setForm({ ...form, delivery_date: e.target.value })}
                                                 />
                                             </div>
+                                        </div>
+
+                                        {/* Column 3 */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                            <div className="so-field">
+                                                <label className="so-label">Customer's Purchase Order</label>
+                                                <input
+                                                    className="so-input"
+                                                    value={form.po_no || ''}
+                                                    onChange={e => setForm({ ...form, po_no: e.target.value })}
+                                                    placeholder="PO Number"
+                                                />
+                                            </div>
+                                            {form.po_no && (
+                                                <div className="so-field" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+                                                    <label className="so-label">Customer's Purchase Order Date</label>
+                                                    <input
+                                                        className="so-input"
+                                                        type="date"
+                                                        value={form.po_date || ''}
+                                                        onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
+                                                        onChange={e => setForm({ ...form, po_date: e.target.value })}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1761,6 +1808,7 @@ export default function SalesOrderDetails() {
                                                                                 <input
                                                                                     className="so-td-input"
                                                                                     type="text"
+                                                                                    ref={el => itemInputRefs.current[idx] = el}
                                                                                     value={item.item_code}
                                                                                     placeholder="SKU or Name..."
                                                                                     onChange={(e) => {
@@ -1772,14 +1820,12 @@ export default function SalesOrderDetails() {
                                                                                     }}
                                                                                 />
                                                                                 {showItemDropdowns[idx] && (
-                                                                                    <div className="so-dropdown">
-                                                                                        {itemsList.map(it => (
-                                                                                            <div key={it.item_code} onClick={() => selectItem(idx, it)} className="so-dropdown-item">
-                                                                                                <div className="so-dropdown-item-name">{it.item_name}</div>
-                                                                                                <div className="so-dropdown-item-code">{it.item_code}</div>
-                                                                                            </div>
-                                                                                        ))}
-                                                                                    </div>
+                                                                                    <PortalDropdown
+                                                                                        itemsList={itemsList}
+                                                                                        onSelect={(it) => selectItem(idx, it)}
+                                                                                        targetEl={itemInputRefs.current[idx]}
+                                                                                        onClose={() => setShowItemDropdowns(p => ({ ...p, [idx]: false }))}
+                                                                                    />
                                                                                 )}
                                                                             </div>
                                                                         </td>
@@ -2146,6 +2192,14 @@ export default function SalesOrderDetails() {
                                     </div>
                                     <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Series</span>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.naming_series || 'N/A'}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Order Type</span>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.order_type || 'N/A'}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Currency</span>
                                             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.currency}</span>
                                         </div>
@@ -2161,6 +2215,18 @@ export default function SalesOrderDetails() {
                                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Source Warehouse</span>
                                             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: themeColor }}>{form.set_source_warehouse || 'Not Specified'}</span>
                                         </div>
+                                        {form.po_no && (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #e2e8f0', paddingTop: '0.75rem' }}>
+                                                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Customer PO</span>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.po_no}</span>
+                                            </div>
+                                        )}
+                                        {form.po_no && form.po_date && (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Customer PO Date</span>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.po_date}</span>
+                                            </div>
+                                        )}
                                         {linkedDocs.Delivery_Note && linkedDocs.Delivery_Note.length > 0 && (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
                                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Linked Delivery Notes</span>
@@ -2424,3 +2490,84 @@ export default function SalesOrderDetails() {
         </div>
     );
 }
+
+const PortalDropdown = ({ itemsList, onSelect, targetEl, onClose }) => {
+    const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const updateCoords = () => {
+            if (targetEl) {
+                const rect = targetEl.getBoundingClientRect();
+                setCoords({
+                    top: rect.bottom + window.scrollY,
+                    left: rect.left + window.scrollX,
+                    width: rect.width
+                });
+            }
+        };
+        updateCoords();
+        window.addEventListener('scroll', updateCoords, true);
+        window.addEventListener('resize', updateCoords);
+        return () => {
+            window.removeEventListener('scroll', updateCoords, true);
+            window.removeEventListener('resize', updateCoords);
+        };
+    }, [targetEl]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            const clickOnInput = targetEl && targetEl.contains(e.target);
+            const clickOnDropdown = dropdownRef.current && dropdownRef.current.contains(e.target);
+            if (!clickOnInput && !clickOnDropdown) {
+                onClose();
+            }
+        };
+        document.addEventListener('click', handleClickOutside, true);
+        return () => {
+            document.removeEventListener('click', handleClickOutside, true);
+        };
+    }, [targetEl, onClose]);
+
+    if (!targetEl || itemsList.length === 0) return null;
+
+    return createPortal(
+        <div 
+            ref={dropdownRef}
+            style={{
+                position: 'absolute',
+                top: coords.top,
+                left: coords.left,
+                width: Math.max(coords.width, 280),
+                zIndex: 999999,
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '0.5rem',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+                maxHeight: '200px',
+                overflowY: 'auto'
+            }}
+        >
+            {itemsList.map(it => (
+                <div 
+                    key={it.item_code} 
+                    onClick={() => onSelect(it)} 
+                    className="so-dropdown-item"
+                    style={{
+                        padding: '0.6rem 0.85rem',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #f1f5f9',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        textAlign: 'left'
+                    }}
+                >
+                    <div className="so-dropdown-item-name" style={{ fontSize: '0.8rem', fontWeight: 650, color: '#1e293b' }}>{it.item_name}</div>
+                    <div className="so-dropdown-item-code" style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b' }}>{it.item_code}</div>
+                </div>
+            ))}
+        </div>,
+        document.body
+    );
+};

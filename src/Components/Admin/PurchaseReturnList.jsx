@@ -11,6 +11,7 @@ import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import AttachmentSection from './AttachmentSection';
+import ListCustomizer from './ListCustomizer';
 
 const renderCurrency = (currencyCode, size = 12, className = "") => {
   if (currencyCode === 'AED') {
@@ -33,6 +34,14 @@ function PurchaseReturnList() {
   const [view, setView] = useState('list'); // 'list', 'create', 'detail'
 
   // Data States (List View)
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Purchase Return');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,7 +87,7 @@ function PurchaseReturnList() {
     if (view === 'list') {
       fetchReturns();
     }
-  }, [view]);
+  }, [view, customColumns]);
 
   // Load Invoices when supplier, dates, or item filters change in create mode
   useEffect(() => {
@@ -166,7 +175,10 @@ function PurchaseReturnList() {
     try {
       setLoading(true);
       const res = await axios.get(`${API_BASE}.get_return_documents_retail`, {
-        params: { doctype: 'Purchase Invoice' }
+        params: { 
+          doctype: 'Purchase Invoice',
+          extra_fields: JSON.stringify(customColumns)
+        }
       });
       const data = res.data.message?.data || res.data.message || [];
       setReturns(Array.isArray(data) ? data : []);
@@ -864,6 +876,12 @@ function PurchaseReturnList() {
               <button onClick={toggleTheme} className="so-btn-secondary" style={{ color: themeColor }}>
                 <Palette size={14} /> {legacySubTheme.toUpperCase()}
               </button>
+              <ListCustomizer
+                doctype="Purchase Invoice"
+                saveKey="Purchase Return"
+                onSave={cols => setCustomColumns(cols)}
+                themeColor={themeColor}
+              />
               <button className="so-btn-primary" onClick={() => setView('create')}>
                 <Plus size={16} /> Initiate Debit Note
               </button>
@@ -891,19 +909,22 @@ function PurchaseReturnList() {
                       <th>Status</th>
                       <th>Original Invoice</th>
                       <th style={{ textAlign: 'right' }}>Debit Value</th>
+                      {customColumns.map(col => (
+                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                      ))}
                       <th style={{ textAlign: 'right' }}>Key</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '3rem' }}>
+                        <td colSpan={5 + customColumns.length} style={{ textAlign: 'center', padding: '3rem' }}>
                           <Loader2 size={32} className="animate-spin" style={{ color: themeColor, margin: '0 auto' }} />
                         </td>
                       </tr>
                     ) : paginated.length === 0 ? (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8', fontWeight: 700 }}>
+                        <td colSpan={5 + customColumns.length} style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8', fontWeight: 700 }}>
                           NO DEBIT SHARDS DETECTED
                         </td>
                       </tr>
@@ -933,6 +954,11 @@ function PurchaseReturnList() {
                               <span>{Math.abs(parseFloat(r.rounded_total || r.grand_total || r.total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </span>
                           </td>
+                          {customColumns.map(col => (
+                            <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                              {r[col] !== undefined && r[col] !== null ? String(r[col]) : '-'}
+                            </td>
+                          ))}
                           <td style={{ textAlign: 'right' }}>
                             <span style={{ fontWeight: 800, fontFamily: 'monospace', color: themeColor, background: themeLight, padding: '4px 10px', borderRadius: '6px', fontSize: '11px' }}>
                               {r.name}

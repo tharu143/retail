@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import AttachmentSection from './AttachmentSection';
+import ListCustomizer from './ListCustomizer';
 
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
@@ -18,6 +19,14 @@ const SalesInvoiceList = () => {
   const { company: loggedCompany, warehouse, user_roles, user } = useSelector(state => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Sales Invoice');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -402,7 +411,11 @@ const SalesInvoiceList = () => {
           axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_si'),
           axios.get('/api/resource/Sales Invoice', {
             params: {
-              fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
+              fields: JSON.stringify([
+                "name", "customer_name", "posting_date", "grand_total",
+                "status", "title", "outstanding_amount", "currency", "is_return",
+                ...customColumns
+              ]),
               filters: !isAdmin && warehouse ? JSON.stringify([['Sales Invoice Item', 'warehouse', '=', warehouse]]) : undefined,
               limit_page_length: 2000,
               order_by: '`tabSales Invoice`.modified desc'
@@ -431,7 +444,7 @@ const SalesInvoiceList = () => {
       }
     };
     loadData();
-  }, []);
+  }, [customColumns]);
 
   // Filtering logic
   useEffect(() => {
@@ -848,7 +861,11 @@ const SalesInvoiceList = () => {
       // Refresh list
       const invRes = await axios.get('/api/resource/Sales Invoice', {
         params: {
-          fields: '["name","customer_name","posting_date","grand_total","status","title","outstanding_amount","currency","is_return"]',
+          fields: JSON.stringify([
+            "name", "customer_name", "posting_date", "grand_total",
+            "status", "title", "outstanding_amount", "currency", "is_return",
+            ...customColumns
+          ]),
           filters: !isAdmin && warehouse ? JSON.stringify([['Sales Invoice Item', 'warehouse', '=', warehouse]]) : undefined,
           limit_page_length: 2000,
           order_by: '`tabSales Invoice`.modified desc'
@@ -1596,7 +1613,10 @@ const SalesInvoiceList = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {/* Theme Toggle */}
               <button
-                onClick={() => setSiTheme(isGreen ? 'blue' : 'green')}
+                onClick={() => {
+                  const nextTheme = siTheme === 'green' ? 'blue' : 'green';
+                  setSiTheme(nextTheme);
+                }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.4rem',
                   padding: '0.45rem 0.9rem', background: '#f8fafc',
@@ -1610,6 +1630,11 @@ const SalesInvoiceList = () => {
                 <Palette size={13} />
                 {siTheme.toUpperCase()}
               </button>
+              <ListCustomizer
+                doctype="Sales Invoice"
+                onSave={cols => setCustomColumns(cols)}
+                themeColor={themeColor}
+              />
               <button
                 className="so-btn-primary"
                 onClick={() => navigate('/homepage')}
@@ -1697,14 +1722,17 @@ const SalesInvoiceList = () => {
                       <th>Date</th>
                       <th>Customer</th>
                       <th style={{ textAlign: 'right' }}>Grand Total</th>
+                      {customColumns.map(col => (
+                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                      ))}
                       <th>ID</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan="6" className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                      <tr><td colSpan={6 + customColumns.length} className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
                     ) : paginated.length === 0 ? (
-                      <tr><td colSpan="6" className="so-empty">No invoices found</td></tr>
+                      <tr><td colSpan={6 + customColumns.length} className="so-empty">No invoices found</td></tr>
                     ) : (
                       paginated.map(inv => (
                         <tr key={inv.name} onClick={() => loadInvoiceForEdit(inv.name)} style={{ cursor: 'pointer' }}>
@@ -1725,6 +1753,11 @@ const SalesInvoiceList = () => {
                           <td style={{ textAlign: 'right', fontWeight: 700 }}>
                             {getCurrencySymbol(inv.currency || 'AED')}{inv.is_return ? '-' : ''}{Math.abs(Number(inv.grand_total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
+                          {customColumns.map(col => (
+                            <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                              {inv[col] !== undefined && inv[col] !== null ? String(inv[col]) : '-'}
+                            </td>
+                          ))}
                           <td style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--so-text-muted)' }}>{inv.name}</td>
                         </tr>
                       ))

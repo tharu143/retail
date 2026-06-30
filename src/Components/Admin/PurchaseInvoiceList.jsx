@@ -13,6 +13,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import AttachmentSection from './AttachmentSection';
+import ListCustomizer from './ListCustomizer';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -68,6 +69,14 @@ const getDefaultTaxTemplate = (templates, activeWarehouse) => {
 };
 
 function PurchaseInvoiceList() {
+  const [customColumns, setCustomColumns] = useState(() => {
+    const saved = localStorage.getItem('custom_columns_Purchase Invoice');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -586,7 +595,8 @@ function PurchaseInvoiceList() {
           limit: 2000,
           limit_page_length: 2000,
           order_by: 'modified desc',
-          warehouse: !isAdmin ? warehouse : undefined
+          warehouse: !isAdmin ? warehouse : undefined,
+          extra_fields: JSON.stringify(customColumns)
         },
         withCredentials: true
       });
@@ -1649,7 +1659,7 @@ function PurchaseInvoiceList() {
     fetchInvoices();
     fetchTaxTemplates();
     fetchWarehouses();
-  }, []);
+  }, [customColumns]);
 
   useEffect(() => {
     const nameParam = searchParams.get('name');
@@ -3151,6 +3161,12 @@ function PurchaseInvoiceList() {
                 {piTheme.toUpperCase()}
               </button>
 
+              <ListCustomizer
+                doctype="Purchase Invoice"
+                onSave={cols => setCustomColumns(cols)}
+                themeColor={themeColor}
+              />
+
               <button onClick={() => setSearchParams({ name: 'new' })} className="so-btn-primary">
                 <Plus size={16} /> Create Invoice
               </button>
@@ -3258,13 +3274,16 @@ function PurchaseInvoiceList() {
                           <th>Date</th>
                           <th>Status</th>
                           <th style={{ textAlign: 'right' }}>Amount</th>
+                          {customColumns.map(col => (
+                            <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                          ))}
                           <th style={{ width: '50px' }}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginated.length === 0 ? (
                           <tr>
-                            <td colSpan="6" className="so-empty">
+                            <td colSpan={6 + customColumns.length} className="so-empty">
                               <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
                               <p>No invoices found</p>
                               <button onClick={openCreateModal} style={{ color: themeColor, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -3322,6 +3341,11 @@ function PurchaseInvoiceList() {
                               <td style={{ textAlign: 'right', fontWeight: 800 }}>
                                <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} /> {inv.is_return === 1 ? '-' : ''}{Math.abs(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                               </td>
+                              {customColumns.map(col => (
+                                <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                  {inv[col] !== undefined && inv[col] !== null ? String(inv[col]) : '-'}
+                                </td>
+                              ))}
                               <td onClick={e => e.stopPropagation()}>
                                 <div ref={el => actionsRefs.current[inv.name] = el} style={{ position: 'relative' }}>
                                   <button

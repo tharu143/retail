@@ -25,12 +25,12 @@ export const KpiCard = ({ title, value, icon: Icon, colorClass, trend }) => {
   );
 };
 
-export const FilterBar = ({ 
-  isAdmin, 
-  branches, 
-  selectedBranch, 
-  setSelectedBranch, 
-  startDate, 
+export const FilterBar = ({
+  isAdmin,
+  branches,
+  selectedBranch,
+  setSelectedBranch,
+  startDate,
   setStartDate,
   endDate,
   setEndDate
@@ -40,8 +40,23 @@ export const FilterBar = ({
       {isAdmin ? (
         <>
           <div className="filter-group">
+            <span className="filter-label">Branch:</span>
+            <select
+              className="filter-select"
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              style={{ fontWeight: 700 }}
+            >
+              <option value="All Branches">All Branches</option>
+              {branches.map(b => (
+                <option key={b.name} value={b.name}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
             <span className="filter-label">From:</span>
-            <input 
+            <input
               type="date"
               className="filter-select"
               value={startDate}
@@ -49,10 +64,10 @@ export const FilterBar = ({
               onClick={(e) => e.target.showPicker && e.target.showPicker()}
             />
           </div>
-          
+
           <div className="filter-group">
             <span className="filter-label">To:</span>
-            <input 
+            <input
               type="date"
               className="filter-select"
               value={endDate}
@@ -64,7 +79,7 @@ export const FilterBar = ({
       ) : (
         <div className="filter-group">
           <span className="filter-label">Date:</span>
-          <input 
+          <input
             type="date"
             className="filter-select"
             value={startDate}
@@ -89,17 +104,17 @@ export const SalesTrendChart = ({ data }) => {
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-            <XAxis 
-              dataKey="date" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
-              dy={10} 
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              dy={10}
               tickFormatter={(tickItem) => {
                 try {
                   const date = new Date(tickItem);
@@ -109,16 +124,16 @@ export const SalesTrendChart = ({ data }) => {
                 }
               }}
             />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
               dx={-10}
-              tickFormatter={(val) => `AED ${parseFloat(val).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`}
+              tickFormatter={(val) => `AED ${parseFloat(val).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
             />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-              formatter={(value) => [`AED ${parseFloat(value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 'Sales']}
+              formatter={(value) => [`AED ${parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Sales']}
               labelFormatter={(label) => {
                 try {
                   const date = new Date(label);
@@ -145,17 +160,17 @@ export const PurchaseTrendChart = ({ data }) => {
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorPurchases" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-            <XAxis 
-              dataKey="date" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
-              dy={10} 
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              dy={10}
               tickFormatter={(tickItem) => {
                 try {
                   const date = new Date(tickItem);
@@ -165,16 +180,16 @@ export const PurchaseTrendChart = ({ data }) => {
                 }
               }}
             />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
               dx={-10}
-              tickFormatter={(val) => `AED ${parseFloat(val).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`}
+              tickFormatter={(val) => `AED ${parseFloat(val).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
             />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-              formatter={(value) => [`AED ${parseFloat(value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 'Purchases']}
+              formatter={(value) => [`AED ${parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Purchases']}
               labelFormatter={(label) => {
                 try {
                   const date = new Date(label);
@@ -200,12 +215,12 @@ export const ReceivablesPayablesChart = ({ data }) => {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-            <XAxis 
-              dataKey="date" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
-              dy={10} 
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              dy={10}
               tickFormatter={(tickItem) => {
                 try {
                   const date = new Date(tickItem);
@@ -215,16 +230,16 @@ export const ReceivablesPayablesChart = ({ data }) => {
                 }
               }}
             />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
               dx={-10}
-              tickFormatter={(val) => `AED ${parseFloat(val).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`}
+              tickFormatter={(val) => `AED ${parseFloat(val).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
             />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-              formatter={(value, name) => [`AED ${parseFloat(value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, name === 'receivables' ? 'RECEIVABLES' : 'PAYABLES']}
+              formatter={(value, name) => [`AED ${parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name === 'receivables' ? 'RECEIVABLES' : 'PAYABLES']}
               labelFormatter={(label) => {
                 try {
                   const date = new Date(label);
@@ -252,12 +267,12 @@ export const CustomerTrendChart = ({ data }) => {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-            <XAxis 
-              dataKey="date" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
-              dy={10} 
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              dy={10}
               tickFormatter={(tickItem) => {
                 try {
                   const date = new Date(tickItem);
@@ -267,14 +282,14 @@ export const CustomerTrendChart = ({ data }) => {
                 }
               }}
             />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
               dx={-10}
               tickFormatter={(val) => parseInt(val)}
             />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
               formatter={(value) => [`${value} New Customers`, 'Growth']}
               labelFormatter={(label) => {
@@ -302,24 +317,24 @@ export const StockDistributionChart = ({ data }) => {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-            <XAxis 
+            <XAxis
               type="number"
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
-              tickFormatter={(val) => `AED ${parseFloat(val).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              tickFormatter={(val) => `AED ${parseFloat(val).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
             />
-            <YAxis 
+            <YAxis
               type="category"
-              dataKey="name" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{fill: '#64748b', fontSize: 10}} 
+              dataKey="name"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748b', fontSize: 10 }}
               width={120}
             />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-              formatter={(value) => [`AED ${parseFloat(value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 'Stock Value']}
+              formatter={(value) => [`AED ${parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Stock Value']}
             />
             <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} name="Valuation" />
           </BarChart>
@@ -350,7 +365,7 @@ export const PendingOperationsChart = ({ data }) => {
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
               formatter={(value, name, props) => [`${value} items/tasks`, props.payload.name]}
             />
@@ -369,26 +384,26 @@ export const ModeOfPaymentsChart = ({ data }) => {
       <h3 className="chart-title">Mode of Payments Breakdown</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
         {data.map((item, idx) => (
-          <div key={idx} style={{ 
-            padding: '1.25rem 1rem', 
-            background: '#f8fafc', 
-            border: '1.5px solid #e2e8f0', 
-            borderRadius: '0.75rem', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
+          <div key={idx} style={{
+            padding: '1.25rem 1rem',
+            background: '#f8fafc',
+            border: '1.5px solid #e2e8f0',
+            borderRadius: '0.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
             gap: '0.5rem',
             transition: 'all 0.2s',
             cursor: 'default'
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff'; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#f8fafc'; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#f8fafc'; }}
           >
             <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.name}</span>
             <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a' }}>
               <span style={{ fontSize: '0.85rem', marginRight: '0.2rem', color: '#94a3b8' }}>AED</span>
-              {parseFloat(item.value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              {parseFloat(item.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         ))}
@@ -400,7 +415,7 @@ export const ModeOfPaymentsChart = ({ data }) => {
 export const EmployeeCheckinWidget = ({ employee: propEmployee }) => {
   const user = useSelector((state) => state.user.user);
   const employee = typeof propEmployee === 'string' ? propEmployee : (propEmployee?.employee_name || propEmployee?.name || user?.employee_name || user?.name || user);
-  
+
   const [status, setStatus] = useState('UNKNOWN');
   const [lastTime, setLastTime] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -437,12 +452,12 @@ export const EmployeeCheckinWidget = ({ employee: propEmployee }) => {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
-      
+
       const res = await axios.post(`${API_BASE}.handle_employee_checkin`, {
         employee,
         log_type
       });
-      
+
       if (res.data?.message?.status === 'success') {
         Swal.fire('Success', res.data.message.message, 'success');
         fetchStatus();
@@ -456,58 +471,59 @@ export const EmployeeCheckinWidget = ({ employee: propEmployee }) => {
 
   if (!employee) return null;
 
+  const initials = (employee || 'E').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
   return (
-    <div className="dashboard-chart-card flex flex-col items-center justify-center p-6 bg-gradient-to-br from-slate-50 to-slate-100/50">
-      <div className="flex items-center gap-3 mb-6">
-        <div className={`p-3 rounded-2xl ${status === 'IN' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-500'}`}>
-          <Clock size={28} />
-        </div>
-        <div>
-          <h3 className="text-lg font-black text-slate-800 m-0 leading-tight">Time & Attendance</h3>
-          <p className="text-sm font-bold text-slate-500 m-0">
-            {status === 'IN' ? 'Currently Checked In' : 'Currently Checked Out'}
-          </p>
+    <div className="attendance-bar-card">
+      <div className="attendance-profile-box">
+        <div className="attendance-avatar">{initials}</div>
+        <div className="attendance-details">
+          <h3 className="attendance-title">{employee}</h3>
+          <div className="attendance-status-row">
+            {status === 'IN' ? (
+              <span className="attendance-badge in">
+                <span className="attendance-pulse-dot"></span>
+                On Duty
+              </span>
+            ) : (
+              <span className="attendance-badge out">
+                Off Duty
+              </span>
+            )}
+            {lastTime && (
+              <p className="attendance-log-text">
+                Last log: {new Date(lastTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
+          </div>
         </div>
       </div>
-      
-      {loading ? (
-        <div className="animate-pulse flex space-x-4">
-          <div className="h-10 w-24 bg-slate-200 rounded-xl"></div>
-          <div className="h-10 w-24 bg-slate-200 rounded-xl"></div>
-        </div>
-      ) : (
-        <div className="flex gap-4 w-full justify-center">
-          <button 
-            onClick={() => handleLog('IN')}
-            disabled={status === 'IN'}
-            className={`flex-1 max-w-[140px] py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
-              status === 'IN' 
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
-                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 border-b-4 border-emerald-600 active:translate-y-1 active:border-b-0'
-            }`}
-          >
-            <CheckCircle size={18} /> IN
-          </button>
-          
-          <button 
-            onClick={() => handleLog('OUT')}
-            disabled={status !== 'IN'}
-            className={`flex-1 max-w-[140px] py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
-              status !== 'IN' 
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
-                : 'bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/30 border-b-4 border-rose-600 active:translate-y-1 active:border-b-0'
-            }`}
-          >
-            <AlertCircle size={18} /> OUT
-          </button>
-        </div>
-      )}
-      
-      {lastTime && (
-        <p className="text-xs font-semibold text-slate-400 mt-6 mb-0 text-center">
-          Last log: {new Date(lastTime).toLocaleString()}
-        </p>
-      )}
+
+      <div className="attendance-actions-box">
+        {loading ? (
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ width: '80px', height: '36px', background: '#f1f5f9', borderRadius: '0.75rem' }} className="animate-pulse"></div>
+            <div style={{ width: '80px', height: '36px', background: '#f1f5f9', borderRadius: '0.75rem' }} className="animate-pulse"></div>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => handleLog('IN')}
+              disabled={status === 'IN'}
+              className="attendance-btn in"
+            >
+              <CheckCircle size={15} /> Check In
+            </button>
+            <button
+              onClick={() => handleLog('OUT')}
+              disabled={status !== 'IN'}
+              className="attendance-btn out"
+            >
+              <AlertCircle size={15} /> Check Out
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };
@@ -546,7 +562,7 @@ export const DeadStockWidget = ({ selectedBranch }) => {
     <div className="dashboard-chart-card col-span-full">
       <div className="flex items-center justify-between mb-6">
         <h3 className="chart-title m-0">Dead Stock Report</h3>
-        <select 
+        <select
           className="filter-select text-sm p-2"
           value={days}
           onChange={(e) => setDays(Number(e.target.value))}
