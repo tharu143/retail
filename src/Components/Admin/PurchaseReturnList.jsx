@@ -67,6 +67,7 @@ function PurchaseReturnList() {
   const [showItemSearchModal, setShowItemSearchModal] = useState(false);
   const [itemSearchResults, setItemSearchResults] = useState([]);
   const [searchingItemInvoices, setSearchingItemInvoices] = useState(false);
+  const [selectedModalItems, setSelectedModalItems] = useState({});
 
   // Refs for shortcuts focus
   const supplierSearchRef = useRef(null);
@@ -246,6 +247,7 @@ function PurchaseReturnList() {
   // Phase 3: Fetch item history
   const fetchItemHistory = async (item_code) => {
     try {
+      setSelectedModalItems({});
       setSearchingItemInvoices(true);
       setShowItemSearchModal(true);
       const res = await axios.get(`${API_BASE}.get_item_history_for_return`, {
@@ -294,7 +296,6 @@ function PurchaseReturnList() {
       }
     }));
     
-    setShowItemSearchModal(false);
     setSelectedItemFilter(null);
   };
 
@@ -1002,18 +1003,11 @@ function PurchaseReturnList() {
               </button>
               <button
                 onClick={() => handleSaveReturn(false)}
-                disabled={saving || !selectedInvoice}
-                className="so-btn-secondary"
-                style={{ color: '#475569' }}
+                disabled={saving || returnQueue.length === 0}
+                className="so-btn-primary"
+                style={{ background: themeColor, borderColor: themeColor }}
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Draft (F7)
-              </button>
-              <button
-                onClick={() => handleSaveReturn(true)}
-                disabled={saving || !selectedInvoice}
-                className="so-btn-primary"
-              >
-                <ShieldCheck size={14} /> Submit Return (F12)
               </button>
             </div>
           </div>
@@ -1055,9 +1049,19 @@ function PurchaseReturnList() {
                     />
                   </div>
                   <div className="so-field">
-                    <span className="so-label">Search Item for Return Popup</span>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="so-label m-0">Filter by Item (F4)</span>
+                      {selectedSupplier && (
+                        <button
+                          onClick={() => fetchItemHistory(null)}
+                          className="text-[10px] font-black text-rose-600 hover:text-rose-800 transition-colors uppercase tracking-wider bg-transparent border-0 cursor-pointer"
+                        >
+                          Show All Supplier Items
+                        </button>
+                      )}
+                    </div>
                     <CustomSearchDropdown 
-                      placeholder="Search Item for Return Popup..."
+                      placeholder="Filter by item..."
                       value={selectedItemFilter}
                       onSelect={(val) => {
                         setSelectedItemFilter(val);
@@ -1074,286 +1078,167 @@ function PurchaseReturnList() {
               </div>
             </div>
 
-            {/* Split Workspace */}
-            <div className="grid grid-cols-12 gap-6">
-
-              {/* Left Panel: Invoices List */}
-              <div className="col-span-12 md:col-span-4 split-panel flex flex-col gap-3">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Matching Invoices ({invoices.length})</h3>
-                {loadingInvoices ? (
-                  <div className="flex flex-col items-center justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>
-                ) : (!selectedSupplier && !selectedItemFilter) ? (
-                  <div className="so-card">
-                    <div className="so-card-body text-center py-8">
-                      <span className="text-xs font-bold text-slate-400 uppercase">Select a supplier or item to view invoices</span>
-                    </div>
-                  </div>
-                ) : invoices.length === 0 ? (
-                  <div className="so-card">
-                    <div className="so-card-body text-center py-8">
-                      <span className="text-xs font-bold text-slate-400 uppercase">No eligible invoices found</span>
-                    </div>
-                  </div>
-                ) : (
-                  invoices.map(inv => (
-                    <div
-                      key={inv.name}
-                      onClick={() => handleSelectInvoice(inv)}
-                      className={`so-card cursor-pointer transition-all hover:bg-slate-50/50 ${selectedInvoice?.name === inv.name ? 'border-2' : ''}`}
-                      style={{ borderColor: selectedInvoice?.name === inv.name ? themeColor : undefined }}
+            {/* Workspace Area */}
+            <div className="w-full">
+              {returnQueue.length === 0 ? (
+                <div className="so-card" style={{ height: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center' }}>
+                  <Receipt size={48} className="text-slate-300 mb-4 animate-bounce" />
+                  <h2 className="text-base font-black text-slate-800 mb-1">Return Queue Empty</h2>
+                  <p className="text-xs font-medium text-slate-400 max-w-sm mb-4">Search/select items or click "Show All Supplier Items" above to add return items to your queue.</p>
+                  {selectedSupplier && (
+                    <button 
+                      onClick={() => fetchItemHistory(null)}
+                      className="px-6 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-xs font-bold transition-all shadow-lg cursor-pointer"
                     >
-                      <div className="so-card-body" style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <p className="font-bold text-sm text-slate-800" style={{ margin: 0 }}>{inv.name}</p>
-                          <div className="flex gap-2 items-center mt-1">
-                            <span className="text-[10px] font-bold text-slate-400">{inv.posting_date}</span>
-                            {inv.party_name && (
-                              <span className="text-[9px] bg-slate-100 text-slate-600 px-1 rounded font-bold">
-                                {inv.party_name}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div className="font-black text-sm text-slate-800" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            {renderCurrency(inv.currency, 12)}
-                            <span>{inv.grand_total.toLocaleString()}</span>
-                          </div>
-                          <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Select Invoice <ArrowRight size={10} className="inline ml-1" /></span>
-                        </div>
-                      </div>
+                      Search Supplier Items History
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {/* Return Queue Summary Basket */}
+                  <div className="so-table-card animate-in fade-in duration-300">
+                    <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+                      <h5 className="so-card-title">Return Items Queue ({returnQueue.length})</h5>
+                      <button
+                        onClick={() => { setReturnQueue([]); setReturnSelection({}); }}
+                        className="text-[10px] font-black text-red-500 uppercase tracking-wider hover:text-red-700 transition-colors bg-transparent border-0 cursor-pointer"
+                      >
+                        Clear Queue
+                      </button>
                     </div>
-                  ))
-                )}
-              </div>
-
-              {/* Right Panel: Selected Invoice items mapping */}
-              <div className="col-span-12 md:col-span-8 split-panel">
-                {!selectedInvoice && returnQueue.length === 0 ? (
-                  <div className="so-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center' }}>
-                    <Receipt size={48} className="text-slate-300 mb-4" />
-                    <h2 className="text-base font-black text-slate-800 mb-1">No Invoice Selected</h2>
-                    <p className="text-xs font-medium text-slate-400 max-w-sm">Please select a matching supplier invoice from the left panel to load the returnable items mapping workspace.</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-6">
-                    {selectedInvoice && (
-                      <>
-                        <AttachmentSection doctype="Purchase Invoice" docname={null} themeColor={themeColor} themeLight={themeLight} />
-                    {/* Invoice Meta details */}
-                    <div className="so-card">
-                      <div className="so-card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem' }}>
-                        <div>
-                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Selected original invoice</span>
-                          <h2 className="text-base font-black text-slate-800" style={{ margin: 0 }}>{selectedInvoice.name}</h2>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">original value</span>
-                          <div className="text-base font-black text-slate-800" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            {renderCurrency((selectedInvoice?.currency || "AED"), 14)}
-                            <span>{selectedInvoice.grand_total.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Items Matrix */}
-                    <div className="so-table-card">
-                      <div className="so-table-wrapper">
-                        <table className="so-table">
-                          <thead>
-                            <tr>
-                              <th style={{ textAlign: 'center', width: '48px' }}>Select</th>
-                              <th>Item Specification</th>
-                              <th style={{ textAlign: 'center' }}>Original / Returned</th>
-                              <th style={{ textAlign: 'center', width: '120px' }}>Return Qty</th>
-                              <th style={{ textAlign: 'right' }}>Rate</th>
-                              <th style={{ textAlign: 'right' }}>Subtotal</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {loadingItems ? (
-                              <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem' }}><Loader2 size={32} className="animate-spin text-slate-300" style={{ margin: '0 auto' }} /></td></tr>
-                            ) : invoiceItems.map(item => {
-                              const sel = returnSelection[item.name] || { checked: false, qty: 0 };
-                              return (
-                                <tr key={item.name} className={sel.checked ? 'bg-slate-50/30' : ''}>
-                                  <td style={{ textAlign: 'center' }}>
-                                    <input
-                                      type="checkbox"
-                                      className="w-4 h-4 rounded text-red-700 border-gray-300 focus:ring-red-600"
-                                      checked={sel.checked}
-                                      onChange={e => handleItemSelectToggle(item.name, e.target.checked)}
-                                      disabled={item.returnable_qty <= 0}
-                                    />
-                                  </td>
-                                  <td>
-                                    <p className="font-bold text-xs text-slate-800" style={{ margin: 0 }}>{item.item_name}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-[10px] font-bold text-slate-400 fontFamily-monospace">{item.item_code}</span>
-                                    </div>
-                                  </td>
-                                  <td style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>
-                                    <div>{item.qty} {item.uom}</div>
-                                    {item.returned_qty > 0 && (
-                                      <span className="text-[9px] text-red-500 font-bold">({item.returned_qty} Ret'd)</span>
-                                    )}
-                                  </td>
-                                  <td>
-                                    <input
-                                      type="number"
-                                      className="so-td-input"
-                                      style={{ textAlign: 'center', padding: '0.25rem 0.5rem' }}
-                                      value={sel.qty || ''}
-                                      placeholder="0"
-                                      onChange={e => handleItemQtyChange(item.name, e.target.value)}
-                                      disabled={!sel.checked || item.returnable_qty <= 0}
-                                    />
-                                  </td>
-                                  <td style={{ textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
-                                      {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
-                                      <span>{(item.rate || 0).toFixed(2)}</span>
-                                    </div>
-                                  </td>
-                                  <td style={{ textAlign: 'right', fontSize: '12px', fontWeight: 'black', color: '#0f172a' }}>
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
-                                      {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
-                                      <span>{((sel.qty || 0) * (item.rate || 0)).toFixed(2)}</span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                      </>
-                    )}
-
-                    {/* Return Queue Summary Basket */}
-                    {returnQueue.length > 0 && (
-                      <div className="so-table-card">
-                        <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
-                          <h5 className="so-card-title">Return Items Queue ({returnQueue.length})</h5>
-                          <button
-                            onClick={() => { setReturnQueue([]); setReturnSelection({}); }}
-                            className="text-[10px] font-black text-red-500 uppercase tracking-wider hover:text-red-700 transition-colors bg-transparent border-0 cursor-pointer"
-                          >
-                            Clear Queue
-                          </button>
-                        </div>
-                        <div className="so-table-wrapper">
-                          <table className="so-table">
-                            <thead>
-                              <tr>
-                                <th>Invoice</th>
-                                <th>Item</th>
-                                <th style={{ textAlign: 'center' }}>Qty</th>
-                                <th style={{ textAlign: 'right' }}>Rate</th>
-                                <th style={{ textAlign: 'right' }}>Subtotal</th>
-                                <th style={{ textAlign: 'center' }}>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {returnQueue.map(item => (
-                                <tr key={item.parent_detail_docname} style={{ cursor: 'default' }}>
-                                  <td style={{ color: '#94a3b8', fontWeight: 'bold' }}>{item.parent}</td>
-                                  <td>
-                                    <p className="font-bold" style={{ margin: 0 }}>{item.item_name}</p>
-                                    <span className="text-[10px] text-slate-400">{item.item_code}</span>
-                                  </td>
-                                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.qty} {item.uom}</td>
-                                  <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
-                                      {renderCurrency(selectedInvoice?.currency || 'AED', 11)}
-                                      <span>{(item.rate || 0).toFixed(2)}</span>
-                                    </div>
-                                  </td>
-                                  <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
-                                      {renderCurrency(selectedInvoice?.currency || 'AED', 11)}
-                                      <span>{(item.qty * (item.rate || 0)).toFixed(2)}</span>
-                                    </div>
-                                  </td>
-                                  <td style={{ textAlign: 'center' }}>
-                                    <button
-                                      onClick={() => handleRemoveFromQueue(item.parent_detail_docname)}
-                                      className="text-red-500 hover:text-red-700 text-[10px] uppercase font-bold bg-transparent border-0 cursor-pointer"
-                                    >
-                                      Remove
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Financial vector totals summary */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                      <div className="so-card">
-                        <div className="so-card-header">
-                          <h5 className="so-card-title">Fiscal Tax Reversals</h5>
-                        </div>
-                        <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                          {calculatingTotals ? (
-                            <div className="flex items-center gap-2 text-xs text-slate-400 font-bold"><Loader2 size={12} className="animate-spin" /> Recalculating tax matrix...</div>
-                          ) : totals.taxes?.length === 0 ? (
-                            <span className="text-xs font-bold text-slate-400 italic">No taxes charged in this return</span>
-                          ) : (
-                            <div className="flex flex-col gap-1.5">
-                              {totals.taxes?.map((t, idx) => (
-                                <div key={idx} className="flex justify-between items-center text-xs font-bold text-slate-500">
-                                  <span>{t.description}</span>
-                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                    {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
-                                    <span>{Math.abs(t.tax_amount).toFixed(2)}</span>
-                                  </span>
+                    <div className="so-table-wrapper">
+                      <table className="so-table">
+                        <thead>
+                          <tr>
+                            <th>Invoice</th>
+                            <th>Item</th>
+                            <th style={{ textAlign: 'center', width: '120px' }}>Return Qty</th>
+                            <th style={{ textAlign: 'right' }}>Rate</th>
+                            <th style={{ textAlign: 'right' }}>Subtotal</th>
+                            <th style={{ textAlign: 'center' }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {returnQueue.map(item => (
+                            <tr key={item.parent_detail_docname} style={{ cursor: 'default' }}>
+                              <td style={{ color: '#94a3b8', fontWeight: 'bold' }}>{item.parent}</td>
+                              <td>
+                                <p className="font-bold text-xs text-slate-800" style={{ margin: 0 }}>{item.item_name}</p>
+                                <span className="text-[10px] text-slate-400">{item.item_code}</span>
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="so-td-input"
+                                  style={{ textAlign: 'center', padding: '0.25rem 0.5rem', width: '80px', margin: '0 auto', display: 'block' }}
+                                  value={item.qty || ''}
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    setReturnQueue(prev => prev.map(q => {
+                                      if (q.parent_detail_docname === item.parent_detail_docname) {
+                                        let finalQty = val;
+                                        if (finalQty > item.returnable_qty) {
+                                          Swal.fire('Warning', `Cannot return more than remaining returnable qty: ${item.returnable_qty}`, 'warning');
+                                          finalQty = item.returnable_qty;
+                                        }
+                                        if (finalQty < 0) finalQty = 0;
+                                        return { ...q, qty: finalQty };
+                                      }
+                                      return q;
+                                    }));
+                                  }}
+                                />
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                  {renderCurrency('AED', 11)}
+                                  <span>{(item.rate || 0).toFixed(2)}</span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', width: '100%' }}>
+                                  {renderCurrency('AED', 11)}
+                                  <span>{(item.qty * (item.rate || 0)).toFixed(2)}</span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button
+                                  onClick={() => handleRemoveFromQueue(item.parent_detail_docname)}
+                                  className="text-red-500 hover:text-red-700 text-[10px] uppercase font-bold bg-transparent border-0 cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
 
-                      <div className="so-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#ffffff', borderColor: '#334155', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)' }}>
-                        <div className="so-card-header" style={{ borderColor: '#334155' }}>
-                          <h5 className="so-card-title" style={{ color: '#f43f5e', fontWeight: 900 }}>Debit Impact Summary</h5>
+                  {/* Financial vector totals summary */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <div className="so-card">
+                      <div className="so-card-header">
+                        <h5 className="so-card-title">Fiscal Tax Reversals</h5>
+                      </div>
+                      <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {calculatingTotals ? (
+                          <div className="flex items-center gap-2 text-xs text-slate-400 font-bold"><Loader2 size={12} className="animate-spin" /> Recalculating tax matrix...</div>
+                        ) : totals.taxes?.length === 0 ? (
+                          <span className="text-xs font-bold text-slate-400 italic">No taxes charged in this return</span>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            {totals.taxes?.map((t, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-xs font-bold text-slate-500">
+                                <span>{t.description}</span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  {renderCurrency('AED', 11)}
+                                  <span>{Math.abs(t.tax_amount).toFixed(2)}</span>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="so-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#ffffff', borderColor: '#334155', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)' }}>
+                      <div className="so-card-header" style={{ borderColor: '#334155' }}>
+                        <h5 className="so-card-title" style={{ color: '#f43f5e', fontWeight: 900 }}>Debit Impact Summary</h5>
+                      </div>
+                      <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div className="flex justify-between items-center text-xs font-bold" style={{ color: '#fda4af' }}>
+                          <span>Subtotal Impact</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <span>-</span>
+                            {renderCurrency('AED', 11)}
+                            <span>{Math.abs(totals.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </span>
                         </div>
-                        <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                          <div className="flex justify-between items-center text-xs font-bold" style={{ color: '#fda4af' }}>
-                            <span>Subtotal Impact</span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
-                              <span>{Math.abs(totals.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center text-xs font-bold" style={{ color: '#fda4af' }}>
-                            <span>Tax Reversal</span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              {renderCurrency((selectedInvoice?.currency || "AED"), 11)}
-                              <span>{Math.abs(totals.total_taxes_and_charges || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </span>
-                          </div>
-                          <div style={{ background: 'rgba(244, 63, 94, 0.2)', height: '1px', margin: '4px 0' }} />
-                          <div className="flex justify-between items-end">
-                            <span className="text-xs font-black" style={{ color: '#ffe4e6' }}>Total Debit Value</span>
-                            <span className="text-lg font-black text-white" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              {renderCurrency((selectedInvoice?.currency || "AED"), 14)}
-                              <span>{Math.abs(totals.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </span>
-                          </div>
+                        <div className="flex justify-between items-center text-xs font-bold" style={{ color: '#fda4af' }}>
+                          <span>Tax Reversal</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <span>-</span>
+                            {renderCurrency('AED', 11)}
+                            <span>{Math.abs(totals.total_taxes_and_charges || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </span>
+                        </div>
+                        <div style={{ background: 'rgba(244, 63, 94, 0.2)', height: '1px', margin: '4px 0' }} />
+                        <div className="flex justify-between items-end">
+                          <span className="text-xs font-black" style={{ color: '#ffe4e6' }}>Total Debit Value</span>
+                          <span className="text-lg font-black text-white" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <span>-</span>
+                            {renderCurrency('AED', 14)}
+                            <span>{Math.abs(totals.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </span>
                         </div>
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
-
+                </div>
+              )}
             </div>
           </div>
           
@@ -1392,6 +1277,30 @@ function PurchaseReturnList() {
                       <table className="w-full text-left border-collapse bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100">
                         <thead className="bg-slate-50">
                           <tr>
+                            <th className="w-12 py-3 px-4 border-b border-slate-100 text-center">
+                              <input 
+                                type="checkbox"
+                                className="w-4 h-4 rounded text-red-700 border-gray-300 focus:ring-red-600 cursor-pointer"
+                                checked={
+                                  itemSearchResults.length > 0 &&
+                                  itemSearchResults.every(row => {
+                                    const isAdded = returnQueue.some(q => q.parent_detail_docname === row.parent_detail_docname);
+                                    return isAdded || selectedModalItems[row.parent_detail_docname];
+                                  })
+                                }
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  const newSelections = { ...selectedModalItems };
+                                  itemSearchResults.forEach(row => {
+                                    const isAdded = returnQueue.some(q => q.parent_detail_docname === row.parent_detail_docname);
+                                    if (!isAdded) {
+                                      newSelections[row.parent_detail_docname] = checked;
+                                    }
+                                  });
+                                  setSelectedModalItems(newSelections);
+                                }}
+                              />
+                            </th>
                             <th className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-3 px-4 border-b border-slate-100">Date</th>
                             <th className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-3 px-4 border-b border-slate-100">Invoice / Supplier</th>
                             <th className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-3 px-4 border-b border-slate-100">Item Rate</th>
@@ -1402,8 +1311,23 @@ function PurchaseReturnList() {
                         <tbody>
                           {itemSearchResults.map((row, idx) => {
                             const isAdded = returnQueue.some(q => q.parent_detail_docname === row.parent_detail_docname);
+                            const isChecked = !!selectedModalItems[row.parent_detail_docname];
                             return (
                               <tr key={idx} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0 group">
+                                <td className="py-4 px-4 text-center">
+                                  <input 
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded text-red-700 border-gray-300 focus:ring-red-600 cursor-pointer"
+                                    checked={isAdded || isChecked}
+                                    disabled={isAdded}
+                                    onChange={(e) => {
+                                      setSelectedModalItems(prev => ({
+                                        ...prev,
+                                        [row.parent_detail_docname]: e.target.checked
+                                      }));
+                                    }}
+                                  />
+                                </td>
                                 <td className="py-4 px-4 text-xs font-bold text-slate-800">
                                   {row.posting_date ? new Date(row.posting_date).toLocaleDateString() : ''}
                                 </td>
@@ -1440,6 +1364,57 @@ function PurchaseReturnList() {
                       </table>
                     </div>
                   )}
+                </div>
+                
+                <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-between items-center">
+                  <div>
+                    {Object.values(selectedModalItems).filter(Boolean).length > 0 && (
+                      <span className="text-xs font-bold text-slate-500">
+                        {Object.values(selectedModalItems).filter(Boolean).length} items selected
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-3">
+                    {Object.values(selectedModalItems).filter(Boolean).length > 0 && (
+                      <button 
+                        onClick={() => {
+                          const toAdd = itemSearchResults.filter(row => selectedModalItems[row.parent_detail_docname]);
+                          if (toAdd.length > 0) {
+                            setReturnQueue(prev => {
+                              const updated = [...prev];
+                              toAdd.forEach(itemRow => {
+                                if (!updated.some(q => q.parent_detail_docname === itemRow.parent_detail_docname)) {
+                                  updated.push({
+                                    name: itemRow.parent_detail_docname,
+                                    item_code: itemRow.item_code,
+                                    item_name: itemRow.item_name,
+                                    qty: itemRow.returnable_qty,
+                                    rate: itemRow.rate,
+                                    uom: itemRow.uom,
+                                    warehouse: itemRow.warehouse,
+                                    parent: itemRow.parent,
+                                    parent_detail_docname: itemRow.parent_detail_docname
+                                  });
+                                }
+                              });
+                              return updated;
+                            });
+                            setSelectedModalItems({});
+                            Swal.fire('Success', `Added ${toAdd.length} items to return queue.`, 'success');
+                          }
+                        }}
+                        className="px-6 py-2 rounded-lg text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors"
+                      >
+                        Add Selected to Queue
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setShowItemSearchModal(false)}
+                      className="px-6 py-2 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
