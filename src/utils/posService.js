@@ -38,6 +38,13 @@ const POSService = {
         });
     },
 
+    getDrivers: async () => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_delivery_drivers',
+            type: 'GET'
+        });
+    },
+
     getItemCategories: async (args = {}) => {
         return await frappeCall({
             method: 'kyle_retail.retail_api.api.get_item_categories',
@@ -213,6 +220,21 @@ const POSService = {
             method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_stock_entries',
             args: args,
             type: 'GET'
+        });
+    },
+
+    getDriverSalesInvoices: async (userId = null) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_driver_sales_invoices',
+            args: { user_id: userId },
+            type: 'GET'
+        });
+    },
+
+    updateDeliveryStatus: async (invoiceName, status) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.update_delivery_status',
+            args: { invoice_name: invoiceName, status }
         });
     }
 };

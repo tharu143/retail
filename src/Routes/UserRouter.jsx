@@ -57,6 +57,7 @@ import InterBranchTransferDetails from '../Components/Admin/InterBranchTransferD
 import StockEntryDetails from '../Components/Admin/StockEntryDetails'
 import StockEntryList from '../Components/Admin/StockEntryList'
 import SidebarLayout from '../Components/Nav/SidebarLayout'
+import DriverDashboardPage from '../Pages/DriverDashboardPage'
 
 function UserRouter() {
   const location = useLocation();
@@ -65,7 +66,15 @@ function UserRouter() {
   const theme = useSelector((state) => state.user.theme);
   const warehouse = useSelector((state) => state.user.warehouse);
   const user = useSelector((state) => state.user.user);
-  const showNavBar = location.pathname !== '/' && location.pathname !== '/homepage';
+  const user_roles = useSelector((state) => state.user.user_roles);
+  const showNavBar = location.pathname !== '/' && location.pathname !== '/homepage' && location.pathname !== '/driver-dashboard';
+
+  // Redirect delivery driver to dashboard
+  useEffect(() => {
+    if (user && user_roles?.includes("Delivery Driver") && location.pathname !== "/driver-dashboard") {
+      navigate("/driver-dashboard");
+    }
+  }, [user, user_roles, location.pathname, navigate]);
 
   // Fetch initial notifications list
   const fetchNotifications = useCallback(async () => {
@@ -213,6 +222,7 @@ function UserRouter() {
           <Route path='/' element={<LoginPage />} />
           <Route path='homepage' element={<HomePage />} />
           <Route path='dashboard' element={<DashboardPage />} />
+          <Route path='driver-dashboard' element={<DriverDashboardPage />} />
           
           <Route element={<SidebarLayout />}>
             <Route path='closingentry' element={<ClosingEntryPage />} />

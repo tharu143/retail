@@ -13,6 +13,8 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import { useCustomShortcuts, ACTION_LABELS, getShortcutStringFromEvent } from '../../hooks/useCustomShortcuts';
+
 
 
 const Settings = () => {
@@ -25,10 +27,52 @@ const Settings = () => {
     const [selectedWarehouse, setSelectedWarehouse] = useState(activeWarehouse);
     const [loading, setLoading] = useState(true);
 
-
+    // Shortcuts Hook & State
+    const { shortcuts, updateShortcut, resetAllShortcuts } = useCustomShortcuts();
+    const [recordingAction, setRecordingAction] = useState(null); // { page, actionId }
+    const [activeShortcutTab, setActiveShortcutTab] = useState('pos_home');
 
     // Theme Hook
     const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
+
+    useEffect(() => {
+        if (!recordingAction) return;
+
+        const handleRecordingKeyDown = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // If Escape is pressed alone, cancel recording
+            if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+                setRecordingAction(null);
+                const Toast = Swal.mixin({
+                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1500
+                });
+                Toast.fire({
+                    icon: 'info',
+                    title: 'Recording cancelled'
+                });
+                return;
+            }
+
+            const shortcutStr = getShortcutStringFromEvent(e);
+            if (shortcutStr) {
+                updateShortcut(recordingAction.page, recordingAction.actionId, shortcutStr);
+                setRecordingAction(null);
+                
+                const Toast = Swal.mixin({
+                    toast: true, position: 'top-end', showConfirmButton: false, timer: 2000,
+                });
+                Toast.fire({
+                    icon: 'success',
+                    title: `Shortcut updated: ${shortcutStr}`
+                });
+            }
+        };
+
+        window.addEventListener('keydown', handleRecordingKeyDown, true);
+        return () => window.removeEventListener('keydown', handleRecordingKeyDown, true);
+    }, [recordingAction, updateShortcut]);
 
 
     useEffect(() => {
@@ -220,6 +264,123 @@ const Settings = () => {
                                 <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '8px', fontStyle: 'italic' }}>
                                     Changing the warehouse redirects all sales, item searches, and stock counts to the selected location instantly.
                                 </p>
+                            </div>
+                        </div>
+
+
+                        {/* Keyboard Shortcuts Customization Card */}
+                        <div className="so-table-card" style={{ padding: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ background: `${themeColor}15`, color: themeColor, padding: '8px', borderRadius: '10px' }}>
+                                        <SettingsIcon size={18} />
+                                    </div>
+                                    <div>
+                                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0 }}>Keyboard Shortcuts</h3>
+                                        <p style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', margin: 0 }}>Configure personalized hotkeys for POS and Document Editors.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        Swal.fire({
+                                            title: 'Reset Shortcuts?',
+                                            text: 'Are you sure you want to restore all keyboard shortcuts to their factory defaults?',
+                                            icon: 'warning',
+                                            showCancelButton: true,
+                                            confirmButtonText: 'Reset',
+                                            confirmButtonColor: themeColor,
+                                            cancelButtonColor: '#94a3b8'
+                                        }).then(res => {
+                                            if (res.isConfirmed) {
+                                                resetAllShortcuts();
+                                                Swal.fire('Reset!', 'All shortcuts have been reset.', 'success');
+                                            }
+                                        });
+                                    }}
+                                    style={{
+                                        fontSize: '0.65rem',
+                                        fontWeight: 700,
+                                        color: '#64748b',
+                                        background: '#f1f5f9',
+                                        border: 'none',
+                                        padding: '6px 12px',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseOver={e => e.currentTarget.style.background = '#e2e8f0'}
+                                    onMouseOut={e => e.currentTarget.style.background = '#f1f5f9'}
+                                >
+                                    Reset Defaults
+                                </button>
+                            </div>
+
+                            {/* Section Selector */}
+                            <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '1rem', gap: '1rem' }}>
+                                <button
+                                    onClick={() => setActiveShortcutTab('pos_home')}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        borderBottom: activeShortcutTab === 'pos_home' ? `2px solid ${themeColor}` : '2px solid transparent',
+                                        color: activeShortcutTab === 'pos_home' ? themeColor : '#64748b',
+                                        fontWeight: 700,
+                                        fontSize: '0.75rem',
+                                        padding: '8px 4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    POS Home Screen
+                                </button>
+                                <button
+                                    onClick={() => setActiveShortcutTab('doc_editor')}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        borderBottom: activeShortcutTab === 'doc_editor' ? `2px solid ${themeColor}` : '2px solid transparent',
+                                        color: activeShortcutTab === 'doc_editor' ? themeColor : '#64748b',
+                                        fontWeight: 700,
+                                        fontSize: '0.75rem',
+                                        padding: '8px 4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Form / Doc Editors
+                                </button>
+                            </div>
+
+                            {/* List of shortcuts */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
+                                {Object.entries(shortcuts[activeShortcutTab] || {}).map(([actionId, currentKey]) => {
+                                    const isRecording = recordingAction?.page === activeShortcutTab && recordingAction?.actionId === actionId;
+                                    const label = ACTION_LABELS[activeShortcutTab]?.[actionId] || actionId;
+                                    return (
+                                        <div key={actionId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155' }}>
+                                                {label}
+                                            </div>
+                                            <button
+                                                onClick={() => setRecordingAction({ page: activeShortcutTab, actionId })}
+                                                style={{
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 800,
+                                                    padding: '6px 12px',
+                                                    minWidth: '100px',
+                                                    textAlign: 'center',
+                                                    borderRadius: '6px',
+                                                    border: isRecording ? `1px solid ${themeColor}` : '1px solid #cbd5e1',
+                                                    background: isRecording ? `${themeColor}15` : 'white',
+                                                    color: isRecording ? themeColor : '#475569',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s',
+                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                                }}
+                                            >
+                                                {isRecording ? 'Press Key...' : currentKey}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 

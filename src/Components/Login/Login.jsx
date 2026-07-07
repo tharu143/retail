@@ -67,7 +67,14 @@ function Login() {
               timer: 3000,
               showConfirmButton: false
             });
-            navigate("/homepage");
+            const cachedRoles = JSON.parse(localStorage.getItem("user_roles") || "[]");
+            if (cachedRoles.includes("Delivery Driver")) {
+              navigate("/driver-dashboard");
+            } else if (localStorage.getItem("is_manager") === "true") {
+              navigate("/dashboard");
+            } else {
+              navigate("/homepage");
+            }
             return;
           }
         }
@@ -114,7 +121,9 @@ function Login() {
       });
 
       // Navigate based on ROLE
-      if (resp.is_manager) {
+      if (resp.user_roles?.includes("Delivery Driver")) {
+        navigate("/driver-dashboard");
+      } else if (resp.is_manager) {
         navigate("/dashboard");
       } else {
         navigate("/homepage");

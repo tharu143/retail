@@ -16,6 +16,7 @@ import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import AttachmentSection from './AttachmentSection';
+import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 
 const DEFAULT_SO_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
@@ -208,6 +209,7 @@ const ConnectionCard = ({ title, links, onTransistion, loadingLinks, themeColor 
 );
 
 export default function SalesOrderDetails() {
+    const { getShortcut, isShortcutPressed } = useCustomShortcuts();
     const { name } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
@@ -904,8 +906,8 @@ export default function SalesOrderDetails() {
                 }
             }
 
-            // F2: Focus Customer Search input
-            if (e.key === 'F2') {
+            // Focus Customer Search input
+            if (isShortcutPressed(e, 'doc_editor', 'customerSupplier', 'F2')) {
                 e.preventDefault();
                 const customerInput = document.querySelector('input[placeholder="Search customer..."]');
                 if (customerInput) {
@@ -914,8 +916,8 @@ export default function SalesOrderDetails() {
                 }
             }
 
-            // F3: Focus Item Search input
-            if (e.key === 'F3') {
+            // Focus Item Search input
+            if (isShortcutPressed(e, 'doc_editor', 'itemSearch', 'F3')) {
                 e.preventDefault();
                 const itemInputs = document.querySelectorAll('input[placeholder="SKU or Name..."]');
                 if (itemInputs.length > 0) {
@@ -928,8 +930,8 @@ export default function SalesOrderDetails() {
                 }
             }
 
-            // F4: Focus Barcode/Scan input
-            if (e.key === 'F4') {
+            // Focus Barcode/Scan input
+            if (isShortcutPressed(e, 'doc_editor', 'barcode', 'F4')) {
                 e.preventDefault();
                 const scanInput = document.querySelector('input[placeholder="Focus here to scan..."]');
                 if (scanInput) {
@@ -938,8 +940,8 @@ export default function SalesOrderDetails() {
                 }
             }
 
-            // F6: Bulk Quantity Update popup
-            if (e.key === 'F6') {
+            // Bulk Quantity Update popup
+            if (isShortcutPressed(e, 'doc_editor', 'bulkQty', 'F6')) {
                 e.preventDefault();
                 let rowIndex = inItemsTable ? activeRowIndex : ((form.items || []).length - 1);
                 if (rowIndex >= 0 && rowIndex < (form.items || []).length) {
@@ -968,8 +970,8 @@ export default function SalesOrderDetails() {
                 }
             }
 
-            // F8: Toggle UOM
-            if (e.key === 'F8') {
+            // Toggle UOM
+            if (isShortcutPressed(e, 'doc_editor', 'uom', 'F8')) {
                 e.preventDefault();
                 let rowIndex = inItemsTable ? activeRowIndex : ((form.items || []).length - 1);
                 if (rowIndex >= 0 && rowIndex < (form.items || []).length) {
@@ -999,16 +1001,16 @@ export default function SalesOrderDetails() {
                 }
             }
 
-            // F7 or Ctrl+S: Save Draft
-            if (e.key === 'F7' || (e.ctrlKey && e.key.toLowerCase() === 's')) {
+            // Save Draft
+            if (isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7') || (e.ctrlKey && e.key.toLowerCase() === 's')) {
                 e.preventDefault();
                 if (!saving) {
                     handleSave(false);
                 }
             }
 
-            // F10 or Alt+A: Add Item Row
-            if (e.key === 'F10' || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
+            // Add Item Row
+            if (isShortcutPressed(e, 'doc_editor', 'addRow', 'F10') || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
                 e.preventDefault();
                 addItemRow();
                 setTimeout(() => {
@@ -1023,8 +1025,8 @@ export default function SalesOrderDetails() {
                 }, 100);
             }
 
-            // F9: Focus Source Warehouse Select
-            if (e.key === 'F9') {
+            // Focus Source Warehouse Select
+            if (isShortcutPressed(e, 'doc_editor', 'warehouseBranch', 'F9')) {
                 e.preventDefault();
                 const warehouseSelect = document.querySelector('select[name="set_source_warehouse"]');
                 if (warehouseSelect) {
@@ -1032,8 +1034,8 @@ export default function SalesOrderDetails() {
                 }
             }
 
-            // F12 or Ctrl+Enter: Submit sales order
-            if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F12') {
+            // Submit sales order
+            if (isShortcutPressed(e, 'doc_editor', 'submit', 'F12') || (e.ctrlKey && e.key === 'Enter')) {
                 e.preventDefault();
                 if (!saving && !isNew) {
                     handleSave(true);
@@ -1512,39 +1514,39 @@ export default function SalesOrderDetails() {
               </div>
               <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F2</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Customer</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F3</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'itemSearch', 'F3')}</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F4</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'barcode', 'F4')}</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F6</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'bulkQty', 'F6')}</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F8</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'uom', 'F8')}</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
-                  <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">F7</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">{getShortcut('doc_editor', 'saveDraft', 'F7')}</kbd>
                   <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F10 / Alt+A</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">F9</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Branch</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / F12</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Submit</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">

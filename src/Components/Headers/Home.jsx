@@ -29,6 +29,7 @@ import { logout, toggleTheme, setTheme, markRead, markAllRead } from '../../Redu
 import './Home.css';
 import './LegacyPOS.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ModernNoImageGrid from './ModernNoImageGrid';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
@@ -109,6 +110,7 @@ const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount,
 function Home() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { getShortcut, isShortcutPressed } = useCustomShortcuts();
 
     useEffect(() => {
         if (location.state?.loadSalesOrder) {
@@ -1031,9 +1033,10 @@ function Home() {
                     // Check if there is ANY opening entry for this user (even closed ones).
                     // If yes → they had a shift before but it was closed → prompt for new one.
                     // If no entry ever existed → don't prompt (they may be a non-POS user).
-                    const anyEntryResp = await frappeCall('custom_retailpos.custom_retailpos.retail_api.retail.get_any_opening_entry', {
-                        method: 'GET',
-                        params: { warehouse }
+                    const anyEntryResp = await frappeCall({
+                        method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_any_opening_entry',
+                        type: 'GET',
+                        args: { warehouse }
                     });
                     const anyData = anyEntryResp?.message || anyEntryResp;
                     const hasAnyEntry = anyData?.has_entry || false;
@@ -1208,22 +1211,22 @@ function Home() {
     const isShortcutShown = (key) => !hiddenShortcuts.includes(key);
 
     const allShortcutsList = [
-        { key: 'F1', label: 'Discount' },
-        { key: 'F2', label: 'Customer' },
-        { key: 'F3', label: 'Search' },
-        { key: 'F4', label: 'Country Code (CC)' },
-        { key: 'F5', label: 'Stock' },
-        { key: 'F6', label: 'Bulk Qty' },
-        { key: 'F7', label: 'Pay (Classic)' },
-        { key: 'F8', label: 'UOM Toggle' },
-        { key: 'F9', label: 'Orders' },
-        { key: 'F10', label: 'Save Draft' },
-        { key: 'F12', label: 'Loyalty' },
+        { key: getShortcut('pos_home', 'discount', 'F1'), label: 'Discount' },
+        { key: getShortcut('pos_home', 'customer', 'F2'), label: 'Customer' },
+        { key: getShortcut('pos_home', 'search', 'F3'), label: 'Search' },
+        { key: getShortcut('pos_home', 'countryCode', 'F4'), label: 'Country Code (CC)' },
+        { key: getShortcut('pos_home', 'stock', 'F5'), label: 'Stock' },
+        { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty' },
+        { key: getShortcut('pos_home', 'pay', 'F7'), label: 'Pay (Classic)' },
+        { key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM Toggle' },
+        { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders' },
+        { key: getShortcut('pos_home', 'saveDraft', 'F10'), label: 'Save Draft' },
+        { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty' },
         { key: 'SPACE', label: 'Pay (Modern)' },
-        { key: 'ALT+C', label: 'Clear' },
-        { key: 'ALT+1', label: 'Direct Cash' },
-        { key: 'ALT+2', label: 'Direct Card' },
-        { key: 'ALT+I', label: 'Select / Swap Item' },
+        { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear' },
+        { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash' },
+        { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card' },
+        { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Select / Swap Item' },
         { key: '↑↓', label: 'Navigate' },
         { key: '+/-', label: 'Adjust Qty' },
         { key: '←→', label: 'Tax Toggle' }
@@ -1263,6 +1266,8 @@ function Home() {
     const [tenderedAmount, setTenderedAmount] = useState('');
     const [deliveryFee, setDeliveryFee] = useState('');
     const [showDeliveryFee, setShowDeliveryFee] = useState(false);
+    const [drivers, setDrivers] = useState([]);
+    const [selectedDriver, setSelectedDriver] = useState('');
     const [instapayServiceFee, setInstapayServiceFee] = useState('');
     const [instapayTaxInclusive, setInstapayTaxInclusive] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
@@ -1338,7 +1343,6 @@ function Home() {
     const subtotal = useMemo(() =>
         billItems.reduce((sum, item) => {
             const lineTotal = item.price * item.qty;
-
             // If inclusive, extract base price; if exclusive, use the total as base
             let netItem = lineTotal;
             if (item.is_tax_inclusive) {
@@ -1386,11 +1390,10 @@ function Home() {
         setSelectedPaymentMode('');
         setTenderedAmount('');
     };
-
+ 
     const removePayment = (index) => {
         setPayments(payments.filter((_, i) => i !== index));
     };
-
 
     // Purchase Tools (Manager Only)
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -3424,6 +3427,19 @@ function Home() {
         }
     }, [showDraftsModal]);
 
+    useEffect(() => {
+        if (showPaymentModal) {
+            POSService.getDrivers().then(res => {
+                const driversList = (res && res.message) ? res.message : res;
+                if (Array.isArray(driversList)) {
+                    setDrivers(driversList);
+                }
+            }).catch(err => console.error("Error fetching drivers:", err));
+        } else {
+            setSelectedDriver('');
+        }
+    }, [showPaymentModal]);
+
     // ---------- COMPLETE PAYMENT ----------
     const completePayment = async (directMode = null) => {
         if (typeof directMode !== 'string') directMode = null;
@@ -3542,6 +3558,7 @@ function Home() {
             pos_profile: posProfile,
             warehouse: warehouse,
             delivery_fee: parseFloat(deliveryFee) || 0,
+            custom_delivery_driver: selectedDriver || null,
             instapay_service_fee: parseFloat(instapayServiceFee) || 0,
             instapay_tax_inclusive: instapayTaxInclusive ? 1 : 0,
             pos_opening_entry: posOpeningEntry,
@@ -4780,15 +4797,36 @@ function Home() {
                                 </div>
                             </label>
                             {showDeliveryFee && (
-                                <div className="flex items-center bg-white border-2 border-slate-100 rounded-xl overflow-hidden mt-3 focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-50 transition-all">
-                                    <span className="pl-3.5 pr-2.5 text-xs font-black text-slate-400"><DirhamIcon size={12} /></span>
-                                    <input
-                                        type="number"
-                                        value={deliveryFee}
-                                        onChange={e => setDeliveryFee(e.target.value)}
-                                        placeholder="Amount"
-                                        className="w-full py-2.5 pr-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
-                                    />
+                                <div className="flex flex-col gap-3 mt-3">
+                                    <div className="flex items-center bg-white border-2 border-slate-100 rounded-xl overflow-hidden focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-50 transition-all">
+                                        <span className="pl-3.5 pr-2.5 text-xs font-black text-slate-400"><DirhamIcon size={12} /></span>
+                                        <input
+                                            type="number"
+                                            value={deliveryFee}
+                                            onChange={e => setDeliveryFee(e.target.value)}
+                                            placeholder="Amount"
+                                            className="w-full py-2.5 pr-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">
+                                            Assign Delivery Boy
+                                        </label>
+                                        <div className="flex items-center bg-white border-2 border-slate-100 rounded-xl overflow-hidden focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-50 transition-all">
+                                            <select
+                                                value={selectedDriver}
+                                                onChange={e => setSelectedDriver(e.target.value)}
+                                                className="w-full py-2.5 px-3 bg-transparent text-sm font-black text-slate-800 outline-none cursor-pointer"
+                                            >
+                                                <option value="" className="text-slate-400">Select Delivery Boy</option>
+                                                {drivers.map(d => (
+                                                    <option key={d.name} value={d.name}>
+                                                        {d.full_name || d.name} {d.cell_number ? `(${d.cell_number})` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -5431,14 +5469,14 @@ function Home() {
                 return; // Prioritize payment modal keys
             }
 
-            // F1 / Alt+D: Discount Modal Toggle
-            if (e.key === 'F1' || (e.key.toLowerCase() === 'd' && e.altKey)) {
+            // Discount Modal Toggle
+            if (isShortcutPressed(e, 'pos_home', 'discount', 'F1') || (e.key.toLowerCase() === 'd' && e.altKey)) {
                 e.preventDefault();
                 setShowDiscountModal(prev => !prev);
             }
 
-            // F12 / Alt+L: Loyalty Modal Toggle (Only outside payment modal)
-            if (!showPaymentModal && (e.key === 'F12' || (e.key.toLowerCase() === 'l' && e.altKey))) {
+            // Loyalty Modal Toggle (Only outside payment modal)
+            if (!showPaymentModal && (isShortcutPressed(e, 'pos_home', 'loyalty', 'F12') || (e.key.toLowerCase() === 'l' && e.altKey))) {
                 e.preventDefault();
                 if (showLoyaltyModal) {
                     setShowLoyaltyModal(false);
@@ -5447,20 +5485,20 @@ function Home() {
                 }
             }
 
-            // F2: Focus Mobile Number
-            if (e.key === 'F2') {
+            // Focus Mobile Number
+            if (isShortcutPressed(e, 'pos_home', 'customer', 'F2')) {
                 e.preventDefault();
                 mobileInputRef.current?.focus();
             }
 
-            // F3: Focus Barcode/Search
-            if (e.key === 'F3') {
+            // Focus Barcode/Search
+            if (isShortcutPressed(e, 'pos_home', 'search', 'F3')) {
                 e.preventDefault();
                 barcodeInputRef.current?.focus();
             }
 
-            // F4: Toggle Country Code Prefix (+971 <-> +91)
-            if (e.key === 'F4') {
+            // Toggle Country Code Prefix (+971 <-> +91)
+            if (isShortcutPressed(e, 'pos_home', 'countryCode', 'F4')) {
                 e.preventDefault();
                 setCountryCodePrefix(prev => {
                     const next = prev === '+971' ? '+91' : '+971';
@@ -5473,8 +5511,8 @@ function Home() {
                 });
             }
 
-            // F5: Full Stock Breakdown (all branches with REQUEST button)
-            if (e.key === 'F5') {
+            // Full Stock Breakdown (all branches with REQUEST button)
+            if (isShortcutPressed(e, 'pos_home', 'stock', 'F5')) {
                 e.preventDefault();
                 if (lastInteractedItem) {
                     showStockBreakdown(lastInteractedItem);
@@ -5503,8 +5541,8 @@ function Home() {
             }
 
 
-            // F6: Quick Price Update
-            if (e.key === 'F11') {
+            // Quick Price Update
+            if (isShortcutPressed(e, 'pos_home', 'priceUpdate', 'F11')) {
                 e.preventDefault();
                 if (selectedBillIndex !== -1) {
                     const item = billItems[selectedBillIndex];
@@ -5530,14 +5568,14 @@ function Home() {
                 }
             }
 
-            // F10: Bulk Quantity Update
-            if (e.key === 'F6') {
+            // Bulk Quantity Update
+            if (isShortcutPressed(e, 'pos_home', 'bulkQty', 'F6')) {
                 e.preventDefault();
                 handleBulkQtyUpdate();
             }
 
-            // F8: Toggle UOM of active cart item
-            if (e.key === 'F8') {
+            // Toggle UOM of active cart item
+            if (isShortcutPressed(e, 'pos_home', 'uom', 'F8')) {
                 e.preventDefault();
                 if (selectedBillIndex !== -1) {
                     const item = billItems[selectedBillIndex];
@@ -5548,8 +5586,8 @@ function Home() {
                 }
             }
 
-            // F10: Save Draft
-            if (e.key === 'F10') {
+            // Save Draft
+            if (isShortcutPressed(e, 'pos_home', 'saveDraft', 'F10')) {
                 e.preventDefault();
                 handleSaveDraft();
             }
@@ -5635,15 +5673,15 @@ function Home() {
                 }
             }
 
-            if (e.key === 'F7' || (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
+            if (isShortcutPressed(e, 'pos_home', 'pay', 'F7') || (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
                 if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
                     e.preventDefault();
                     handleCheckout();
                 }
             }
 
-            // F9: Active Orders Toggle
-            if (e.key === 'F9') {
+            // Active Orders Toggle
+            if (isShortcutPressed(e, 'pos_home', 'orders', 'F9')) {
                 e.preventDefault();
                 setShowDraftsModal(prev => !prev);
             }
@@ -5657,32 +5695,32 @@ function Home() {
                 }
             }
 
-            // Alt + C: Clear Bill
-            if (e.altKey && e.key?.toLowerCase() === 'c') {
+            // Clear Bill
+            if (isShortcutPressed(e, 'pos_home', 'clearBill', 'Alt+C')) {
                 e.preventDefault();
                 if (billItems.length > 0) {
                     clearBillHandler();
                 }
             }
 
-            // Alt + 1: Direct Cash
-            if (e.altKey && e.key === '1') {
+            // Direct Cash
+            if (isShortcutPressed(e, 'pos_home', 'directCash', 'Alt+1')) {
                 e.preventDefault();
                 if (billItems.length > 0) {
                     completePayment('Cash');
                 }
             }
 
-            // Alt + 2: Direct Card
-            if (e.altKey && e.key === '2') {
+            // Direct Card
+            if (isShortcutPressed(e, 'pos_home', 'directCard', 'Alt+2')) {
                 e.preventDefault();
                 if (billItems.length > 0) {
                     completePayment('Card');
                 }
             }
 
-            // Alt + I: Grid Card Selection Mode (Modern Themes) or Swap Item (Classic Theme)
-            if (e.altKey && e.key?.toLowerCase() === 'i') {
+            // Grid Card Selection Mode (Modern Themes) or Swap Item (Classic Theme)
+            if (isShortcutPressed(e, 'pos_home', 'selectItem', 'Alt+I')) {
                 e.preventDefault();
                 if (theme !== 'legacy') {
                     if (filteredItems.length > 0) {
@@ -5809,11 +5847,11 @@ function Home() {
         });
 
         const modernShortcutsData = [
-            { key: 'F1', label: 'Discount', colorClass: 'violet', action: () => setShowDiscountModal(prev => !prev) },
-            { key: 'F2', label: 'Customer', colorClass: 'blue', action: () => mobileInputRef.current?.focus() },
-            { key: 'F3', label: 'Search', colorClass: 'indigo', action: () => barcodeInputRef.current?.focus() },
+            { key: getShortcut('pos_home', 'discount', 'F1'), label: 'Discount', colorClass: 'violet', action: () => setShowDiscountModal(prev => !prev) },
+            { key: getShortcut('pos_home', 'customer', 'F2'), label: 'Customer', colorClass: 'blue', action: () => mobileInputRef.current?.focus() },
+            { key: getShortcut('pos_home', 'search', 'F3'), label: 'Search', colorClass: 'indigo', action: () => barcodeInputRef.current?.focus() },
             {
-                key: 'F4', label: `CC (${countryCodePrefix})`, colorClass: 'cyan', action: () => {
+                key: getShortcut('pos_home', 'countryCode', 'F4'), label: `CC (${countryCodePrefix})`, colorClass: 'cyan', action: () => {
                     setCountryCodePrefix(prev => {
                         const next = prev === '+971' ? '+91' : '+971';
                         localStorage.setItem('pos_country_code', next);
@@ -5826,14 +5864,14 @@ function Home() {
                 }
             },
             {
-                key: 'F5', label: 'Stock', colorClass: 'amber', action: () => {
+                key: getShortcut('pos_home', 'stock', 'F5'), label: 'Stock', colorClass: 'amber', action: () => {
                     if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
                     else Swal.fire('Info', 'Select or scan an item first.', 'info');
                 }
             },
-            { key: 'F6', label: 'Bulk Qty', colorClass: 'pink', action: handleBulkQtyUpdate },
+            { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty', colorClass: 'pink', action: handleBulkQtyUpdate },
             {
-                key: 'F8', label: 'UOM', colorClass: 'violet', action: () => {
+                key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM', colorClass: 'violet', action: () => {
                     if (selectedBillIndex !== -1) {
                         const item = billItems[selectedBillIndex];
                         const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
@@ -5843,15 +5881,15 @@ function Home() {
                     }
                 }
             },
-            { key: 'F9', label: 'Orders', colorClass: 'sky', action: () => setShowDraftsModal(prev => !prev) },
-            { key: 'F10', label: 'Save Draft', colorClass: 'amber', action: handleSaveDraft },
-            { key: 'F12', label: 'Loyalty', colorClass: 'emerald', action: handleLoyaltyPointsClick },
+            { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', colorClass: 'sky', action: () => setShowDraftsModal(prev => !prev) },
+            { key: getShortcut('pos_home', 'saveDraft', 'F10'), label: 'Save Draft', colorClass: 'amber', action: handleSaveDraft },
+            { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty', colorClass: 'emerald', action: handleLoyaltyPointsClick },
             { key: 'SPACE', label: 'Pay', colorClass: 'emerald', action: handleCheckout },
-            { key: 'ALT+C', label: 'Clear', colorClass: 'rose', action: clearBillHandler },
-            { key: 'ALT+1', label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
-            { key: 'ALT+2', label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) completePayment('Card'); } },
+            { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', colorClass: 'rose', action: clearBillHandler },
+            { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
+            { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) completePayment('Card'); } },
             {
-                key: 'ALT+I', label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
+                key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
                     if (theme !== 'legacy') {
                         if (filteredItems.length > 0) {
                             setActiveCardIndex(prev => prev === -1 ? 0 : -1);
@@ -6210,11 +6248,11 @@ function Home() {
     // ---------- CLASSIC THEME RENDERERS (Green & Blue) ----------
     const renderClassicShortcutsList = (isVertical) => {
         const classicShortcutsData = [
-            { key: 'F1', label: 'Discount', color: '#ec4899', icon: <Percent size={12} />, action: () => setShowDiscountModal(prev => !prev) },
-            { key: 'F2', label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
-            { key: 'F3', label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
+            { key: getShortcut('pos_home', 'discount', 'F1'), label: 'Discount', color: '#ec4899', icon: <Percent size={12} />, action: () => setShowDiscountModal(prev => !prev) },
+            { key: getShortcut('pos_home', 'customer', 'F2'), label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
+            { key: getShortcut('pos_home', 'search', 'F3'), label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
             {
-                key: 'F4', label: `CC (${countryCodePrefix})`, color: '#0ea5e9', icon: <Phone size={12} />, action: () => {
+                key: getShortcut('pos_home', 'countryCode', 'F4'), label: `CC (${countryCodePrefix})`, color: '#0ea5e9', icon: <Phone size={12} />, action: () => {
                     setCountryCodePrefix(prev => {
                         const next = prev === '+971' ? '+91' : '+971';
                         localStorage.setItem('pos_country_code', next);
@@ -6227,15 +6265,15 @@ function Home() {
                 }
             },
             {
-                key: 'F5', label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
+                key: getShortcut('pos_home', 'stock', 'F5'), label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
                     if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
                     else Swal.fire('Info', 'Select an item first', 'info');
                 }
             },
-            { key: 'F6', label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} />, action: handleBulkQtyUpdate },
-            { key: 'F7', label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
+            { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} />, action: handleBulkQtyUpdate },
+            { key: getShortcut('pos_home', 'pay', 'F7'), label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
             {
-                key: 'F8', label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
+                key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
                     if (selectedBillIndex !== -1) {
                         const item = billItems[selectedBillIndex];
                         const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
@@ -6245,11 +6283,11 @@ function Home() {
                     }
                 }
             },
-            { key: 'F9', label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
-            { key: 'F10', label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
-            { key: 'F12', label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
-            { key: 'ALT+C', label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
-            { key: 'ALT+I', label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
+            { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
+            { key: getShortcut('pos_home', 'saveDraft', 'F10'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
+            { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
+            { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
+            { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
             { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
             { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
             { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
