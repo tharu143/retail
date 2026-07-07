@@ -9,18 +9,21 @@ export const DEFAULT_SHORTCUTS = {
         customer: 'F2',
         search: 'F3',
         countryCode: 'F4',
-        stock: 'F5',
+        stock: 'F7',
         bulkQty: 'F6',
-        pay: 'F7',
+        pay: 'Space',
         uom: 'F8',
         orders: 'F9',
-        saveDraft: 'F10',
+        saveDraft: 'Alt+S',
         priceUpdate: 'F11',
         loyalty: 'F12',
         clearBill: 'Alt+C',
         directCash: 'Alt+1',
+        directBank: 'Ctrl+V',
         directCard: 'Alt+2',
-        selectItem: 'Alt+I'
+        selectItem: 'Alt+I',
+        itemDetail: 'F5',
+        printBill: 'F10'
     },
     doc_editor: {
         customerSupplier: 'F2',
@@ -51,8 +54,11 @@ export const ACTION_LABELS = {
         loyalty: 'Loyalty Modal Toggle',
         clearBill: 'Clear Cart / Bill',
         directCash: 'Direct Cash Complete',
+        directBank: 'Direct Bank Complete',
         directCard: 'Direct Card Complete',
-        selectItem: 'Grid Item Selection'
+        selectItem: 'Grid Item Selection',
+        itemDetail: 'Selected Item Detail Modal',
+        printBill: 'Print Last Invoice / Bill'
     },
     doc_editor: {
         customerSupplier: 'Focus Customer/Supplier Search',
@@ -93,8 +99,8 @@ export const matchShortcutEvent = (e, shortcutString) => {
     let targetKey = mainKeyPart;
     
     // Translate special terms
-    if (targetKey === 'SPACE') targetKey = ' ';
-    if (eventKey === ' ') eventKey = 'SPACE'; // standardise space key comparison
+    if (targetKey === ' ' || targetKey === 'SPACE') targetKey = 'SPACE';
+    if (eventKey === ' ' || eventKey === 'SPACE') eventKey = 'SPACE';
     
     return eventKey === targetKey;
 };
@@ -130,6 +136,29 @@ export const useCustomShortcuts = () => {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved);
+                // Auto-migrate old default shortcut keys for stock (F5 -> F7) and pay (F7 -> Space) and saveDraft (F10 -> Alt+S)
+                let needsWrite = false;
+                if (parsed.pos_home) {
+                    if (parsed.pos_home.stock === 'F5') {
+                        parsed.pos_home.stock = 'F7';
+                        needsWrite = true;
+                    }
+                    if (parsed.pos_home.pay === 'F7') {
+                        parsed.pos_home.pay = 'Space';
+                        needsWrite = true;
+                    }
+                    if (parsed.pos_home.saveDraft === 'F10') {
+                        parsed.pos_home.saveDraft = 'Alt+S';
+                        needsWrite = true;
+                    }
+                    if (parsed.pos_home.printBill === undefined) {
+                        parsed.pos_home.printBill = 'F10';
+                        needsWrite = true;
+                    }
+                }
+                if (needsWrite) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+                }
                 // Merge with defaults to ensure all keys exist
                 return {
                     pos_home: { ...DEFAULT_SHORTCUTS.pos_home, ...parsed.pos_home },

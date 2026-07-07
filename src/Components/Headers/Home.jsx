@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     RefreshCw, ExternalLink, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
     Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
-    DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan,
+    DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan, Printer,
     ShoppingCart, Minus, Plus, Upload, Percent,
     User,
     Tag,
@@ -596,6 +596,7 @@ function Home() {
     const renderCommonModals = () => (
         <>
             {showDiscountModal && renderDiscountModal()}
+            {showItemDetailModal && renderItemDetailModal()}
             {showLoyaltyModal && renderLoyaltyModal()}
             {showPaymentModal && renderPaymentModal()}
             {showCreateModal && renderCreateModal()}
@@ -1215,17 +1216,20 @@ function Home() {
         { key: getShortcut('pos_home', 'customer', 'F2'), label: 'Customer' },
         { key: getShortcut('pos_home', 'search', 'F3'), label: 'Search' },
         { key: getShortcut('pos_home', 'countryCode', 'F4'), label: 'Country Code (CC)' },
-        { key: getShortcut('pos_home', 'stock', 'F5'), label: 'Stock' },
+        { key: getShortcut('pos_home', 'itemDetail', 'F5'), label: 'Item Detail' },
         { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty' },
-        { key: getShortcut('pos_home', 'pay', 'F7'), label: 'Pay (Classic)' },
+        { key: getShortcut('pos_home', 'stock', 'F7'), label: 'Stock' },
         { key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM Toggle' },
         { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders' },
-        { key: getShortcut('pos_home', 'saveDraft', 'F10'), label: 'Save Draft' },
+        { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Last Bill' },
+        { key: getShortcut('pos_home', 'priceUpdate', 'F11'), label: 'Price Update' },
         { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty' },
-        { key: 'SPACE', label: 'Pay (Modern)' },
-        { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear' },
+        { key: getShortcut('pos_home', 'pay', 'Space'), label: 'Pay' },
         { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash' },
+        { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank' },
         { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card' },
+        { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear' },
+        { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft' },
         { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Select / Swap Item' },
         { key: '↑↓', label: 'Navigate' },
         { key: '+/-', label: 'Adjust Qty' },
@@ -1262,6 +1266,9 @@ function Home() {
 
     // Payment
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [showItemDetailModal, setShowItemDetailModal] = useState(false);
+    const [selectedDetailItem, setSelectedDetailItem] = useState(null);
+    const [lastInvoiceData, setLastInvoiceData] = useState(null);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
     const [tenderedAmount, setTenderedAmount] = useState('');
     const [deliveryFee, setDeliveryFee] = useState('');
@@ -3593,6 +3600,36 @@ function Home() {
             if (isSuccess) {
                 const serverName = data.invoice_name || data.name || (data.message && data.message.invoice_name) || offlineId;
 
+                let loyaltyData = null;
+                if (selectedCustomer?.loyalty_program && selectedCustomer?.customer_group !== 'Discount Customer') {
+                    const sumOfEligible = billItems.reduce((sum, item) => sum + (item.custom_loyalty_eligible ? (parseFloat(item.price) * parseFloat(item.qty)) : 0), 0);
+                    const pointsEarned = Math.floor(sumOfEligible);
+                    const oldPoints = parseInt(selectedCustomer?.loyalty_points || 0);
+                    const pointsRedeemed = loyaltyPointsToRedeem || 0;
+                    const newBalance = oldPoints + pointsEarned - pointsRedeemed;
+                    loyaltyData = {
+                        enabled: true,
+                        oldPoints,
+                        pointsEarned,
+                        pointsRedeemed,
+                        newBalance
+                    };
+                }
+
+                const printData = {
+                    name: serverName,
+                    grand_total: grandTotal,
+                    subtotal: subtotal,
+                    discount_amount: discountAmount,
+                    tax_amount: taxAmount,
+                    posting_date: format(new Date(), 'yyyy-MM-dd'),
+                    posting_time: format(new Date(), 'HH:mm:ss'),
+                    items: [...billItems],
+                    payments: [...finalPayments],
+                    loyalty: loyaltyData
+                };
+                setLastInvoiceData(printData);
+
                 Swal.fire({
                     icon: 'success',
                     title: isSuccess && String(data.message || data.name || "").includes("Duplicate") ? 'Already Sync Verified' : 'Invoice Created',
@@ -3605,34 +3642,7 @@ function Home() {
                     focusConfirm: true
                 }).then((res) => {
                     if (res.dismiss === 'cancel') {
-                        let loyaltyData = null;
-                        if (selectedCustomer?.loyalty_program && selectedCustomer?.customer_group !== 'Discount Customer') {
-                            const sumOfEligible = billItems.reduce((sum, item) => sum + (item.custom_loyalty_eligible ? (parseFloat(item.price) * parseFloat(item.qty)) : 0), 0);
-                            const pointsEarned = Math.floor(sumOfEligible);
-                            const oldPoints = parseInt(selectedCustomer?.loyalty_points || 0);
-                            const pointsRedeemed = loyaltyPointsToRedeem || 0;
-                            const newBalance = oldPoints + pointsEarned - pointsRedeemed;
-                            loyaltyData = {
-                                enabled: true,
-                                oldPoints,
-                                pointsEarned,
-                                pointsRedeemed,
-                                newBalance
-                            };
-                        }
-
-                        handlePrint({
-                            name: serverName,
-                            grand_total: grandTotal,
-                            subtotal: subtotal,
-                            discount_amount: discountAmount,
-                            tax_amount: taxAmount,
-                            posting_date: format(new Date(), 'yyyy-MM-dd'),
-                            posting_time: format(new Date(), 'HH:mm:ss'),
-                            items: billItems,
-                            payments: finalPayments,
-                            loyalty: loyaltyData
-                        });
+                        handlePrint(printData);
                     }
                     setTimeout(() => {
                         barcodeInputRef.current?.focus();
@@ -3690,6 +3700,19 @@ function Home() {
             console.error("Order Submission Error:", e);
             if (isOffline) {
                 await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
+                const offlinePrintData = {
+                    name: offlineId,
+                    grand_total: grandTotal,
+                    subtotal: subtotal,
+                    discount_amount: discountAmount,
+                    tax_amount: taxAmount,
+                    posting_date: format(new Date(), 'yyyy-MM-dd'),
+                    posting_time: format(new Date(), 'HH:mm:ss'),
+                    items: [...billItems],
+                    payments: [...finalPayments],
+                    loyalty: null
+                };
+                setLastInvoiceData(offlinePrintData);
                 Swal.fire({
                     icon: 'info',
                     title: 'Saved Offline',
@@ -3958,6 +3981,128 @@ function Home() {
 
 
     // ---------- MODAL RENDERERS (REUSABLE) ----------
+    const renderItemDetailModal = () => {
+        if (!selectedDetailItem) return null;
+        const item = selectedDetailItem;
+        const effectivePrice = item.price;
+        const lineTotal = item.qty * effectivePrice;
+        const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
+        const pcsQty = item.qty * factor;
+
+        return (
+            <div
+                className="home-modal-overlay"
+                onClick={() => setShowItemDetailModal(false)}
+                style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 10000
+                }}
+            >
+                <div
+                    className="home-modal"
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                        width: '100%',
+                        maxWidth: '550px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '32px',
+                        overflow: 'hidden',
+                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        margin: '20px'
+                    }}
+                >
+                    <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-6 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                                <Info size={20} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight m-0">Item Details</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Specifications and stock information</p>
+                            </div>
+                        </div>
+                        <button
+                            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
+                            onClick={() => setShowItemDetailModal(false)}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <div className="home-modal-body p-8 flex flex-col gap-6 max-h-[60vh] overflow-y-auto">
+                        {/* Item Code & Name Card */}
+                        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                            <div className="relative z-10 flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Item Code: {item.name || item.item_code || item.id}</span>
+                                <h4 className="text-2xl font-black uppercase tracking-tight leading-tight">{item.item_name || item.name}</h4>
+                            </div>
+                        </div>
+
+                        {/* Detail Specification Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Selected UOM</span>
+                                <span className="text-lg font-black text-slate-700">{item.uom}</span>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quantity in Cart</span>
+                                <span className="text-lg font-black text-slate-700">{item.qty} {item.uom} <span className="text-xs text-slate-400 font-bold">({pcsQty} pcs)</span></span>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unit Price</span>
+                                <span className="text-lg font-black text-slate-700">{effectivePrice?.toFixed(2)} AED</span>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Line Total</span>
+                                <span className="text-lg font-black text-slate-700">{lineTotal?.toFixed(2)} AED</span>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pieces per Box</span>
+                                <span className="text-lg font-black text-slate-700">{item.custom_pieces_per_box || item.pcs_per_box || 1}</span>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">On-Hand Stock</span>
+                                <span className="text-lg font-black text-emerald-600">{item.actual_qty || 0} pcs</span>
+                            </div>
+                        </div>
+
+                        {/* Branch Breakdown (if available) */}
+                        {item.warehouse_details && item.warehouse_details.length > 0 && (
+                            <div className="flex flex-col gap-3">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stock across branches</span>
+                                <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
+                                    {item.warehouse_details.map((d, index) => (
+                                        <div key={index} className="flex justify-between items-center p-3 text-xs bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                                            <span className="font-bold text-slate-600">{getBranchName(d.warehouse_name || d.warehouse)}</span>
+                                            <span className="font-black text-slate-800">{d.actual_qty || 0} Units</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="home-modal-footer bg-slate-50/80 border-t border-slate-100 p-6 flex justify-end">
+                        <button
+                            className="px-6 py-3 bg-slate-800 text-white font-black rounded-xl uppercase tracking-widest text-xs hover:bg-slate-700 transition-colors"
+                            onClick={() => setShowItemDetailModal(false)}
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderDiscountModal = () => (
         <div
             className="home-modal-overlay"
@@ -5511,8 +5656,19 @@ function Home() {
                 });
             }
 
+            // Selected Item Detail Modal (Classic theme F5)
+            if (isShortcutPressed(e, 'pos_home', 'itemDetail', 'F5')) {
+                e.preventDefault();
+                if (selectedBillIndex !== -1) {
+                    setSelectedDetailItem(billItems[selectedBillIndex]);
+                    setShowItemDetailModal(true);
+                } else {
+                    Swal.fire('Info', 'Select an item in cart first', 'info');
+                }
+            }
+
             // Full Stock Breakdown (all branches with REQUEST button)
-            if (isShortcutPressed(e, 'pos_home', 'stock', 'F5')) {
+            if (isShortcutPressed(e, 'pos_home', 'stock', 'F7')) {
                 e.preventDefault();
                 if (lastInteractedItem) {
                     showStockBreakdown(lastInteractedItem);
@@ -5587,9 +5743,19 @@ function Home() {
             }
 
             // Save Draft
-            if (isShortcutPressed(e, 'pos_home', 'saveDraft', 'F10')) {
+            if (isShortcutPressed(e, 'pos_home', 'saveDraft', 'Alt+S')) {
                 e.preventDefault();
                 handleSaveDraft();
+            }
+
+            // Print Last Bill
+            if (isShortcutPressed(e, 'pos_home', 'printBill', 'F10')) {
+                e.preventDefault();
+                if (lastInvoiceData) {
+                    handlePrint(lastInvoiceData);
+                } else {
+                    Swal.fire('Info', 'No invoice created in this session yet to print.', 'info');
+                }
             }
 
             // Card Selection Grid Navigation in Modern Themes
@@ -5673,10 +5839,12 @@ function Home() {
                 }
             }
 
-            if (isShortcutPressed(e, 'pos_home', 'pay', 'F7') || (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
-                if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
-                    e.preventDefault();
-                    handleCheckout();
+            if (isShortcutPressed(e, 'pos_home', 'pay', 'Space')) {
+                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                    if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                        e.preventDefault();
+                        handleCheckout();
+                    }
                 }
             }
 
@@ -5708,6 +5876,14 @@ function Home() {
                 e.preventDefault();
                 if (billItems.length > 0) {
                     completePayment('Cash');
+                }
+            }
+
+            // Direct Bank
+            if (isShortcutPressed(e, 'pos_home', 'directBank', 'Ctrl+V')) {
+                if (billItems.length > 0 && !isInputFocused) {
+                    e.preventDefault();
+                    completePayment('Bank');
                 }
             }
 
@@ -5882,11 +6058,13 @@ function Home() {
                 }
             },
             { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', colorClass: 'sky', action: () => setShowDraftsModal(prev => !prev) },
-            { key: getShortcut('pos_home', 'saveDraft', 'F10'), label: 'Save Draft', colorClass: 'amber', action: handleSaveDraft },
+            { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', colorClass: 'amber', action: handleSaveDraft },
+            { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', colorClass: 'indigo', action: () => { if (lastInvoiceData) handlePrint(lastInvoiceData); else Swal.fire('Info', 'No invoice created in this session yet to print.', 'info'); } },
             { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty', colorClass: 'emerald', action: handleLoyaltyPointsClick },
             { key: 'SPACE', label: 'Pay', colorClass: 'emerald', action: handleCheckout },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', colorClass: 'rose', action: clearBillHandler },
             { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
+            { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank', colorClass: 'sky', action: () => { if (billItems.length > 0) completePayment('Bank'); } },
             { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) completePayment('Card'); } },
             {
                 key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
@@ -6265,13 +6443,22 @@ function Home() {
                 }
             },
             {
-                key: getShortcut('pos_home', 'stock', 'F5'), label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
+                key: getShortcut('pos_home', 'itemDetail', 'F5'), label: 'Item Detail', color: '#ec4899', icon: <Info size={12} />, action: () => {
+                    if (selectedBillIndex !== -1) {
+                        setSelectedDetailItem(billItems[selectedBillIndex]);
+                        setShowItemDetailModal(true);
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
+            { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} />, action: handleBulkQtyUpdate },
+            {
+                key: getShortcut('pos_home', 'stock', 'F7'), label: 'Stock', color: '#f59e0b', icon: <Package size={12} />, action: () => {
                     if (lastInteractedItem) handleFindNearestStock(lastInteractedItem);
                     else Swal.fire('Info', 'Select an item first', 'info');
                 }
             },
-            { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty', color: '#d946ef', icon: <Layers size={12} />, action: handleBulkQtyUpdate },
-            { key: getShortcut('pos_home', 'pay', 'F7'), label: 'Pay', color: '#10b981', icon: <CreditCard size={12} />, action: () => { if (billItems.length > 0) handleCheckout(); } },
             {
                 key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
                     if (selectedBillIndex !== -1) {
@@ -6284,8 +6471,15 @@ function Home() {
                 }
             },
             { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
-            { key: getShortcut('pos_home', 'saveDraft', 'F10'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
+            { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', color: '#6366f1', icon: <Printer size={12} />, action: () => {
+                if (lastInvoiceData) {
+                    handlePrint(lastInvoiceData);
+                } else {
+                    Swal.fire('Info', 'No invoice created in this session yet to print.', 'info');
+                }
+            }},
             { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
+            { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
             { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
             { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
@@ -7166,7 +7360,15 @@ function Home() {
                                         style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        💵 Direct Cash <span className="btn-shortcut-key">Alt+1</span>
+                                        Direct Cash <span className="btn-shortcut-key">Alt+1</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
+                                        className="so-btn-secondary flex-1"
+                                        style={{ color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
+                                        disabled={grandTotal <= 0 || paymentLoading}
+                                    >
+                                        Direct Bank <span className="btn-shortcut-key">Ctrl+V</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
@@ -7174,7 +7376,7 @@ function Home() {
                                         style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        💳 Direct Card <span className="btn-shortcut-key">Alt+2</span>
+                                        Direct Card <span className="btn-shortcut-key">Alt+2</span>
                                     </button>
                                 </div>
 
@@ -7936,21 +8138,28 @@ function Home() {
 
                                 {/* Column 3 & 4 (col-span-2): Direct Checkout (top) and Process Payment (bottom) */}
                                 <div className="col-span-2 flex flex-col gap-1.5">
-                                    {/* Row 1: Direct Cash & Direct Card */}
+                                    {/* Row 1: Direct Cash, Direct Bank & Direct Card */}
                                     <div className="flex gap-1.5">
                                         <button
                                             className="flex-1 py-1.5 bg-emerald-700 text-white border-none hover:bg-emerald-800 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
                                             onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
-                                            💵 CASH <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+1</span>
+                                            CASH <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+1</span>
+                                        </button>
+                                        <button
+                                            className="flex-1 py-1.5 bg-sky-600 text-white border-none hover:bg-sky-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
+                                            onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
+                                            disabled={grandTotal <= 0 || paymentLoading}
+                                        >
+                                            BANK <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Ctrl+V</span>
                                         </button>
                                         <button
                                             className="flex-1 py-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
                                             onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
-                                            💳 CARD <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+2</span>
+                                            CARD <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+2</span>
                                         </button>
                                     </div>
                                     {/* Row 2: Process Payment */}
@@ -7959,7 +8168,7 @@ function Home() {
                                         onClick={handleCheckout}
                                         disabled={grandTotal <= 0}
                                     >
-                                        <CreditCard size={14} /> PROCESS PAYMENT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Space / F7</span>
+                                        <CreditCard size={14} /> PROCESS PAYMENT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Space</span>
                                     </button>
                                 </div>
                             </div>
