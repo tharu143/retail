@@ -855,7 +855,7 @@ const CustomerDetails = () => {
                             {row.loyalty_points > 0 ? '+' : ''}{parseFloat(row.loyalty_points).toFixed(2)} pts
                           </td>
                           <td className="py-2 px-4 font-bold text-indigo-600" style={{ color: themeColor }}>
-                            <a href={`/app/sales-invoice/${row.invoice}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1 select-all">
+                            <a href={`/app/sales-invoice/${row.invoice}`} target={window.location.protocol === 'file:' ? '_self' : '_blank'} rel="noopener noreferrer" className="hover:underline flex items-center gap-1 select-all">
                               <FileText size={12} className="opacity-60" /> {row.invoice}
                             </a>
                           </td>

@@ -324,7 +324,7 @@ function PurchaseOrderLists() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <a 
                               href={`/#/purchaseorder?name=${po.name}`} 
-                              target="_blank" 
+                              target={window.location.protocol === 'file:' ? '_self' : '_blank'} 
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
                               title="Open in new tab"

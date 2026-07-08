@@ -200,6 +200,14 @@ function SalesReport() {
     fetchReport(next);
   };
 
+  const handleMetricCardClick = (paymentMode, url) => {
+    if (window.location.protocol === 'file:') {
+      handleFilterUpdate('payment_mode', paymentMode);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
   const handleColumnUpdate = (newConfig) => {
     if (!newConfig) {
       localStorage.removeItem('sales_report_columns');
@@ -452,7 +460,7 @@ function SalesReport() {
             {/* Card 1: Grand Total */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/#/salesreport', '_blank')}
+              onClick={() => handleMetricCardClick('', '/#/salesreport')}
               style={{ borderLeft: `4px solid ${themeColor}`, padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: themeColor }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -468,7 +476,7 @@ function SalesReport() {
             {/* Card 2: Cash Payments */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/#/salesreport?payment_mode=Cash', '_blank')}
+              onClick={() => handleMetricCardClick('Cash', '/#/salesreport?payment_mode=Cash')}
               style={{ borderLeft: '4px solid #10b981', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#10b981' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -484,7 +492,7 @@ function SalesReport() {
             {/* Card 3: Card Payments */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/#/salesreport?payment_mode=Card', '_blank')}
+              onClick={() => handleMetricCardClick('Card', '/#/salesreport?payment_mode=Card')}
               style={{ borderLeft: '4px solid #3b82f6', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#3b82f6' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -500,7 +508,7 @@ function SalesReport() {
             {/* Card 4: InstaPay Payments */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/#/salesreport?payment_mode=InstaPay', '_blank')}
+              onClick={() => handleMetricCardClick('InstaPay', '/#/salesreport?payment_mode=InstaPay')}
               style={{ borderLeft: '4px solid #06b6d4', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#06b6d4' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -516,7 +524,7 @@ function SalesReport() {
             {/* Card 5: Credit Customer Payments */}
             <div 
               className="po-card shadow-sm clickable-metric-card" 
-              onClick={() => window.open('/#/salesreport?payment_mode=Credit', '_blank')}
+              onClick={() => handleMetricCardClick('Credit', '/#/salesreport?payment_mode=Credit')}
               style={{ borderLeft: '4px solid #f59e0b', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#f59e0b' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

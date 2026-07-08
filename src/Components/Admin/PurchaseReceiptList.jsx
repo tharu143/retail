@@ -2950,7 +2950,7 @@ function PurchaseReceiptList() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                   <a
                                     href={`/#/purchasereceiptlist?name=${rec.name}`}
-                                    target="_blank"
+                                    target={window.location.protocol === 'file:' ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
                                     title="Open in new tab"

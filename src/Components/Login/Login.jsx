@@ -7,6 +7,7 @@ import {
   User, Lock, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck
 } from 'lucide-react';
 import './Login.css';
+import packageJson from '../../../package.json';
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -209,7 +210,7 @@ function Login() {
 
         <div style={{ marginTop: '2.5rem', textAlign: 'center' }}>
           <p style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>
-            Powered by Kyle Solutions v8.2.1
+            Powered by Kyle Solutions v{packageJson.version}
           </p>
         </div>
       </div>

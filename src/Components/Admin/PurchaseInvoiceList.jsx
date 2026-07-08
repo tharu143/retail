@@ -2150,7 +2150,7 @@ function PurchaseInvoiceList() {
                     <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{docName} • Accounts</p>
                     <a
                       href={`/app/purchase-invoice/${encodeURIComponent(docName)}`}
-                      target="_blank"
+                      target={window.location.protocol === 'file:' ? '_self' : '_blank'}
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase ml-2 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
                       style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
@@ -3300,7 +3300,7 @@ function PurchaseInvoiceList() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                   <a
                                     href={`/#/purchaseinvoicelist?name=${inv.name}`}
-                                    target="_blank"
+                                    target={window.location.protocol === 'file:' ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
                                     title="Open in new tab"

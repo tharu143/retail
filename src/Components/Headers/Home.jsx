@@ -6738,9 +6738,15 @@ function Home() {
 
                             {/* New Tab */}
                             <button
-                                onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
+                                onClick={() => {
+                                    if (window.location.protocol === 'file:') {
+                                        window.location.hash = '#/homepage';
+                                    } else {
+                                        window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank');
+                                    }
+                                }}
                                 style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', borderRadius: '50%', flexShrink: 0 }}
-                                title="Open POS in New Tab"
+                                title={window.location.protocol === 'file:' ? "Go to POS Homepage" : "Open POS in New Tab"}
                             >
                                 <ExternalLink size={16} />
                             </button>
@@ -7360,7 +7366,7 @@ function Home() {
                                         style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        Direct Cash <span className="btn-shortcut-key">Alt+1</span>
+                                        {window.location.protocol === 'file:' ? 'Cash' : 'Direct Cash'} <span className="btn-shortcut-key">Alt+1</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
@@ -7368,7 +7374,7 @@ function Home() {
                                         style={{ color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        Direct Bank <span className="btn-shortcut-key">Ctrl+V</span>
+                                        {window.location.protocol === 'file:' ? 'Bank' : 'Direct Bank'} <span className="btn-shortcut-key">Ctrl+V</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
@@ -7376,7 +7382,7 @@ function Home() {
                                         style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        Direct Card <span className="btn-shortcut-key">Alt+2</span>
+                                        {window.location.protocol === 'file:' ? 'Card' : 'Direct Card'} <span className="btn-shortcut-key">Alt+2</span>
                                     </button>
                                 </div>
 
@@ -7532,9 +7538,15 @@ function Home() {
 
                             {/* Open POS in New Tab */}
                             <button
-                                onClick={() => window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank')}
+                                onClick={() => {
+                                    if (window.location.protocol === 'file:') {
+                                        window.location.hash = '#/homepage';
+                                    } else {
+                                        window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank');
+                                    }
+                                }}
                                 className={`transition-all p-1.5 hover:bg-slate-100 rounded-full ${isGreen ? 'text-emerald-600 hover:text-emerald-800' : 'text-sky-600 hover:text-sky-800'}`}
-                                title="Open POS in New Tab"
+                                title={window.location.protocol === 'file:' ? "Go to POS Homepage" : "Open POS in New Tab"}
                             >
                                 <ExternalLink size={18} />
                             </button>

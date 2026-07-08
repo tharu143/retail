@@ -691,7 +691,7 @@ function StockLedgerReport() {
                                   <td key={col.id} style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>
                                     {url ? (
                                       isExternal ? (
-                                        <a href={url} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                        <a href={url} target={window.location.protocol === 'file:' ? '_self' : '_blank'} rel="noopener noreferrer" className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
                                           {row.voucher_no}
                                           <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
                                         </a>
