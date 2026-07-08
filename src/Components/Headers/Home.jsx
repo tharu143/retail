@@ -6776,6 +6776,10 @@ function Home() {
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowSettingsMenu(!showSettingsMenu);
+                                        if (!showSettingsMenu) {
+                                            setShowDropdown(false);
+                                            setShowItemDropdown(false);
+                                        }
                                     }}
                                     onMouseDown={(e) => e.stopPropagation()}
                                     className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
@@ -7572,6 +7576,10 @@ function Home() {
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowSettingsMenu(!showSettingsMenu);
+                                        if (!showSettingsMenu) {
+                                            setShowDropdown(false);
+                                            setShowItemDropdown(false);
+                                        }
                                     }}
                                     onMouseDown={(e) => e.stopPropagation()}
                                     className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
@@ -7720,8 +7728,8 @@ function Home() {
                                             setCustomerMobile('');
                                         }
                                     }}
-                                    onFocus={() => { setSearchContext('customer'); setShowDropdown(true); }}
-                                    onClick={() => { setSearchContext('customer'); setShowDropdown(true); }}
+                                    onFocus={() => { setSearchContext('customer'); setShowDropdown(true); setShowSettingsMenu(false); }}
+                                    onClick={() => { setSearchContext('customer'); setShowDropdown(true); setShowSettingsMenu(false); }}
                                     onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
                                     onKeyDown={handleMobileEnter}
                                     className="flex-1 h-full px-3 text-base font-black text-slate-900 outline-none bg-transparent"
@@ -8060,7 +8068,7 @@ function Home() {
 
                             {/* Active Orders Button on Left Side */}
                             <button
-                                onClick={() => setShowDraftsModal(true)}
+                                onClick={() => { setShowSettingsMenu(false); setShowDraftsModal(true); }}
                                 className={`px-4 py-1.5 flex items-center gap-2 rounded-lg border transition-all font-black text-[11px] uppercase tracking-wider shadow-sm select-none ${isGreen ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-sky-600 text-white border-sky-700 hover:bg-sky-700'}`}
                                 style={{ alignSelf: 'center', height: 'fit-content' }}
                                 title="View Active Saved Orders (Drafts) (Press F9)"
@@ -8129,13 +8137,13 @@ function Home() {
                                 <div className="col-span-1 flex flex-col gap-1.5">
                                     <button
                                         className={`py-1.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
-                                        onClick={() => setShowDiscountModal(true)}
+                                        onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
                                     >
                                         <Palette size={12} /> DISCOUNT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F1</span>
                                     </button>
                                     <button
                                         className={`py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
-                                        onClick={clearBillHandler}
+                                        onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
                                     >
                                         <Trash2 size={12} /> CLEAR BILL <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+C</span>
                                     </button>
@@ -8145,13 +8153,13 @@ function Home() {
                                 <div className="col-span-1 flex flex-col gap-1.5">
                                     <button
                                         className={`py-1.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
-                                        onClick={handleLoyaltyPointsClick}
+                                        onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
                                     >
                                         <Award size={12} /> LOYALTY <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F12</span>
                                     </button>
                                     <button
                                         className={`py-1.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1`}
-                                        onClick={handleSaveDraft}
+                                        onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
                                         disabled={billItems.length === 0}
                                     >
                                         <Package size={12} /> SAVE DRAFT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F10</span>
@@ -8164,21 +8172,21 @@ function Home() {
                                     <div className="flex gap-1.5">
                                         <button
                                             className="flex-1 py-1.5 bg-emerald-700 text-white border-none hover:bg-emerald-800 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
-                                            onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
                                             CASH <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+1</span>
                                         </button>
                                         <button
                                             className="flex-1 py-1.5 bg-sky-600 text-white border-none hover:bg-sky-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
-                                            onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Bank'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
                                             BANK <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Ctrl+V</span>
                                         </button>
                                         <button
                                             className="flex-1 py-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
-                                            onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Card'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
                                             CARD <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+2</span>
@@ -8187,7 +8195,7 @@ function Home() {
                                     {/* Row 2: Process Payment */}
                                     <button
                                         className={`py-2 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[12px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5`}
-                                        onClick={handleCheckout}
+                                        onClick={() => { setShowSettingsMenu(false); handleCheckout(); }}
                                         disabled={grandTotal <= 0}
                                     >
                                         <CreditCard size={14} /> PROCESS PAYMENT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Space</span>
@@ -8490,7 +8498,7 @@ function Home() {
                                         value={barcodeInput}
                                         onChange={(e) => setBarcodeInput(e.target.value)}
                                         onKeyDown={onBarcodeKeyDown}
-                                        onFocus={() => setActiveCardIndex(-1)}
+                                        onFocus={() => { setActiveCardIndex(-1); setShowSettingsMenu(false); }}
                                         className="w-full pl-12 pr-12 py-4 bg-sky-50/50 border-2 border-sky-100 rounded-2xl text-sm font-black text-sky-900 placeholder:text-sky-300 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
                                     />
                                     <button
@@ -8557,7 +8565,7 @@ function Home() {
                                             value={customerName}
                                             className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-lg font-black text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-sky-500 outline-none shadow-sm transition-all"
                                             onChange={e => { setCustomerName(e.target.value); if (e.target.value.trim() !== 'Cash') setSelectedCustomer(null); }}
-                                            onFocus={() => { if (customerName.trim() === 'Cash') nameInputRef.current?.select(); customerName.trim().length >= 2 && setShowDropdown(true); }}
+                                            onFocus={() => { if (customerName.trim() === 'Cash') nameInputRef.current?.select(); customerName.trim().length >= 2 && setShowDropdown(true); setShowSettingsMenu(false); }}
                                             onKeyDown={e => { if (e.key === 'Enter' && customerName.trim()) { const existing = searchResults.find(c => c.customer_name.toLowerCase() === customerName.trim().toLowerCase()); if (existing) pickCustomer(existing); else openCreate(customerName.trim()); } }}
                                             autoComplete="off"
                                         />
