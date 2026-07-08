@@ -6040,12 +6040,22 @@ function Home() {
                 }
             },
             {
-                key: getShortcut('pos_home', 'stock', 'F5'), label: 'Stock', colorClass: 'amber', action: () => {
+                key: getShortcut('pos_home', 'itemDetail', 'F5'), label: 'Item Detail', colorClass: 'pink', action: () => {
+                    if (selectedBillIndex !== -1) {
+                        setSelectedDetailItem(billItems[selectedBillIndex]);
+                        setShowItemDetailModal(true);
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
+            { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty', colorClass: 'pink', action: handleBulkQtyUpdate },
+            {
+                key: getShortcut('pos_home', 'stock', 'F7'), label: 'Stock', colorClass: 'amber', action: () => {
                     if (lastInteractedItem) showStockBreakdown(lastInteractedItem);
                     else Swal.fire('Info', 'Select or scan an item first.', 'info');
                 }
             },
-            { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty', colorClass: 'pink', action: handleBulkQtyUpdate },
             {
                 key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM', colorClass: 'violet', action: () => {
                     if (selectedBillIndex !== -1) {
@@ -7366,7 +7376,7 @@ function Home() {
                                         style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        {window.location.protocol === 'file:' ? 'Cash' : 'Direct Cash'} <span className="btn-shortcut-key">Alt+1</span>
+                                        {(window.location.protocol === 'file:' || !!window.electronAPI || navigator.userAgent.toLowerCase().includes('electron') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.innerWidth < 1440) ? 'Cash' : 'Direct Cash'} <span className="btn-shortcut-key">Alt+1</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
@@ -7374,7 +7384,7 @@ function Home() {
                                         style={{ color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        {window.location.protocol === 'file:' ? 'Bank' : 'Direct Bank'} <span className="btn-shortcut-key">Ctrl+V</span>
+                                        {(window.location.protocol === 'file:' || !!window.electronAPI || navigator.userAgent.toLowerCase().includes('electron') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.innerWidth < 1440) ? 'Bank' : 'Direct Bank'} <span className="btn-shortcut-key">Ctrl+V</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
@@ -7382,7 +7392,7 @@ function Home() {
                                         style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        {window.location.protocol === 'file:' ? 'Card' : 'Direct Card'} <span className="btn-shortcut-key">Alt+2</span>
+                                        {(window.location.protocol === 'file:' || !!window.electronAPI || navigator.userAgent.toLowerCase().includes('electron') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.innerWidth < 1440) ? 'Card' : 'Direct Card'} <span className="btn-shortcut-key">Alt+2</span>
                                     </button>
                                 </div>
 
@@ -7398,7 +7408,7 @@ function Home() {
                                         </div>
                                     ) : (
                                         <>
-                                            <CreditCard size={18} /> Confirm & Pay <span className="btn-shortcut-key">Space / F7</span>
+                                            <CreditCard size={18} /> Confirm & Pay <span className="btn-shortcut-key">Space</span>
                                         </>
                                     )}
                                 </button>
