@@ -236,7 +236,7 @@ const ItemDetails = () => {
       </div>
       <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase mb-3">Item Not Found</h2>
       <p className="text-sm font-medium text-gray-400 max-w-xs mb-10">The requested item does not exist in the catalog.</p>
-      <button onClick={() => navigate(-1)} className="px-10 py-4 bg-gray-900 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest hover:shadow-xl transition-all active:scale-95">Return Back</button>
+      <button onClick={() => navigate('/itemlist')} className="px-10 py-4 bg-gray-900 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest hover:shadow-xl transition-all active:scale-95">Return Back</button>
     </div>
   );
 
@@ -248,7 +248,7 @@ const ItemDetails = () => {
       <div className="profile-header-container">
         <div className="header-actions-row">
           <div className="left-controls-group">
-            <button onClick={() => navigate(-1)} className="btn-modern-ghost" title="Go Back">
+            <button onClick={() => navigate('/itemlist')} className="btn-modern-ghost" title="Go Back">
               <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Back
             </button>
           </div>

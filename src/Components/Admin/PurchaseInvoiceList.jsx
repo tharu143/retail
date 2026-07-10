@@ -25,7 +25,7 @@ const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PI_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
-  { id: 'item_name', label: 'Item Name', visible: true, width: 150 },
+  { id: 'item_name', label: 'Item Name', visible: false, width: 150 },
   { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
@@ -2584,6 +2584,8 @@ function PurchaseInvoiceList() {
 
                           return activeCols.map(col => {
                             if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
+                            let finalLabel = col.label;
+                            if (col.id === 'custom_box_qty' && !anyBoxUom) finalLabel = 'Qty';
                             return (
                               <th
                                 key={col.id}
@@ -2594,7 +2596,7 @@ function PurchaseInvoiceList() {
                                     ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
                                 }}
                               >
-                                {col.label}
+                                {finalLabel}
                               </th>
                             );
                           });
@@ -2628,8 +2630,19 @@ function PurchaseInvoiceList() {
                                         <div className="premium-cell-box" style={{ position: 'relative' }}>
                                           {isViewMode ? (
                                             <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800" style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}>
-                                              {item.custom_box_qty || 0}
+                                              {item.use_box_entry ? (item.custom_box_qty || 0) : (item.qty || 0)}
                                             </div>
+                                          ) : !item.use_box_entry ? (
+                                            <input
+                                              type="number"
+                                              value={item.qty !== undefined ? item.qty : ''}
+                                              onFocus={e => e.target.select()}
+                                              onClick={e => e.target.select()}
+                                              onChange={e => updateItem(i, 'qty', e.target.value)}
+                                              className="so-input text-center font-bold"
+                                              style={{ border: `1px solid ${themeColor}40`, borderRadius: '4px', height: '36px', paddingRight: item.item_code ? '48px' : '0.5rem', width: '100%', flex: 1 }}
+                                              placeholder="Qty"
+                                            />
                                           ) : (
                                             <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                               <button
@@ -2686,6 +2699,43 @@ function PurchaseInvoiceList() {
                                               onClick={e => e.target.select()}
                                               onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
                                               className="so-input text-left pl-3 font-bold"
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'item_name':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {item.item_name || '—'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  );
+                                case 'custom_ref_sl_no':
+                                  return (
+                                    <td key={col.id}>
+                                      <div className="premium-cell-container">
+                                        <div className="premium-cell-box">
+                                          {isViewMode ? (
+                                            <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-slate-800">
+                                              {item.custom_ref_sl_no || item.custom_supplier_sl_num || '—'}
+                                            </div>
+                                          ) : (
+                                            <input
+                                              type="text"
+                                              value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
+                                              onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
+                                              onFocus={e => e.target.select()}
+                                              onClick={e => e.target.select()}
+                                              placeholder="Serial..."
+                                              className="so-input text-center font-bold text-[10px]"
+                                              style={{ textAlign: 'center' }}
                                             />
                                           )}
                                         </div>

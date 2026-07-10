@@ -105,9 +105,10 @@ const GlobalStyle = () => (
     .il-sync-row:hover { background: ${T.bg}; }
     .il-sync-row.selected { background: ${T.blueLight}; border-color: ${T.blue}30; }
     .il-sync-footer { padding: 16px 24px; border-top: 1px solid ${T.border}; display: flex; align-items: center; gap: 12px; flex-shrink: 0; background: ${T.bg}; border-radius: 0 0 0 0; }
-    .il-modal-panel { position: fixed; top: 56px; bottom: 0; left: 280px; right: 0; z-index: 10000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; }
+    .il-modal-panel { position: fixed; top: 56px; bottom: 0; left: 280px; right: 0; z-index: 10000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .sidebar-nav.collapsed ~ .right-content-panel .il-modal-panel { left: 80px; }
     @media (max-width: 768px) {
-      .il-modal-panel { left: 0; }
+      .il-modal-panel { left: 0 !important; }
     }
     .il-modal-header { background: ${T.surface}; border-bottom: 1.5px solid ${T.border}; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
     .il-modal-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
@@ -557,6 +558,22 @@ export default function ItemList() {
   useEffect(() => {
     fetchItems();
   }, [customColumns]);
+
+  useEffect(() => {
+    if (showForm) {
+      window.history.pushState({ modal: 'item-details' }, '');
+      const handlePopState = () => {
+        setShowForm(false);
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+        if (window.history.state?.modal === 'item-details') {
+          window.history.back();
+        }
+      };
+    }
+  }, [showForm]);
 
   useEffect(() => {
     if (showForm || isEditMode) { const t = setTimeout(() => fetchItemGroups(groupSearch), 300); return () => clearTimeout(t); }
@@ -1525,7 +1542,7 @@ export default function ItemList() {
                           }
                         }}
                       >
-                        <input type="checkbox" className="il-check" checked={allSyncSelected} onChange={() => { }} onClick={e => e.stopPropagation()} />
+                        <input type="checkbox" className="il-check" checked={allSyncSelected} onChange={() => { }} />
                         <span style={{ fontSize: 12, fontWeight: 700, color: T.textSub }}>
                           {allSyncSelected ? 'Deselect All' : `Select All (${filteredSync.length})`}
                         </span>
@@ -1545,7 +1562,7 @@ export default function ItemList() {
                               prev.includes(item.item_code) ? prev.filter(c => c !== item.item_code) : [...prev, item.item_code]
                             )}
                           >
-                            <input type="checkbox" className="il-check" checked={checked} onChange={() => { }} onClick={e => e.stopPropagation()} />
+                            <input type="checkbox" className="il-check" checked={checked} onChange={() => { }} />
                             <div style={{ width: 40, height: 40, background: T.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: `1px solid ${T.border}` }}>
                               {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Package size={16} color={T.textMuted} />}
                             </div>

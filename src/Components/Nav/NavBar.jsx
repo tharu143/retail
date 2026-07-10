@@ -394,7 +394,25 @@ function NavBar() {
       <div className="container-fluid justify-content-between">
         <div className="d-flex align-items-center gap-2">
           {location.pathname !== '/homepage' && location.pathname !== '/' && (
-            <div className="d-flex align-items-center cursor-pointer gap-1 back-link" onClick={() => navigate(-1)} style={{ color: '#64748b' }}>
+            <div
+              className="d-flex align-items-center cursor-pointer gap-1 back-link"
+              onClick={() => {
+                if (location.pathname.includes('/item-details')) {
+                  navigate('/itemlist');
+                } else if (location.pathname.includes('/customer-details')) {
+                  navigate('/customerlist');
+                } else if (location.pathname.includes('/supplier-details')) {
+                  navigate('/supplierlist');
+                } else if (location.pathname.includes('/salesorder-details')) {
+                  navigate('/salesorderlist');
+                } else if (location.pathname.includes('/deliverynote-details')) {
+                  navigate('/deliverynote');
+                } else {
+                  navigate(-1);
+                }
+              }}
+              style={{ color: '#64748b' }}
+            >
               <ChevronLeft size={22} />
               <span style={{ fontWeight: 700, fontSize: '14px' }}>Back</span>
             </div>
