@@ -107,6 +107,38 @@ const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount,
     );
 };
 
+const CurrentTimeDisplay = ({ variant }) => {
+    const [currentTime, setCurrentTime] = useState(new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    if (variant === 'legacy') {
+        return (
+            <span style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', marginTop: '1px', color: '#64748b', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>{format(currentTime, 'MMM dd')}</span>
+                <span style={{ color: '#94a3b8' }}>|</span>
+                <div className="digital-decoder-clock">
+                    <div className="digital-decoder-bg">88:88:88</div>
+                    <div className="digital-decoder-fg">{format(currentTime, 'HH:mm:ss')}</div>
+                </div>
+            </span>
+        );
+    }
+    return (
+        <span className="text-[9px] font-bold uppercase mt-1 tracking-tighter flex items-center gap-1">
+            <span className="text-slate-400 mr-1">DATE:</span>
+            <span className="text-slate-500">{format(currentTime, 'MMM dd, yyyy')}</span>
+            <span className="text-slate-300">|</span>
+            <div className="digital-decoder-clock">
+                <div className="digital-decoder-bg">88:88:88</div>
+                <div className="digital-decoder-fg">{format(currentTime, 'HH:mm:ss')}</div>
+            </div>
+        </span>
+    );
+};
+
 function Home() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -184,7 +216,6 @@ function Home() {
     const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
     const [showOpeningModal, setShowOpeningModal] = useState(false);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
-    const [currentTime, setCurrentTime] = useState(new Date());
 
     // Classic Theme Settings menu dropdown states
     const [showSettingsMenu, setShowSettingsMenu] = useState(false);
@@ -196,10 +227,6 @@ function Home() {
     const notifications = useSelector((state) => state.user.notifications || []);
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
     const [pendingSyncCount, setPendingSyncCount] = useState(0);
     const [sessionOrderCount, setSessionOrderCount] = useState(1);
 
@@ -6680,14 +6707,7 @@ function Home() {
                                     <span style={{ color: '#94a3b8', marginRight: '3px' }}>BR:</span>
                                     {getBranchName(warehouse)}
                                 </span>
-                                <span style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', marginTop: '1px', color: '#64748b', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <span>{format(currentTime, 'MMM dd')}</span>
-                                    <span style={{ color: '#94a3b8' }}>|</span>
-                                    <div className="digital-decoder-clock">
-                                        <div className="digital-decoder-bg">88:88:88</div>
-                                        <div className="digital-decoder-fg">{format(currentTime, 'HH:mm:ss')}</div>
-                                    </div>
-                                </span>
+                                <CurrentTimeDisplay variant="legacy" />
                             </div>
                             <div style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '50%', color: '#94a3b8', flexShrink: 0 }}>
                                 <UserIcon size={13} />
@@ -7480,15 +7500,7 @@ function Home() {
                                     <span className="text-slate-400 mr-1">BRANCH:</span>
                                     <span className={isGreen ? 'text-emerald-600' : 'text-sky-600'}>{getBranchName(warehouse)}</span>
                                 </span>
-                                <span className="text-[9px] font-bold uppercase mt-1 tracking-tighter flex items-center gap-1">
-                                    <span className="text-slate-400 mr-1">DATE:</span>
-                                    <span className="text-slate-500">{format(currentTime, 'MMM dd, yyyy')}</span>
-                                    <span className="text-slate-300">|</span>
-                                    <div className="digital-decoder-clock">
-                                        <div className="digital-decoder-bg">88:88:88</div>
-                                        <div className="digital-decoder-fg">{format(currentTime, 'HH:mm:ss')}</div>
-                                    </div>
-                                </span>
+                                <CurrentTimeDisplay variant="modern" />
                             </div>
                             <div className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400">
                                 <UserIcon size={18} />

@@ -702,7 +702,7 @@ function StockBalanceReport() {
                                   <td key={col.id} style={{ textAlign: 'right' }}>
                                     {outQty > 0 ? (
                                       <span className="qty-badge-pill outgoing">
-                                        -{outQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                        {outQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
                                       </span>
                                     ) : (
                                       <span className="text-muted-zero">-</span>
