@@ -402,6 +402,7 @@ function SalesOrder() {
   const [itemSearches, setItemSearches] = useState({});
   const [showItemDropdowns, setShowItemDropdowns] = useState({});
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [highlightedItemIndex, setHighlightedItemIndex] = useState({});
 
   const barcodeRef = useRef(null);
 
@@ -467,6 +468,7 @@ function SalesOrder() {
   }, []);
 
   const searchItems = async (query, idx) => {
+    setHighlightedItemIndex(p => ({ ...p, [idx]: -1 }));
     if (!query.trim()) {
       setItemsList([]);
       setShowItemDropdowns(p => ({ ...p, [idx]: false }));
@@ -1635,11 +1637,36 @@ function SalesOrder() {
                                                       setItemSearches(p => ({ ...p, [i]: v }));
                                                       searchItems(v, i);
                                                     }}
+                                                    onKeyDown={e => {
+                                                      if (!showItemDropdowns[i] || itemsList.length === 0) return;
+                                                      const currIndex = highlightedItemIndex[i] !== undefined ? highlightedItemIndex[i] : -1;
+                                                      if (e.key === 'ArrowDown') {
+                                                        e.preventDefault();
+                                                        setHighlightedItemIndex(prev => ({ ...prev, [i]: currIndex < itemsList.length - 1 ? currIndex + 1 : currIndex }));
+                                                      } else if (e.key === 'ArrowUp') {
+                                                        e.preventDefault();
+                                                        setHighlightedItemIndex(prev => ({ ...prev, [i]: currIndex > 0 ? currIndex - 1 : currIndex }));
+                                                      } else if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (currIndex >= 0 && itemsList[currIndex]) {
+                                                          selectItem(i, itemsList[currIndex]);
+                                                        } else if (itemsList.length > 0) {
+                                                          selectItem(i, itemsList[0]);
+                                                        }
+                                                      }
+                                                    }}
                                                   />
                                                   {showItemDropdowns[i] && itemsList.length > 0 && (
                                                     <div className="so-dropdown">
-                                                      {itemsList.map(itm => (
-                                                        <div key={itm.item_code} className="so-dropdown-item" onMouseDown={() => selectItem(i, itm)}>
+                                                      {itemsList.map((itm, idx) => (
+                                                        <div key={itm.item_code} 
+                                                             className="so-dropdown-item" 
+                                                             onMouseDown={(e) => {
+                                                               e.preventDefault();
+                                                               selectItem(i, itm);
+                                                             }}
+                                                             style={{ backgroundColor: highlightedItemIndex[i] === idx ? '#e2e8f0' : '' }}
+                                                        >
                                                           <div className="so-dropdown-item-name">{itm.item_name}</div>
                                                           <div className="so-dropdown-item-code">{itm.item_code}</div>
                                                         </div>

@@ -258,24 +258,22 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                 const total = d.value * count;
                                 const isNote = d.value >= 5;
                                 return (
-                                    <div 
-                                        key={d.value} 
-                                        className={`bg-white rounded-2xl p-3 border-2 transition-all flex flex-col justify-between relative overflow-hidden group ${
-                                            count > 0 
-                                                ? 'border-blue-500 shadow-md shadow-blue-500/5' 
+                                    <div
+                                        key={d.value}
+                                        className={`bg-white rounded-2xl p-3 border-2 transition-all flex flex-col justify-between relative overflow-hidden group ${count > 0
+                                                ? 'border-blue-500 shadow-md shadow-blue-500/5'
                                                 : 'border-slate-100 hover:border-slate-300 shadow-sm'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="absolute -right-3 -top-3 w-10 h-10 bg-slate-50 rounded-full group-hover:scale-125 transition-transform duration-300"></div>
-                                        
+
                                         <div className="relative">
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className="text-[14px] font-black text-slate-800 tracking-tight">
                                                     {d.value} <span className="text-[9px] text-slate-400 font-bold">AED</span>
                                                 </span>
-                                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                                                    isNote ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                                                }`}>
+                                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${isNote ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                                                    }`}>
                                                     {isNote ? 'Note' : 'Coin'}
                                                 </span>
                                             </div>

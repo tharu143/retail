@@ -372,9 +372,21 @@ export default function SalesOrderDetails() {
     const [warehouses, setWarehouses] = useState([]);
     const [searchCustomer, setSearchCustomer] = useState('');
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+    const [highlightedCustomerIndex, setHighlightedCustomerIndex] = useState(-1);
+    const customerDropdownRef = useRef(null);
+
+    useEffect(() => {
+        if (highlightedCustomerIndex >= 0 && customerDropdownRef.current) {
+            const itemEl = customerDropdownRef.current.children[highlightedCustomerIndex];
+            if (itemEl) {
+                itemEl.scrollIntoView({ block: 'nearest' });
+            }
+        }
+    }, [highlightedCustomerIndex]);
     const [itemSearches, setItemSearches] = useState({});
     const [showItemDropdowns, setShowItemDropdowns] = useState({});
     const [barcodeInput, setBarcodeInput] = useState('');
+    const [highlightedItemIndex, setHighlightedItemIndex] = useState({});
     const barcodeRef = useRef(null);
     const [showCamera, setShowCamera] = useState(false);
     const html5QrcodeRef = useRef(null);
@@ -634,6 +646,7 @@ export default function SalesOrderDetails() {
     };
 
     const searchItems = async (query, idx) => {
+        setHighlightedItemIndex(p => ({ ...p, [idx]: -1 }));
         if (!query.trim()) {
             setItemsList([]);
             setShowItemDropdowns(p => ({ ...p, [idx]: false }));
@@ -1587,30 +1600,65 @@ export default function SalesOrderDetails() {
                                             <div className="so-field">
                                                 <label className="so-label">Target Customer *</label>
                                                 <div style={{ position: 'relative' }}>
-                                                    <input
-                                                        className="so-input"
-                                                        type="text"
-                                                        value={searchCustomer}
-                                                        onChange={(e) => {
-                                                            setSearchCustomer(e.target.value);
-                                                            setShowCustomerDropdown(true);
-                                                        }}
-                                                        placeholder="Search customer..."
-                                                    />
-                                                    {showCustomerDropdown && (
-                                                        <div className="so-dropdown">
-                                                            {customers.filter(c => c.customer_name.toLowerCase().includes(searchCustomer.toLowerCase())).map(c => (
-                                                                <div key={c.name} onClick={() => {
-                                                                    setForm({ ...form, customer: c.name, customer_name: c.customer_name });
-                                                                    setSearchCustomer(c.customer_name);
-                                                                    setShowCustomerDropdown(false);
-                                                                }} className="so-dropdown-item">
-                                                                    <div className="so-dropdown-item-name">{c.customer_name}</div>
-                                                                    <div className="so-dropdown-item-code">{c.name}</div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                                    {(() => {
+                                                        const filteredCustomers = customers.filter(c => c.customer_name.toLowerCase().includes(searchCustomer.toLowerCase()));
+                                                        return (
+                                                            <>
+                                                                <input
+                                                                    className="so-input"
+                                                                    type="text"
+                                                                    value={searchCustomer}
+                                                                    onChange={(e) => {
+                                                                        setSearchCustomer(e.target.value);
+                                                                        setShowCustomerDropdown(true);
+                                                                        setHighlightedCustomerIndex(-1);
+                                                                    }}
+                                                                    onKeyDown={(e) => {
+                                                                        if (!showCustomerDropdown || filteredCustomers.length === 0) return;
+                                                                        if (e.key === 'ArrowDown') {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setHighlightedCustomerIndex(prev => (prev < filteredCustomers.length - 1 ? prev + 1 : prev));
+                                                                        } else if (e.key === 'ArrowUp') {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setHighlightedCustomerIndex(prev => (prev > 0 ? prev - 1 : prev));
+                                                                        } else if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            if (highlightedCustomerIndex >= 0 && filteredCustomers[highlightedCustomerIndex]) {
+                                                                                const c = filteredCustomers[highlightedCustomerIndex];
+                                                                                setForm({ ...form, customer: c.name, customer_name: c.customer_name });
+                                                                                setSearchCustomer(c.customer_name);
+                                                                                setShowCustomerDropdown(false);
+                                                                            } else if (filteredCustomers.length > 0) {
+                                                                                const c = filteredCustomers[0];
+                                                                                setForm({ ...form, customer: c.name, customer_name: c.customer_name });
+                                                                                setSearchCustomer(c.customer_name);
+                                                                                setShowCustomerDropdown(false);
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    placeholder="Search customer..."
+                                                                />
+                                                                {showCustomerDropdown && (
+                                                                    <div className="so-dropdown" ref={customerDropdownRef}>
+                                                                        {filteredCustomers.map((c, idx) => (
+                                                                            <div key={c.name} onMouseDown={(e) => {
+                                                                                e.preventDefault();
+                                                                                setForm({ ...form, customer: c.name, customer_name: c.customer_name });
+                                                                                setSearchCustomer(c.customer_name);
+                                                                                setShowCustomerDropdown(false);
+                                                                            }} className="so-dropdown-item" style={{ backgroundColor: highlightedCustomerIndex === idx ? '#e2e8f0' : '' }}>
+                                                                                <div className="so-dropdown-item-name">{c.customer_name}</div>
+                                                                                <div className="so-dropdown-item-code">{c.name}</div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                             <div className="so-field">
@@ -1820,6 +1868,27 @@ export default function SalesOrderDetails() {
                                                                                         setForm({ ...form, items: itms });
                                                                                         searchItems(val, idx);
                                                                                     }}
+                                                                                    onKeyDown={e => {
+                                                                                        if (!showItemDropdowns[idx] || itemsList.length === 0) return;
+                                                                                        const currIndex = highlightedItemIndex[idx] !== undefined ? highlightedItemIndex[idx] : -1;
+                                                                                        if (e.key === 'ArrowDown') {
+                                                                                            e.preventDefault();
+                                                                                            e.stopPropagation();
+                                                                                            setHighlightedItemIndex(prev => ({ ...prev, [idx]: currIndex < itemsList.length - 1 ? currIndex + 1 : currIndex }));
+                                                                                        } else if (e.key === 'ArrowUp') {
+                                                                                            e.preventDefault();
+                                                                                            e.stopPropagation();
+                                                                                            setHighlightedItemIndex(prev => ({ ...prev, [idx]: currIndex > 0 ? currIndex - 1 : currIndex }));
+                                                                                        } else if (e.key === 'Enter') {
+                                                                                            e.preventDefault();
+                                                                                            e.stopPropagation();
+                                                                                            if (currIndex >= 0 && itemsList[currIndex]) {
+                                                                                                selectItem(idx, itemsList[currIndex]);
+                                                                                            } else if (itemsList.length > 0) {
+                                                                                                selectItem(idx, itemsList[0]);
+                                                                                            }
+                                                                                        }
+                                                                                    }}
                                                                                 />
                                                                                 {showItemDropdowns[idx] && (
                                                                                     <PortalDropdown
@@ -1827,6 +1896,7 @@ export default function SalesOrderDetails() {
                                                                                         onSelect={(it) => selectItem(idx, it)}
                                                                                         targetEl={itemInputRefs.current[idx]}
                                                                                         onClose={() => setShowItemDropdowns(p => ({ ...p, [idx]: false }))}
+                                                                                        highlightedIndex={highlightedItemIndex[idx]}
                                                                                     />
                                                                                 )}
                                                                             </div>
@@ -2493,7 +2563,7 @@ export default function SalesOrderDetails() {
     );
 }
 
-const PortalDropdown = ({ itemsList, onSelect, targetEl, onClose }) => {
+const PortalDropdown = ({ itemsList, onSelect, targetEl, onClose, highlightedIndex }) => {
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
     const dropdownRef = useRef(null);
 
@@ -2516,6 +2586,15 @@ const PortalDropdown = ({ itemsList, onSelect, targetEl, onClose }) => {
             window.removeEventListener('resize', updateCoords);
         };
     }, [targetEl]);
+
+    useEffect(() => {
+        if (highlightedIndex >= 0 && dropdownRef.current) {
+            const itemEl = dropdownRef.current.children[highlightedIndex];
+            if (itemEl) {
+                itemEl.scrollIntoView({ block: 'nearest' });
+            }
+        }
+    }, [highlightedIndex]);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -2550,10 +2629,13 @@ const PortalDropdown = ({ itemsList, onSelect, targetEl, onClose }) => {
                 overflowY: 'auto'
             }}
         >
-            {itemsList.map(it => (
+            {itemsList.map((it, idx) => (
                 <div 
                     key={it.item_code} 
-                    onClick={() => onSelect(it)} 
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        onSelect(it);
+                    }} 
                     className="so-dropdown-item"
                     style={{
                         padding: '0.6rem 0.85rem',
@@ -2562,7 +2644,8 @@ const PortalDropdown = ({ itemsList, onSelect, targetEl, onClose }) => {
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '2px',
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        backgroundColor: highlightedIndex === idx ? '#e2e8f0' : ''
                     }}
                 >
                     <div className="so-dropdown-item-name" style={{ fontSize: '0.8rem', fontWeight: 650, color: '#1e293b' }}>{it.item_name}</div>

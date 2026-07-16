@@ -1409,7 +1409,7 @@ function Home() {
         setSelectedPaymentMode('');
         setTenderedAmount('');
     };
- 
+
     const removePayment = (index) => {
         setPayments(payments.filter((_, i) => i !== index));
     };
@@ -4878,27 +4878,25 @@ function Home() {
                                             className="w-full py-2.5 pr-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
                                         />
                                     </div>
-                                    
+
                                     {/* Tax Inclusive Custom Checkbox */}
                                     <label className="flex items-center gap-2.5 cursor-pointer select-none group">
                                         <div className="relative flex items-center justify-center">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={instapayTaxInclusive} 
-                                                onChange={e => setInstapayTaxInclusive(e.target.checked)} 
+                                            <input
+                                                type="checkbox"
+                                                checked={instapayTaxInclusive}
+                                                onChange={e => setInstapayTaxInclusive(e.target.checked)}
                                                 className="sr-only"
                                             />
-                                            <div className={`w-5 h-5 border-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${
-                                                instapayTaxInclusive 
-                                                    ? 'bg-indigo-600 border-indigo-600' 
+                                            <div className={`w-5 h-5 border-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${instapayTaxInclusive
+                                                    ? 'bg-indigo-600 border-indigo-600'
                                                     : 'bg-white border-indigo-200 group-hover:border-indigo-400'
-                                            }`}>
-                                                <svg 
-                                                    className={`w-3 h-3 text-white transition-all duration-200 ${
-                                                        instapayTaxInclusive ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
-                                                    }`} 
-                                                    fill="none" 
-                                                    viewBox="0 0 24 24" 
+                                                }`}>
+                                                <svg
+                                                    className={`w-3 h-3 text-white transition-all duration-200 ${instapayTaxInclusive ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+                                                        }`}
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
                                                     stroke="currentColor"
                                                     strokeWidth={4}
                                                 >
@@ -4911,15 +4909,14 @@ function Home() {
                                         </span>
                                     </label>
                                 </div>
-                              </div>
+                            </div>
                         )}
 
                         <div className="bg-slate-50/70 border border-slate-100/80 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
                             <label className="flex items-center gap-3 cursor-pointer select-none group w-full justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
-                                        showDeliveryFee ? 'bg-slate-700 text-white shadow-md shadow-slate-100' : 'bg-slate-200 text-slate-500'
-                                    }`}>
+                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${showDeliveryFee ? 'bg-slate-700 text-white shadow-md shadow-slate-100' : 'bg-slate-200 text-slate-500'
+                                        }`}>
                                         <Package size={12} />
                                     </div>
                                     <span className="text-xs font-black text-slate-700 uppercase tracking-widest group-hover:text-slate-900 transition-colors">
@@ -4928,23 +4925,21 @@ function Home() {
                                 </div>
                                 {/* Custom Checkbox */}
                                 <div className="relative flex items-center justify-center">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={showDeliveryFee} 
-                                        onChange={e => setShowDeliveryFee(e.target.checked)} 
+                                    <input
+                                        type="checkbox"
+                                        checked={showDeliveryFee}
+                                        onChange={e => setShowDeliveryFee(e.target.checked)}
                                         className="sr-only"
                                     />
-                                    <div className={`w-5 h-5 border-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${
-                                        showDeliveryFee 
-                                            ? 'bg-slate-600 border-slate-600' 
+                                    <div className={`w-5 h-5 border-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${showDeliveryFee
+                                            ? 'bg-slate-600 border-slate-600'
                                             : 'bg-white border-slate-200 group-hover:border-slate-400'
-                                    }`}>
-                                        <svg 
-                                            className={`w-3 h-3 text-white transition-all duration-200 ${
-                                                showDeliveryFee ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
-                                            }`} 
-                                            fill="none" 
-                                            viewBox="0 0 24 24" 
+                                        }`}>
+                                        <svg
+                                            className={`w-3 h-3 text-white transition-all duration-200 ${showDeliveryFee ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+                                                }`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
                                             stroke="currentColor"
                                             strokeWidth={4}
                                         >
@@ -6493,13 +6488,15 @@ function Home() {
                 }
             },
             { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
-            { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', color: '#6366f1', icon: <Printer size={12} />, action: () => {
-                if (lastInvoiceData) {
-                    handlePrint(lastInvoiceData);
-                } else {
-                    Swal.fire('Info', 'No invoice created in this session yet to print.', 'info');
+            {
+                key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', color: '#6366f1', icon: <Printer size={12} />, action: () => {
+                    if (lastInvoiceData) {
+                        handlePrint(lastInvoiceData);
+                    } else {
+                        Swal.fire('Info', 'No invoice created in this session yet to print.', 'info');
+                    }
                 }
-            }},
+            },
             { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
             { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
@@ -8683,6 +8680,5 @@ function Home() {
         </div>
     );
 }
-
 export default Home;
 

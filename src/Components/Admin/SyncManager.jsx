@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../db';
-import { 
-    Loader2, RefreshCw, AlertCircle, CheckCircle2, 
-    ChevronDown, ChevronUp, FastForward, Cloud, 
+import {
+    Loader2, RefreshCw, AlertCircle, CheckCircle2,
+    ChevronDown, ChevronUp, FastForward, Cloud,
     Wifi, WifiOff, Activity, ArrowRight, Palette,
     ArrowUpCircle, ArrowDownCircle, Info
 } from 'lucide-react';
@@ -148,7 +148,7 @@ const SyncManager = () => {
             if (hardProceed) {
                 cleanInv.hard_proceed = 1;
                 if (!cleanInv.customer || cleanInv.customer.trim() === '') cleanInv.customer = 'Cash';
-                delete cleanInv.name; 
+                delete cleanInv.name;
             }
 
             const results = await POSService.bulkSyncInvoices([cleanInv]);
@@ -290,7 +290,7 @@ const SyncManager = () => {
 
             <div className="so-layout" style={{ padding: '1.5rem' }}>
                 <div style={{ width: '100%' }}>
-                    
+
                     {/* Shift Priority Alerts */}
                     {(pendingOpening.length > 0 || pendingClosing.length > 0) && (
                         <div style={{ marginBottom: '2rem', border: '1.5px solid #6366f1', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.1)' }}>
@@ -338,7 +338,7 @@ const SyncManager = () => {
                     )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', alignItems: 'start' }}>
-                        
+
                         {/* Pending Invoices Table */}
                         <div className="so-table-card">
                             <div className="so-card-header" style={{ background: '#f8fafc' }}>
@@ -391,8 +391,8 @@ const SyncManager = () => {
                                                         <span className="so-badge" style={{ background: '#fef3c7', color: '#92400e' }}>PENDING</span>
                                                     </td>
                                                     <td style={{ textAlign: 'center' }}>
-                                                        <button 
-                                                            className="so-btn-ghost" 
+                                                        <button
+                                                            className="so-btn-ghost"
                                                             onClick={() => manualSync(inv)}
                                                             disabled={syncingId === inv.id || !isOnline}
                                                         >
@@ -421,18 +421,18 @@ const SyncManager = () => {
                                     syncLogs.map(log => (
                                         <div key={log.id} style={{ padding: '1rem', borderBottom: '1px solid #f1f5f9', display: 'flex', gap: '0.75rem' }}>
                                             <div style={{ marginTop: '0.2rem' }}>
-                                                {log.status === 'success' ? 
-                                                    <CheckCircle2 size={18} color="#10b981" /> : 
+                                                {log.status === 'success' ?
+                                                    <CheckCircle2 size={18} color="#10b981" /> :
                                                     <AlertCircle size={18} color="#ef4444" />
                                                 }
                                             </div>
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                     <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>
-                                                        {log.offline_id} 
+                                                        {log.offline_id}
                                                     </div>
-                                                    <span className="so-badge" style={{ 
-                                                        background: log.status === 'success' ? '#dcfce7' : '#fee2e2', 
+                                                    <span className="so-badge" style={{
+                                                        background: log.status === 'success' ? '#dcfce7' : '#fee2e2',
                                                         color: log.status === 'success' ? '#166534' : '#b91c1c',
                                                         fontSize: '0.55rem'
                                                     }}>
