@@ -25,7 +25,7 @@ const CustomSearchDropdown = ({
   const [globalResults, setGlobalResults] = useState([]);
   const [isGlobalView, setIsGlobalView] = useState(false);
   const [activating, setActivating] = useState(null);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 288 });
   const ref = useRef(null);
   const inputRef = useRef(null);
   const fetchDataRef = useRef(fetchData);
@@ -56,10 +56,25 @@ const CustomSearchDropdown = ({
       const updatePosition = () => {
         if (inputRef.current) {
           const rect = inputRef.current.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const spaceAbove = rect.top;
+          
+          let topPos = rect.bottom + 8;
+          let maxHeight = 288;
+          
+          if (spaceBelow < 280 && spaceAbove > spaceBelow) {
+             // flip upwards
+             maxHeight = Math.min(288, spaceAbove - 16);
+             topPos = rect.top - maxHeight - 8;
+          } else {
+             maxHeight = Math.min(288, spaceBelow - 16);
+          }
+
           setPosition({
-            top: rect.bottom,
+            top: topPos,
             left: rect.left,
-            width: rect.width
+            width: rect.width,
+            maxHeight
           });
         }
       };
@@ -270,11 +285,12 @@ const CustomSearchDropdown = ({
       {show && createPortal(
         <div
           ref={dropdownContainerRef}
-          className="custom-dropdown-portal fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] max-h-72 overflow-auto animate-fadeIn py-1"
+          className="custom-dropdown-portal fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] overflow-auto animate-fadeIn py-1"
           style={{
-            top: position.top + 8,
+            top: position.top,
             left: position.left,
             width: position.width,
+            maxHeight: position.maxHeight || 288,
             zIndex: 20000, // CRITICAL: Focus above modal overlay (10500 z-index)
             '--po-primary': themeColor || '#6366f1',
             '--po-primary-light': themeColor && themeColor.startsWith('var(')

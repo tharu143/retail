@@ -199,12 +199,11 @@ function DriverDashboard() {
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-12 font-sans">
       {/* Sticky Header */}
       <header className="sticky top-0 z-10 bg-white border-b border-slate-100 shadow-sm px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-blue-600 text-white p-2 rounded-xl shadow-md shadow-blue-100">
-            <Truck size={22} className="animate-pulse" />
-          </div>
+        <div className="flex items-center gap-3">
+          <img src="/kyleretail.png" alt="Kyle Retail Logo" className="h-12 object-contain" />
+          <div className="h-10 w-px bg-slate-200 mx-2"></div>
           <div>
-            <h1 className="text-sm font-black tracking-tight text-slate-900 uppercase">POS8 Driver Portal</h1>
+            <h1 className="text-[10px] font-black tracking-widest text-blue-600 uppercase">Driver Portal</h1>
             <p className="text-[11px] font-semibold text-slate-400">Driver ID: <span className="text-slate-600 font-bold">{driverName}</span></p>
           </div>
         </div>

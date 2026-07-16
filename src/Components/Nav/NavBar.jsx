@@ -417,10 +417,8 @@ function NavBar() {
               <span style={{ fontWeight: 700, fontSize: '14px' }}>Back</span>
             </div>
           )}
-          <div onClick={() => navigate('/homepage')} className="cursor-pointer">
-            <h1 className="nav-title">
-              POS<span>8</span>
-            </h1>
+          <div onClick={() => navigate('/homepage')} className="cursor-pointer flex items-center ms-2">
+            <img src="/kyleretail.png" alt="Kyle Retail" className="h-10 object-contain" />
           </div>
         </div>
 

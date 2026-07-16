@@ -250,12 +250,12 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
       <div className="sidebar-header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', width: '100%' }}>
           {!isCollapsed ? (
-            <div className="sidebar-brand">
-              POS<span>8</span>
+            <div className="sidebar-brand flex items-center">
+              <img src="/kyleretail.png" alt="Logo" className="h-10 object-contain" />
             </div>
           ) : (
-            <div className="sidebar-brand" style={{ fontSize: '1.5rem', paddingLeft: '4px' }}>
-              P<span>8</span>
+            <div className="sidebar-brand flex items-center" style={{ paddingLeft: '4px' }}>
+              <img src="/kyleretail.png" alt="Logo" className="h-8 object-contain" />
             </div>
           )}
           <button 

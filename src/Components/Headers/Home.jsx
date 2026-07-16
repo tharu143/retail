@@ -629,7 +629,7 @@ function Home() {
             {showCreateModal && renderCreateModal()}
             {showOpeningModal && (
                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
-                    <div className="home-modal" style={{ maxWidth: '950px', maxHeight: '95vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+                    <div className="home-modal" style={{ maxWidth: '1450px', width: '98vw', maxHeight: '98vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
                         <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-5 flex justify-between items-center">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
@@ -6633,11 +6633,9 @@ function Home() {
                         display: 'flex', alignItems: 'center', gap: '10px',
                         padding: '6px 14px', flexShrink: 0
                     }}>
-                        {/* POS8 Logo */}
-                        <div style={{ flexShrink: 0 }}>
-                            <h1 className="text-xl font-black tracking-tighter text-slate-800">
-                                POS<span className="text-emerald-500">8</span>
-                            </h1>
+                        {/* Kyle Retail Logo */}
+                        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                            <img src="/kyleretail.png" alt="Kyle Retail Logo" className="h-12 object-contain" />
                         </div>
                     </div>
 
