@@ -985,6 +985,18 @@ function PurchaseReceiptList() {
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
     if (existingIdx === -1) {
       fetchItemRate(rowIndex, item.item_code);
+      // Fetch UOMs and update the row's uom_list
+      fetchItemUOMs(item.item_code).then(uomList => {
+        if (uomList && uomList.length > 0) {
+          setFormData(current => {
+            const currentItems = [...current.items];
+            if (currentItems[rowIndex] && currentItems[rowIndex].item_code === item.item_code) {
+              currentItems[rowIndex].uom_list = uomList;
+            }
+            return { ...current, items: currentItems };
+          });
+        }
+      });
     }
   };
   const handleSupplierCreate = async (name) => {
@@ -1279,6 +1291,23 @@ function PurchaseReceiptList() {
       setIsModalOpen(true);
       setLastSavedData(JSON.stringify(mapped)); // Use mapped object for stable comparison
       if (doc.name) fetchLinkedDocuments(doc.name);
+
+      // Fetch UOMs for all items asynchronously
+      mapped.items.forEach((item, index) => {
+        if (item.item_code) {
+          fetchItemUOMs(item.item_code).then(uoms => {
+            if (uoms && uoms.length > 0) {
+              setFormData(prev => {
+                const updatedItems = [...prev.items];
+                if (updatedItems[index] && updatedItems[index].item_code === item.item_code) {
+                  updatedItems[index].uom_list = uoms;
+                }
+                return { ...prev, items: updatedItems };
+              });
+            }
+          });
+        }
+      });
     } catch (err) {
       console.error('Error fetching receipt:', err);
       alert('Failed to load receipt');

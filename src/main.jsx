@@ -11,7 +11,7 @@ import { logout } from './Redux/Slices/userSlice';
 // === GLOBAL API AND AUTHENTICATION CONFIGURATION ===
 
 // 1. Global Axios Configuration
-const BACKEND_URL = 'http://75.119.130.59';
+const BACKEND_URL = 'http://75.119.130.59:8089';
 const IS_ELECTRON = window.location.protocol === 'file:';
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const IS_PROD = IS_ELECTRON;

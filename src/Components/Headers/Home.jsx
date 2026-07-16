@@ -1058,26 +1058,11 @@ function Home() {
                     setShowOpeningModal(false);
                 } else {
                     // No active opening entry found.
-                    // Check if there is ANY opening entry for this user (even closed ones).
-                    // If yes → they had a shift before but it was closed → prompt for new one.
-                    // If no entry ever existed → don't prompt (they may be a non-POS user).
-                    const anyEntryResp = await frappeCall({
-                        method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_any_opening_entry',
-                        type: 'GET',
-                        args: { warehouse }
-                    });
-                    const anyData = anyEntryResp?.message || anyEntryResp;
-                    const hasAnyEntry = anyData?.has_entry || false;
-
-                    if (hasAnyEntry) {
-                        // Previous shift was closed — prompt to open a new one
-                        localStorage.removeItem('posOpeningEntry');
-                        setPosOpeningEntry('');
-                        setShowOpeningModal(true);
-                    } else {
-                        // Never had a shift — don't prompt
-                        setShowOpeningModal(false);
-                    }
+                    // The user either closed their previous shift or hasn't created one today.
+                    // Always prompt to open a new one.
+                    localStorage.removeItem('posOpeningEntry');
+                    setPosOpeningEntry('');
+                    setShowOpeningModal(true);
                 }
             } catch (e) {
                 console.error('[Home] Error checking opening entry:', e);
@@ -7400,7 +7385,7 @@ function Home() {
                                         style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        {(window.location.protocol === 'file:' || !!window.electronAPI || navigator.userAgent.toLowerCase().includes('electron') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.innerWidth < 1440) ? 'Cash' : 'Direct Cash'} <span className="btn-shortcut-key">Alt+1</span>
+                                        'Cash' <span className="btn-shortcut-key">Alt+1</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
@@ -7408,7 +7393,7 @@ function Home() {
                                         style={{ color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        {(window.location.protocol === 'file:' || !!window.electronAPI || navigator.userAgent.toLowerCase().includes('electron') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.innerWidth < 1440) ? 'Bank' : 'Direct Bank'} <span className="btn-shortcut-key">Ctrl+V</span>
+                                        'Bank' <span className="btn-shortcut-key">Ctrl+V</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
@@ -7416,7 +7401,7 @@ function Home() {
                                         style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        {(window.location.protocol === 'file:' || !!window.electronAPI || navigator.userAgent.toLowerCase().includes('electron') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.innerWidth < 1440) ? 'Card' : 'Direct Card'} <span className="btn-shortcut-key">Alt+2</span>
+                                        'Card' <span className="btn-shortcut-key">Alt+2</span>
                                     </button>
                                 </div>
 
