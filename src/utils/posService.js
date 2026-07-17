@@ -134,7 +134,7 @@ const POSService = {
         }));
 
         return await frappeCall({
-            method: 'custom_retailpos.custom_retailpos.retail_api.retail.bulk_sync_invoices',
+            method: 'kyle_retail.retail_api.api.bulk_sync_retail_invoices',
             args: { invoices: normalizedInvoices }
         });
     },

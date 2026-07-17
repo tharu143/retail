@@ -814,7 +814,7 @@ const DeliveryNoteDetails = () => {
 
     const handleCreateInvoice = () => {
         if (!form.name) return;
-        navigate(`/salesinvoice?dn=${encodeURIComponent(form.name)}`);
+        navigate('/homepage', { state: { loadDeliveryNote: form.name } });
     };
 
     const updateItem = (i, field, value) => {

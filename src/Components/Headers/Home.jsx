@@ -9,7 +9,7 @@ import {
     DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan, Printer,
     ShoppingCart, Minus, Plus, Upload, Percent,
     User,
-    Tag,
+    Tag,   
     ArrowLeftRight,
     Move,
     QrCode,
@@ -150,6 +150,10 @@ function Home() {
             // Clear the state so it doesn't loop
             window.history.replaceState({}, document.title);
         }
+        if (location.state?.loadDeliveryNote) {
+            loadDeliveryNoteIntoPOS(location.state.loadDeliveryNote);
+            window.history.replaceState({}, document.title);
+        }
     }, [location.state]);
 
     const loadSalesOrderIntoPOS = async (soName) => {
@@ -197,6 +201,54 @@ function Home() {
         } catch (e) {
             console.error("Error loading Sales Order:", e);
             Swal.fire('Error', 'Failed to load Sales Order details into POS', 'error');
+        }
+    };
+
+    const loadDeliveryNoteIntoPOS = async (dnName) => {
+        try {
+            Swal.fire({ title: 'Loading Delivery Note...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const dnDoc = await frappeCall({
+                method: 'frappe.client.get',
+                args: { doctype: 'Delivery Note', name: dnName }
+            });
+
+            if (dnDoc) {
+                // Set Customer
+                setCustomerName(dnDoc.customer_name || dnDoc.customer);
+                setSelectedCustomer({
+                    name: dnDoc.customer,
+                    customer_name: dnDoc.customer_name,
+                    customer_group: dnDoc.customer_group
+                });
+
+                // Set Items
+                const mappedItems = dnDoc.items.map(i => ({
+                    id: i.item_code,
+                    name: i.item_name,
+                    qty: i.qty,
+                    uom: i.uom,
+                    price: i.rate,
+                    is_tax_inclusive: true,
+                    custom_pieces_per_box: i.custom_pieces_per_box || 1,
+                    delivery_note: dnDoc.name,
+                    dn_detail: i.name
+                }));
+
+                setBillItems(mappedItems);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: `Delivery Note ${dnName} Loaded`,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            }
+        } catch (e) {
+            console.error("Error loading Delivery Note:", e);
+            Swal.fire('Error', 'Failed to load Delivery Note details into POS', 'error');
         }
     };
 
