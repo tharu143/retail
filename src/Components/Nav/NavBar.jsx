@@ -419,7 +419,7 @@ function NavBar() {
             </div>
           )}
           <div onClick={() => navigate('/homepage')} className="cursor-pointer flex items-center ms-2">
-            <img src={kyleLogo} alt="Kyle Retail" className="h-10 object-contain" />
+            <img src={kyleLogo} alt="Kyle Retail" className="h-11 w-auto object-contain bg-white p-1.5 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 hover:scale-105" />
           </div>
         </div>
 

@@ -6688,7 +6688,7 @@ function Home() {
                     }}>
                         {/* Kyle Retail Logo */}
                         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-12 object-contain" />
+                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-12 w-auto object-contain bg-white p-1.5 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 hover:scale-105" />
                         </div>
                     </div>
 

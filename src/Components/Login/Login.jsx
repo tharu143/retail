@@ -142,7 +142,7 @@ function Login() {
     <div className="login-page-container">
       <div className="login-card">
         <div className="login-header">
-          <img src={kyleLogo} alt="Kyle Retail Logo" className="h-24 mx-auto object-contain mb-4" />
+          <img src={kyleLogo} alt="Kyle Retail Logo" className="h-32 w-auto mx-auto object-contain mb-6 bg-white p-3 rounded-2xl shadow-md border border-gray-200 transition-transform duration-300 hover:scale-105" />
           <p className="login-subtitle">Sign in to manage your retail empire</p>
         </div>
 

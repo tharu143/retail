@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Plus, Filter, MoreVertical, Search, Calendar, Building2,
@@ -34,6 +34,7 @@ function PurchaseOrderLists() {
 
   // Filters
   const location = useLocation();
+  const navigate = useNavigate();
   const [filterSupplier, setFilterSupplier] = useState(location.state?.search || '');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
@@ -203,9 +204,9 @@ function PurchaseOrderLists() {
               themeColor={themeColor}
             />
 
-            <a href="/#/purchaseorder" className="so-btn-primary" style={{ textDecoration: 'none' }}>
+            <button onClick={() => navigate('/purchaseorder')} className="so-btn-primary" style={{ textDecoration: 'none', border: 'none', cursor: 'pointer' }}>
               <Plus size={16} /> Add Purchase Order
-            </a>
+            </button>
           </div>
         </div>
 
@@ -315,23 +316,20 @@ function PurchaseOrderLists() {
                     paginated.map((po) => (
                       <tr
                         key={po.name}
-                        onClick={() => { window.location.href = `/#/purchaseorder?name=${po.name}`; }}
+                        onClick={() => { navigate(`/purchaseorder?name=${po.name}`); }}
                         style={{ cursor: 'pointer' }}
                         onMouseEnter={e => e.currentTarget.style.background = `${themeColor}08`}
                         onMouseLeave={e => e.currentTarget.style.background = ''}
                       >
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <a 
-                              href={`/#/purchaseorder?name=${po.name}`} 
-                              target={window.location.protocol === 'file:' ? '_self' : '_blank'} 
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              title="Open in new tab"
-                              style={{ color: themeColor, textDecoration: 'none' }}
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); navigate(`/purchaseorder?name=${po.name}`); }}
+                              title="Open Record"
+                              style={{ color: themeColor, textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                             >
                               <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                            </a>
+                            </button>
                             <span style={{ color: themeColor, fontWeight: 700, fontFamily: 'monospace', fontSize: '0.8rem' }}>
                               {po.name}
                             </span>
@@ -397,15 +395,14 @@ function PurchaseOrderLists() {
                               borderRadius: '0.5rem', boxShadow: 'var(--so-shadow)',
                               minWidth: '130px', overflow: 'hidden'
                             }}>
-                              <a
-                                href={`/#/purchaseorder?name=${po.name}`}
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', fontSize: '0.85rem', color: '#1e293b', textDecoration: 'none' }}
+                              <button
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', fontSize: '0.85rem', color: '#1e293b', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}
                                 onMouseEnter={e => e.currentTarget.style.background = 'var(--so-primary-light)'}
                                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                onClick={() => setShowActions(null)}
+                                onClick={(e) => { e.stopPropagation(); setShowActions(null); navigate(`/purchaseorder?name=${po.name}`); }}
                               >
                                 <Eye size={13} /> View / Edit Record
-                              </a>
+                              </button>
                             </div>
                           )}
                         </td>

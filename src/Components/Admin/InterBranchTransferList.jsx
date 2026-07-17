@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Plus, Filter, Building2, Package, Loader2, ArrowRightLeft, ArrowRight, ChevronRight, FileText, Activity, Search, Palette
@@ -15,6 +16,7 @@ function InterBranchTransferList() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('incoming'); // 'incoming' or 'outgoing'
   const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
   
   const { themeColor, themeColorHover, themeLight, isGreen, toggleTheme, legacySubTheme } = useLegacyTheme();
   const warehouse = useSelector((state) => state.user.warehouse);
@@ -91,13 +93,13 @@ function InterBranchTransferList() {
           <button onClick={toggleTheme} className="so-btn-secondary" style={{ color: themeColor }}>
             <Palette size={14} /> {legacySubTheme.toUpperCase()}
           </button>
-          <a 
-            href="/#/newinterbranchrequest" 
+          <button 
+            onClick={() => navigate('/newinterbranchrequest')}
             className="so-btn-primary"
-            style={{ textDecoration: 'none' }}
+            style={{ textDecoration: 'none', border: 'none', cursor: 'pointer' }}
           >
             <Plus size={16} /> New Request
-          </a>
+          </button>
         </div>
       </div>
 
@@ -195,7 +197,7 @@ function InterBranchTransferList() {
                     return (
                       <tr 
                         key={req.name} 
-                        onClick={() => window.location.href = `/#/interbranchrequest/${req.name}`} 
+                        onClick={() => navigate(`/interbranchrequest/${req.name}`)} 
                       >
                         {/* 1. Request ID */}
                         <td>
@@ -265,7 +267,7 @@ function InterBranchTransferList() {
                            <button 
                              className="so-btn-secondary"
                              style={{ fontSize: '0.65rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                             onClick={(e) => { e.stopPropagation(); window.location.href = `/#/interbranchrequest/${req.name}`; }}
+                             onClick={(e) => { e.stopPropagation(); navigate(`/interbranchrequest/${req.name}`); }}
                            >
                              Manage <ChevronRight size={12} />
                            </button>

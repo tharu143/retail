@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import POSService from '../../utils/posService';
 import { useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
@@ -1878,7 +1879,7 @@ function PurchaseOrder() {
           })),
         };
 
-        const res = await (await import('../../utils/posService')).default.submitPurchaseEntry(payload);
+        const res = await POSService.submitPurchaseEntry(payload);
 
         if (res?.status === 'success' || res?.po || res?.name) {
           // Update state with backend calculated totals
