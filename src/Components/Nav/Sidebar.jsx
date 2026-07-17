@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import kyleLogo from '../../assets/kyleretail.png';
 import { useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -136,7 +137,7 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useSelector(state => state.user || {});
-  
+
   const [sidebarTheme, setSidebarTheme] = useState(() => localStorage.getItem('sidebarTheme') || 'light');
   const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
 
@@ -151,37 +152,37 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
     if (pathname === '/purchasereceiptlist') return 'Purchase Receipt';
     if (pathname === '/purchaseinvoicelist') return 'Purchase Invoice';
     if (pathname === '/purchasereturn') return 'Purchase Return';
-    
+
     if (pathname.includes('/customer')) return 'Customer';
     if (pathname.includes('/salesorder')) return 'Sales Order';
     if (pathname === '/salesinvoice') return 'Sales Invoice';
     if (pathname.includes('/deliverynote')) return 'Delivery Note';
     if (pathname === '/salesreturn') return 'Sales Return';
-    
+
     if (pathname.includes('/item-details') || pathname === '/itemlist') return 'Item List';
     if (pathname === '/itempricelist') return 'Price List';
     if (pathname === '/itemgrouplist') return 'Item Group';
     if (pathname.includes('/stock-entry') || pathname === '/stock-entries') return 'Stock Entry';
     if (pathname === '/stockbalancereport') return 'Stock Balance Report';
     if (pathname === '/stockledgerreport') return 'Stock Ledger Report';
-    
+
     if (pathname === '/posprofilelist') return 'POS Profile';
     if (pathname === '/posopeningentrylist') return 'Opening Entry';
     if (pathname === '/posclosingentrylist' || pathname === '/closingentry') return 'Closing Entry List';
-    
+
     if (pathname.includes('/interbranchrequest') && !pathname.includes('new')) return 'Inter-Branch Requests';
     if (pathname === '/newinterbranchrequest') return 'New Transfer Request';
-    
+
     if (pathname === '/dailysalesreport') return 'Daily Sales Report';
     if (pathname === '/salesreport') return 'Sales Summary Report';
     if (pathname === '/purchasereport') return 'Purchase Report';
     if (pathname === '/itemwisereport') return 'Item Wise Report';
     if (pathname === '/generalledgerreport') return 'General Ledger';
-    
+
     if (pathname === '/poshealth') return 'POS Health';
     if (pathname === '/settings') return 'Settings';
     if (pathname === '/syncmanager') return 'Sync Manager';
-    
+
     return 'home';
   };
 
@@ -251,14 +252,14 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', width: '100%' }}>
           {!isCollapsed ? (
             <div className="sidebar-brand flex items-center">
-              <img src="/kyleretail.png" alt="Logo" className="h-10 object-contain" />
+              <img src={kyleLogo} alt="Logo" className="h-10 object-contain" />
             </div>
           ) : (
             <div className="sidebar-brand flex items-center" style={{ paddingLeft: '4px' }}>
-              <img src="/kyleretail.png" alt="Logo" className="h-8 object-contain" />
+              <img src={kyleLogo} alt="Logo" className="h-8 object-contain" />
             </div>
           )}
-          <button 
+          <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="sidebar-collapse-toggle"
             style={{
@@ -280,8 +281,8 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
         </div>
         {!isCollapsed && (
           <div className="sidebar-brand-subtitle">
-            {typeof user === 'string' && user 
-              ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase()) 
+            {typeof user === 'string' && user
+              ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase())
               : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋
           </div>
         )}
@@ -289,8 +290,8 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
 
       <div className="sidebar-menu">
         {/* Dashboard Home menu item */}
-        <div 
-          onClick={() => handleItemClick('home')} 
+        <div
+          onClick={() => handleItemClick('home')}
           className={`sidebar-home-link ${activeItem === 'home' ? 'active' : ''}`}
           title={isCollapsed ? "Dashboard Home" : ""}
         >
@@ -302,10 +303,10 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
         {sections.map((section, idx) => {
           const SectionIcon = section.icon;
           const isExpanded = expandedSections[section.title];
-          
+
           return (
             <div key={idx} className="sidebar-section">
-              <div 
+              <div
                 onClick={() => toggleSection(section.title)}
                 className={`sidebar-section-toggle ${isExpanded ? 'expanded' : ''}`}
                 title={isCollapsed ? section.title : ""}
@@ -314,9 +315,9 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
                   <SectionIcon size={18} />
                   <span>{section.title}</span>
                 </div>
-                <ChevronRight 
-                  size={14} 
-                  className={`sidebar-arrow ${isExpanded ? 'expanded' : ''}`} 
+                <ChevronRight
+                  size={14}
+                  className={`sidebar-arrow ${isExpanded ? 'expanded' : ''}`}
                 />
               </div>
 
@@ -326,9 +327,9 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
                     const itemMeta = routeMap[itemName];
                     if (!itemMeta) return null;
                     const SubIcon = itemMeta.icon;
-                    
+
                     return (
-                      <div 
+                      <div
                         key={itemIdx}
                         onClick={() => handleItemClick(itemName)}
                         className={`sidebar-sub-item ${activeItem === itemName ? 'active' : ''}`}
@@ -346,25 +347,25 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
       </div>
 
       {/* Sidebar Footer with Theme Toggle */}
-      <div 
-        className="sidebar-footer" 
-        style={{ 
-          borderTop: sidebarTheme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #f1f5f9', 
-          paddingTop: '1rem', 
-          marginTop: 'auto' 
+      <div
+        className="sidebar-footer"
+        style={{
+          borderTop: sidebarTheme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #f1f5f9',
+          paddingTop: '1rem',
+          marginTop: 'auto'
         }}
       >
-        <button 
+        <button
           onClick={toggleSidebarTheme}
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: '0.5rem', 
-            width: '100%', 
-            padding: '0.6rem', 
-            borderRadius: '0.5rem', 
-            border: sidebarTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0', 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            width: '100%',
+            padding: '0.6rem',
+            borderRadius: '0.5rem',
+            border: sidebarTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
             background: sidebarTheme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f8fafc',
             color: sidebarTheme === 'dark' ? '#f8fafc' : '#334155',
             fontWeight: 700,

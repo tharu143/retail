@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import kyleLogo from '../../assets/kyleretail.png';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { useSelector, useDispatch } from 'react-redux';
@@ -4941,8 +4942,8 @@ function Home() {
                                                 className="sr-only"
                                             />
                                             <div className={`w-5 h-5 border-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${instapayTaxInclusive
-                                                    ? 'bg-indigo-600 border-indigo-600'
-                                                    : 'bg-white border-indigo-200 group-hover:border-indigo-400'
+                                                ? 'bg-indigo-600 border-indigo-600'
+                                                : 'bg-white border-indigo-200 group-hover:border-indigo-400'
                                                 }`}>
                                                 <svg
                                                     className={`w-3 h-3 text-white transition-all duration-200 ${instapayTaxInclusive ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
@@ -4984,8 +4985,8 @@ function Home() {
                                         className="sr-only"
                                     />
                                     <div className={`w-5 h-5 border-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${showDeliveryFee
-                                            ? 'bg-slate-600 border-slate-600'
-                                            : 'bg-white border-slate-200 group-hover:border-slate-400'
+                                        ? 'bg-slate-600 border-slate-600'
+                                        : 'bg-white border-slate-200 group-hover:border-slate-400'
                                         }`}>
                                         <svg
                                             className={`w-3 h-3 text-white transition-all duration-200 ${showDeliveryFee ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
@@ -6687,7 +6688,7 @@ function Home() {
                     }}>
                         {/* Kyle Retail Logo */}
                         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                            <img src="/kyleretail.png" alt="Kyle Retail Logo" className="h-12 object-contain" />
+                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-12 object-contain" />
                         </div>
                     </div>
 

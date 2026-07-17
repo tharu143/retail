@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import kyleLogo from '../../assets/kyleretail.png';
 import './NavBar.css';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -418,7 +419,7 @@ function NavBar() {
             </div>
           )}
           <div onClick={() => navigate('/homepage')} className="cursor-pointer flex items-center ms-2">
-            <img src="/kyleretail.png" alt="Kyle Retail" className="h-10 object-contain" />
+            <img src={kyleLogo} alt="Kyle Retail" className="h-10 object-contain" />
           </div>
         </div>
 

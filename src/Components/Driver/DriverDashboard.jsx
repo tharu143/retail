@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import kyleLogo from '../../assets/kyleretail.png';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { 
-  Truck, LogOut, Search, MapPin, Phone, MessageSquare, 
-  CheckCircle, Clock, AlertCircle, ShoppingBag, 
-  Calendar, Check, User, Copy, ExternalLink, RefreshCw 
+import {
+  Truck, LogOut, Search, MapPin, Phone, MessageSquare,
+  CheckCircle, Clock, AlertCircle, ShoppingBag,
+  Calendar, Check, User, Copy, ExternalLink, RefreshCw
 } from 'lucide-react';
 import POSService from '../../utils/posService';
 import { logout } from '../../Redux/Slices/userSlice';
@@ -13,9 +14,9 @@ import { logout } from '../../Redux/Slices/userSlice';
 function DriverDashboard() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   const loggedUser = useSelector((state) => state.user.user);
-  
+
   const [invoices, setInvoices] = useState([]);
   const [driverName, setDriverName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -79,7 +80,7 @@ function DriverDashboard() {
         localStorage.removeItem('warehouse');
         localStorage.removeItem('user_roles');
         localStorage.removeItem('posOpeningEntry');
-        
+
         dispatch(logout());
         navigate('/');
       }
@@ -102,10 +103,10 @@ function DriverDashboard() {
           position: 'top-end',
           showConfirmButton: false
         });
-        
+
         // Refresh local state or close modal with updated data
         await fetchDriverData();
-        
+
         // Update selectedInvoice detail in view modal if open
         if (selectedInvoice && selectedInvoice.name === invoiceName) {
           setSelectedInvoice(prev => ({
@@ -200,26 +201,26 @@ function DriverDashboard() {
       {/* Sticky Header */}
       <header className="sticky top-0 z-10 bg-white border-b border-slate-100 shadow-sm px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <img src="/kyleretail.png" alt="Kyle Retail Logo" className="h-12 object-contain" />
+          <img src={kyleLogo} alt="Kyle Retail Logo" className="h-12 object-contain" />
           <div className="h-10 w-px bg-slate-200 mx-2"></div>
           <div>
             <h1 className="text-[10px] font-black tracking-widest text-blue-600 uppercase">Driver Portal</h1>
             <p className="text-[11px] font-semibold text-slate-400">Driver ID: <span className="text-slate-600 font-bold">{driverName}</span></p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          <button 
-            onClick={fetchDriverData} 
+          <button
+            onClick={fetchDriverData}
             disabled={loading}
             className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
             title="Refresh Deliveries"
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           </button>
-          
-          <button 
-            onClick={handleLogout} 
+
+          <button
+            onClick={handleLogout}
             className="flex items-center gap-1.5 py-1.5 px-3 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl font-bold text-xs transition-all cursor-pointer"
           >
             <LogOut size={14} />
@@ -230,7 +231,7 @@ function DriverDashboard() {
 
       {/* Main Container */}
       <main className="max-w-3xl mx-auto px-4 mt-6">
-        
+
         {/* KPI Dashboard Grid */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
           <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
@@ -290,15 +291,15 @@ function DriverDashboard() {
         <section className="mb-5">
           <div className="relative flex items-center bg-white border border-slate-100 rounded-2xl px-3.5 py-2.5 shadow-sm focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-50 transition-all">
             <Search size={18} className="text-slate-400 mr-2.5" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search by customer name, address, ID..."
               className="w-full bg-transparent outline-none text-sm font-medium text-slate-800 placeholder:text-slate-400"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
-              <button 
+              <button
                 onClick={() => setSearchQuery('')}
                 className="text-slate-400 hover:text-slate-700 font-bold text-xs"
               >
@@ -322,16 +323,14 @@ function DriverDashboard() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex items-center gap-1.5 py-2 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  isActive 
-                    ? 'bg-slate-800 text-white shadow-md shadow-slate-200' 
+                className={`flex items-center gap-1.5 py-2 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${isActive
+                    ? 'bg-slate-800 text-white shadow-md shadow-slate-200'
                     : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100 shadow-sm'
-                }`}
+                  }`}
               >
                 <span>{tab}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                  isActive ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600'
-                }`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isActive ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
                   {badgeCount}
                 </span>
               </button>
@@ -353,8 +352,8 @@ function DriverDashboard() {
               </div>
               <h3 className="text-base font-black text-slate-800">No Deliveries Found</h3>
               <p className="text-slate-400 text-xs mt-1 max-w-xs mx-auto">
-                {activeTab === 'All' 
-                  ? "You don't have any deliveries assigned to you yet." 
+                {activeTab === 'All'
+                  ? "You don't have any deliveries assigned to you yet."
                   : `You don't have any deliveries in status "${activeTab}".`}
               </p>
             </div>
@@ -363,13 +362,13 @@ function DriverDashboard() {
               {filteredInvoices.map((inv) => {
                 const status = inv.custom_delivery_status || 'Pending';
                 const isCOD = inv.outstanding_amount > 0;
-                
+
                 let badgeClass = 'bg-amber-50 text-amber-700 border-amber-100';
                 if (status === 'In Transit') badgeClass = 'bg-blue-50 text-blue-700 border-blue-100';
                 else if (status === 'Delivered') badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
 
                 return (
-                  <div 
+                  <div
                     key={inv.name}
                     onClick={() => setSelectedInvoice(inv)}
                     className="bg-white hover:bg-slate-50 border border-slate-100 hover:border-slate-300 shadow-sm rounded-3xl p-4 transition-all duration-200 cursor-pointer flex flex-col gap-3"
@@ -382,11 +381,10 @@ function DriverDashboard() {
                           {status}
                         </span>
                       </div>
-                      
+
                       {/* COD vs Prepaid */}
-                      <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${
-                        isCOD ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-green-50 text-green-600 border border-green-100'
-                      }`}>
+                      <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${isCOD ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-green-50 text-green-600 border border-green-100'
+                        }`}>
                         {isCOD ? 'COD' : 'Paid'}
                       </span>
                     </div>
@@ -397,7 +395,7 @@ function DriverDashboard() {
                         <User size={14} className="text-slate-400" />
                         <h4 className="text-sm font-black text-slate-800">{inv.customer_name}</h4>
                       </div>
-                      
+
                       {/* Address */}
                       <div className="flex items-start gap-1.5 mt-1.5">
                         <MapPin size={14} className="text-slate-400 mt-0.5 shrink-0" />
@@ -419,7 +417,7 @@ function DriverDashboard() {
                           <span className="text-xs font-black text-slate-800">AED {inv.custom_delivery_fee?.toFixed(2)}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800">
                         <span>Details</span>
                         <ExternalLink size={12} />
@@ -437,17 +435,16 @@ function DriverDashboard() {
       {selectedInvoice && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
           <div className="bg-white w-full sm:max-w-lg rounded-t-[32px] sm:rounded-[32px] shadow-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden animate-slide-up">
-            
+
             {/* Modal Header */}
             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-black text-slate-400 tracking-wide uppercase">{selectedInvoice.name}</span>
-                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg border ${
-                    selectedInvoice.custom_delivery_status === 'Delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                    selectedInvoice.custom_delivery_status === 'In Transit' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                    'bg-amber-50 text-amber-700 border-amber-100'
-                  }`}>
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg border ${selectedInvoice.custom_delivery_status === 'Delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                      selectedInvoice.custom_delivery_status === 'In Transit' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                        'bg-amber-50 text-amber-700 border-amber-100'
+                    }`}>
                     {selectedInvoice.custom_delivery_status || 'Pending'}
                   </span>
                 </div>
@@ -456,7 +453,7 @@ function DriverDashboard() {
                   <span>{selectedInvoice.posting_date}</span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedInvoice(null)}
                 className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 flex items-center justify-center font-bold text-lg cursor-pointer"
               >
@@ -466,7 +463,7 @@ function DriverDashboard() {
 
             {/* Modal Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              
+
               {/* Customer Contacts */}
               <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -485,14 +482,14 @@ function DriverDashboard() {
                 {/* Call & WhatsApp actions */}
                 {selectedInvoice.contact_mobile && (
                   <div className="grid grid-cols-2 gap-3.5 mt-4">
-                    <a 
+                    <a
                       href={`tel:${selectedInvoice.contact_mobile}`}
                       className="flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-md shadow-blue-100 hover:bg-blue-700 transition-all text-center"
                     >
                       <Phone size={14} />
                       <span>Call Customer</span>
                     </a>
-                    <a 
+                    <a
                       href={`https://wa.me/${selectedInvoice.contact_mobile.replace(/[^0-9]/g, '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -514,8 +511,8 @@ function DriverDashboard() {
                     </div>
                     <h4 className="text-sm font-black text-slate-800">Delivery Address</h4>
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={() => handleCopyAddress(selectedInvoice.address_display || selectedInvoice.shipping_address_name)}
                     className="p-1.5 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-lg transition-all flex items-center gap-1 text-[10px] font-bold cursor-pointer"
                   >
@@ -523,7 +520,7 @@ function DriverDashboard() {
                     <span>Copy</span>
                   </button>
                 </div>
-                
+
                 <p className="text-xs text-slate-600 font-semibold leading-relaxed whitespace-pre-line">
                   {selectedInvoice.address_display || selectedInvoice.shipping_address_name || 'No address specified'}
                 </p>
@@ -537,7 +534,7 @@ function DriverDashboard() {
                   </div>
                   <h4 className="text-sm font-black text-slate-800">Items to Deliver</h4>
                 </div>
-                
+
                 <div className="space-y-3.5 max-h-[150px] overflow-y-auto pr-1">
                   {selectedInvoice.items && selectedInvoice.items.length > 0 ? (
                     selectedInvoice.items.map((item, index) => (
@@ -568,9 +565,9 @@ function DriverDashboard() {
                   <span>Delivery Fee</span>
                   <span className="font-black text-slate-800">AED {selectedInvoice.custom_delivery_fee?.toFixed(2)}</span>
                 </div>
-                
+
                 <div className="border-t border-slate-200 my-1"></div>
-                
+
                 {selectedInvoice.outstanding_amount > 0 ? (
                   <div className="bg-rose-50 text-rose-700 border border-rose-100 rounded-xl p-3 flex justify-between items-center">
                     <div>

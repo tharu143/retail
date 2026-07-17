@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import kyleLogo from '../../assets/kyleretail.png';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../Redux/Slices/userSlice';
@@ -141,7 +142,7 @@ function Login() {
     <div className="login-page-container">
       <div className="login-card">
         <div className="login-header">
-          <img src="/kyleretail.png" alt="Kyle Retail Logo" className="h-24 mx-auto object-contain mb-4" />
+          <img src={kyleLogo} alt="Kyle Retail Logo" className="h-24 mx-auto object-contain mb-4" />
           <p className="login-subtitle">Sign in to manage your retail empire</p>
         </div>
 
