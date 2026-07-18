@@ -6688,7 +6688,7 @@ function Home() {
                     }}>
                         {/* Kyle Retail Logo */}
                         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-12 w-auto object-contain bg-white p-1.5 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 hover:scale-105" />
+                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-10 w-auto max-w-[120px] md:max-w-[180px] object-contain mix-blend-multiply transition-opacity duration-300 hover:opacity-90" />
                         </div>
                     </div>
 
@@ -7502,9 +7502,9 @@ function Home() {
                 {/* CLASSIC NAVBAR */}
                 <nav className="classic-nav">
                     <div className="flex items-center gap-4 pl-4 py-2">
-                        <span className="text-[32px] font-black text-slate-800 tracking-tighter uppercase leading-none select-none">
-                            POS<span className={isGreen ? 'text-emerald-500' : 'text-sky-500'}>8</span>
-                        </span>
+                        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-16 w-auto max-w-[160px] md:max-w-[220px] object-contain mix-blend-multiply transition-opacity duration-300 hover:opacity-90" />
+                        </div>
                     </div>
 
                     <div className="ml-auto flex items-center pr-4" style={{ gap: '20px' }}>

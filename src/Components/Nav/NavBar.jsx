@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import kyleLogo from '../../assets/kyleretail.png';
+import kyleLogo from '/public/kyleretail.png';
 import './NavBar.css';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -419,7 +419,7 @@ function NavBar() {
             </div>
           )}
           <div onClick={() => navigate('/homepage')} className="cursor-pointer flex items-center ms-2">
-            <img src={kyleLogo} alt="Kyle Retail" className="h-11 w-auto object-contain bg-white p-1.5 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 hover:scale-105" />
+            <img src={kyleLogo} alt="Kyle Retail" className="h-9 w-auto max-w-[120px] md:max-w-[180px] object-contain mix-blend-multiply transition-opacity duration-300 hover:opacity-90" />
           </div>
         </div>
 

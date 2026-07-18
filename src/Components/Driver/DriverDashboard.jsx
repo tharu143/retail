@@ -201,7 +201,7 @@ function DriverDashboard() {
       {/* Sticky Header */}
       <header className="sticky top-0 z-10 bg-white border-b border-slate-100 shadow-sm px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <img src={kyleLogo} alt="Kyle Retail Logo" className="h-12 object-contain" />
+          <img src={kyleLogo} alt="Kyle Retail Logo" className="h-12 object-contain mix-blend-multiply" />
           <div className="h-10 w-px bg-slate-200 mx-2"></div>
           <div>
             <h1 className="text-[10px] font-black tracking-widest text-blue-600 uppercase">Driver Portal</h1>
