@@ -70,9 +70,18 @@ const CustomSearchDropdown = ({
              maxHeight = Math.min(288, spaceBelow - 16);
           }
 
+          const dropdownWidth = Math.max(rect.width, 350);
+          let leftPos = rect.left;
+          if (leftPos + dropdownWidth > window.innerWidth) {
+            leftPos = window.innerWidth - dropdownWidth - 16;
+          }
+          if (leftPos < 16) {
+            leftPos = 16;
+          }
+
           setPosition({
             top: topPos,
-            left: rect.left,
+            left: leftPos,
             width: rect.width,
             maxHeight
           });
@@ -290,6 +299,7 @@ const CustomSearchDropdown = ({
             top: position.top,
             left: position.left,
             width: position.width,
+            minWidth: '350px',
             maxHeight: position.maxHeight || 288,
             zIndex: 20000, // CRITICAL: Focus above modal overlay (10500 z-index)
             '--po-primary': themeColor || '#6366f1',

@@ -18,10 +18,12 @@ import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import AttachmentSection from './AttachmentSection';
+import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
+
 
 const DEFAULT_DN_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
-    { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+    { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
     { id: 'uom', label: 'UOM', visible: true, width: 90 },
     { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
     { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
@@ -252,6 +254,8 @@ const DeliveryNoteDetails = () => {
     const customerInputRef = useRef(null);
     const itemInputRefs = useRef({});
     const loggedWarehouse = useSelector(state => state.user?.warehouse || '');
+    const { getShortcut, isShortcutPressed } = useCustomShortcuts();
+
 
     const [showModal, setShowModal] = useState(false);
     const [isViewOnly, setIsViewOnly] = useState(true);
@@ -1047,12 +1051,13 @@ const DeliveryNoteDetails = () => {
         };
     }, [showCamera]);
 
-    // Global hardware barcode scanner interceptor
+    // Global hardware barcode scanner interceptor & Quick Shortcuts
     const lastKeyTime = useRef(0);
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
             const now = Date.now();
-            const isInputFocused = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
+            const activeEl = document.activeElement;
+            const isInputFocused = ['INPUT', 'TEXTAREA'].includes(activeEl?.tagName);
 
             if (now - lastKeyTime.current > 150) {
                 scannerBuffer.current = "";
@@ -1068,12 +1073,167 @@ const DeliveryNoteDetails = () => {
                 if (!isViewOnly) {
                     handleBarcodeSearchDirect(scanValue);
                 }
+                return;
+            }
+
+            // Keyboard shortcuts (doc_editor context)
+            const inItemsTable = activeEl?.closest('table.so-table');
+            const activeRowIndex = inItemsTable ? parseInt(activeEl.closest('tr')?.getAttribute('data-row-index') || '-1', 10) : -1;
+
+            // Focus Customer Search input
+            if (isShortcutPressed(e, 'doc_editor', 'customerSupplier', 'F2')) {
+                e.preventDefault();
+                const customerInput = customerInputRef.current || document.querySelector('input[placeholder="Search Customer..."]');
+                if (customerInput) {
+                    customerInput.focus();
+                    customerInput.select?.();
+                }
+            }
+
+            // Focus Item Search input
+            if (isShortcutPressed(e, 'doc_editor', 'itemSearch', 'F3')) {
+                e.preventDefault();
+                const itemInputs = document.querySelectorAll('input[placeholder="SKU or Name..."]');
+                if (itemInputs.length > 0) {
+                    const firstInput = itemInputs[0];
+                    const targetInput = (firstInput && !firstInput.value) ? firstInput : itemInputs[itemInputs.length - 1];
+                    if (targetInput) {
+                        targetInput.focus();
+                        targetInput.select?.();
+                    }
+                }
+            }
+
+            // Focus Barcode/Scan input
+            if (isShortcutPressed(e, 'doc_editor', 'barcode', 'F4')) {
+                e.preventDefault();
+                const scanInput = barcodeRef.current || document.querySelector('input[placeholder="Scan Barcode SKU / Supplier Code directly here..."]');
+                if (scanInput) {
+                    scanInput.focus();
+                    scanInput.select?.();
+                }
+            }
+
+            // Bulk Quantity Update popup
+            if (isShortcutPressed(e, 'doc_editor', 'bulkQty', 'F6')) {
+                e.preventDefault();
+                let rowIndex = inItemsTable ? activeRowIndex : ((form.items || []).length - 1);
+                if (rowIndex >= 0 && rowIndex < (form.items || []).length) {
+                    const item = (form.items || [])[rowIndex];
+                    if (item && item.item_code) {
+                        Swal.fire({
+                            title: 'Bulk Quantity',
+                            html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
+                                ${item.item_name || item.item_code}
+                            </div>`,
+                            input: 'number',
+                            inputPlaceholder: 'Enter quantity...',
+                            inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || ''),
+                            showCancelButton: true,
+                            confirmButtonText: 'Update',
+                            confirmButtonColor: '#10b981',
+                            cancelButtonColor: '#64748b'
+                        }).then(result => {
+                            if (result.isConfirmed && result.value !== undefined) {
+                                const newQty = result.value || '';
+                                const name = item.use_box_entry ? 'custom_box_qty' : 'qty';
+                                handleInputChangeDetails({ target: { name, value: newQty } }, rowIndex);
+                            }
+                        });
+                    }
+                }
+            }
+
+            // Toggle UOM
+            if (isShortcutPressed(e, 'doc_editor', 'uom', 'F8')) {
+                e.preventDefault();
+                let rowIndex = inItemsTable ? activeRowIndex : ((form.items || []).length - 1);
+                if (rowIndex >= 0 && rowIndex < (form.items || []).length) {
+                    const item = (form.items || [])[rowIndex];
+                    if (item && item.item_code) {
+                        let nextUom = '';
+                        const currentUom = (item.uom || item.stock_uom || '').toLowerCase();
+                        const uomList = item.uom_list || [];
+                        if (uomList.length > 1) {
+                            const currentIndex = uomList.findIndex(u => u.uom.toLowerCase() === currentUom);
+                            const nextIndex = (currentIndex + 1) % uomList.length;
+                            nextUom = uomList[nextIndex].uom;
+                        } else {
+                            nextUom = currentUom === 'box' ? (item.stock_uom || 'Nos') : 'Box';
+                        }
+                        handleUOMChangeDetails(nextUom, rowIndex);
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'UOM Switched',
+                            text: `Row ${rowIndex + 1}: Switched UOM to ${nextUom}`,
+                            toast: true,
+                            position: 'top-end',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                }
+            }
+
+            // Save Draft
+            if (isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7') || (e.ctrlKey && e.key.toLowerCase() === 's')) {
+                e.preventDefault();
+                if (!saving) {
+                    handleDocAction('save');
+                }
+            }
+
+            // Add Item Row
+            if (isShortcutPressed(e, 'doc_editor', 'addRow', 'F10') || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
+                e.preventDefault();
+                addItemRow();
+                setTimeout(() => {
+                    const itemInputs = document.querySelectorAll('table.so-table tbody tr input[placeholder="SKU or Name..."]');
+                    if (itemInputs.length > 0) {
+                        const lastInput = itemInputs[itemInputs.length - 1];
+                        if (lastInput) {
+                            lastInput.focus();
+                            lastInput.select?.();
+                        }
+                    }
+                }, 100);
+            }
+
+            // Focus Warehouse Select
+            if (isShortcutPressed(e, 'doc_editor', 'warehouseBranch', 'F9')) {
+                e.preventDefault();
+                const warehouseSelect = document.querySelector('select[value="' + form.set_warehouse + '"]') || document.querySelector('select');
+                if (warehouseSelect) {
+                    warehouseSelect.focus();
+                }
+            }
+
+            // Submit
+            if (isShortcutPressed(e, 'doc_editor', 'submit', 'F12') || (e.ctrlKey && e.key === 'Enter')) {
+                e.preventDefault();
+                if (!saving && !isNew) {
+                    handleDocAction('submit');
+                }
+            }
+
+            // Escape
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                if (showColConfig) setShowColConfig(false);
+                else if (isEditing && isNew) {
+                    navigate('/deliverynotelist');
+                } else if (isEditing) {
+                    setIsViewOnly(true);
+                } else if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+                    activeEl.blur();
+                }
             }
         };
 
         window.addEventListener('keydown', handleGlobalKeyDown);
         return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-    }, [isViewOnly]);
+    }, [isViewOnly, form.items, form.name, saving, showColConfig, form.set_warehouse, isEditing, isNew]);
+
 
     const fieldStyle = { width: '100%', border: '1px solid #d1d5db', borderRadius: '0.375rem', padding: '0.55rem 0.875rem', fontSize: '0.875rem', outline: 'none', background: 'white' };
     const fieldReadonly = { ...fieldStyle, background: '#f9fafb', color: '#6b7280' };
@@ -1310,10 +1470,65 @@ const DeliveryNoteDetails = () => {
                 </div>
             </div>
 
+            {/* Premium Keyboard Shortcuts Guide Banner */}
+            <div className="so-shortcut-guide-banner">
+              <div className="so-shortcut-banner-title">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                <span>Quick Actions</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+                <span className="so-shortcut-label">Customer</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+                <span className="so-shortcut-label">Item Search</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+                <span className="so-shortcut-label">Barcode</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+                <span className="so-shortcut-label">Bulk Qty</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+                <span className="so-shortcut-label">Toggle UOM</span>
+              </div>
+              <div className="so-shortcut-badge emerald">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+                <span className="so-shortcut-label">Save Draft</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
+                <span className="so-shortcut-label">Add Row</span>
+              </div>
+              <div className="so-shortcut-badge violet">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
+                <span className="so-shortcut-label">Branch</span>
+              </div>
+              <div className="so-shortcut-badge emerald">
+                <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+                <span className="so-shortcut-label">Submit</span>
+              </div>
+              <div className="so-shortcut-badge slate">
+                <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
+                <span className="so-shortcut-label">Focus Table</span>
+              </div>
+              <div className="so-shortcut-badge rose">
+                <span className="so-shortcut-key">Escape</span>
+                <span className="so-shortcut-label">Close / Clear</span>
+              </div>
+            </div>
+
             {/* 2. Main Page Layout */}
             <div className="so-layout">
                 <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <AttachmentSection doctype="Delivery Note" docname={isNew ? null : form.name} />
+                    <AttachmentSection doctype="Delivery Note" docname={isNew ? null : form.name} compact={true} />
                     {isEditing ? (
                         /* PREMIUM DELIVERY NOTE EDIT FORM */
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }} className="animate-in fade-in duration-300">
@@ -1512,7 +1727,7 @@ const DeliveryNoteDetails = () => {
                                                 </tr>
                                             ) : (
                                                 form.items.map((item, idx) => (
-                                                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                    <tr key={idx} data-row-index={idx} tabIndex="-1" style={{ borderBottom: '1px solid #f1f5f9' }}>
                                                         {(() => {
                                                             const hasAnyBox = form.items.some(i => i.use_box_entry);
                                                             const activeCols = dnColumns.filter(c => {

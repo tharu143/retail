@@ -22,7 +22,7 @@ import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 const DEFAULT_PO_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
   { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
-  { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+  { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
@@ -1658,6 +1658,8 @@ function PurchaseOrder() {
       const nameFromUrl = params.get('name');
       if (nameFromUrl) {
         loadDraft(nameFromUrl);
+        // Clear URL params so refresh goes to list view
+        window.history.replaceState(null, '', window.location.pathname + '#' + hash.slice(0, queryStart));
       }
     }
   }, []);
@@ -2438,71 +2440,355 @@ function PurchaseOrder() {
         </div>
 
         {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
-        <div className="w-full bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-sky-50/50 backdrop-blur-md border-b border-emerald-100/60 px-6 py-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-[11px] font-medium text-slate-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
-          <div className="flex items-center gap-1.5 text-emerald-800 font-bold uppercase tracking-wider text-[10px]">
+        <div className="so-shortcut-guide-banner">
+          <style>{`
+            .so-shortcut-guide-banner {
+              width: 100%;
+              background: #f8fafc;
+              border-bottom: 1.5px solid #e2e8f0;
+              padding: 6px 16px;
+              display: flex;
+              flex-wrap: nowrap;
+              overflow-x: auto;
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+              align-items: center;
+              gap: 8px;
+            }
+            .so-shortcut-guide-banner::-webkit-scrollbar {
+              display: none;
+            }
+            .so-shortcut-banner-title {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              color: #64748b;
+              font-size: 9px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              margin-right: 6px;
+              flex-shrink: 0;
+            }
+            .so-shortcut-badge {
+              display: flex;
+              align-items: center;
+              gap: 0.35rem;
+              padding: 0.25rem 0.5rem;
+              background: var(--so-white, #ffffff);
+              border: 1.5px solid var(--key-border, #e2e8f0);
+              border-radius: 0.5rem;
+              cursor: pointer;
+              transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+              flex-shrink: 0;
+              box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            }
+            .so-shortcut-badge.blue {
+              --key-color: #3b82f6;
+              --key-bg: #eff6ff;
+              --key-border: #bfdbfe;
+              --key-glow: rgba(59, 130, 246, 0.22);
+            }
+            .so-shortcut-badge.indigo {
+              --key-color: #6366f1;
+              --key-bg: #e0e7ff;
+              --key-border: #c7d2fe;
+              --key-glow: rgba(99, 102, 241, 0.22);
+            }
+            .so-shortcut-badge.cyan {
+              --key-color: #06b6d4;
+              --key-bg: #ecfeff;
+              --key-border: #cffafe;
+              --key-glow: rgba(6, 182, 212, 0.22);
+            }
+            .so-shortcut-badge.emerald {
+              --key-color: #10b981;
+              --key-bg: #ecfdf5;
+              --key-border: #a7f3d0;
+              --key-glow: rgba(16, 185, 129, 0.22);
+            }
+            .so-shortcut-badge.rose {
+              --key-color: #ef4444;
+              --key-bg: #fef2f2;
+              --key-border: #fecaca;
+              --key-glow: rgba(239, 68, 68, 0.22);
+            }
+            .so-shortcut-badge.amber {
+              --key-color: #f59e0b;
+              --key-bg: #fffbeb;
+              --key-border: #fde68a;
+              --key-glow: rgba(245, 158, 11, 0.22);
+            }
+            .so-shortcut-badge.violet {
+              --key-color: #8b5cf6;
+              --key-bg: #f5f3ff;
+              --key-border: #ddd6fe;
+              --key-glow: rgba(139, 92, 246, 0.22);
+            }
+            .so-shortcut-badge.pink {
+              --key-color: #d946ef;
+              --key-bg: #fdf4ff;
+              --key-border: #f5d0fe;
+              --key-glow: rgba(217, 70, 239, 0.22);
+            }
+            .so-shortcut-badge.sky {
+              --key-color: #0ea5e9;
+              --key-bg: #f0f9ff;
+              --key-border: #bae6fd;
+              --key-glow: rgba(14, 165, 233, 0.22);
+            }
+            .so-shortcut-badge.slate {
+              --key-color: #64748b;
+              --key-bg: #f8fafc;
+              --key-border: #e2e8f0;
+              --key-glow: rgba(100, 116, 139, 0.12);
+            }
+            .so-shortcut-badge:hover {
+              border-color: var(--key-color, #0284c7);
+              background: var(--key-bg, #f0f9ff);
+              transform: translateY(-2px);
+              box-shadow: 0 6px 12px -2px var(--key-glow, rgba(2, 132, 199, 0.15)), 0 3px 6px -2px var(--key-glow, rgba(2, 132, 199, 0.08));
+            }
+            .so-shortcut-key {
+              font-size: 9px;
+              font-weight: 950;
+              color: #ffffff;
+              padding: 1.5px 5px;
+              background: linear-gradient(135deg, var(--key-color, #0284c7) 0%, rgba(0, 0, 0, 0.25) 100%);
+              border: 1.5px solid var(--key-color, #0284c7);
+              border-radius: 4px;
+              box-shadow: 0 1.5px 3px var(--key-glow, rgba(2, 132, 199, 0.35));
+              text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              letter-spacing: 0.02em;
+              line-height: 1;
+            }
+            .so-shortcut-label {
+              font-size: 11px;
+              font-weight: 950;
+              color: #0f172a;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              line-height: 1;
+            }
+            
+            /* Clean, Professional Fixed Grid Table Styling */
+            .purchase-table {
+              table-layout: fixed !important;
+              width: 100% !important;
+              border-collapse: collapse !important;
+              border: 1px solid #cbd5e1 !important;
+            }
+            .purchase-table th, .purchase-th {
+              background: #f8fafc !important;
+              color: #64748b !important;
+              font-weight: 600 !important;
+              border: 1px solid #e2e8f0 !important;
+              padding: 6px 4px !important;
+              font-size: 0.7rem !important;
+              text-transform: capitalize !important;
+              letter-spacing: 0.02em !important;
+              height: 40px !important;
+              text-align: center !important;
+              white-space: normal !important;
+              word-wrap: break-word !important;
+              overflow-wrap: break-word !important;
+              overflow: hidden !important;
+              line-height: 1.2 !important;
+            }
+            .purchase-table td, .purchase-td {
+              border: 1px solid #e2e8f0 !important;
+              padding: 0 !important;
+              height: auto !important;
+              min-height: 40px !important;
+              vertical-align: middle !important;
+              background: #ffffff !important;
+              word-wrap: break-word !important;
+              overflow-wrap: break-word !important;
+              white-space: normal !important;
+              word-break: break-all !important;
+            }
+            .purchase-table .premium-cell-container {
+              min-height: 40px !important;
+              height: auto !important;
+              padding: 0 !important;
+              display: flex !important;
+              align-items: stretch !important;
+              justify-content: stretch !important;
+            }
+            .purchase-table .premium-cell-box {
+              height: auto !important;
+              min-height: 40px !important;
+              width: 100% !important;
+              border-radius: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              background: transparent !important;
+              padding: 0 !important;
+              display: flex !important;
+              align-items: stretch !important;
+              position: relative !important;
+            }
+            .purchase-table .premium-cell-box input,
+            .purchase-table .premium-cell-box select,
+            .purchase-table .premium-cell-box .so-input,
+            .purchase-table .premium-cell-box div.relative.flex-1 input {
+              border: none !important;
+              border-radius: 0 !important;
+              height: 40px !important;
+              width: 100% !important;
+              padding: 0 10px !important;
+              background-color: transparent !important;
+              box-shadow: none !important;
+              font-size: 0.75rem !important;
+              color: #1e293b !important;
+              font-weight: 500 !important;
+              outline: none !important;
+              box-sizing: border-box !important;
+              text-align: inherit !important;
+            }
+            .purchase-table .premium-cell-box input:focus,
+            .purchase-table .premium-cell-box select:focus,
+            .purchase-table .premium-cell-box .so-input:focus,
+            .purchase-table .premium-cell-box div.relative.flex-1 input:focus {
+              background-color: #f8fafc !important;
+              outline: 1.5px solid #3b82f6 !important;
+              outline-offset: -1.5px !important;
+              z-index: 5 !important;
+            }
+            .purchase-table .premium-cell-readonly {
+              border: none !important;
+              background: transparent !important;
+              padding: 6px 10px !important;
+              height: auto !important;
+              min-height: 100% !important;
+              width: 100% !important;
+              display: block !important;
+              text-align: left !important;
+              border-radius: 0 !important;
+              box-shadow: none !important;
+              font-size: 0.75rem !important;
+              font-weight: 500 !important;
+              color: #334155 !important;
+              word-wrap: break-word !important;
+              overflow-wrap: break-word !important;
+              white-space: normal !important;
+              word-break: break-all !important;
+              box-sizing: border-box !important;
+            }
+            .purchase-table .premium-cell-readonly-center {
+              text-align: center !important;
+            }
+            .purchase-table .premium-cell-readonly-right {
+              text-align: right !important;
+            }
+            /* For Qty Adjust buttons (+/-) layout inside cell */
+            .purchase-table .premium-cell-box > div {
+              display: flex !important;
+              width: 100% !important;
+              height: 100% !important;
+              gap: 0 !important;
+              align-items: stretch !important;
+            }
+            .purchase-table .premium-cell-box > div button {
+              border: none !important;
+              border-radius: 0 !important;
+              height: 100% !important;
+              background: #f8fafc !important;
+              color: #64748b !important;
+              padding: 0 8px !important;
+              font-weight: bold !important;
+              cursor: pointer !important;
+              transition: background 0.15s !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+            }
+            .purchase-table .premium-cell-box > div button:hover {
+              background: #cbd5e1 !important;
+              color: #1e293b !important;
+            }
+            .purchase-table .premium-cell-box > div input {
+              flex: 1 !important;
+              border: none !important;
+              border-radius: 0 !important;
+              height: 100% !important;
+              text-align: center !important;
+              padding: 0 4px !important;
+            }
+            /* Custom search dropdown container adjustments */
+            .purchase-table .relative.flex-1 {
+              width: 100% !important;
+              height: 100% !important;
+            }
+            .purchase-table .premium-cell-box > div.flex.gap-2 {
+              width: 100% !important;
+              height: 100% !important;
+              gap: 0 !important;
+              align-items: stretch !important;
+            }
+          `}</style>
+          <div className="so-shortcut-banner-title">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             Quick Shortcuts
           </div>
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Supplier</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'itemSearch', 'F3')}</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'barcode', 'F4')}</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'bulkQty', 'F6')}</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'uom', 'F8')}</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
-              <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">{getShortcut('doc_editor', 'saveDraft', 'F7')}</kbd>
-              <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Warehouse</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Submit</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
-              <span className="text-[10px] font-semibold text-slate-600">Qty Adjust</span>
-            </div>
+          <div className="so-shortcut-badge blue">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+            <span className="so-shortcut-label">Supplier</span>
+          </div>
+          <div className="so-shortcut-badge indigo">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+            <span className="so-shortcut-label">Item Search</span>
+          </div>
+          <div className="so-shortcut-badge cyan">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+            <span className="so-shortcut-label">Barcode</span>
+          </div>
+          <div className="so-shortcut-badge pink">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+            <span className="so-shortcut-label">Bulk Qty</span>
+          </div>
+          <div className="so-shortcut-badge violet">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+            <span className="so-shortcut-label">Toggle UOM</span>
+          </div>
+          <div className="so-shortcut-badge amber">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+            <span className="so-shortcut-label">Save Draft</span>
+          </div>
+          <div className="so-shortcut-badge sky">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
+            <span className="so-shortcut-label">Add Row</span>
+          </div>
+          <div className="so-shortcut-badge violet">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
+            <span className="so-shortcut-label">Warehouse</span>
+          </div>
+          <div className="so-shortcut-badge emerald">
+            <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+            <span className="so-shortcut-label">Submit</span>
+          </div>
+          <div className="so-shortcut-badge slate">
+            <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
+            <span className="so-shortcut-label">Focus Table</span>
+          </div>
+          <div className="so-shortcut-badge rose">
+            <span className="so-shortcut-key">Escape</span>
+            <span className="so-shortcut-label">Close / Clear</span>
+          </div>
+          <div className="so-shortcut-badge slate">
+            <span className="so-shortcut-key">+ / -</span>
+            <span className="so-shortcut-label">Qty Adjust</span>
           </div>
         </div>
 
         <div className="po-layout-container !pt-4 pb-20">
           <div className="w-full flex flex-col gap-6 relative">
-            {/* Attachments Section */}
-            <AttachmentSection doctype="Purchase Order" docname={formData.name} />
-
             {/* MAIN CONTENT AREA */}
             <div className="w-full flex flex-col gap-6">
               {error && (
@@ -2530,7 +2816,7 @@ function PurchaseOrder() {
 
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-4'} animate-fadeIn`}>
+                  <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-6'} animate-fadeIn`}>
                     <div className="po-card-header !bg-slate-50/50">
                       <h3 className="po-card-title flex items-center gap-2">
                         <Users className="w-4 h-4 text-[var(--po-primary)]" />
@@ -2540,22 +2826,28 @@ function PurchaseOrder() {
                     <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-6`}>
                       <div>
                         <label className="po-label">Series</label>
-                        <select
-                          name="naming_series"
-                          value={formData.naming_series}
-                          onChange={handleInputChange}
-                          onKeyDown={handleNextFocus}
-                          disabled={isViewOnly || formData.docstatus !== 0}
-                          className="po-input font-bold text-[var(--po-primary)] disabled:bg-slate-50 disabled:cursor-not-allowed border border-slate-200 shadow-none text-base"
-                        >
-                          <option value="PUR-ORD-.YYYY.-">PUR-ORD-.YYYY.-</option>
-                        </select>
+                        {isViewOnly || formData.docstatus !== 0 ? (
+                          <div className="po-input border border-slate-200 rounded-lg bg-slate-50/30 px-3 flex items-center h-[42px] font-black text-slate-800 text-base">
+                            {formData.naming_series || 'PUR-ORD-.YYYY.-'}
+                          </div>
+                        ) : (
+                          <select
+                            name="naming_series"
+                            value={formData.naming_series}
+                            onChange={handleInputChange}
+                            onKeyDown={handleNextFocus}
+                            disabled={isViewOnly || formData.docstatus !== 0}
+                            className="po-input font-bold text-[var(--po-primary)] disabled:bg-slate-50 disabled:cursor-not-allowed border border-slate-200 shadow-none text-base"
+                          >
+                            <option value="PUR-ORD-.YYYY.-">PUR-ORD-.YYYY.-</option>
+                          </select>
+                        )}
                       </div>
-                      <div className={isViewOnly ? 'col-span-2 bg-slate-50/50 p-2 rounded-lg border border-dashed border-slate-100' : ''}>
+                      <div className={isViewOnly ? 'col-span-2' : ''}>
                         <label className="po-label">Supplier / Vendor</label>
                         <div onKeyDown={handleNextFocus}>
                           {isViewOnly || formData.docstatus !== 0 ? (
-                            <div className="po-input bg-transparent border-none shadow-none text-slate-800 font-black flex items-center h-[42px] text-base px-0">
+                            <div className="po-input border border-slate-200 rounded-lg bg-slate-50/30 px-3 flex items-center text-slate-800 font-black h-[42px] text-base">
                               {formData.supplier?.supplier_name || formData.supplier || 'No Supplier'}
                             </div>
                           ) : (
@@ -2586,30 +2878,17 @@ function PurchaseOrder() {
                     </div>
                   </div>
 
-                  <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-8'} animate-fadeIn`}>
+                  <div className={`po-card ${isViewOnly ? 'lg:col-span-12' : 'lg:col-span-6'} animate-fadeIn`}>
                     <div className="po-card-header !bg-slate-50/50">
                       <h3 className="po-card-title flex items-center gap-2">
                         <Package className="w-4 h-4 text-[var(--po-primary)]" />
-                        Purchase Details & Warehouse
+                        Purchase Details & Attachments
                       </h3>
                     </div>
-                    <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-6`}>
-                      <div>
-                        <label className="po-label">Warehouse (Target)</label>
-                        {isViewOnly ? (
-                          <div className="po-input border-none shadow-none bg-transparent font-black text-slate-800 h-[42px] flex items-center text-base">
-                            {warehouses.find(w => w.name === formData.set_warehouse)?.warehouse_name || formData.set_warehouse || 'Not Selected'}
-                          </div>
-                        ) : (
-                          <select name="set_warehouse" value={formData.set_warehouse} onChange={handleInputChange} onKeyDown={handleNextFocus} disabled={isViewOnly || formData.docstatus !== 0} className="po-input font-bold disabled:bg-slate-50 disabled:border-slate-100 disabled:text-slate-500">
-                            <option value="">Choose warehouse...</option>
-                            {warehouses.map(wh => <option key={wh.name} value={wh.name}>{wh.warehouse_name}</option>)}
-                          </select>
-                        )}
-                      </div>
+                    <div className={`po-card-body grid grid-cols-1 ${isViewOnly ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6`}>
                       <div>
                         <label className="po-label">Transaction Date</label>
-                        <div className={`border-none shadow-none bg-transparent flex items-center text-slate-800 h-[42px] ${isViewOnly ? 'font-black text-base' : 'text-slate-500'}`}>
+                        <div className={`po-input border border-slate-200 rounded-lg bg-slate-50/30 px-3 flex items-center text-slate-800 h-[42px] ${isViewOnly ? 'font-black text-base' : 'text-slate-500 font-semibold'}`}>
                           <span>
                             {new Date(formData.transaction_date).toLocaleString('en-GB', {
                               day: '2-digit', month: '2-digit', year: 'numeric',
@@ -2621,7 +2900,7 @@ function PurchaseOrder() {
                       {isViewOnly && (
                         <div>
                           <label className="po-label">Currency</label>
-                          <div className="text-base font-black text-[var(--po-primary)] h-[42px] flex items-center gap-1.5">
+                          <div className="po-input border border-slate-200 rounded-lg bg-slate-50/30 px-3 flex items-center text-base font-black text-[var(--po-primary)] h-[42px] gap-1.5">
                             {(formData.currency || 'AED') === 'AED' ? (
                               <>
                                 <DirhamIcon size={16} />
@@ -2633,6 +2912,10 @@ function PurchaseOrder() {
                           </div>
                         </div>
                       )}
+                      <div className="col-span-1 flex flex-col justify-end">
+                        <label className="po-label opacity-0 select-none pointer-events-none">Attachment</label>
+                        <AttachmentSection doctype="Purchase Order" docname={formData.name} compact={true} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2751,9 +3034,9 @@ function PurchaseOrder() {
 
                             return activeCols.map(col => {
                               let finalLabel = col.label;
+                              if (col.id === 'custom_box_qty') finalLabel = 'QTY';
 
                               if (!hasAnyBox) {
-                                if (col.id === 'custom_box_qty') finalLabel = 'Qty';
                                 if (col.id === 'custom_box_price') finalLabel = 'Price';
                                 if (col.id === 'custom_pieces_per_box') finalLabel = '';
                               }
@@ -2859,7 +3142,7 @@ function PurchaseOrder() {
                                     return (
                                       <td key={col.id} className="purchase-td">
                                         <div className="premium-cell-container">
-                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
+                                          <div className="premium-cell-box flex flex-col justify-center items-center py-1 w-full">
                                             <input
                                               type="text"
                                               inputMode="decimal"
@@ -2870,22 +3153,24 @@ function PurchaseOrder() {
                                               onFocus={(e) => e.target.select()}
                                               onClick={(e) => e.target.select()}
                                               onKeyDown={handleNextFocus}
-                                              className={`text-left pl-3 font-bold outline-none ${item.use_box_entry ? 'text-sky-600' : 'text-slate-800'}`}
-                                              style={{ paddingRight: item.item_code ? '48px' : '0.5rem' }}
+                                              className={`text-center font-bold outline-none w-full h-[28px] border-none ${item.use_box_entry ? 'text-sky-600' : 'text-slate-800'}`}
+                                              style={{ padding: '0 4px', fontSize: '0.75rem' }}
                                               title={item.use_box_entry ? "Number of Boxes" : "Quantity"}
                                             />
                                             {item.item_code && (
-                                              <span
-                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
-                                                style={{
-                                                  color: item.use_box_entry ? '#0284c7' : '#64748b',
-                                                  backgroundColor: item.use_box_entry ? 'rgba(2, 132, 199, 0.08)' : '#f8fafc',
-                                                  borderColor: item.use_box_entry ? 'rgba(2, 132, 199, 0.15)' : '#e2e8f0',
-                                                  lineHeight: 1
-                                                }}
-                                              >
-                                                {item.use_box_entry ? 'BOXES' : 'NOS'}
-                                              </span>
+                                              <div className="flex justify-center w-full mt-0.5">
+                                                <span
+                                                  className="text-[8px] font-extrabold select-none pointer-events-none px-1.5 py-0.2 rounded border uppercase tracking-wider"
+                                                  style={{
+                                                    color: item.use_box_entry ? '#0284c7' : '#64748b',
+                                                    backgroundColor: item.use_box_entry ? 'rgba(2, 132, 199, 0.08)' : '#f8fafc',
+                                                    borderColor: item.use_box_entry ? 'rgba(2, 132, 199, 0.15)' : '#e2e8f0',
+                                                    lineHeight: 1.2
+                                                  }}
+                                                >
+                                                  {item.use_box_entry ? 'BOXES' : 'NOS'}
+                                                </span>
+                                              </div>
                                             )}
                                           </div>
                                         </div>
@@ -2996,20 +3281,22 @@ function PurchaseOrder() {
                                     return (
                                       <td key={col.id} className="purchase-td">
                                         <div className="premium-cell-container">
-                                          <div className="premium-cell-box" style={{ position: 'relative' }}>
-                                            <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold" style={{ paddingRight: item.use_box_entry ? '42px' : '0.5rem' }}>{item.qty || 0}</div>
+                                          <div className="premium-cell-box flex flex-col justify-center items-center py-1 w-full relative">
+                                            <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-center pb-0.5 w-full">{item.qty || 0}</div>
                                             {item.use_box_entry && (
-                                              <span
-                                                className="absolute right-2 text-[9px] font-extrabold select-none pointer-events-none px-1.5 py-0.5 rounded border uppercase"
-                                                style={{
-                                                  color: '#64748b',
-                                                  backgroundColor: '#f8fafc',
-                                                  borderColor: '#e2e8f0',
-                                                  lineHeight: 1
-                                                }}
-                                              >
-                                                NOS
-                                              </span>
+                                              <div className="flex justify-center w-full mt-0.5">
+                                                <span
+                                                  className="text-[8px] font-extrabold select-none pointer-events-none px-1.5 py-0.2 rounded border uppercase tracking-wider"
+                                                  style={{
+                                                    color: '#64748b',
+                                                    backgroundColor: '#f8fafc',
+                                                    borderColor: '#e2e8f0',
+                                                    lineHeight: 1.2
+                                                  }}
+                                                >
+                                                  NOS
+                                                </span>
+                                              </div>
                                             )}
                                           </div>
                                         </div>

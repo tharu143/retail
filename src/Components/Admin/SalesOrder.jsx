@@ -15,7 +15,7 @@ import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 const DEFAULT_SO_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
   { id: 'custom_ref_sl_no', label: 'Ref / Customer SL #', visible: true, width: 120 },
-  { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+  { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },

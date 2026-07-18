@@ -21,7 +21,7 @@ import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 const DEFAULT_SO_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
     { id: 'custom_ref_sl_no', label: 'Ref / Customer SL #', visible: true, width: 120 },
-    { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+    { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
     { id: 'uom', label: 'UOM', visible: true, width: 90 },
     { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
     { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
@@ -1516,70 +1516,64 @@ export default function SalesOrderDetails() {
                 </div>
             </div>
 
-            {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
-            <div className="w-full bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-sky-50/50 backdrop-blur-md border-b border-emerald-100/60 px-8 py-2 flex flex-wrap items-center gap-y-2 gap-x-6 text-[11px] font-medium text-slate-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
-              <div className="flex items-center gap-1.5 text-emerald-800 font-bold uppercase tracking-wider text-[10px]">
+            {/* Premium Keyboard Shortcuts Guide Banner */}
+            <div className="so-shortcut-guide-banner">
+              <div className="so-shortcut-banner-title">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
                 </span>
-                Quick Shortcuts
+                <span>Quick Actions</span>
               </div>
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Customer</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'itemSearch', 'F3')}</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Item Search</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'barcode', 'F4')}</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Barcode</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'bulkQty', 'F6')}</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Bulk Qty</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'uom', 'F8')}</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Toggle UOM</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-sm transition-all hover:scale-105 hover:bg-emerald-50">
-                  <kbd className="px-1.5 py-0.5 bg-emerald-200 border border-emerald-300 rounded text-[9px] font-black text-emerald-700 shadow-sm">{getShortcut('doc_editor', 'saveDraft', 'F7')}</kbd>
-                  <span className="text-[10px] font-semibold text-emerald-800">Save Draft</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Branch</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Submit</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Shift+F3 / Ctrl+↓</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Focus Table</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Escape</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Close / Clear</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">+ / -</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Qty Adjust</span>
-                </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+                <span className="so-shortcut-label">Customer</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+                <span className="so-shortcut-label">Item Search</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+                <span className="so-shortcut-label">Barcode</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+                <span className="so-shortcut-label">Bulk Qty</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+                <span className="so-shortcut-label">Toggle UOM</span>
+              </div>
+              <div className="so-shortcut-badge emerald">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+                <span className="so-shortcut-label">Save Draft</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
+                <span className="so-shortcut-label">Add Row</span>
+              </div>
+              <div className="so-shortcut-badge violet">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
+                <span className="so-shortcut-label">Branch</span>
+              </div>
+              <div className="so-shortcut-badge emerald">
+                <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+                <span className="so-shortcut-label">Submit</span>
+              </div>
+              <div className="so-shortcut-badge slate">
+                <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
+                <span className="so-shortcut-label">Focus Table</span>
+              </div>
+              <div className="so-shortcut-badge rose">
+                <span className="so-shortcut-key">Escape</span>
+                <span className="so-shortcut-label">Close / Clear</span>
               </div>
             </div>
 
             <div className="so-layout">
                 <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
-                    <AttachmentSection doctype="Sales Order" docname={isNew ? null : name} />
+                    <AttachmentSection doctype="Sales Order" docname={isNew ? null : name} compact={true} />
                     {isEditing ? (
                         /* EDITING / CREATION VIEW */
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
