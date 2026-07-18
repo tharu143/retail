@@ -324,8 +324,8 @@ function DriverDashboard() {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex items-center gap-1.5 py-2 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${isActive
-                    ? 'bg-slate-800 text-white shadow-md shadow-slate-200'
-                    : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100 shadow-sm'
+                  ? 'bg-slate-800 text-white shadow-md shadow-slate-200'
+                  : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100 shadow-sm'
                   }`}
               >
                 <span>{tab}</span>
@@ -442,8 +442,8 @@ function DriverDashboard() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-black text-slate-400 tracking-wide uppercase">{selectedInvoice.name}</span>
                   <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg border ${selectedInvoice.custom_delivery_status === 'Delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                      selectedInvoice.custom_delivery_status === 'In Transit' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                        'bg-amber-50 text-amber-700 border-amber-100'
+                    selectedInvoice.custom_delivery_status === 'In Transit' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                      'bg-amber-50 text-amber-700 border-amber-100'
                     }`}>
                     {selectedInvoice.custom_delivery_status || 'Pending'}
                   </span>

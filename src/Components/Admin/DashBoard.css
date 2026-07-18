@@ -801,9 +801,11 @@
   .exec-grid-row1 {
     grid-template-columns: 1.5fr 1fr !important;
   }
-  .exec-grid-row1 > *:last-child {
+
+  .exec-grid-row1>*:last-child {
     grid-column: 1 / -1 !important;
   }
+
   .exec-grid-row2 {
     grid-template-columns: 1fr 1fr !important;
   }
@@ -813,16 +815,20 @@
   .exec-grid-row1 {
     grid-template-columns: 1fr !important;
   }
-  .exec-grid-row1 > *:last-child {
+
+  .exec-grid-row1>*:last-child {
     grid-column: auto !important;
   }
+
   .exec-grid-row2 {
     grid-template-columns: 1fr !important;
   }
+
   .exec-header-row {
     flex-direction: column !important;
     align-items: flex-start !important;
   }
+
   .exec-quick-filters {
     gap: 0.85rem !important;
   }
@@ -832,9 +838,11 @@
   .dashboard-modern-container {
     padding: 1rem !important;
   }
+
   .exec-title {
     font-size: 1.6rem !important;
   }
+
   .attendance-bar-card {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -1298,8 +1306,15 @@
 }
 
 @keyframes attendance-pulse {
-  from { opacity: 0.45; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1.15); }
+  from {
+    opacity: 0.45;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 .attendance-actions-box {

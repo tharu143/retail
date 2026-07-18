@@ -4,24 +4,28 @@
   font-weight: 300;
   src: local('Gilroy-Light'), url('https://fonts.cdnfonts.com/s/16219/Gilroy-Light.woff') format('woff');
 }
+
 @font-face {
   font-family: 'Gilroy';
   font-style: normal;
   font-weight: 400;
   src: local('Gilroy-Regular'), url('https://fonts.cdnfonts.com/s/16219/Gilroy-Regular.woff') format('woff');
 }
+
 @font-face {
   font-family: 'Gilroy';
   font-style: normal;
   font-weight: 500;
   src: local('Gilroy-Medium'), url('https://fonts.cdnfonts.com/s/16219/Gilroy-Medium.woff') format('woff');
 }
+
 @font-face {
   font-family: 'Gilroy';
   font-style: normal;
   font-weight: 700;
   src: local('Gilroy-Bold'), url('https://fonts.cdnfonts.com/s/16219/Gilroy-Bold.woff') format('woff');
 }
+
 @font-face {
   font-family: 'Gilroy';
   font-style: normal;
@@ -29,12 +33,12 @@
   src: local('Gilroy-Heavy'), url('https://fonts.cdnfonts.com/s/16219/Gilroy-Heavy.woff') format('woff');
 }
 
-body, 
-button, 
-input, 
-select, 
-textarea, 
-.so-page, 
+body,
+button,
+input,
+select,
+textarea,
+.so-page,
 .so-page * {
   font-family: 'Gilroy', sans-serif !important;
 }
@@ -654,6 +658,7 @@ textarea,
 }
 
 .so-items-table {
+  table-layout: fixed;
   width: 100%;
   border-collapse: collapse;
 }
@@ -1018,22 +1023,27 @@ input[type=number].so-td-input::-webkit-outer-spin-button {
 .so-items-table tbody tr[tabindex="-1"] {
   outline: none;
 }
+
 .so-items-table tbody tr[tabindex="-1"]:focus-within {
   background-color: rgba(99, 102, 241, 0.02);
 }
+
 .so-items-table tbody tr[tabindex="-1"]:focus {
   background-color: rgba(16, 185, 129, 0.08) !important;
 }
+
 .so-items-table tbody tr[tabindex="-1"]:focus td {
   background-color: rgba(16, 185, 129, 0.08) !important;
   border-top: 2px solid var(--so-primary, #10b981) !important;
   border-bottom: 2px solid var(--so-primary, #10b981) !important;
 }
+
 .so-items-table tbody tr[tabindex="-1"]:focus td:first-child {
   border-left: 2px solid var(--so-primary, #10b981) !important;
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
+
 .so-items-table tbody tr[tabindex="-1"]:focus td:last-child {
   border-right: 2px solid var(--so-primary, #10b981) !important;
   border-top-right-radius: 6px;
@@ -1373,4 +1383,25 @@ input[type=number].so-td-input::-webkit-outer-spin-button {
   background: var(--so-primary) !important;
   color: white !important;
   border-color: var(--so-primary) !important;
+}
+
+/* ---- Responsive Media Queries ---- */
+@media (max-width: 1024px) {
+  .so-form-grid, .so-form-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .so-form-grid, .so-form-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Ensure table scrolls on small screens instead of squishing */
+@media (max-width: 1200px) {
+  .so-items-table {
+    min-width: 1000px;
+  }
 }
