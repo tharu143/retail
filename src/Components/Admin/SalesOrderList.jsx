@@ -28,6 +28,7 @@ const DEFAULT_SO_COLUMNS = [
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
   { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 90 },
+  { id: 'is_tax_inclusive', label: 'Tax Inc/Exc', visible: true, width: 100 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
   { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
 ];
@@ -43,7 +44,8 @@ const SOItemModel = {
   custom_box_price: 0,
   use_box_entry: false,
   uom_list: [],
-  custom_selling_price: 0
+  custom_selling_price: 0,
+  is_tax_inclusive: true
 };
 
 const loadColumnConfig = () => {
@@ -144,6 +146,7 @@ export default function SalesOrderList() {
   const navigate = useNavigate();
   const { warehouse, user_roles } = useSelector((state) => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
+  const isAdministrator = (user_roles || []).includes("Administrator");
   const [customColumns, setCustomColumns] = useState(() => {
     const saved = localStorage.getItem('custom_columns_Sales Order');
     try {
@@ -424,15 +427,27 @@ export default function SalesOrderList() {
         currentTaxesTemplates.find(t => t.name.toUpperCase().includes('5%'));
       if (defaultTax) {
         try {
-          const encodedVal = encodeURIComponent(defaultTax.name);
-          const res = await axios.get(`/api/resource/Sales Taxes and Charges Template/${encodedVal}`, { withCredentials: true });
-          const rows = (res.data.data?.taxes || []).map(t => ({
+          const res = await axios.get(`${API_PATH_C}.get_sales_taxes_templates_so`, { params: { template: defaultTax.name }, withCredentials: true });
+          let rows = (res.data.message || []).map(t => ({
             charge_type: t.charge_type,
             account_head: t.account_head,
+            description: t.description || t.account_head || 'VAT',
             rate: t.rate,
+            add_deduct_tax: t.add_deduct_tax || 'Add',
             tax_amount: 0,
             total: 0
           }));
+          if (rows.length === 0 && defaultTax.name) {
+            let rate = 0; let account = "";
+            if (defaultTax.name.includes("5%")) { rate = 5; account = "VAT 5% - NS"; }
+            else if (defaultTax.name.includes("Zero")) { rate = 0; account = "VAT Zero - NS"; }
+            else if (defaultTax.name.includes("Exempted")) { rate = 0; account = "VAT Exempted - NS"; }
+            else if (defaultTax.name.includes("50%")) { rate = 50; account = "Excise 50% - NS"; }
+            else if (defaultTax.name.includes("100%")) { rate = 100; account = "Excise 100% - NS"; }
+            if (account) {
+              rows = [{ charge_type: "On Net Total", account_head: account, description: account, rate: rate, add_deduct_tax: "Add", tax_amount: 0, total: 0 }];
+            }
+          }
           setFormData(prev => recalculate({
             ...prev,
             taxes_and_charges: defaultTax.name,
@@ -488,23 +503,29 @@ export default function SalesOrderList() {
     try {
       if (!newCustomer.customer_name) return Swal.fire('Error', 'Customer Name is required', 'warning');
       setSavingCustomer(true);
-      const res = await axios.post('/api/resource/Customer', {
-        ...newCustomer,
-        customer_type: 'Individual',
-        customer_group: 'All Customer Groups',
-        territory: 'All Territories'
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.create_customer_retail', {
+        data: {
+          customer_name: newCustomer.customer_name,
+          mobile_no: newCustomer.mobile_no
+        }
       }, { withCredentials: true });
 
-      const created = res.data.data;
-      Swal.fire({ icon: 'success', title: 'Customer Created', text: created.name, timer: 2000 });
+      const respData = res.data.message;
+      if (respData && respData.status === 'error') {
+        return Swal.fire('Error', respData.message, 'error');
+      }
+
+      const createdName = respData.name;
+      const createdCustomerName = respData.customer_name || respData.name;
+      Swal.fire({ icon: 'success', title: 'Customer Created', text: createdCustomerName, timer: 1500, showConfirmButton: false });
 
       // Auto-select the newly created customer
-      handleInputChange('customer', created.name);
-      handleInputChange('customer_name', created.customer_name || created.name);
-      setCustomerSearch(created.customer_name || created.name);
+      handleInputChange('customer', createdName);
+      handleInputChange('customer_name', createdCustomerName);
+      setCustomerSearch(createdCustomerName);
 
       setIsCustomerModalOpen(false);
-      setNewCustomer({ customer_name: '', mobile_no: '', email_id: '' });
+      setNewCustomer({ customer_name: '', mobile_no: '' });
     } catch (err) {
       Swal.fire('Failed to create customer', err.response?.data?._server_messages || err.message, 'error');
     } finally {
@@ -1391,7 +1412,10 @@ export default function SalesOrderList() {
         set_warehouse: formData.set_source_warehouse,
         items: validItems,
         taxes: (formData.taxes || []).map(t => ({
-          ...t,
+          charge_type: t.charge_type,
+          account_head: t.account_head,
+          rate: parseFloat(t.rate) || 0,
+          tax_amount: parseFloat(t.tax_amount) || parseFloat(t.total) || 0,
           description: t.description || t.account_head || 'VAT'
         })),
         advance_paid: parseFloat(formData.advance_paid) || 0,
@@ -1401,8 +1425,14 @@ export default function SalesOrderList() {
         rounded_total: parseFloat(formData.rounded_total) || 0
       };
 
-      const res = await axios.post('/api/resource/Sales Order', payload, { withCredentials: true });
-      Swal.fire({ icon: 'success', title: 'Order Created', text: `ID: ${res.data.data.name}`, timer: 3000 });
+      const res = await axios.post(`${API_PATH_C}.save_transaction_document`, {
+        doctype: 'Sales Order',
+        doc_data: payload,
+        action: 'save'
+      }, { withCredentials: true });
+      
+      const savedDocName = res.data?.data?.name || res.data?.message?.data?.name;
+      Swal.fire({ icon: 'success', title: 'Order Created', text: `ID: ${savedDocName}`, timer: 3000 });
       setIsModalOpen(false);
       fetchOrders();
     } catch (err) {
@@ -1699,10 +1729,12 @@ export default function SalesOrderList() {
                   <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Add Row</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
-                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</kbd>
-                  <span className="text-[10px] font-semibold text-slate-600">Branch</span>
-                </div>
+                {isAdministrator && (
+                  <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
+                    <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</kbd>
+                    <span className="text-[10px] font-semibold text-slate-600">Branch</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-sm transition-all hover:scale-105 hover:bg-white">
                   <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300/70 rounded text-[9px] font-black text-slate-500 shadow-sm">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</kbd>
                   <span className="text-[10px] font-semibold text-slate-600">Submit</span>
@@ -1904,22 +1936,24 @@ export default function SalesOrderList() {
                               </button>
                             </div>
                           </div>
-                          <div className="so-field">
-                            <label className="so-label">Set Source Warehouse</label>
-                            <select className="so-input" value={formData.set_source_warehouse || ''} onChange={e => {
-                              const wh = e.target.value;
-                              setFormData(prev => ({
-                                ...prev,
-                                set_source_warehouse: wh,
-                                items: (prev.items || []).map(item => ({ ...item, warehouse: wh }))
-                              }));
-                            }}>
-                              <option value="">Select Warehouse...</option>
-                              {warehouses.map(wh => (
-                                <option key={wh.name} value={wh.name}>{wh.warehouse_name || wh.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                          {isAdministrator && (
+                            <div className="so-field">
+                              <label className="so-label">Set Source Warehouse</label>
+                              <select className="so-input" value={formData.set_source_warehouse || ''} onChange={e => {
+                                const wh = e.target.value;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  set_source_warehouse: wh,
+                                  items: (prev.items || []).map(item => ({ ...item, warehouse: wh }))
+                                }));
+                              }}>
+                                <option value="">Select Warehouse...</option>
+                                {warehouses.map(wh => (
+                                  <option key={wh.name} value={wh.name}>{wh.warehouse_name || wh.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -2192,6 +2226,27 @@ export default function SalesOrderList() {
                                             />
                                           </td>
                                         );
+                                      case 'is_tax_inclusive':
+                                        return (
+                                          <td key={col.id}>
+                                            <select
+                                              className="so-table-input"
+                                              style={{ height: '38px', fontSize: '0.75rem', fontWeight: 'bold' }}
+                                              value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                              onChange={e => {
+                                                const val = e.target.value === 'Inclusive';
+                                                setFormData(prev => {
+                                                  const items = [...(prev.items || [])];
+                                                  items[idx] = { ...items[idx], is_tax_inclusive: val };
+                                                  return recalculate({ ...prev, items });
+                                                });
+                                              }}
+                                            >
+                                              <option value="Inclusive">Inclusive</option>
+                                              <option value="Exclusive">Exclusive</option>
+                                            </select>
+                                          </td>
+                                        );
                                       case 'qty':
                                         return (
                                           <td key={col.id}>
@@ -2269,16 +2324,28 @@ export default function SalesOrderList() {
                             const val = e.target.value;
                             if (val) {
                               try {
-                                const encodedVal = encodeURIComponent(val);
-                                const res = await axios.get(`/api/resource/Sales Taxes and Charges Template/${encodedVal}`, { withCredentials: true });
-                                const rows = (res.data.data?.taxes || []).map(t => ({
+                                const res = await axios.get(`${API_PATH_C}.get_sales_taxes_templates_so`, { params: { template: val }, withCredentials: true });
+                                let rows = (res.data.message || []).map(t => ({
                                   charge_type: t.charge_type,
                                   account_head: t.account_head,
+                                  description: t.description || t.account_head || 'VAT',
                                   rate: t.rate,
+                                  add_deduct_tax: t.add_deduct_tax || 'Add',
                                   tax_amount: 0,
                                   total: 0
                                 }));
-                                setFormData(prev => ({
+                                if (rows.length === 0 && val) {
+                                  let rate = 0; let account = "";
+                                  if (val.includes("5%")) { rate = 5; account = "VAT 5% - NS"; }
+                                  else if (val.includes("Zero")) { rate = 0; account = "VAT Zero - NS"; }
+                                  else if (val.includes("Exempted")) { rate = 0; account = "VAT Exempted - NS"; }
+                                  else if (val.includes("50%")) { rate = 50; account = "Excise 50% - NS"; }
+                                  else if (val.includes("100%")) { rate = 100; account = "Excise 100% - NS"; }
+                                  if (account) {
+                                    rows = [{ charge_type: "On Net Total", account_head: account, description: account, rate: rate, add_deduct_tax: "Add", tax_amount: 0, total: 0 }];
+                                  }
+                                }
+                                setFormData(prev => recalculate({
                                   ...prev,
                                   taxes_and_charges: val,
                                   taxes: rows
@@ -2459,15 +2526,11 @@ export default function SalesOrderList() {
             <div className="so-modal-body" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div className="so-field">
                 <label className="so-label">Customer Name *</label>
-                <input className="so-input" value={newCustomer.customer_name} onChange={e => setNewCustomer({ ...newCustomer, customer_name: e.target.value })} placeholder="Ex: Star Electronics" />
+                <input className="so-input" value={newCustomer.customer_name} onChange={e => setNewCustomer({ ...newCustomer, customer_name: e.target.value })} placeholder="Enter customer name..." />
               </div>
               <div className="so-field">
                 <label className="so-label">Mobile Number</label>
-                <input className="so-input" value={newCustomer.mobile_no} onChange={e => setNewCustomer({ ...newCustomer, mobile_no: e.target.value })} placeholder="+971..." />
-              </div>
-              <div className="so-field">
-                <label className="so-label">Email Address</label>
-                <input className="so-input" type="email" value={newCustomer.email_id} onChange={e => setNewCustomer({ ...newCustomer, email_id: e.target.value })} placeholder="partner@example.com" />
+                <input className="so-input" value={newCustomer.mobile_no} onChange={e => setNewCustomer({ ...newCustomer, mobile_no: e.target.value })} placeholder="Enter mobile number..." />
               </div>
             </div>
             <div className="so-modal-footer" style={{ padding: '1.25rem 2rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '1rem' }}>

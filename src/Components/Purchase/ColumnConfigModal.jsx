@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, GripVertical, Eye, EyeOff, RefreshCcw, Save, Trash2, ChevronUp, ChevronDown 
+  X, GripVertical, Eye, EyeOff, RefreshCcw, Save, Trash2, ChevronUp, ChevronDown, AlignLeft, AlignCenter, AlignRight 
 } from 'lucide-react';
 import {
   DndContext,
@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const SortableItem = ({ id, column, onToggle, onWidthChange, onMoveUp, onMoveDown, isFirst, isLast }) => {
+const SortableItem = ({ id, column, onToggle, onWidthChange, onAlignChange, onMoveUp, onMoveDown, isFirst, isLast }) => {
   const {
     attributes,
     listeners,
@@ -80,6 +80,18 @@ const SortableItem = ({ id, column, onToggle, onWidthChange, onMoveUp, onMoveDow
         <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{id.replace(/_/g, ' ')}</p>
       </div>
 
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg mr-2">
+        <button onClick={() => onAlignChange(id, 'left')} className={`p-1 rounded ${column.align === 'left' || !column.align ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>
+          <AlignLeft size={14} />
+        </button>
+        <button onClick={() => onAlignChange(id, 'center')} className={`p-1 rounded ${column.align === 'center' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>
+          <AlignCenter size={14} />
+        </button>
+        <button onClick={() => onAlignChange(id, 'right')} className={`p-1 rounded ${column.align === 'right' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>
+          <AlignRight size={14} />
+        </button>
+      </div>
+
       <div className="flex items-center gap-2">
         <label className="text-[10px] font-bold text-slate-400">WIDTH</label>
         <input 
@@ -138,6 +150,12 @@ const ColumnConfigModal = ({ isOpen, onClose, config, onUpdate, doctype, themeCo
     ));
   };
 
+  const updateAlign = (id, align) => {
+    setLocalConfig(prev => prev.map(col => 
+      col.id === id ? { ...col, align } : col
+    ));
+  };
+
   const resetToDefault = () => {
     // This will be handled by Parent passing its default
     if (window.confirm("Reset to default system column configuration?")) {
@@ -158,7 +176,7 @@ const ColumnConfigModal = ({ isOpen, onClose, config, onUpdate, doctype, themeCo
 
   return (
     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-50 w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl border border-white/20 flex flex-col max-h-[90vh]">
+      <div className="bg-slate-50 rounded-3xl overflow-hidden shadow-2xl border border-white/20 flex flex-col" style={{ width: '550px', height: '800px', maxWidth: '95vw', maxHeight: '95vh' }}>
         {/* Header */}
         <div className="px-8 py-6 bg-white border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -200,6 +218,7 @@ const ColumnConfigModal = ({ isOpen, onClose, config, onUpdate, doctype, themeCo
                     column={col} 
                     onToggle={toggleVisibility}
                     onWidthChange={updateWidth}
+                    onAlignChange={updateAlign}
                     onMoveUp={() => moveColumn(idx, -1)}
                     onMoveDown={() => moveColumn(idx, 1)}
                     isFirst={idx === 0}

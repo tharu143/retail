@@ -5,7 +5,8 @@ import {
   Building2, Users, MapPin, Phone, Mail, ChevronLeft, Loader2,
   Globe, Tag, Receipt, Layers, ShoppingCart, Edit2, Save, X,
   Clock, Award, User, Briefcase, Hash, FileText, ShieldCheck,
-  UserPlus, Shield, UserCircle2, Percent, Warehouse, Plus, Trash2
+  UserPlus, Shield, UserCircle2, Percent, Warehouse, Plus, Trash2,
+  ChevronDown, ChevronUp, RotateCcw
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { motion } from 'framer-motion';
@@ -305,6 +306,24 @@ const SectionHeader = ({ text, themeColor }) => (
   </div>
 );
 
+const CollapsibleSectionHeader = ({ text, themeColor, isOpen, onToggle }) => {
+  const Icon = isOpen ? ChevronUp : ChevronDown;
+  return (
+    <div
+      className="px-4 py-3.5 flex items-center justify-between bg-white border-b border-slate-50 cursor-pointer select-none hover:bg-slate-50/50 transition-colors"
+      onClick={onToggle}
+    >
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-3 rounded-full" style={{ backgroundColor: themeColor || '#10b981' }} />
+        <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">{text}</div>
+      </div>
+      <div className="text-slate-400 hover:text-slate-600 transition-colors">
+        <Icon size={16} strokeWidth={2.5} />
+      </div>
+    </div>
+  );
+};
+
 
 /* ==================== MAIN COMPONENT ==================== */
 const CustomerDetails = () => {
@@ -319,9 +338,15 @@ const CustomerDetails = () => {
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'loyalty'
   const [loyaltyLedger, setLoyaltyLedger] = useState([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [expandedSection, setExpandedSection] = useState(null);
 
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+
+  // Accordion open/collapse states for sections
+  const [isSpatialOpen, setIsSpatialOpen] = useState(true);
+  const [isContactOpen, setIsContactOpen] = useState(true);
 
   const getInputStyle = (fieldId) => ({
     borderColor: focusedField === fieldId ? themeColor : '#e2e8f0',
@@ -346,7 +371,7 @@ const CustomerDetails = () => {
   // Form state containing all customer create fields
   const [form, setForm] = useState({
     customer_name: '', mobile_no: '+971', email_id: '', salutation: '',
-    customer_type: 'Individual', customer_group: 'All Customer Groups',
+    customer_type: 'Individual', customer_group: 'Retail Customer',
     territory: 'All Territories', gender: '', tax_id: '', custom_trn: '',
     account_manager: '', prospect_name: '', image: '',
     default_price_list: '', is_internal_customer: 0, customer_pos_id: '',
@@ -400,10 +425,11 @@ const CustomerDetails = () => {
     try {
       setLoading(true);
       const res = await axios.get(`${API_BASE}.get_customer_details_retail`, { params: { customer_id: id } });
-      const { customer: cust, addresses: addrList, contacts: contList } = res.data.message.data;
+      const { customer: cust, addresses: addrList, contacts: contList, dashboard_data: data } = res.data.message.data;
       setCustomer(cust);
       setAddresses(addrList || []);
       setContacts(contList || []);
+      setDashboardData(data || {});
 
       const addr = addrList?.[0] || {};
       const cont = contList?.[0] || {};
@@ -417,7 +443,7 @@ const CustomerDetails = () => {
         email_id: cust.email_id || '',
         salutation: cust.salutation || '',
         customer_type: cust.customer_type || 'Individual',
-        customer_group: cust.customer_group || 'All Customer Groups',
+        customer_group: cust.customer_group || 'Retail Customer',
         territory: cust.territory || 'All Territories',
         gender: cust.gender || '',
         tax_id: cust.tax_id || '',
@@ -541,12 +567,12 @@ const CustomerDetails = () => {
   return (
     <div className="customer-details-page min-h-screen bg-white pb-24 font-sans antialiased text-slate-800">
       {/* Sticky Header Bar */}
-      <div className="sticky z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 customer-details-navbar">
-        <div className="w-full flex items-center justify-between h-full">
-          <div className="flex items-center gap-5">
+      <div className="sticky z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 md:px-8 customer-details-navbar">
+        <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-3 md:gap-5 min-w-0">
 
             <div
-              className="h-6 w-6 rounded-md flex items-center justify-center shadow-sm overflow-hidden border border-white ring-1 transition-transform hover:scale-105 duration-200"
+              className="h-6 w-6 rounded-md flex items-center justify-center shadow-sm overflow-hidden border border-white ring-1 transition-transform hover:scale-105 duration-200 shrink-0"
               style={{ ringColor: `${themeColor}15` }}
             >
               {customer?.image ? (
@@ -557,13 +583,13 @@ const CustomerDetails = () => {
                 </div>
               )}
             </div>
-            <div>
-              <div className="flex flex-row items-center gap-2">
-                <h1 className="text-sm font-black text-slate-900 tracking-tight leading-none truncate max-w-[200px] sm:max-w-[300px]">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                <h1 className="text-xs md:text-sm font-black text-slate-900 tracking-tight leading-none truncate max-w-[150px] sm:max-w-[300px]">
                   {isNew ? 'New Customer' : (viewMode === 'edit' ? `Editing: ${customer?.customer_name}` : customer?.customer_name)}
                 </h1>
                 {!isNew && (
-                  <div className="flex gap-1 shrink-0">
+                  <div className="flex gap-1 shrink-0 flex-wrap">
                     <span className={`px-1.5 py-px rounded-full text-[8px] font-bold uppercase tracking-wider border flex items-center gap-1 ${customer?.disabled === 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                       <span className={`w-1 h-1 rounded-full ${customer?.disabled === 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                       {customer?.disabled === 0 ? 'Active' : 'Disabled'}
@@ -580,11 +606,11 @@ const CustomerDetails = () => {
                     )}
                   </div>
                 )}
-                {!isNew && <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider ml-2 hidden md:inline-block">Ref: {customer?.name}</span>}
+                {!isNew && <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider ml-1 hidden md:inline-block">Ref: {customer?.name}</span>}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             {viewMode === 'view' ? (
               <>
                 <button
@@ -667,9 +693,9 @@ const CustomerDetails = () => {
 
               {/* TOP FULL WIDTH ROW: Loyalty Balance Banner */}
               <div className="lg:col-span-2">
-                <div className="rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-row items-center justify-between transition-all duration-300 hover:shadow-2xl hover:-translate-y-1" style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}>
+                <div className="rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1" style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}>
                   <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]" />
-                  
+
                   <div className="flex items-center gap-4 z-10">
                     <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner">
                       <Award className="w-8 h-8 text-white" />
@@ -679,10 +705,10 @@ const CustomerDetails = () => {
                       <h4 className="text-xl font-bold text-white leading-tight">{customer?.loyalty_program || 'Standard Program'}</h4>
                     </div>
                   </div>
-                  
-                  <div className="z-10 text-right">
+
+                  <div className="z-10 text-left sm:text-right">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300/60 mb-1">Available Points</p>
-                    <div className="flex items-baseline justify-end gap-2">
+                    <div className="flex items-baseline sm:justify-end gap-2">
                       <span className="text-4xl font-extrabold tracking-tight">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'}</span>
                       <span className="text-sm font-semibold text-slate-300 uppercase tracking-widest">pts</span>
                     </div>
@@ -734,33 +760,47 @@ const CustomerDetails = () => {
 
                 {/* Panel 2: Location and Geography details */}
                 <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.2 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                  <SectionHeader text="Deal & Spatial Information" themeColor={themeColor} />
-                  <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
-                    <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
-                    <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
-                    <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
-                    <DetailRow label="City Station" value={activeAddr.city} icon={MapPin} themeColor={themeColor} />
-                    <DetailRow label="Emirate Hub / State" value={activeAddr.state || activeAddr.emirate} icon={MapPin} themeColor={themeColor} />
-                    <DetailRow label="Country" value={activeAddr.country} icon={Globe} themeColor={themeColor} />
-                    <div className="md:col-span-2">
-                      <DetailRow label="Building / Street Line 1" value={activeAddr.address_line1} icon={MapPin} themeColor={themeColor} />
+                  <CollapsibleSectionHeader
+                    text="Deal & Spatial Information"
+                    themeColor={themeColor}
+                    isOpen={isSpatialOpen}
+                    onToggle={() => setIsSpatialOpen(!isSpatialOpen)}
+                  />
+                  {isSpatialOpen && (
+                    <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1 animate-in fade-in duration-200">
+                      <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
+                      <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
+                      <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
+                      <DetailRow label="City Station" value={activeAddr.city} icon={MapPin} themeColor={themeColor} />
+                      <DetailRow label="Emirate Hub / State" value={activeAddr.state || activeAddr.emirate} icon={MapPin} themeColor={themeColor} />
+                      <DetailRow label="Country" value={activeAddr.country} icon={Globe} themeColor={themeColor} />
+                      <div className="md:col-span-2">
+                        <DetailRow label="Building / Street Line 1" value={activeAddr.address_line1} icon={MapPin} themeColor={themeColor} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
+                      </div>
                     </div>
-                    <div className="md:col-span-2">
-                      <DetailRow label="Address Line 2" value={activeAddr.address_line2} icon={MapPin} themeColor={themeColor} />
-                    </div>
-                  </div>
+                  )}
                 </motion.div>
 
                 {/* Panel 6: Primary Contact assigned */}
-                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.3 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden flex-1 flex flex-col">
-                  <SectionHeader text="Primary Contact Person" themeColor={themeColor} />
-                  <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
-                    <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
-                    <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
-                    <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
-                    <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
-                    <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
-                  </div>
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.3 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                  <CollapsibleSectionHeader
+                    text="Primary Contact Person"
+                    themeColor={themeColor}
+                    isOpen={isContactOpen}
+                    onToggle={() => setIsContactOpen(!isContactOpen)}
+                  />
+                  {isContactOpen && (
+                    <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1 animate-in fade-in duration-200">
+                      <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
+                      <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
+                      <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
+                      <DetailRow label="Contact Mobile" value={activeCont.mobile_no} icon={Phone} themeColor={themeColor} />
+                      <DetailRow label="Contact Status" value={activeCont.status} icon={ShieldCheck} themeColor={themeColor} />
+                    </div>
+                  )}
                 </motion.div>
               </div>
 
@@ -791,6 +831,264 @@ const CustomerDetails = () => {
                       </div>
                     )}
                   </div>
+                </motion.div>
+              </div>
+
+              {/* BOTTOM FULL WIDTH ROW: Transactions Dashboard (ERPNext style) */}
+              <div className="lg:col-span-2 mt-2">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }} 
+                  whileInView={{ opacity: 1, y: 0 }} 
+                  viewport={{ once: true, margin: "-50px" }} 
+                  transition={{ duration: 0.4, delay: 0.5 }} 
+                  className="bg-white rounded-2xl border border-slate-100 overflow-hidden"
+                >
+                  <SectionHeader text="Transactions Dashboard" themeColor={themeColor} />
+                  <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                    {/* Sales Orders */}
+                    <div 
+                      onClick={() => setExpandedSection(prev => prev === 'sales_order' ? null : 'sales_order')}
+                      className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'sales_order' ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'}`}
+                    >
+                      <div className={`p-3 rounded-xl transition-colors ${expandedSection === 'sales_order' ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'}`}>
+                        <ShoppingCart size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Sales Orders</span>
+                      <span className="text-lg font-extrabold text-slate-800 transition-colors group-hover:text-indigo-600">
+                        {dashboardData?.sales_order?.length || 0}
+                      </span>
+                    </div>
+
+                    {/* Sales Invoices */}
+                    <div 
+                      onClick={() => setExpandedSection(prev => prev === 'sales_invoice' ? null : 'sales_invoice')}
+                      className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'sales_invoice' ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`}
+                    >
+                      <div className={`p-3 rounded-xl transition-colors ${expandedSection === 'sales_invoice' ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100'}`}>
+                        <FileText size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Sales Invoices</span>
+                      <span className="text-lg font-extrabold text-slate-800 transition-colors group-hover:text-emerald-600">
+                        {dashboardData?.sales_invoice?.length || 0}
+                      </span>
+                    </div>
+
+                    {/* Delivery Notes */}
+                    <div 
+                      onClick={() => setExpandedSection(prev => prev === 'delivery_note' ? null : 'delivery_note')}
+                      className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'delivery_note' ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'}`}
+                    >
+                      <div className={`p-3 rounded-xl transition-colors ${expandedSection === 'delivery_note' ? 'bg-amber-100 text-amber-600' : 'bg-amber-50 text-amber-600 group-hover:bg-amber-100'}`}>
+                        <Warehouse size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Delivery Notes</span>
+                      <span className="text-lg font-extrabold text-slate-800 transition-colors group-hover:text-amber-600">
+                        {dashboardData?.delivery_note?.length || 0}
+                      </span>
+                    </div>
+
+                    {/* Payment Entry */}
+                    <div 
+                      onClick={() => setExpandedSection(prev => prev === 'payment_entry' ? null : 'payment_entry')}
+                      className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'payment_entry' ? 'bg-violet-50 border-violet-200' : 'bg-slate-50 border-slate-100'}`}
+                    >
+                      <div className={`p-3 rounded-xl transition-colors ${expandedSection === 'payment_entry' ? 'bg-violet-100 text-violet-600' : 'bg-violet-50 text-violet-600 group-hover:bg-violet-100'}`}>
+                        <Receipt size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Payments</span>
+                      <span className="text-lg font-extrabold text-slate-800 transition-colors group-hover:text-violet-600">
+                        {dashboardData?.payment_entry?.length || 0}
+                      </span>
+                    </div>
+
+                    {/* Journal Entry */}
+                    <div 
+                      onClick={() => setExpandedSection(prev => prev === 'journal_entry' ? null : 'journal_entry')}
+                      className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'journal_entry' ? 'bg-sky-50 border-sky-200' : 'bg-slate-50 border-slate-100'}`}
+                    >
+                      <div className={`p-3 rounded-xl transition-colors ${expandedSection === 'journal_entry' ? 'bg-sky-100 text-sky-600' : 'bg-sky-50 text-sky-600 group-hover:bg-sky-100'}`}>
+                        <Layers size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Journals</span>
+                      <span className="text-lg font-extrabold text-slate-800 transition-colors group-hover:text-sky-600">
+                        {dashboardData?.journal_entry?.length || 0}
+                      </span>
+                    </div>
+
+                    {/* Returns */}
+                    <div 
+                      onClick={() => setExpandedSection(prev => prev === 'returns' ? null : 'returns')}
+                      className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'returns' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-100'}`}
+                    >
+                      <div className={`p-3 rounded-xl transition-colors ${expandedSection === 'returns' ? 'bg-rose-100 text-rose-600' : 'bg-rose-50 text-rose-600 group-hover:bg-rose-100'}`}>
+                        <RotateCcw size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Returns</span>
+                      <span className="text-lg font-extrabold text-slate-800 transition-colors group-hover:text-rose-600">
+                        {dashboardData?.returns?.length || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {expandedSection && (() => {
+                    const sectionConfig = {
+                      sales_order: {
+                        title: "Sales Orders",
+                        items: dashboardData?.sales_order || [],
+                        color: "indigo",
+                        theme: "#4f46e5",
+                        viewAllPath: "/salesorderlist",
+                        isReactRoute: true,
+                        icon: ShoppingCart
+                      },
+                      sales_invoice: {
+                        title: "Sales Invoices",
+                        items: dashboardData?.sales_invoice || [],
+                        color: "emerald",
+                        theme: "#10b981",
+                        viewAllPath: "/salesinvoice",
+                        isReactRoute: true,
+                        icon: FileText
+                      },
+                      delivery_note: {
+                        title: "Delivery Notes",
+                        items: dashboardData?.delivery_note || [],
+                        color: "amber",
+                        theme: "#f59e0b",
+                        viewAllPath: "/deliverynote",
+                        isReactRoute: true,
+                        icon: Warehouse
+                      },
+                      payment_entry: {
+                        title: "Payments (Payment Entry)",
+                        items: dashboardData?.payment_entry || [],
+                        color: "violet",
+                        theme: "#8b5cf6",
+                        viewAllPath: `/app/payment-entry?party_type=Customer&party=${encodeURIComponent(customer?.name || customer?.customer_name || '')}`,
+                        isReactRoute: false,
+                        icon: Receipt
+                      },
+                      journal_entry: {
+                        title: "Journals (Journal Entry)",
+                        items: dashboardData?.journal_entry || [],
+                        color: "sky",
+                        theme: "#0ea5e9",
+                        viewAllPath: `/app/journal-entry?party_type=Customer&party=${encodeURIComponent(customer?.name || customer?.customer_name || '')}`,
+                        isReactRoute: false,
+                        icon: Layers
+                      },
+                      returns: {
+                        title: "Returns",
+                        items: dashboardData?.returns || [],
+                        color: "rose",
+                        theme: "#f43f5e",
+                        viewAllPath: "/salesreturn",
+                        isReactRoute: true,
+                        icon: RotateCcw
+                      }
+                    };
+
+                    const current = sectionConfig[expandedSection];
+                    if (!current) return null;
+                    const IconComponent = current.icon;
+
+                    return (
+                      <div className="border-t border-slate-100 bg-slate-50/50 p-6 animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg text-white" style={{ backgroundColor: current.theme }}>
+                              <IconComponent size={14} />
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                              Recent {current.title}
+                            </h4>
+                          </div>
+                          
+                          {/* View All Button */}
+                          <button
+                            onClick={() => {
+                              if (current.isReactRoute) {
+                                navigate(current.viewAllPath, { state: { search: customer?.customer_name } });
+                              } else {
+                                window.location.href = current.viewAllPath;
+                              }
+                            }}
+                            className="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-150 flex items-center gap-1 active:scale-95"
+                          >
+                            View All →
+                          </button>
+                        </div>
+
+                        {current.items.length === 0 ? (
+                          <div className="text-center py-8 bg-white rounded-xl border border-dashed border-slate-200">
+                            <IconComponent size={24} className="mx-auto text-slate-300 mb-1.5 opacity-60" />
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No recent {current.title.toLowerCase()} found.</p>
+                          </div>
+                        ) : (
+                          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left border-collapse text-xs font-medium">
+                                <thead>
+                                  <tr className="bg-slate-50/80 border-b border-slate-100 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                                    <th className="py-2.5 px-4">Transaction ID</th>
+                                    <th className="py-2.5 px-4">Posting Date</th>
+                                    {expandedSection === 'returns' && <th className="py-2.5 px-4">Return Type</th>}
+                                    <th className="py-2.5 px-4 text-right">Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {current.items.map((item, idx) => (
+                                    <tr key={idx} className="border-b border-slate-100/50 hover:bg-slate-50/30 text-xs font-semibold text-slate-700 transition-colors">
+                                      <td className="py-2.5 px-4">
+                                        <button
+                                          onClick={() => {
+                                            if (expandedSection === 'sales_order') {
+                                              navigate(`/salesorder-details/${item.name}`);
+                                            } else if (expandedSection === 'delivery_note') {
+                                              navigate(`/deliverynote-details/${item.name}`);
+                                            } else if (expandedSection === 'sales_invoice') {
+                                              navigate(`/salesinvoice?invoice=${item.name}`);
+                                            } else if (expandedSection === 'payment_entry') {
+                                              window.location.href = `/app/payment-entry/${item.name}`;
+                                            } else if (expandedSection === 'journal_entry') {
+                                              window.location.href = `/app/journal-entry/${item.name}`;
+                                            } else if (expandedSection === 'returns') {
+                                              if (item.type === 'Sales Invoice') {
+                                                navigate(`/salesinvoice?invoice=${item.name}`);
+                                              } else {
+                                                navigate(`/deliverynote-details/${item.name}`);
+                                              }
+                                            }
+                                          }}
+                                          className="text-indigo-600 hover:underline font-bold text-left"
+                                          style={{ color: themeColor }}
+                                        >
+                                          {item.name}
+                                        </button>
+                                      </td>
+                                      <td className="py-2.5 px-4 text-slate-500 font-medium">
+                                        {item.date ? new Date(item.date).toLocaleDateString('en-GB') : '-'}
+                                      </td>
+                                      {expandedSection === 'returns' && (
+                                        <td className="py-2.5 px-4">
+                                          <span className={`inline-block px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${item.type === 'Sales Invoice' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                                            {item.type === 'Sales Invoice' ? 'Invoice Return' : 'DN Return'}
+                                          </span>
+                                        </td>
+                                      )}
+                                      <td className="py-2.5 px-4 text-right font-bold text-slate-800">
+                                        AED {(parseFloat(item.grand_total) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </motion.div>
               </div>
 
@@ -1048,139 +1346,146 @@ const CustomerDetails = () => {
 
               {/* Form Card 2: Geospatial & contact details */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
-                <SectionHeader text="Deal & Spatial Information" themeColor={themeColor} />
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Email Id</label>
-                    <input
-                      type="email"
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('email_id')}
-                      onFocus={() => setFocusedField('email_id')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.email_id}
-                      onChange={e => setForm({ ...form, email_id: e.target.value })}
-                      placeholder="email@example.com"
-                    />
-                  </div>
+                <CollapsibleSectionHeader
+                  text="Deal & Spatial Information"
+                  themeColor={themeColor}
+                  isOpen={isSpatialOpen}
+                  onToggle={() => setIsSpatialOpen(!isSpatialOpen)}
+                />
+                {isSpatialOpen && (
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in duration-200">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Email Id</label>
+                      <input
+                        type="email"
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('email_id')}
+                        onFocus={() => setFocusedField('email_id')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.email_id}
+                        onChange={e => setForm({ ...form, email_id: e.target.value })}
+                        placeholder="email@example.com"
+                      />
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Mobile No</label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('mobile_no')}
-                      onFocus={() => setFocusedField('mobile_no')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.mobile_no}
-                      onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                      placeholder="+971 -- --- ----"
-                    />
-                  </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Mobile No</label>
+                      <input
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('mobile_no')}
+                        onFocus={() => setFocusedField('mobile_no')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.mobile_no}
+                        onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                        placeholder="+971 -- --- ----"
+                      />
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Type</label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                      style={{
-                        ...getInputStyle('address_type'),
-                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                        backgroundSize: '1.25rem'
-                      }}
-                      onFocus={() => setFocusedField('address_type')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.address_type}
-                      onChange={e => setForm({ ...form, address_type: e.target.value })}
-                    >
-                      {meta.address_type?.map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Type</label>
+                      <select
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                        style={{
+                          ...getInputStyle('address_type'),
+                          backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                          backgroundSize: '1.25rem'
+                        }}
+                        onFocus={() => setFocusedField('address_type')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.address_type}
+                        onChange={e => setForm({ ...form, address_type: e.target.value })}
+                      >
+                        {meta.address_type?.map(a => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">City Station</label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('city')}
-                      onFocus={() => setFocusedField('city')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.city}
-                      onChange={e => setForm({ ...form, city: e.target.value })}
-                      placeholder="City"
-                    />
-                  </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">City Station</label>
+                      <input
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('city')}
+                        onFocus={() => setFocusedField('city')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.city}
+                        onChange={e => setForm({ ...form, city: e.target.value })}
+                        placeholder="City"
+                      />
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Emirate Hub</label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                      style={{
-                        ...getInputStyle('emirate'),
-                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                        backgroundSize: '1.25rem'
-                      }}
-                      onFocus={() => setFocusedField('emirate')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.emirate}
-                      onChange={e => setForm({ ...form, emirate: e.target.value })}
-                    >
-                      <option value="">Select Emirate</option>
-                      {meta.emirates?.map(e => <option key={e} value={e}>{e}</option>)}
-                    </select>
-                  </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Emirate Hub</label>
+                      <select
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                        style={{
+                          ...getInputStyle('emirate'),
+                          backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                          backgroundSize: '1.25rem'
+                        }}
+                        onFocus={() => setFocusedField('emirate')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.emirate}
+                        onChange={e => setForm({ ...form, emirate: e.target.value })}
+                      >
+                        <option value="">Select Emirate</option>
+                        {meta.emirates?.map(e => <option key={e} value={e}>{e}</option>)}
+                      </select>
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Country</label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                      style={{
-                        ...getInputStyle('country'),
-                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                        backgroundSize: '1.25rem'
-                      }}
-                      onFocus={() => setFocusedField('country')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.country}
-                      onChange={e => {
-                        const selectedCountry = e.target.value;
-                        const norm = (selectedCountry || '').toLowerCase().trim();
-                        const code = countryPhoneCodes[norm] || '';
-                        setForm(prev => ({
-                          ...prev,
-                          country: selectedCountry,
-                          custom_phone_code: code,
-                          mobile_no: getUpdatedPhone(prev.mobile_no, code)
-                        }));
-                      }}
-                    >
-                      {meta.countries?.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Country</label>
+                      <select
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                        style={{
+                          ...getInputStyle('country'),
+                          backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                          backgroundSize: '1.25rem'
+                        }}
+                        onFocus={() => setFocusedField('country')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.country}
+                        onChange={e => {
+                          const selectedCountry = e.target.value;
+                          const norm = (selectedCountry || '').toLowerCase().trim();
+                          const code = countryPhoneCodes[norm] || '';
+                          setForm(prev => ({
+                            ...prev,
+                            country: selectedCountry,
+                            custom_phone_code: code,
+                            mobile_no: getUpdatedPhone(prev.mobile_no, code)
+                          }));
+                        }}
+                      >
+                        {meta.countries?.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
 
-                  <div className="space-y-1.5 col-span-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Building / Street Line 1</label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('address_line1')}
-                      onFocus={() => setFocusedField('address_line1')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.address_line1}
-                      onChange={e => setForm({ ...form, address_line1: e.target.value })}
-                      placeholder="Building / Street Line 1"
-                    />
-                  </div>
+                    <div className="space-y-1.5 col-span-1 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Building / Street Line 1</label>
+                      <input
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('address_line1')}
+                        onFocus={() => setFocusedField('address_line1')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.address_line1}
+                        onChange={e => setForm({ ...form, address_line1: e.target.value })}
+                        placeholder="Building / Street Line 1"
+                      />
+                    </div>
 
-                  <div className="space-y-1.5 col-span-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Line 2</label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('address_line2')}
-                      onFocus={() => setFocusedField('address_line2')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.address_line2}
-                      onChange={e => setForm({ ...form, address_line2: e.target.value })}
-                      placeholder="Address Line 2"
-                    />
+                    <div className="space-y-1.5 col-span-1 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Address Line 2</label>
+                      <input
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('address_line2')}
+                        onFocus={() => setFocusedField('address_line2')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.address_line2}
+                        onChange={e => setForm({ ...form, address_line2: e.target.value })}
+                        placeholder="Address Line 2"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Form Card 3: Branch Availability */}
@@ -1453,93 +1758,100 @@ const CustomerDetails = () => {
 
               {/* Form Card 6: Primary Contact Person */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
-                <SectionHeader text="Primary Contact Person" themeColor={themeColor} />
-                <div className="p-6 grid grid-cols-2 gap-3.5">
-                  <div className="col-span-2">
-                    <input
-                      placeholder="First Name"
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('first_name')}
-                      onFocus={() => setFocusedField('first_name')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.first_name}
-                      onChange={e => setForm({ ...form, first_name: e.target.value })}
-                    />
+                <CollapsibleSectionHeader
+                  text="Primary Contact Person"
+                  themeColor={themeColor}
+                  isOpen={isContactOpen}
+                  onToggle={() => setIsContactOpen(!isContactOpen)}
+                />
+                {isContactOpen && (
+                  <div className="p-6 grid grid-cols-2 gap-3.5 animate-in fade-in duration-200">
+                    <div className="col-span-2">
+                      <input
+                        placeholder="First Name"
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('first_name')}
+                        onFocus={() => setFocusedField('first_name')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.first_name}
+                        onChange={e => setForm({ ...form, first_name: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <input
+                        placeholder="Middle Name"
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('middle_name')}
+                        onFocus={() => setFocusedField('middle_name')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.middle_name}
+                        onChange={e => setForm({ ...form, middle_name: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <input
+                        placeholder="Last Name"
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('last_name')}
+                        onFocus={() => setFocusedField('last_name')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.last_name}
+                        onChange={e => setForm({ ...form, last_name: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <input
+                        placeholder="Designation"
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('designation')}
+                        onFocus={() => setFocusedField('designation')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.designation}
+                        onChange={e => setForm({ ...form, designation: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <input
+                        placeholder="Contact Email"
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('contact_email')}
+                        onFocus={() => setFocusedField('contact_email')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.contact_email}
+                        onChange={e => setForm({ ...form, contact_email: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <input
+                        placeholder="Contact Mobile"
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
+                        style={getInputStyle('contact_mobile')}
+                        onFocus={() => setFocusedField('contact_mobile')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.contact_mobile}
+                        onChange={e => setForm({ ...form, contact_mobile: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <select
+                        className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
+                        style={{
+                          ...getInputStyle('status'),
+                          backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                          backgroundSize: '1.25rem'
+                        }}
+                        onFocus={() => setFocusedField('status')}
+                        onBlur={() => setFocusedField(null)}
+                        value={form.status}
+                        onChange={e => setForm({ ...form, status: e.target.value })}
+                      >
+                        <option value="Passive">Passive</option>
+                        <option value="Active">Active</option>
+                        <option value="Suspended">Suspended</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="col-span-1">
-                    <input
-                      placeholder="Middle Name"
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('middle_name')}
-                      onFocus={() => setFocusedField('middle_name')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.middle_name}
-                      onChange={e => setForm({ ...form, middle_name: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <input
-                      placeholder="Last Name"
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('last_name')}
-                      onFocus={() => setFocusedField('last_name')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.last_name}
-                      onChange={e => setForm({ ...form, last_name: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      placeholder="Designation"
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('designation')}
-                      onFocus={() => setFocusedField('designation')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.designation}
-                      onChange={e => setForm({ ...form, designation: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      placeholder="Contact Email"
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('contact_email')}
-                      onFocus={() => setFocusedField('contact_email')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.contact_email}
-                      onChange={e => setForm({ ...form, contact_email: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <input
-                      placeholder="Contact Mobile"
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200"
-                      style={getInputStyle('contact_mobile')}
-                      onFocus={() => setFocusedField('contact_mobile')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.contact_mobile}
-                      onChange={e => setForm({ ...form, contact_mobile: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <select
-                      className="w-full h-11 px-4 border rounded-xl text-xs font-medium text-slate-700 transition-all duration-200 bg-white appearance-none bg-no-repeat bg-[right_1rem_center]"
-                      style={{
-                        ...getInputStyle('status'),
-                        backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                        backgroundSize: '1.25rem'
-                      }}
-                      onFocus={() => setFocusedField('status')}
-                      onBlur={() => setFocusedField(null)}
-                      value={form.status}
-                      onChange={e => setForm({ ...form, status: e.target.value })}
-                    >
-                      <option value="Passive">Passive</option>
-                      <option value="Active">Active</option>
-                      <option value="Suspended">Suspended</option>
-                    </select>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -1548,10 +1860,10 @@ const CustomerDetails = () => {
       </div>
 
       {showLoyaltyModal && (
-        <LoyaltyCardModal 
-          customer={customer} 
-          onClose={() => setShowLoyaltyModal(false)} 
-          themeColor={themeColor} 
+        <LoyaltyCardModal
+          customer={customer}
+          onClose={() => setShowLoyaltyModal(false)}
+          themeColor={themeColor}
         />
       )}
     </div>

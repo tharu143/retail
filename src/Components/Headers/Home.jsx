@@ -10,7 +10,7 @@ import {
     DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan, Printer,
     ShoppingCart, Minus, Plus, Upload, Percent,
     User,
-    Tag,   
+    Tag,
     ArrowLeftRight,
     Move,
     QrCode,
@@ -22,7 +22,8 @@ import {
     Barcode,
     Bell,
     Eye,
-    EyeOff
+    EyeOff,
+    Columns
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -33,6 +34,7 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ModernNoImageGrid from './ModernNoImageGrid';
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 import { db } from '../../db';
 import Swal from 'sweetalert2';
@@ -288,6 +290,50 @@ function Home() {
 
     // New ref for category horizontal scroll
     const categoryScrollRef = useRef(null);
+
+    // ----- Classic Theme Column Config -----
+    const DEFAULT_CLASSIC_COLUMNS = [
+        { id: 'item_code', label: 'Item Code', visible: true, width: 140 },
+        { id: 'description', label: 'Description', visible: true, width: 240 },
+        { id: 'uom', label: 'UOM', visible: true, width: 100 },
+        { id: 'qty', label: 'Qty', visible: true, width: 60 },
+        { id: 'pcs', label: 'Pcs', visible: true, width: 60 },
+        { id: 'price', label: 'Price', visible: true, width: 80 },
+        { id: 'vat', label: 'VAT (5%)', visible: true, width: 70 },
+        { id: 'total', label: 'Total', visible: true, width: 100 },
+    ];
+
+    const loadClassicColumnConfig = () => {
+        try {
+            const saved = localStorage.getItem('classic_pos_table_config');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                const defaultIds = DEFAULT_CLASSIC_COLUMNS.map(c => c.id);
+                const savedIds = parsed.map(c => c.id);
+                const existing = parsed.filter(c => defaultIds.includes(c.id));
+                const missing = DEFAULT_CLASSIC_COLUMNS.filter(c => !savedIds.includes(c.id));
+                return [...existing, ...missing];
+            }
+        } catch (e) { console.error('Classic POS Column Config Error:', e); }
+        return DEFAULT_CLASSIC_COLUMNS;
+    };
+
+    const [classicColumns, setClassicColumns] = useState(loadClassicColumnConfig);
+    const [showClassicColConfig, setShowClassicColConfig] = useState(false);
+
+    const handleClassicColConfigUpdate = (newConfig) => {
+        if (newConfig === null) {
+            setClassicColumns(DEFAULT_CLASSIC_COLUMNS);
+            localStorage.removeItem('classic_pos_table_config');
+        } else {
+            setClassicColumns(newConfig);
+            localStorage.setItem('classic_pos_table_config', JSON.stringify(newConfig));
+        }
+        setShowClassicColConfig(false);
+    };
+
+    const visibleClassicCols = classicColumns.filter(c => c.visible);
+    // ----- End Classic Theme Column Config -----
 
     const classicStyles = useMemo(() => {
         const isGreen = legacySubTheme === 'green';
@@ -5039,30 +5085,143 @@ function Home() {
 
                 </div>
 
-                <div className="home-modal-footer p-5 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
-                    <button
-                        className="flex-1 py-3 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
-                        onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}
-                    >
-                        Cancel Order
-                    </button>
+                <div className="home-modal-footer px-5 pb-5 pt-4 bg-white border-t border-slate-100 flex flex-col gap-3">
+                    {/* Complete Payment Button */}
                     <button
                         onClick={completePayment}
                         disabled={paymentLoading || balanceRemaining > 0}
-                        className={`flex-[2] py-3 rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 text-xs ${balanceRemaining <= 0
-                            ? 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'
-                            : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                            }`}
+                        className="relative w-full overflow-hidden group"
+                        style={{
+                            borderRadius: '18px',
+                            border: 'none',
+                            padding: 0,
+                            cursor: balanceRemaining <= 0 && !paymentLoading ? 'pointer' : 'not-allowed',
+                            outline: 'none',
+                        }}
                     >
-                        {paymentLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
-                        {paymentLoading ? (
-                            'Finalizing...'
-                        ) : (
-                            <span className="flex items-center gap-1.5">
-                                Complete Payment
-                                <kbd className="px-1.5 py-0.5 text-[9px] font-black bg-white/20 rounded border border-white/10 uppercase tracking-normal">Space</kbd>
-                            </span>
+                        {/* Outer glow pulse ring — only when ready */}
+                        {balanceRemaining <= 0 && !paymentLoading && (
+                            <span
+                                className="absolute -inset-[3px] rounded-[21px] pointer-events-none"
+                                style={{
+                                    background: 'linear-gradient(135deg, #10b981, #0d9488, #059669)',
+                                    opacity: 0.4,
+                                    animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite',
+                                    zIndex: 0,
+                                }}
+                            />
                         )}
+
+                        {/* Main button body */}
+                        <div
+                            className="relative flex items-center w-full"
+                            style={{
+                                borderRadius: '18px',
+                                zIndex: 1,
+                                background: balanceRemaining <= 0
+                                    ? 'linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%)'
+                                    : '#f1f5f9',
+                                boxShadow: balanceRemaining <= 0
+                                    ? '0 4px 24px -4px rgba(5,150,105,0.6), 0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.1) inset'
+                                    : 'none',
+                                padding: '0 20px',
+                                height: '68px',
+                                transition: 'all 0.2s ease',
+                                transform: balanceRemaining <= 0 ? undefined : undefined,
+                            }}
+                        >
+                            {/* Shimmer sweep on hover */}
+                            {balanceRemaining <= 0 && !paymentLoading && (
+                                <span
+                                    className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] pointer-events-none"
+                                    style={{
+                                        background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
+                                        transition: 'transform 0.55s ease',
+                                        borderRadius: '18px',
+                                    }}
+                                />
+                            )}
+
+                            {paymentLoading ? (
+                                /* Loading State */
+                                <div className="flex items-center gap-3 w-full justify-center">
+                                    <Loader2 size={22} className="animate-spin text-white" />
+                                    <div className="flex flex-col items-start">
+                                        <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Processing...</span>
+                                        <span style={{ color: '#fff', fontSize: '16px', fontWeight: 900, letterSpacing: '0.02em' }}>Finalizing Order</span>
+                                    </div>
+                                </div>
+                            ) : balanceRemaining <= 0 ? (
+                                /* Ready State — Premium */
+                                <>
+                                    {/* Left: Icon Circle */}
+                                    <div style={{
+                                        width: 44, height: 44, borderRadius: '14px',
+                                        background: 'rgba(255,255,255,0.18)',
+                                        border: '1.5px solid rgba(255,255,255,0.25)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        flexShrink: 0,
+                                        backdropFilter: 'blur(4px)',
+                                    }}>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M20 6L9 17l-5-5" />
+                                        </svg>
+                                    </div>
+
+                                    {/* Center: Text */}
+                                    <div className="flex flex-col items-start ml-4 flex-1">
+                                        <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: '9px', fontWeight: 900, letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: '1px' }}>
+                                            All payments received
+                                        </span>
+                                        <span style={{ color: '#ffffff', fontSize: '17px', fontWeight: 900, letterSpacing: '0.01em' }}>
+                                            Complete Payment
+                                        </span>
+                                    </div>
+
+                                    {/* Right: SPACE kbd */}
+                                    <div style={{
+                                        flexShrink: 0,
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px'
+                                    }}>
+                                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>press</span>
+                                        <kbd style={{
+                                            background: 'rgba(255,255,255,0.15)',
+                                            border: '1.5px solid rgba(255,255,255,0.25)',
+                                            borderRadius: '8px',
+                                            padding: '3px 10px',
+                                            color: '#fff',
+                                            fontSize: '11px',
+                                            fontWeight: 900,
+                                            letterSpacing: '0.05em',
+                                            fontFamily: 'inherit',
+                                        }}>SPACE</kbd>
+                                    </div>
+                                </>
+                            ) : (
+                                /* Disabled State */
+                                <div className="flex items-center gap-3 w-full justify-center">
+                                    <div style={{
+                                        width: 40, height: 40, borderRadius: '12px',
+                                        background: '#e2e8f0',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }}>
+                                        <CreditCard size={18} color="#94a3b8" />
+                                    </div>
+                                    <div className="flex flex-col items-start">
+                                        <span style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Balance remaining</span>
+                                        <span style={{ color: '#94a3b8', fontSize: '16px', fontWeight: 900 }}>Complete Payment</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </button>
+
+                    {/* Cancel — subtle text link */}
+                    <button
+                        className="w-full py-1.5 text-center text-[11px] font-black uppercase tracking-[0.2em] text-slate-300 hover:text-rose-400 transition-colors"
+                        onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}
+                    >
+                        ✕ &nbsp; Cancel Order
                     </button>
                 </div>
             </div>
@@ -6907,6 +7066,7 @@ function Home() {
                                             </button>
                                         )}
 
+
                                         {/* Hidden Shortcuts Panel */}
                                         <div className="border-t border-slate-100 pt-3 mt-1 text-left">
                                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
@@ -7698,6 +7858,7 @@ function Home() {
                                             </button>
                                         )}
 
+
                                         {/* Hidden Shortcuts Panel */}
                                         <div className="border-t border-slate-100 pt-3 mt-1 text-left">
                                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
@@ -7870,28 +8031,29 @@ function Home() {
                             <table className="classic-table">
                                 <colgroup>
                                     <col style={{ width: 40 }} />
-                                    <col style={{ width: 140 }} />
-                                    <col style={{ width: 'auto' }} />
-                                    <col style={{ width: 100 }} />
-                                    <col style={{ width: 60 }} />
-                                    <col style={{ width: 60 }} />
-                                    <col style={{ width: 80 }} />
-                                    <col style={{ width: 70 }} />
-                                    <col style={{ width: 100 }} />
+                                    {visibleClassicCols.map(col => (
+                                        <col key={col.id} style={{ width: col.id === 'description' && !classicColumns.some(c => c.id !== 'description' && !c.visible) ? 'auto' : (col.width || 'auto') }} />
+                                    ))}
                                     <col style={{ width: 30 }} />
                                 </colgroup>
                                 <thead>
                                     <tr>
                                         <th className="text-center">#</th>
-                                        <th className="text-center">ITEM CODE</th>
-                                        <th className="text-center">DESCRIPTION</th>
-                                        <th className="text-center">UOM</th>
-                                        <th className="text-center">QTY</th>
-                                        <th className="text-center">PCS</th>
-                                        <th className="text-right">PRICE</th>
-                                        <th className="text-right">VAT (5%)</th>
-                                        <th className="text-right">TOTAL</th>
-                                        <th></th>
+                                        {visibleClassicCols.map(col => (
+                                            <th key={col.id} className={col.id === 'price' || col.id === 'vat' || col.id === 'total' ? 'text-right' : 'text-center'}>
+                                                {col.label.toUpperCase()}
+                                            </th>
+                                        ))}
+                                        <th className="text-center p-0">
+                                            <button
+                                                onClick={() => setShowClassicColConfig(true)}
+                                                className="mx-auto flex items-center justify-center text-amber-400 hover:text-white transition-colors cursor-pointer"
+                                                style={{ border: 'none', background: 'transparent', width: '14px', height: '14px', padding: 0, outline: 'none' }}
+                                                title="Configure Columns"
+                                            >
+                                                <Columns size={10} />
+                                            </button>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -7907,103 +8069,125 @@ function Home() {
                                                 onClick={() => setSelectedBillIndex(idx)}
                                             >
                                                 <td className="text-center font-bold text-slate-400 text-[10px]">{idx + 1}</td>
-                                                <td className="px-2 font-bold text-slate-900 text-center">
-                                                    <span className="classic-cell-text" title={item.name || item.item_name || item.item_code || item.id}>{item.name || item.item_name || item.item_code || item.id}</span>
-                                                </td>
-                                                <td className="p-0 relative group">
-                                                    <input
-                                                        type="text"
-                                                        value={item.item_name || item.name}
-                                                        onChange={e => {
-                                                            const newBill = [...billItems];
-                                                            if (newBill[idx].item_name !== undefined) newBill[idx].item_name = e.target.value;
-                                                            else newBill[idx].name = e.target.value;
-                                                            setBillItems(newBill);
-                                                        }}
-                                                        className="w-full h-full px-2 pr-8 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300"
-                                                        placeholder="Description"
-                                                    />
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
-                                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-sky-500 transition-colors cursor-pointer"
-                                                        title="Item Info & Stock"
-                                                    >
-                                                        <Info size={14} />
-                                                    </button>
-                                                </td>
-                                                <td className="p-0">
-                                                    <select
-                                                        value={item.uom}
-                                                        onChange={e => toggleUom(item.id, e.target.value)}
-                                                        className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-amber-200 cursor-pointer hover:bg-slate-100 transition-colors"
-                                                    >
-                                                        <option value="Piece">Pc</option>
-                                                        {item.custom_pieces_per_box > 0 && <option value="Box">Box ({item.custom_pieces_per_box})</option>}
-                                                    </select>
-                                                </td>
-                                                <td className="p-0">
-                                                    <input
-                                                        id={`qty-input-${idx}`}
-                                                        type="number"
-                                                        value={item.qty === 0 ? '' : item.qty}
-                                                        onChange={e => setExactQuantity(item.id, e.target.value)}
-                                                        onFocus={e => e.target.select()}
-                                                        onClick={e => e.target.select()}
-                                                        onKeyDown={e => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                if (theme === 'legacy') {
-                                                                    const targetId = searchContext === 'header' ? 'legacy-header-search' : 'legacy-inline-search';
-                                                                    document.getElementById(targetId)?.focus();
-                                                                } else {
-                                                                    barcodeInputRef.current?.focus();
+                                                {visibleClassicCols.some(c => c.id === 'item_code') && (
+                                                    <td className="px-2 font-bold text-slate-900 text-center">
+                                                        <span className="classic-cell-text" title={item.name || item.item_name || item.item_code || item.id}>{item.name || item.item_name || item.item_code || item.id}</span>
+                                                    </td>
+                                                )}
+                                                {visibleClassicCols.some(c => c.id === 'description') && (
+                                                    <td className="p-0 relative group">
+                                                        <input
+                                                            type="text"
+                                                            value={item.item_name || item.name}
+                                                            onChange={e => {
+                                                                const newBill = [...billItems];
+                                                                if (newBill[idx].item_name !== undefined) newBill[idx].item_name = e.target.value;
+                                                                else newBill[idx].name = e.target.value;
+                                                                setBillItems(newBill);
+                                                            }}
+                                                            className="w-full h-full px-2 pr-8 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300"
+                                                            placeholder="Description"
+                                                        />
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-sky-500 transition-colors cursor-pointer"
+                                                            title="Item Info & Stock"
+                                                        >
+                                                            <Info size={14} />
+                                                        </button>
+                                                    </td>
+                                                )}
+                                                {visibleClassicCols.some(c => c.id === 'uom') && (
+                                                    <td className="p-0">
+                                                        <select
+                                                            value={item.uom}
+                                                            onChange={e => toggleUom(item.id, e.target.value)}
+                                                            className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-amber-200 cursor-pointer hover:bg-slate-100 transition-colors"
+                                                        >
+                                                            <option value="Piece">Pc</option>
+                                                            {item.custom_pieces_per_box > 0 && <option value="Box">Box ({item.custom_pieces_per_box})</option>}
+                                                        </select>
+                                                    </td>
+                                                )}
+                                                {visibleClassicCols.some(c => c.id === 'qty') && (
+                                                    <td className="p-0">
+                                                        <input
+                                                            id={`qty-input-${idx}`}
+                                                            type="number"
+                                                            value={item.qty === 0 ? '' : item.qty}
+                                                            onChange={e => setExactQuantity(item.id, e.target.value)}
+                                                            onFocus={e => e.target.select()}
+                                                            onClick={e => e.target.select()}
+                                                            onKeyDown={e => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    if (theme === 'legacy') {
+                                                                        const targetId = searchContext === 'header' ? 'legacy-header-search' : 'legacy-inline-search';
+                                                                        document.getElementById(targetId)?.focus();
+                                                                    } else {
+                                                                        barcodeInputRef.current?.focus();
+                                                                    }
+                                                                } else if (e.key === '+' || e.key === '=') {
+                                                                    e.preventDefault();
+                                                                    updateQuantity(item.id, 1);
+                                                                } else if (e.key === '-' || e.key === '_') {
+                                                                    e.preventDefault();
+                                                                    updateQuantity(item.id, -1);
                                                                 }
-                                                            } else if (e.key === '+' || e.key === '=') {
-                                                                e.preventDefault();
-                                                                updateQuantity(item.id, 1);
-                                                            } else if (e.key === '-' || e.key === '_') {
-                                                                e.preventDefault();
-                                                                updateQuantity(item.id, -1);
-                                                            }
-                                                        }}
-                                                        className="w-full h-full text-center px-2 font-black text-sky-600 focus:bg-amber-100 outline-none border-none"
-                                                    />
-                                                </td>
-                                                <td className="text-center px-2 font-black text-amber-600 bg-amber-50">
-                                                    {item.qty * factor}
-                                                </td>
-                                                <td className="p-0 relative">
-                                                    <input
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={item._price_input_val !== undefined ? item._price_input_val : (parseFloat(effectivePrice) || 0).toFixed(2)}
-                                                        onChange={e => setExactPrice(item.id, e.target.value)}
-                                                        className="w-full h-full text-right px-2 font-black text-slate-800 focus:bg-amber-100 outline-none border-none"
-                                                        onFocus={e => e.target.select()}
-                                                        onClick={e => e.target.select()}
-                                                    />
-                                                    <div
-                                                        onClick={() => {
-                                                            const newBill = [...billItems];
-                                                            newBill[idx].is_tax_inclusive = !newBill[idx].is_tax_inclusive;
-                                                            setBillItems(newBill);
-                                                        }}
-                                                        className={`absolute -top-0.5 -right-0.5 px-2 py-0.5 rounded-bl-lg text-[10px] font-extrabold tracking-tight cursor-pointer hover:scale-105 active:scale-95 transition-all select-none ${item.is_tax_inclusive ? 'bg-sky-600 hover:bg-sky-700 text-white' : 'bg-amber-600 hover:bg-amber-700 text-white'}`}
-                                                        style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.15)', zIndex: 10 }}
-                                                    >
-                                                        {item.is_tax_inclusive ? 'VAT INC' : 'VAT EXC'}
-                                                    </div>
-                                                </td>
-                                                <td className="text-right px-2 font-bold text-slate-500 text-[10px] italic">
-                                                    {item.is_tax_inclusive
-                                                        ? (lineTotal - (lineTotal / (1 + (taxRate / 100)))).toFixed(2)
-                                                        : (lineTotal * (taxRate / 100)).toFixed(2)}
-                                                </td>
-                                                <td className="text-right px-2 font-black text-slate-900 bg-slate-50/50 flex items-center justify-end gap-0.5">
-                                                    <DirhamIcon size={12} /> {item.is_tax_inclusive
-                                                        ? (parseFloat(lineTotal) || 0).toFixed(2)
-                                                        : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
-                                                </td>
+                                                            }}
+                                                            className="w-full h-full text-center px-2 font-black text-sky-600 focus:bg-amber-100 outline-none border-none"
+                                                        />
+                                                    </td>
+                                                )}
+                                                {visibleClassicCols.some(c => c.id === 'pcs') && (
+                                                    <td className="text-center px-2 font-black text-amber-600 bg-amber-50">
+                                                        {item.qty * factor}
+                                                    </td>
+                                                )}
+                                                {visibleClassicCols.some(c => c.id === 'price') && (
+                                                    <td className="p-0">
+                                                        <div className="flex items-center gap-1 px-1 h-full w-full">
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={item._price_input_val !== undefined ? item._price_input_val : (parseFloat(effectivePrice) || 0).toFixed(2)}
+                                                                onChange={e => setExactPrice(item.id, e.target.value)}
+                                                                className="w-0 flex-1 text-right font-black text-slate-800 focus:bg-amber-100 outline-none border-none bg-transparent h-full text-[11px]"
+                                                                onFocus={e => e.target.select()}
+                                                                onClick={e => e.target.select()}
+                                                            />
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const newBill = [...billItems];
+                                                                    newBill[idx].is_tax_inclusive = !newBill[idx].is_tax_inclusive;
+                                                                    setBillItems(newBill);
+                                                                }}
+                                                                className={`px-1 py-0.5 rounded text-[8px] font-black tracking-tight select-none border-none cursor-pointer shrink-0 transition-all ${item.is_tax_inclusive
+                                                                        ? 'bg-sky-100 text-sky-600 hover:bg-sky-200'
+                                                                        : 'bg-amber-100 text-amber-600 hover:bg-amber-200'
+                                                                    }`}
+                                                                style={{ fontSize: '8px', lineHeight: '1' }}
+                                                            >
+                                                                {item.is_tax_inclusive ? 'INC' : 'EXC'}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                                {visibleClassicCols.some(c => c.id === 'vat') && (
+                                                    <td className="text-right px-2 font-bold text-slate-500 text-[10px] italic">
+                                                        {item.is_tax_inclusive
+                                                            ? (lineTotal - (lineTotal / (1 + (taxRate / 100)))).toFixed(2)
+                                                            : (lineTotal * (taxRate / 100)).toFixed(2)}
+                                                    </td>
+                                                )}
+                                                {visibleClassicCols.some(c => c.id === 'total') && (
+                                                    <td className="text-right px-2 font-black text-slate-900 bg-slate-50/50 flex items-center justify-end gap-0.5">
+                                                        <DirhamIcon size={12} /> {item.is_tax_inclusive
+                                                            ? (parseFloat(lineTotal) || 0).toFixed(2)
+                                                            : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
+                                                    </td>
+                                                )}
                                                 <td className="text-center">
                                                     <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
                                                 </td>
@@ -8016,7 +8200,7 @@ function Home() {
                                         onClick={() => { const el = document.getElementById('legacy-inline-search'); if (el) el.focus(); setSearchContext('inline'); setShowItemDropdown(true); }}
                                     >
                                         <td className="text-center font-bold text-amber-600">{billItems.length + 1}</td>
-                                        <td colSpan={2} className="p-0 relative h-10">
+                                        <td colSpan={Math.min(2, visibleClassicCols.filter(c => c.id === 'item_code' || c.id === 'description').length) || 1} className="p-0 relative h-10">
                                             <input
                                                 type="text"
                                                 id="legacy-inline-search"
@@ -8078,12 +8262,13 @@ function Home() {
                                                 );
                                             })()}
                                         </td>
-                                        <td className="text-center bg-black/5">-</td>
-                                        <td className="text-center bg-black/5">-</td>
-                                        <td className="text-center bg-black/5">-</td>
-                                        <td className="text-center bg-black/5">-</td>
-                                        <td className="text-center bg-black/5">-</td>
-                                        <td className="text-center px-2 font-black text-amber-600 bg-black/5">NEXT ITEM</td>
+                                        {visibleClassicCols.filter(c => c.id !== 'item_code' && c.id !== 'description').map((col, i, arr) => (
+                                            i === arr.length - 1 ? (
+                                                <td key={col.id} className="text-center px-2 font-black text-amber-600 bg-black/5">NEXT ITEM</td>
+                                            ) : (
+                                                <td key={col.id} className="text-center bg-black/5">-</td>
+                                            )
+                                        ))}
                                         <td className="text-center group-hover:bg-amber-400 transition-colors">
                                             <Search size={14} className="mx-auto text-amber-400 group-hover:text-black" />
                                         </td>
@@ -8093,14 +8278,9 @@ function Home() {
                                     {Array.from({ length: Math.max(0, 17 - billItems.length) }).map((_, i) => (
                                         <tr key={`empty-${i}`} className="bg-white/30 border-b border-white/10 opacity-30">
                                             <td className="text-center text-slate-300 font-bold">{billItems.length + i + 2}</td>
-                                            <td className="border-r border-white/10"></td>
-                                            <td className="border-r border-white/10"></td>
-                                            <td className="border-r border-white/10"></td>
-                                            <td className="border-r border-white/10"></td>
-                                            <td className="border-r border-white/10"></td>
-                                            <td className="border-r border-white/10"></td>
-                                            <td className="border-r border-white/10"></td>
-                                            <td className="border-r border-white/10"></td>
+                                            {visibleClassicCols.map(col => (
+                                                <td key={col.id} className="border-r border-white/10"></td>
+                                            ))}
                                             <td></td>
                                         </tr>
                                     ))}
@@ -8274,6 +8454,16 @@ function Home() {
                 {isDraggingShortcuts && renderDropZones()}
 
 
+
+                {/* Classic Column Config Modal */}
+                <ColumnConfigModal
+                    isOpen={showClassicColConfig}
+                    onClose={() => setShowClassicColConfig(false)}
+                    config={classicColumns}
+                    onUpdate={handleClassicColConfigUpdate}
+                    doctype="Classic POS"
+                    themeColor={isGreen ? '#10b981' : '#0ea5e9'}
+                />
 
                 {/* Common Modals */}
                 {renderCommonModals()}

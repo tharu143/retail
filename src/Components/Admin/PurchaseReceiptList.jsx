@@ -1287,7 +1287,9 @@ function PurchaseReceiptList() {
       setDocName(doc.name);
       setSearchSupplier(doc.supplier_name || '');
       const isDraft = (parseInt(doc.docstatus) || 0) === 0;
-      setIsViewMode(!isDraft);
+      const modeParam = new URLSearchParams(window.location.hash.split('?')[1] || '').get('mode');
+      const forceEdit = modeParam === 'edit' && isDraft;
+      setIsViewMode(forceEdit ? false : !isDraft);
       setIsEditMode(isDraft);
       setIsModalOpen(true);
       setLastSavedData(JSON.stringify(mapped)); // Use mapped object for stable comparison
@@ -1702,6 +1704,13 @@ function PurchaseReceiptList() {
         if (nameParam !== formData.return_against) {
           fetchReceiptForEdit(nameParam);
         }
+      } else {
+        // Already loaded this doc - check if mode changed
+        const modeParam = searchParams.get('mode');
+        if (modeParam === 'edit' && isViewMode) {
+          setIsViewMode(false);
+          setIsEditMode(true);
+        }
       }
     } else {
       setIsModalOpen(false);
@@ -1726,7 +1735,7 @@ function PurchaseReceiptList() {
     if (!isModalOpen) return;
     const handleGlobalShortcuts = (e) => {
       const activeEl = document.activeElement;
-      const inItemsTable = activeEl?.closest('table.so-items-table');
+      const inItemsTable = activeEl?.closest('table.purchase-table');
 
       let activeRowIndex = -1;
       if (inItemsTable) {
@@ -1741,7 +1750,7 @@ function PurchaseReceiptList() {
 
       // Ctrl+ArrowDown, Ctrl+ArrowUp, or Shift+F3: Jump focus into items table rows
       if ((e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) || (e.shiftKey && e.key === 'F3')) {
-        const rows = document.querySelectorAll('table.so-items-table tbody tr');
+        const rows = document.querySelectorAll('table.purchase-table tbody tr');
         if (rows.length > 0) {
           e.preventDefault();
           const targetRow = (e.key === 'ArrowUp') ? rows[rows.length - 1] : rows[0];
@@ -1883,7 +1892,7 @@ function PurchaseReceiptList() {
           } else {
             addItemRow();
             setTimeout(() => {
-              const itemInputs = document.querySelectorAll('table.so-items-table tbody tr input[placeholder="Search item..."]');
+              const itemInputs = document.querySelectorAll('table.purchase-table tbody tr input[placeholder="Search item..."]');
               if (itemInputs.length > 0) {
                 const lastInput = itemInputs[itemInputs.length - 1];
                 if (lastInput) {
@@ -2077,7 +2086,7 @@ function PurchaseReceiptList() {
       }
 
       // 2. Keyboard actions when the row itself is focused
-      if (activeEl && activeEl.tagName === 'TR' && activeEl.closest('table.so-items-table')) {
+      if (activeEl && activeEl.tagName === 'TR' && activeEl.closest('table.purchase-table')) {
         const tr = activeEl;
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
@@ -2177,6 +2186,360 @@ function PurchaseReceiptList() {
     return (
       <>
         <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ height: '100vh', overflowY: 'auto' }}>
+          {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
+        <div className="so-shortcut-guide-banner">
+          <style>{`
+            .so-shortcut-guide-banner {
+              width: 100%;
+              background: #f8fafc;
+              border-bottom: 1.5px solid #e2e8f0;
+              padding: 6px 16px;
+              display: flex;
+              align-items: flex-start;
+              gap: 8px;
+            }
+            .so-shortcut-badges-wrapper {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              align-items: center;
+              flex: 1;
+            }
+            .so-shortcut-guide-banner::-webkit-scrollbar {
+              display: none;
+            }
+            .so-shortcut-banner-title {
+              display: flex;
+              align-items: center;
+              margin-top: 5px;
+              gap: 4px;
+              color: #64748b;
+              font-size: 9px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              margin-right: 6px;
+              flex-shrink: 0;
+            }
+            .so-shortcut-badge {
+              display: flex;
+              align-items: center;
+              gap: 0.35rem;
+              padding: 0.25rem 0.5rem;
+              background: var(--so-white, #ffffff);
+              border: 1.5px solid var(--key-border, #e2e8f0);
+              border-radius: 0.5rem;
+              cursor: pointer;
+              transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+              flex-shrink: 0;
+              box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            }
+            .so-shortcut-badge.blue {
+              --key-color: #3b82f6;
+              --key-bg: #eff6ff;
+              --key-border: #bfdbfe;
+              --key-glow: rgba(59, 130, 246, 0.22);
+            }
+            .so-shortcut-badge.indigo {
+              --key-color: #6366f1;
+              --key-bg: #e0e7ff;
+              --key-border: #c7d2fe;
+              --key-glow: rgba(99, 102, 241, 0.22);
+            }
+            .so-shortcut-badge.cyan {
+              --key-color: #06b6d4;
+              --key-bg: #ecfeff;
+              --key-border: #cffafe;
+              --key-glow: rgba(6, 182, 212, 0.22);
+            }
+            .so-shortcut-badge.emerald {
+              --key-color: #10b981;
+              --key-bg: #ecfdf5;
+              --key-border: #a7f3d0;
+              --key-glow: rgba(16, 185, 129, 0.22);
+            }
+            .so-shortcut-badge.rose {
+              --key-color: #ef4444;
+              --key-bg: #fef2f2;
+              --key-border: #fecaca;
+              --key-glow: rgba(239, 68, 68, 0.22);
+            }
+            .so-shortcut-badge.amber {
+              --key-color: #f59e0b;
+              --key-bg: #fffbeb;
+              --key-border: #fde68a;
+              --key-glow: rgba(245, 158, 11, 0.22);
+            }
+            .so-shortcut-badge.violet {
+              --key-color: #8b5cf6;
+              --key-bg: #f5f3ff;
+              --key-border: #ddd6fe;
+              --key-glow: rgba(139, 92, 246, 0.22);
+            }
+            .so-shortcut-badge.pink {
+              --key-color: #d946ef;
+              --key-bg: #fdf4ff;
+              --key-border: #f5d0fe;
+              --key-glow: rgba(217, 70, 239, 0.22);
+            }
+            .so-shortcut-badge.sky {
+              --key-color: #0ea5e9;
+              --key-bg: #f0f9ff;
+              --key-border: #bae6fd;
+              --key-glow: rgba(14, 165, 233, 0.22);
+            }
+            .so-shortcut-badge.slate {
+              --key-color: #64748b;
+              --key-bg: #f8fafc;
+              --key-border: #e2e8f0;
+              --key-glow: rgba(100, 116, 139, 0.12);
+            }
+            .so-shortcut-badge:hover {
+              border-color: var(--key-color, #0284c7);
+              background: var(--key-bg, #f0f9ff);
+              transform: translateY(-2px);
+              box-shadow: 0 6px 12px -2px var(--key-glow, rgba(2, 132, 199, 0.15)), 0 3px 6px -2px var(--key-glow, rgba(2, 132, 199, 0.08));
+            }
+            .so-shortcut-key {
+              font-size: 9px;
+              font-weight: 950;
+              color: #ffffff;
+              padding: 1.5px 5px;
+              background: linear-gradient(135deg, var(--key-color, #0284c7) 0%, rgba(0, 0, 0, 0.25) 100%);
+              border: 1.5px solid var(--key-color, #0284c7);
+              border-radius: 4px;
+              box-shadow: 0 1.5px 3px var(--key-glow, rgba(2, 132, 199, 0.35));
+              text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              letter-spacing: 0.02em;
+              line-height: 1;
+            }
+            .so-shortcut-label {
+              font-size: 11px;
+              font-weight: 950;
+              color: #0f172a;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              line-height: 1;
+            }
+            
+            /* Clean, Professional Fixed Grid Table Styling */
+            .purchase-table {
+              table-layout: fixed !important;
+              width: 100% !important;
+              border-collapse: collapse !important;
+              border: 1px solid #cbd5e1 !important;
+            }
+            .purchase-table th, .purchase-th {
+              background: #f8fafc !important;
+              color: #64748b !important;
+              font-weight: 600 !important;
+              border: 1px solid #e2e8f0 !important;
+              padding: 6px 4px !important;
+              font-size: 0.7rem !important;
+              text-transform: capitalize !important;
+              letter-spacing: 0.02em !important;
+              height: 40px !important;
+              text-align: center !important;
+              white-space: normal !important;
+              word-wrap: break-word !important;
+              overflow-wrap: break-word !important;
+              overflow: hidden !important;
+              line-height: 1.2 !important;
+            }
+            .purchase-table td, .purchase-td {
+              border: 1px solid #e2e8f0 !important;
+              padding: 0 !important;
+              height: auto !important;
+              min-height: 40px !important;
+              vertical-align: middle !important;
+              background: #ffffff !important;
+              word-wrap: break-word !important;
+              overflow-wrap: break-word !important;
+              white-space: normal !important;
+              word-break: break-all !important;
+            }
+            .purchase-table .premium-cell-container {
+              min-height: 40px !important;
+              height: auto !important;
+              padding: 0 !important;
+              display: flex !important;
+              align-items: stretch !important;
+              justify-content: stretch !important;
+            }
+            .purchase-table .premium-cell-box {
+              height: auto !important;
+              min-height: 40px !important;
+              width: 100% !important;
+              border-radius: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              background: transparent !important;
+              padding: 0 !important;
+              display: flex !important;
+              align-items: stretch !important;
+              position: relative !important;
+            }
+            .purchase-table .premium-cell-box input,
+            .purchase-table .premium-cell-box select,
+            .purchase-table .premium-cell-box .so-input,
+            .purchase-table .premium-cell-box div.relative.flex-1 input {
+              border: none !important;
+              border-radius: 0 !important;
+              height: 40px !important;
+              width: 100% !important;
+              padding: 0 10px !important;
+              background-color: transparent !important;
+              box-shadow: none !important;
+              font-size: 0.75rem !important;
+              color: #1e293b !important;
+              font-weight: 500 !important;
+              outline: none !important;
+              box-sizing: border-box !important;
+              text-align: inherit !important;
+            }
+            .purchase-table .premium-cell-box input:focus,
+            .purchase-table .premium-cell-box select:focus,
+            .purchase-table .premium-cell-box .so-input:focus,
+            .purchase-table .premium-cell-box div.relative.flex-1 input:focus {
+              background-color: #f8fafc !important;
+              outline: 1.5px solid #3b82f6 !important;
+              outline-offset: -1.5px !important;
+              z-index: 5 !important;
+            }
+            .purchase-table .premium-cell-readonly {
+              border: none !important;
+              background: transparent !important;
+              padding: 6px 10px !important;
+              height: auto !important;
+              min-height: 100% !important;
+              width: 100% !important;
+              display: block !important;
+              text-align: left !important;
+              border-radius: 0 !important;
+              box-shadow: none !important;
+              font-size: 0.75rem !important;
+              font-weight: 500 !important;
+              color: #334155 !important;
+              word-wrap: break-word !important;
+              overflow-wrap: break-word !important;
+              white-space: normal !important;
+              word-break: break-all !important;
+              box-sizing: border-box !important;
+            }
+            .purchase-table .premium-cell-readonly-center {
+              text-align: center !important;
+            }
+            .purchase-table .premium-cell-readonly-right {
+              text-align: right !important;
+            }
+            /* For Qty Adjust buttons (+/-) layout inside cell */
+            .purchase-table .premium-cell-box > div {
+              display: flex !important;
+              width: 100% !important;
+              height: 100% !important;
+              gap: 0 !important;
+              align-items: stretch !important;
+            }
+            .purchase-table .premium-cell-box > div button {
+              border: none !important;
+              border-radius: 0 !important;
+              height: 100% !important;
+              background: #f8fafc !important;
+              color: #64748b !important;
+              padding: 0 8px !important;
+              font-weight: bold !important;
+              cursor: pointer !important;
+              transition: background 0.15s !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+            }
+            .purchase-table .premium-cell-box > div button:hover {
+              background: #cbd5e1 !important;
+              color: #1e293b !important;
+            }
+            .purchase-table .premium-cell-box > div input {
+              flex: 1 !important;
+              border: none !important;
+              border-radius: 0 !important;
+              height: 100% !important;
+              text-align: center !important;
+              padding: 0 4px !important;
+            }
+            /* Custom search dropdown container adjustments */
+            .purchase-table .relative.flex-1 {
+              width: 100% !important;
+              height: 100% !important;
+            }
+            .purchase-table .premium-cell-box > div.flex.gap-2 {
+              width: 100% !important;
+              height: 100% !important;
+              gap: 0 !important;
+              align-items: stretch !important;
+            }
+          `}</style>
+          <div className="so-shortcut-banner-title">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Quick Shortcuts
+          </div>
+          <div className="so-shortcut-badges-wrapper">
+          <div className="so-shortcut-badge blue">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+            <span className="so-shortcut-label">Supplier</span>
+          </div>
+          <div className="so-shortcut-badge indigo">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+            <span className="so-shortcut-label">Item Search</span>
+          </div>
+          <div className="so-shortcut-badge cyan">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+            <span className="so-shortcut-label">Barcode</span>
+          </div>
+          <div className="so-shortcut-badge pink">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+            <span className="so-shortcut-label">Bulk Qty</span>
+          </div>
+          <div className="so-shortcut-badge violet">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+            <span className="so-shortcut-label">Toggle UOM</span>
+          </div>
+          <div className="so-shortcut-badge amber">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+            <span className="so-shortcut-label">Save Draft</span>
+          </div>
+          <div className="so-shortcut-badge sky">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
+            <span className="so-shortcut-label">Add Row</span>
+          </div>
+          <div className="so-shortcut-badge violet">
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
+            <span className="so-shortcut-label">Warehouse</span>
+          </div>
+          <div className="so-shortcut-badge emerald">
+            <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+            <span className="so-shortcut-label">Submit</span>
+          </div>
+          <div className="so-shortcut-badge slate">
+            <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
+            <span className="so-shortcut-label">Focus Table</span>
+          </div>
+          <div className="so-shortcut-badge rose">
+            <span className="so-shortcut-key">Escape</span>
+            <span className="so-shortcut-label">Close / Clear</span>
+          </div>
+          <div className="so-shortcut-badge slate">
+            <span className="so-shortcut-key">+ / -</span>
+            <span className="so-shortcut-label">Qty Adjust</span>
+          </div>
+          </div>
+        </div>
+
           <div className="so-page-header" style={{ padding: '0.85rem 2rem', background: '#fff', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
             <div>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2215,7 +2578,7 @@ function PurchaseReceiptList() {
                     {/* 2. EDIT DRAFT button (only if in view mode) */}
                     {docName && isViewMode && (
                       <button
-                        onClick={() => setIsViewMode(false)}
+                        onClick={() => { setIsViewMode(false); setSearchParams({ name: docName, mode: 'edit' }); }}
                         className="so-btn-secondary"
                         style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                       >
@@ -2318,371 +2681,6 @@ function PurchaseReceiptList() {
             </div>
           </div>
 
-          {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
-          <div className="so-shortcut-guide-banner">
-            <style>{`
-              .so-shortcut-guide-banner {
-                width: 100%;
-                background: #f8fafc;
-                border-bottom: 1.5px solid #e2e8f0;
-                padding: 6px 16px;
-                display: flex;
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                scrollbar-width: none;
-                -ms-overflow-style: none;
-                align-items: center;
-                gap: 8px;
-              }
-              .so-shortcut-guide-banner::-webkit-scrollbar {
-                display: none;
-              }
-              .so-shortcut-banner-title {
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                color: #64748b;
-                font-size: 9px;
-                font-weight: 900;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                margin-right: 6px;
-                flex-shrink: 0;
-              }
-              .so-shortcut-badge {
-                display: flex;
-                align-items: center;
-                gap: 0.35rem;
-                padding: 0.25rem 0.5rem;
-                background: var(--so-white, #ffffff);
-                border: 1.5px solid var(--key-border, #e2e8f0);
-                border-radius: 0.5rem;
-                cursor: pointer;
-                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                flex-shrink: 0;
-                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-              }
-              .so-shortcut-badge.blue {
-                --key-color: #3b82f6;
-                --key-bg: #eff6ff;
-                --key-border: #bfdbfe;
-                --key-glow: rgba(59, 130, 246, 0.22);
-              }
-              .so-shortcut-badge.indigo {
-                --key-color: #6366f1;
-                --key-bg: #e0e7ff;
-                --key-border: #c7d2fe;
-                --key-glow: rgba(99, 102, 241, 0.22);
-              }
-              .so-shortcut-badge.cyan {
-                --key-color: #06b6d4;
-                --key-bg: #ecfeff;
-                --key-border: #cffafe;
-                --key-glow: rgba(6, 182, 212, 0.22);
-              }
-              .so-shortcut-badge.emerald {
-                --key-color: #10b981;
-                --key-bg: #ecfdf5;
-                --key-border: #a7f3d0;
-                --key-glow: rgba(16, 185, 129, 0.22);
-              }
-              .so-shortcut-badge.rose {
-                --key-color: #ef4444;
-                --key-bg: #fef2f2;
-                --key-border: #fecaca;
-                --key-glow: rgba(239, 68, 68, 0.22);
-              }
-              .so-shortcut-badge.amber {
-                --key-color: #f59e0b;
-                --key-bg: #fffbeb;
-                --key-border: #fde68a;
-                --key-glow: rgba(245, 158, 11, 0.22);
-              }
-              .so-shortcut-badge.violet {
-                --key-color: #8b5cf6;
-                --key-bg: #f5f3ff;
-                --key-border: #ddd6fe;
-                --key-glow: rgba(139, 92, 246, 0.22);
-              }
-              .so-shortcut-badge.pink {
-                --key-color: #d946ef;
-                --key-bg: #fdf4ff;
-                --key-border: #f5d0fe;
-                --key-glow: rgba(217, 70, 239, 0.22);
-              }
-              .so-shortcut-badge.sky {
-                --key-color: #0ea5e9;
-                --key-bg: #f0f9ff;
-                --key-border: #bae6fd;
-                --key-glow: rgba(14, 165, 233, 0.22);
-              }
-              .so-shortcut-badge.slate {
-                --key-color: #64748b;
-                --key-bg: #f8fafc;
-                --key-border: #e2e8f0;
-                --key-glow: rgba(100, 116, 139, 0.12);
-              }
-              .so-shortcut-badge:hover {
-                border-color: var(--key-color, #0284c7);
-                background: var(--key-bg, #f0f9ff);
-                transform: translateY(-2px);
-                box-shadow: 0 6px 12px -2px var(--key-glow, rgba(2, 132, 199, 0.15)), 0 3px 6px -2px var(--key-glow, rgba(2, 132, 199, 0.08));
-              }
-              .so-shortcut-key {
-                font-size: 9px;
-                font-weight: 950;
-                color: #ffffff;
-                padding: 1.5px 5px;
-                background: linear-gradient(135deg, var(--key-color, #0284c7) 0%, rgba(0, 0, 0, 0.25) 100%);
-                border: 1.5px solid var(--key-color, #0284c7);
-                border-radius: 4px;
-                box-shadow: 0 1.5px 3px var(--key-glow, rgba(2, 132, 199, 0.35));
-                text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                letter-spacing: 0.02em;
-                line-height: 1;
-              }
-              .so-shortcut-label {
-                font-size: 11px;
-                font-weight: 950;
-                color: #0f172a;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                line-height: 1;
-              }
-              
-              /* Clean, Professional Fixed Grid Table Styling */
-              .so-items-table {
-                table-layout: fixed !important;
-                width: 100% !important;
-                border-collapse: collapse !important;
-                border: 1px solid #cbd5e1 !important;
-              }
-              
-              .so-items-table th {
-                background: #f8fafc !important;
-                color: #64748b !important;
-                font-weight: 600 !important;
-                border: 1px solid #e2e8f0 !important;
-                padding: 6px 4px !important;
-                font-size: 0.7rem !important;
-                text-transform: capitalize !important;
-                letter-spacing: 0.02em !important;
-                height: 40px !important;
-                text-align: center !important;
-                white-space: normal !important;
-                word-wrap: break-word !important;
-                overflow-wrap: break-word !important;
-                overflow: hidden !important;
-                line-height: 1.2 !important;
-              }
-              
-              .so-items-table td {
-                border: 1px solid #e2e8f0 !important;
-                padding: 0 !important;
-                height: auto !important;
-                min-height: 40px !important;
-                vertical-align: middle !important;
-                background: #ffffff !important;
-                word-wrap: break-word !important;
-                overflow-wrap: break-word !important;
-                white-space: normal !important;
-                word-break: break-all !important;
-              }
-              
-              /* Override the premium cell container/box to be flat and borderless */
-              .so-items-table .premium-cell-container {
-                min-height: 40px !important;
-                height: auto !important;
-                padding: 0 !important;
-                display: flex !important;
-                align-items: stretch !important;
-                justify-content: stretch !important;
-              }
-              
-              .so-items-table .premium-cell-box {
-                height: auto !important;
-                min-height: 40px !important;
-                width: 100% !important;
-                border-radius: 0 !important;
-                border: none !important;
-                box-shadow: none !important;
-                background: transparent !important;
-                padding: 0 !important;
-                display: flex !important;
-                align-items: stretch !important;
-                position: relative !important;
-              }
-              
-              /* Inputs and Selects inside table cells fill the cell and have no border */
-              .so-items-table .premium-cell-box input,
-              .so-items-table .premium-cell-box select,
-              .so-items-table .premium-cell-box .so-input,
-              .so-items-table .premium-cell-box div.relative.flex-1 input {
-                border: none !important;
-                border-radius: 0 !important;
-                height: 40px !important;
-                width: 100% !important;
-                padding: 0 10px !important;
-                background-color: transparent !important;
-                box-shadow: none !important;
-                font-size: 0.75rem !important;
-                color: #1e293b !important;
-                font-weight: 500 !important;
-                outline: none !important;
-                box-sizing: border-box !important;
-                text-align: inherit !important;
-              }
-              
-              .so-items-table .premium-cell-box input:focus,
-              .so-items-table .premium-cell-box select:focus,
-              .so-items-table .premium-cell-box .so-input:focus,
-              .so-items-table .premium-cell-box div.relative.flex-1 input:focus {
-                background-color: #f8fafc !important;
-                outline: 1.5px solid #3b82f6 !important;
-                outline-offset: -1.5px !important;
-                z-index: 5 !important;
-              }
-              
-              /* Readonly text inside table cells - wrapping long text downwards */
-              .so-items-table .premium-cell-readonly {
-                border: none !important;
-                background: transparent !important;
-                padding: 6px 10px !important;
-                height: auto !important;
-                min-height: 100% !important;
-                width: 100% !important;
-                display: block !important;
-                text-align: left !important;
-                border-radius: 0 !important;
-                box-shadow: none !important;
-                font-size: 0.75rem !important;
-                font-weight: 500 !important;
-                color: #334155 !important;
-                word-wrap: break-word !important;
-                overflow-wrap: break-word !important;
-                white-space: normal !important;
-                word-break: break-all !important;
-                box-sizing: border-box !important;
-              }
-              
-              .so-items-table .premium-cell-readonly-center {
-                text-align: center !important;
-              }
-              
-              .so-items-table .premium-cell-readonly-right {
-                text-align: right !important;
-              }
-              
-              /* For Qty Adjust buttons (+/-) layout inside cell */
-              .so-items-table .premium-cell-box > div {
-                display: flex !important;
-                width: 100% !important;
-                height: 100% !important;
-                align-items: stretch !important;
-              }
-              
-              .so-items-table .premium-cell-box > div button {
-                border: none !important;
-                border-radius: 0 !important;
-                height: 100% !important;
-                background: #f8fafc !important;
-                color: #64748b !important;
-                padding: 0 8px !important;
-                font-weight: bold !important;
-                cursor: pointer !important;
-                transition: background 0.15s !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-              }
-              
-              .so-items-table .premium-cell-box > div button:hover {
-                background: #cbd5e1 !important;
-                color: #1e293b !important;
-              }
-              
-              .so-items-table .premium-cell-box > div input {
-                flex: 1 !important;
-                border: none !important;
-                border-radius: 0 !important;
-                height: 100% !important;
-                text-align: center !important;
-                padding: 0 4px !important;
-              }
-              
-              /* Custom search dropdown container adjustments */
-              .so-items-table .relative.flex-1 {
-                width: 100% !important;
-                height: 100% !important;
-              }
-              
-              .so-items-table .premium-cell-box > div.flex.gap-2 {
-                width: 100% !important;
-                height: 100% !important;
-                gap: 0 !important;
-                align-items: stretch !important;
-              }
-            `}</style>
-            <div className="so-shortcut-banner-title">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Quick Shortcuts
-            </div>
-            <div className="so-shortcut-badge blue">
-              <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
-              <span className="so-shortcut-label">Supplier</span>
-            </div>
-            <div className="so-shortcut-badge indigo">
-              <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
-              <span className="so-shortcut-label">Item Search</span>
-            </div>
-            <div className="so-shortcut-badge cyan">
-              <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
-              <span className="so-shortcut-label">Barcode</span>
-            </div>
-            <div className="so-shortcut-badge pink">
-              <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
-              <span className="so-shortcut-label">Bulk Qty</span>
-            </div>
-            <div className="so-shortcut-badge violet">
-              <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
-              <span className="so-shortcut-label">Toggle UOM</span>
-            </div>
-            <div className="so-shortcut-badge amber">
-              <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
-              <span className="so-shortcut-label">Save Draft</span>
-            </div>
-            <div className="so-shortcut-badge sky">
-              <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
-              <span className="so-shortcut-label">Add Row</span>
-            </div>
-            <div className="so-shortcut-badge violet">
-              <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
-              <span className="so-shortcut-label">Warehouse</span>
-            </div>
-            <div className="so-shortcut-badge emerald">
-              <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
-              <span className="so-shortcut-label">Submit</span>
-            </div>
-            <div className="so-shortcut-badge slate">
-              <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
-              <span className="so-shortcut-label">Focus Table</span>
-            </div>
-            <div className="so-shortcut-badge rose">
-              <span className="so-shortcut-key">Escape</span>
-              <span className="so-shortcut-label">Close / Clear</span>
-            </div>
-            <div className="so-shortcut-badge slate">
-              <span className="so-shortcut-key">+ / -</span>
-              <span className="so-shortcut-label">Qty Adjust</span>
-            </div>
-          </div>
-
           <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
             <div className="w-full flex flex-col gap-6">
               {/* MAIN CONTENT AREA */}
@@ -2741,19 +2739,7 @@ function PurchaseReceiptList() {
                         )}
                       </div>
 
-                      <div className="so-field" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                        <label className="so-label" style={{ marginBottom: '0.4rem', textAlign: 'center' }}>Is Return</label>
-                        <div style={{ display: 'flex', alignItems: 'center', height: '38px', justifyContent: 'center' }}>
-                          <input
-                            type="checkbox"
-                            name="is_return"
-                            checked={formData.is_return}
-                            onChange={e => setFormData(prev => ({ ...prev, is_return: e.target.checked }))}
-                            disabled={isViewMode || docName}
-                            style={{ width: '20px', height: '20px', cursor: isViewMode ? 'not-allowed' : 'pointer', margin: 0 }}
-                          />
-                        </div>
-                      </div>
+
 
                       <div className="so-field" style={{ gridColumn: 'span 2' }}>
                         <label className="so-label">Supplier / Vendor</label>
@@ -2789,10 +2775,7 @@ function PurchaseReceiptList() {
                         )}
                       </div>
 
-                      <div className="so-field flex flex-col justify-end">
-                        <label className="so-label opacity-0 select-none pointer-events-none">Attachment</label>
-                        <AttachmentSection doctype="Purchase Receipt" docname={docName} compact={true} />
-                      </div>
+
                     </div>
                   </div>
                 </div>
@@ -2823,8 +2806,8 @@ function PurchaseReceiptList() {
                           />
                         </div>
                       </div>
-                    )}                        <div className="so-table-wrapper" style={{ boxShadow: 'none' }}>
-                          <table className="so-items-table">
+                    )}                        <div className="purchase-table-container" style={{ boxShadow: 'none' }}>
+                          <table className="purchase-table">
                             <thead>
                               <tr>
                                 <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
@@ -2853,11 +2836,11 @@ function PurchaseReceiptList() {
                                   });
                                 })()}
                                 <th style={{ width: '40px', textAlign: 'center' }}>
-                                  {!isViewMode && (
+                                  
                                     <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Configure Columns">
                                       <Settings size={16} />
                                     </button>
-                                  )}
+                                  
                                 </th>
                               </tr>
                             </thead>
@@ -3303,19 +3286,15 @@ function PurchaseReceiptList() {
                   </div>
                 </div>
 
-                {/* Taxes & Charges Card */}
-                <div className="so-card">
-                  <div className="so-card-header" style={{ padding: '0.8rem 1.25rem' }}>
-                    <p className="so-card-title">Taxes & Charges</p>
-                    {!isViewMode && (
-                      <button onClick={addTaxRow} className="so-btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.7rem' }}>
-                        <Plus size={12} /> Add Tax Row
-                      </button>
-                    )}
-                  </div>
-                  <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
-                      <div className="so-field" style={{ minWidth: '220px', flex: 1 }}>
+                {/* Taxes & Charges + Totals — 2 column layout */}
+                <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+                  {/* Left: Tax Template */}
+                  <div className="so-card">
+                    <div className="so-card-header" style={{ padding: '0.8rem 1.25rem' }}>
+                      <p className="so-card-title">Taxes & Charges</p>
+                    </div>
+                    <div className="so-card-body">
+                      <div className="so-field">
                         <label className="so-label">Taxes Template</label>
                         {isViewMode ? (
                           <div className="so-view-field">{formData.taxes_and_charges || <span style={{ opacity: 0.3 }}>None</span>}</div>
@@ -3332,85 +3311,36 @@ function PurchaseReceiptList() {
                           </select>
                         )}
                       </div>
-
-                      <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
-                        <table className="so-items-table">
-                          <thead>
-                            <tr>
-                              <th style={{ width: '40px' }}>Add</th>
-                              <th>Account / Type</th>
-                              <th style={{ width: '80px', textAlign: 'center' }}>Rate %</th>
-                              <th style={{ width: '100px', textAlign: 'right' }}>Total</th>
-                              <th style={{ width: '40px' }}></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {formData.taxes.map((tax, i) => (
-                              <tr key={i}>
-                                <td style={{ textAlign: 'center' }}>
-                                  {isViewMode ? (
-                                    tax.add_row ? <CheckCircle2 size={16} style={{ color: themeColor }} /> : <span style={{ opacity: 0.2 }}>—</span>
-                                  ) : (
-                                    <input
-                                      type="checkbox"
-                                      checked={tax.add_row}
-                                      onChange={e => updateTax(i, 'add_row', e.target.checked)}
-                                    />
-                                  )}
-                                </td>
-                                <td>
-                                  <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{tax.account_head?.split(' - ')[0] || 'New Account'}</div>
-                                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{tax.charge_type}</div>
-                                </td>
-                                <td>
-                                  {isViewMode ? (
-                                    <div className="so-view-field" style={{ textAlign: 'center' }}>{tax.rate}%</div>
-                                  ) : (
-                                    <input
-                                      type="number"
-                                      value={tax.rate}
-                                      onChange={e => updateTax(i, 'rate', e.target.value)}
-                                      className="so-input"
-                                      style={{ height: '30px', textAlign: 'center', fontSize: '0.75rem' }}
-                                    />
-                                  )}
-                                </td>
-                                <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.75rem' }}>
-                                  {(parseFloat(tax.total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </td>
-                                <td style={{ textAlign: 'center' }}>
-                                  {!isViewMode && <button onClick={() => removeTaxRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}><X size={12} /></button>}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                      {docName && (
+                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--so-border)' }}>
+                          <label className="so-label" style={{ marginBottom: '0.5rem' }}>Attachments</label>
+                          <AttachmentSection doctype="Purchase Receipt" docname={docName} compact={false} />
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {/* Summary Section */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div style={{
-                      background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColorHover} 100%)`,
-                      color: 'white',
-                      borderRadius: '0.75rem',
-                      padding: '1.75rem',
-                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
-                    }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ display: 'flex', justifyConstraints: 'space-between', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
-                          <span>Net Total</span>
-                          <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(formData.net_total)}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyConstraints: 'space-between', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
-                          <span>Total Tax</span>
-                          <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(formData.total_taxes_and_charges)}</span>
-                        </div>
-                        <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '0.5rem 0' }}></div>
-                        <div style={{ display: 'flex', justifyConstraints: 'space-between', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Grand Total</span>
-                          <span style={{ fontSize: '1.6rem', fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: '5px' }}><DirhamIcon size={20} /> {formatPrice(formData.grand_total)}</span>
-                        </div>
+
+                  {/* Right: Totals Summary */}
+                  <div style={{
+                    background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColorHover} 100%)`,
+                    color: 'white',
+                    borderRadius: '0.75rem',
+                    padding: '1.75rem',
+                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
+                        <span>Net Total</span>
+                        <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(formData.net_total)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9, fontSize: '0.9rem' }}>
+                        <span>Total Tax</span>
+                        <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><DirhamIcon size={12} /> {formatPrice(formData.total_taxes_and_charges)}</span>
+                      </div>
+                      <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '0.5rem 0' }}></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Grand Total</span>
+                        <span style={{ fontSize: '1.6rem', fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: '5px' }}><DirhamIcon size={20} /> {formatPrice(formData.grand_total)}</span>
                       </div>
                     </div>
                   </div>
@@ -3567,7 +3497,7 @@ function PurchaseReceiptList() {
                 </div>
               ) : (
                 <>
-                  <div className="so-table-wrapper">
+                  <div className="purchase-table-container">
                     <table className="so-table">
                       <thead>
                         <tr>
@@ -3745,7 +3675,7 @@ function PurchaseReceiptList() {
 
                         {docName && isViewMode && (
                           <button
-                            onClick={() => setIsViewMode(false)}
+                            onClick={() => { setIsViewMode(false); setSearchParams({ name: docName, mode: 'edit' }); }}
                             className="so-btn-secondary"
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                           >
@@ -3845,371 +3775,6 @@ function PurchaseReceiptList() {
                 </div>
               </div>
 
-              {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
-              <div className="so-shortcut-guide-banner">
-                <style>{`
-                  .so-shortcut-guide-banner {
-                    width: 100%;
-                    background: #f8fafc;
-                    border-bottom: 1.5px solid #e2e8f0;
-                    padding: 6px 16px;
-                    display: flex;
-                    flex-wrap: nowrap;
-                    overflow-x: auto;
-                    scrollbar-width: none;
-                    -ms-overflow-style: none;
-                    align-items: center;
-                    gap: 8px;
-                  }
-                  .so-shortcut-guide-banner::-webkit-scrollbar {
-                    display: none;
-                  }
-                  .so-shortcut-banner-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    color: #64748b;
-                    font-size: 9px;
-                    font-weight: 900;
-                    text-transform: uppercase;
-                    letter-spacing: 0.1em;
-                    margin-right: 6px;
-                    flex-shrink: 0;
-                  }
-                  .so-shortcut-badge {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.35rem;
-                    padding: 0.25rem 0.5rem;
-                    background: var(--so-white, #ffffff);
-                    border: 1.5px solid var(--key-border, #e2e8f0);
-                    border-radius: 0.5rem;
-                    cursor: pointer;
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                    flex-shrink: 0;
-                    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-                  }
-                  .so-shortcut-badge.blue {
-                    --key-color: #3b82f6;
-                    --key-bg: #eff6ff;
-                    --key-border: #bfdbfe;
-                    --key-glow: rgba(59, 130, 246, 0.22);
-                  }
-                  .so-shortcut-badge.indigo {
-                    --key-color: #6366f1;
-                    --key-bg: #e0e7ff;
-                    --key-border: #c7d2fe;
-                    --key-glow: rgba(99, 102, 241, 0.22);
-                  }
-                  .so-shortcut-badge.cyan {
-                    --key-color: #06b6d4;
-                    --key-bg: #ecfeff;
-                    --key-border: #cffafe;
-                    --key-glow: rgba(6, 182, 212, 0.22);
-                  }
-                  .so-shortcut-badge.emerald {
-                    --key-color: #10b981;
-                    --key-bg: #ecfdf5;
-                    --key-border: #a7f3d0;
-                    --key-glow: rgba(16, 185, 129, 0.22);
-                  }
-                  .so-shortcut-badge.rose {
-                    --key-color: #ef4444;
-                    --key-bg: #fef2f2;
-                    --key-border: #fecaca;
-                    --key-glow: rgba(239, 68, 68, 0.22);
-                  }
-                  .so-shortcut-badge.amber {
-                    --key-color: #f59e0b;
-                    --key-bg: #fffbeb;
-                    --key-border: #fde68a;
-                    --key-glow: rgba(245, 158, 11, 0.22);
-                  }
-                  .so-shortcut-badge.violet {
-                    --key-color: #8b5cf6;
-                    --key-bg: #f5f3ff;
-                    --key-border: #ddd6fe;
-                    --key-glow: rgba(139, 92, 246, 0.22);
-                  }
-                  .so-shortcut-badge.pink {
-                    --key-color: #d946ef;
-                    --key-bg: #fdf4ff;
-                    --key-border: #f5d0fe;
-                    --key-glow: rgba(217, 70, 239, 0.22);
-                  }
-                  .so-shortcut-badge.sky {
-                    --key-color: #0ea5e9;
-                    --key-bg: #f0f9ff;
-                    --key-border: #bae6fd;
-                    --key-glow: rgba(14, 165, 233, 0.22);
-                  }
-                  .so-shortcut-badge.slate {
-                    --key-color: #64748b;
-                    --key-bg: #f8fafc;
-                    --key-border: #e2e8f0;
-                    --key-glow: rgba(100, 116, 139, 0.12);
-                  }
-                  .so-shortcut-badge:hover {
-                    border-color: var(--key-color, #0284c7);
-                    background: var(--key-bg, #f0f9ff);
-                    transform: translateY(-2px);
-                    box-shadow: 0 6px 12px -2px var(--key-glow, rgba(2, 132, 199, 0.15)), 0 3px 6px -2px var(--key-glow, rgba(2, 132, 199, 0.08));
-                  }
-                  .so-shortcut-key {
-                    font-size: 9px;
-                    font-weight: 950;
-                    color: #ffffff;
-                    padding: 1.5px 5px;
-                    background: linear-gradient(135deg, var(--key-color, #0284c7) 0%, rgba(0, 0, 0, 0.25) 100%);
-                    border: 1.5px solid var(--key-color, #0284c7);
-                    border-radius: 4px;
-                    box-shadow: 0 1.5px 3px var(--key-glow, rgba(2, 132, 199, 0.35));
-                    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    letter-spacing: 0.02em;
-                    line-height: 1;
-                  }
-                  .so-shortcut-label {
-                    font-size: 11px;
-                    font-weight: 950;
-                    color: #0f172a;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                    line-height: 1;
-                  }
-                  
-                  /* Clean, Professional Fixed Grid Table Styling */
-                  .so-items-table {
-                    table-layout: fixed !important;
-                    width: 100% !important;
-                    border-collapse: collapse !important;
-                    border: 1px solid #cbd5e1 !important;
-                  }
-                  
-                  .so-items-table th {
-                    background: #f8fafc !important;
-                    color: #64748b !important;
-                    font-weight: 600 !important;
-                    border: 1px solid #e2e8f0 !important;
-                    padding: 6px 4px !important;
-                    font-size: 0.7rem !important;
-                    text-transform: capitalize !important;
-                    letter-spacing: 0.02em !important;
-                    height: 40px !important;
-                    text-align: center !important;
-                    white-space: normal !important;
-                    word-wrap: break-word !important;
-                    overflow-wrap: break-word !important;
-                    overflow: hidden !important;
-                    line-height: 1.2 !important;
-                  }
-                  
-                  .so-items-table td {
-                    border: 1px solid #e2e8f0 !important;
-                    padding: 0 !important;
-                    height: auto !important;
-                    min-height: 40px !important;
-                    vertical-align: middle !important;
-                    background: #ffffff !important;
-                    word-wrap: break-word !important;
-                    overflow-wrap: break-word !important;
-                    white-space: normal !important;
-                    word-break: break-all !important;
-                  }
-                  
-                  /* Override the premium cell container/box to be flat and borderless */
-                  .so-items-table .premium-cell-container {
-                    min-height: 40px !important;
-                    height: auto !important;
-                    padding: 0 !important;
-                    display: flex !important;
-                    align-items: stretch !important;
-                    justify-content: stretch !important;
-                  }
-                  
-                  .so-items-table .premium-cell-box {
-                    height: auto !important;
-                    min-height: 40px !important;
-                    width: 100% !important;
-                    border-radius: 0 !important;
-                    border: none !important;
-                    box-shadow: none !important;
-                    background: transparent !important;
-                    padding: 0 !important;
-                    display: flex !important;
-                    align-items: stretch !important;
-                    position: relative !important;
-                  }
-                  
-                  /* Inputs and Selects inside table cells fill the cell and have no border */
-                  .so-items-table .premium-cell-box input,
-                  .so-items-table .premium-cell-box select,
-                  .so-items-table .premium-cell-box .so-input,
-                  .so-items-table .premium-cell-box div.relative.flex-1 input {
-                    border: none !important;
-                    border-radius: 0 !important;
-                    height: 40px !important;
-                    width: 100% !important;
-                    padding: 0 10px !important;
-                    background-color: transparent !important;
-                    box-shadow: none !important;
-                    font-size: 0.75rem !important;
-                    color: #1e293b !important;
-                    font-weight: 500 !important;
-                    outline: none !important;
-                    box-sizing: border-box !important;
-                    text-align: inherit !important;
-                  }
-                  
-                  .so-items-table .premium-cell-box input:focus,
-                  .so-items-table .premium-cell-box select:focus,
-                  .so-items-table .premium-cell-box .so-input:focus,
-                  .so-items-table .premium-cell-box div.relative.flex-1 input:focus {
-                    background-color: #f8fafc !important;
-                    outline: 1.5px solid #3b82f6 !important;
-                    outline-offset: -1.5px !important;
-                    z-index: 5 !important;
-                  }
-                  
-                  /* Readonly text inside table cells - wrapping long text downwards */
-                  .so-items-table .premium-cell-readonly {
-                    border: none !important;
-                    background: transparent !important;
-                    padding: 6px 10px !important;
-                    height: auto !important;
-                    min-height: 100% !important;
-                    width: 100% !important;
-                    display: block !important;
-                    text-align: left !important;
-                    border-radius: 0 !important;
-                    box-shadow: none !important;
-                    font-size: 0.75rem !important;
-                    font-weight: 500 !important;
-                    color: #334155 !important;
-                    word-wrap: break-word !important;
-                    overflow-wrap: break-word !important;
-                    white-space: normal !important;
-                    word-break: break-all !important;
-                    box-sizing: border-box !important;
-                  }
-                  
-                  .so-items-table .premium-cell-readonly-center {
-                    text-align: center !important;
-                  }
-                  
-                  .so-items-table .premium-cell-readonly-right {
-                    text-align: right !important;
-                  }
-                  
-                  /* For Qty Adjust buttons (+/-) layout inside cell */
-                  .so-items-table .premium-cell-box > div {
-                    display: flex !important;
-                    width: 100% !important;
-                    height: 100% !important;
-                    align-items: stretch !important;
-                  }
-                  
-                  .so-items-table .premium-cell-box > div button {
-                    border: none !important;
-                    border-radius: 0 !important;
-                    height: 100% !important;
-                    background: #f8fafc !important;
-                    color: #64748b !important;
-                    padding: 0 8px !important;
-                    font-weight: bold !important;
-                    cursor: pointer !important;
-                    transition: background 0.15s !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                  }
-                  
-                  .so-items-table .premium-cell-box > div button:hover {
-                    background: #cbd5e1 !important;
-                    color: #1e293b !important;
-                  }
-                  
-                  .so-items-table .premium-cell-box > div input {
-                    flex: 1 !important;
-                    border: none !important;
-                    border-radius: 0 !important;
-                    height: 100% !important;
-                    text-align: center !important;
-                    padding: 0 4px !important;
-                  }
-                  
-                  /* Custom search dropdown container adjustments */
-                  .so-items-table .relative.flex-1 {
-                    width: 100% !important;
-                    height: 100% !important;
-                  }
-                  
-                  .so-items-table .premium-cell-box > div.flex.gap-2 {
-                    width: 100% !important;
-                    height: 100% !important;
-                    gap: 0 !important;
-                    align-items: stretch !important;
-                  }
-                `}</style>
-                <div className="so-shortcut-banner-title">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  Quick Shortcuts
-                </div>
-                <div className="so-shortcut-badge blue">
-                  <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
-                  <span className="so-shortcut-label">Supplier</span>
-                </div>
-                <div className="so-shortcut-badge indigo">
-                  <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
-                  <span className="so-shortcut-label">Item Search</span>
-                </div>
-                <div className="so-shortcut-badge cyan">
-                  <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
-                  <span className="so-shortcut-label">Barcode</span>
-                </div>
-                <div className="so-shortcut-badge pink">
-                  <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
-                  <span className="so-shortcut-label">Bulk Qty</span>
-                </div>
-                <div className="so-shortcut-badge violet">
-                  <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
-                  <span className="so-shortcut-label">Toggle UOM</span>
-                </div>
-                <div className="so-shortcut-badge amber">
-                  <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
-                  <span className="so-shortcut-label">Save Draft</span>
-                </div>
-                <div className="so-shortcut-badge sky">
-                  <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
-                  <span className="so-shortcut-label">Add Row</span>
-                </div>
-                <div className="so-shortcut-badge violet">
-                  <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
-                  <span className="so-shortcut-label">Warehouse</span>
-                </div>
-                <div className="so-shortcut-badge emerald">
-                  <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
-                  <span className="so-shortcut-label">Submit</span>
-                </div>
-                <div className="so-shortcut-badge slate">
-                  <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
-                  <span className="so-shortcut-label">Focus Table</span>
-                </div>
-                <div className="so-shortcut-badge rose">
-                  <span className="so-shortcut-key">Escape</span>
-                  <span className="so-shortcut-label">Close / Clear</span>
-                </div>
-                <div className="so-shortcut-badge slate">
-                  <span className="so-shortcut-key">+ / -</span>
-                  <span className="so-shortcut-label">Qty Adjust</span>
-                </div>
-              </div>
-
               <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
                 <div className="flex flex-col lg:flex-row gap-6 relative items-start">
                   {/* STICKY SIDEBAR: Linked Documents */}
@@ -4282,10 +3847,7 @@ function PurchaseReceiptList() {
                               />
                             )}
                           </div>
-                          <div className="so-field flex flex-col justify-end">
-                              <label className="so-label opacity-0 select-none pointer-events-none">Attachment</label>
-                              <AttachmentSection doctype="Purchase Receipt" docname={docName} compact={true} />
-                            </div>
+
 
                           <div className="so-field">
                             <label className="so-label">Supplier Ref / Delivery Note</label>
@@ -4313,15 +3875,7 @@ function PurchaseReceiptList() {
                             />
                             Apply Putaway Rule
                           </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                            <input
-                              type="checkbox"
-                              checked={formData.is_return}
-                              onChange={e => setFormData(prev => ({ ...prev, is_return: e.target.checked }))}
-                              disabled={isViewMode}
-                            />
-                            Is Return
-                          </label>
+
                         </div>
                       </div>
                     </div>
@@ -4370,8 +3924,8 @@ function PurchaseReceiptList() {
                         </div>
                       </div>
                       <div className="so-card-body" style={{ padding: 0 }}>
-                        <div className="so-table-wrapper" style={{ boxShadow: 'none' }}>
-                          <table className="so-items-table">
+                        <div className="purchase-table-container" style={{ boxShadow: 'none' }}>
+                          <table className="purchase-table">
                             <thead>
                               <tr>
                                 <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
@@ -4404,11 +3958,11 @@ function PurchaseReceiptList() {
                                   });
                                 })()}
                                 <th style={{ width: '40px', textAlign: 'center' }}>
-                                  {!isViewMode && (
+                                  
                                     <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Configure Columns">
                                       <Settings size={16} />
                                     </button>
-                                  )}
+                                  
                                 </th>
                               </tr>
                             </thead>
@@ -4885,60 +4439,12 @@ function PurchaseReceiptList() {
                               </select>
                             )}
                           </div>
-
-                          <div className="so-table-wrapper" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
-                            <table className="so-items-table">
-                              <thead>
-                                <tr>
-                                  <th style={{ width: '40px' }}>Add</th>
-                                  <th>Account / Type</th>
-                                  <th style={{ width: '80px', textAlign: 'center' }}>Rate %</th>
-                                  <th style={{ width: '100px', textAlign: 'right' }}>Total</th>
-                                  <th style={{ width: '40px' }}></th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {formData.taxes.map((tax, i) => (
-                                  <tr key={i}>
-                                    <td style={{ textAlign: 'center' }}>
-                                      {isViewMode ? (
-                                        tax.add_row ? <CheckCircle2 size={16} style={{ color: themeColor }} /> : <span style={{ opacity: 0.2 }}>—</span>
-                                      ) : (
-                                        <input
-                                          type="checkbox"
-                                          checked={tax.add_row}
-                                          onChange={e => updateTax(i, 'add_row', e.target.checked)}
-                                        />
-                                      )}
-                                    </td>
-                                    <td>
-                                      <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{tax.account_head?.split(' - ')[0] || 'New Account'}</div>
-                                      <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{tax.charge_type}</div>
-                                    </td>
-                                    <td>
-                                      {isViewMode ? (
-                                        <div className="so-view-field" style={{ textAlign: 'center' }}>{tax.rate}%</div>
-                                      ) : (
-                                        <input
-                                          type="number"
-                                          value={tax.rate}
-                                          onChange={e => updateTax(i, 'rate', e.target.value)}
-                                          className="so-input"
-                                          style={{ height: '30px', textAlign: 'center', fontSize: '0.75rem' }}
-                                        />
-                                      )}
-                                    </td>
-                                    <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.75rem' }}>
-                                      {(parseFloat(tax.total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                    </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                      {!isViewMode && <button onClick={() => removeTaxRow(i)} className="so-btn-ghost" style={{ color: '#ef4444' }}><X size={12} /></button>}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                          {docName && (
+                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--so-border)' }}>
+                              <label className="so-label" style={{ marginBottom: '0.5rem' }}>Attachments</label>
+                              <AttachmentSection doctype="Purchase Receipt" docname={docName} compact={false} />
+                            </div>
+                          )}
                         </div>
                       </div>
                       {/* Summary Section */}

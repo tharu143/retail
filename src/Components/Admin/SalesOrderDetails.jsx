@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSelector } from 'react-redux';
 import {
     ShoppingCart, Package, MapPin, Phone, Mail, ChevronLeft, Loader2,
     AlertCircle, Globe, Tag, Receipt, Layers, CreditCard,
@@ -20,13 +21,12 @@ import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 
 const DEFAULT_SO_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
-    { id: 'custom_ref_sl_no', label: 'Ref / Customer SL #', visible: true, width: 120 },
     { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
     { id: 'uom', label: 'UOM', visible: true, width: 90 },
     { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
     { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
     { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
-    { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 90 },
+    { id: 'is_tax_inclusive', label: 'Tax Inc/Exc', visible: true, width: 100 },
     { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
     { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
 ];
@@ -42,7 +42,8 @@ const SOItemModel = {
     custom_box_price: 0,
     use_box_entry: false,
     uom_list: [],
-    custom_selling_price: 0
+    custom_selling_price: 0,
+    is_tax_inclusive: true
 };
 
 const loadColumnConfig = () => {
@@ -84,7 +85,7 @@ function recalcForm(form) {
         } else {
             taxAmount = base_total * (rate / 100);
         }
-        const signed = tax.add_deduct_tax === 'Add' ? taxAmount : -taxAmount;
+        const signed = (tax.add_deduct_tax || 'Add') === 'Add' ? taxAmount : -taxAmount;
         total_taxes += signed;
         prev_total += signed;
         return {
@@ -215,6 +216,9 @@ export default function SalesOrderDetails() {
     const navigate = useNavigate();
     const isNew = name === 'create' || location.pathname.includes('/salesorder/create');
     const itemInputRefs = useRef({});
+
+    const { user_roles } = useSelector(state => state.user || {});
+    const isAdministrator = (user_roles || []).includes("Administrator");
 
     const { themeColor, themeLight, isGreen, toggleTheme, legacySubTheme } = useLegacyTheme();
 
@@ -375,6 +379,45 @@ export default function SalesOrderDetails() {
     const [highlightedCustomerIndex, setHighlightedCustomerIndex] = useState(-1);
     const customerDropdownRef = useRef(null);
 
+    const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+    const [newCustomer, setNewCustomer] = useState({ customer_name: '', mobile_no: '' });
+    const [savingCustomer, setSavingCustomer] = useState(false);
+
+    const submitQuickCustomer = async () => {
+        try {
+            if (!newCustomer.customer_name) return Swal.fire('Error', 'Customer Name is required', 'warning');
+            setSavingCustomer(true);
+            const res = await axios.post('/api/method/kyle_retail.retail_api.api.create_customer_retail', {
+                data: {
+                    customer_name: newCustomer.customer_name,
+                    mobile_no: newCustomer.mobile_no
+                }
+            }, { withCredentials: true });
+
+            const respData = res.data.message;
+            if (respData && respData.status === 'error') {
+                return Swal.fire('Error', respData.message, 'error');
+            }
+
+            const createdName = respData.name;
+            const createdCustomerName = respData.customer_name || respData.name;
+            Swal.fire({ icon: 'success', title: 'Customer Created', text: createdCustomerName, timer: 1500, showConfirmButton: false });
+
+            const custRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_customers_list_so', { withCredentials: true });
+            setCustomers(custRes.data.message || []);
+
+            setForm(prev => ({ ...prev, customer: createdName, customer_name: createdCustomerName }));
+            setSearchCustomer(createdCustomerName);
+
+            setIsCustomerModalOpen(false);
+            setNewCustomer({ customer_name: '', mobile_no: '' });
+        } catch (err) {
+            Swal.fire('Failed to create customer', err.response?.data?._server_messages || err.message, 'error');
+        } finally {
+            setSavingCustomer(false);
+        }
+    };
+
     useEffect(() => {
         if (highlightedCustomerIndex >= 0 && customerDropdownRef.current) {
             const itemEl = customerDropdownRef.current.children[highlightedCustomerIndex];
@@ -422,16 +465,27 @@ export default function SalesOrderDetails() {
                     templates.find(t => t.name.toUpperCase().includes('5%'));
                 const defaultTaxName = defaultTax ? defaultTax.name : 'UAE VAT 5% - NS';
                 try {
-                    const encodedVal = encodeURIComponent(defaultTaxName);
-                    const res = await axios.get(`/api/resource/Sales Taxes and Charges Template/${encodedVal}`, { withCredentials: true });
-                    const rows = (res.data.data?.taxes || []).map(t => ({
+                    const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_so', { params: { template: defaultTaxName }, withCredentials: true });
+                    let rows = (res.data.message || []).map(t => ({
                         charge_type: t.charge_type,
                         account_head: t.account_head,
                         description: t.description || t.account_head || 'VAT',
                         rate: t.rate,
+                        add_deduct_tax: t.add_deduct_tax || 'Add',
                         tax_amount: 0,
                         total: 0
                     }));
+                    if (rows.length === 0 && defaultTaxName) {
+                        let rate = 0; let account = "";
+                        if (defaultTaxName.includes("5%")) { rate = 5; account = "VAT 5% - NS"; }
+                        else if (defaultTaxName.includes("Zero")) { rate = 0; account = "VAT Zero - NS"; }
+                        else if (defaultTaxName.includes("Exempted")) { rate = 0; account = "VAT Exempted - NS"; }
+                        else if (defaultTaxName.includes("50%")) { rate = 50; account = "Excise 50% - NS"; }
+                        else if (defaultTaxName.includes("100%")) { rate = 100; account = "Excise 100% - NS"; }
+                        if (account) {
+                            rows = [{ charge_type: "On Net Total", account_head: account, description: account, rate: rate, add_deduct_tax: "Add", tax_amount: 0, total: 0 }];
+                        }
+                    }
                     setForm(prev => recalcForm({
                         ...prev,
                         taxes_and_charges: defaultTaxName,
@@ -452,7 +506,7 @@ export default function SalesOrderDetails() {
             const loadedItems = (d.items || []).map(it => {
                 const isBox = (it.uom || '').toLowerCase() === 'box';
                 const cf = parseFloat(it.conversion_factor) || parseFloat(it.custom_pieces_per_box) || 1.0;
-                
+
                 let custom_box_qty = parseFloat(it.custom_box_qty || 0);
                 let custom_pieces_per_box = parseFloat(it.custom_pieces_per_box || cf || 1.0);
                 let custom_box_price = parseFloat(it.custom_box_price || 0);
@@ -571,18 +625,26 @@ export default function SalesOrderDetails() {
                     };
                 }),
                 taxes: (form.taxes || []).map(t => ({
-                    ...t,
+                    charge_type: t.charge_type,
+                    account_head: t.account_head,
+                    rate: parseFloat(t.rate) || 0,
+                    tax_amount: parseFloat(t.tax_amount) || parseFloat(t.total) || 0,
                     description: t.description || t.account_head || 'VAT'
                 }))
             };
 
             let res;
+            res = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.save_transaction_document', {
+                doctype: 'Sales Order',
+                doc_data: payload,
+                action: 'save'
+            }, { withCredentials: true });
+
             if (isNew) {
-                res = await axios.post('/api/resource/Sales Order', payload, { withCredentials: true });
+                const savedDocName = res.data?.data?.name || res.data?.message?.data?.name;
                 Swal.fire({ icon: 'success', title: 'Order Created', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
-                navigate(`/salesorder-details/${res.data.data.name}`);
+                navigate(`/salesorder-details/${savedDocName}`);
             } else {
-                await axios.put(`/api/resource/Sales Order/${name}`, payload, { withCredentials: true });
                 Swal.fire({ icon: 'success', title: 'Order Synchronized', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
                 setIsEditing(false);
                 fetchOrder();
@@ -611,14 +673,14 @@ export default function SalesOrderDetails() {
 
             if (res.data.message?.status === 'success') {
                 const createdName = res.data.message.name;
-                Swal.fire({ 
-                    icon: 'success', 
-                    title: `${type} Created (Draft)`, 
+                Swal.fire({
+                    icon: 'success',
+                    title: `${type} Created (Draft)`,
                     text: createdName,
                     timer: 1500,
                     showConfirmButton: false
                 });
-                
+
                 navigate(`/deliverynote-details/${encodeURIComponent(createdName)}`);
             } else {
                 throw new Error(res.data.message?.message || 'Transition failed');
@@ -1353,7 +1415,64 @@ export default function SalesOrderDetails() {
 
     return (
         <div className="so-page">
-            {/* 1. Page Header */}
+            {/* 1. Premium Keyboard Shortcuts Guide Banner */}
+            <div className="so-shortcut-guide-banner">
+                <div className="so-shortcut-banner-title">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    </span>
+                    <span>Quick Actions</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+                    <span className="so-shortcut-label">Customer</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+                    <span className="so-shortcut-label">Item Search</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+                    <span className="so-shortcut-label">Barcode</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+                    <span className="so-shortcut-label">Bulk Qty</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+                    <span className="so-shortcut-label">Toggle UOM</span>
+                </div>
+                <div className="so-shortcut-badge emerald">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+                    <span className="so-shortcut-label">Save Draft</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
+                    <span className="so-shortcut-label">Add Row</span>
+                </div>
+                {isAdministrator && (
+                    <div className="so-shortcut-badge violet">
+                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
+                        <span className="so-shortcut-label">Branch</span>
+                    </div>
+                )}
+                <div className="so-shortcut-badge emerald">
+                    <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+                    <span className="so-shortcut-label">Submit</span>
+                </div>
+                <div className="so-shortcut-badge slate">
+                    <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
+                    <span className="so-shortcut-label">Focus Table</span>
+                </div>
+                <div className="so-shortcut-badge rose">
+                    <span className="so-shortcut-key">Escape</span>
+                    <span className="so-shortcut-label">Close / Clear</span>
+                </div>
+            </div>
+
+            {/* 2. Page Header */}
             <div className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
@@ -1516,61 +1635,6 @@ export default function SalesOrderDetails() {
                 </div>
             </div>
 
-            {/* Premium Keyboard Shortcuts Guide Banner */}
-            <div className="so-shortcut-guide-banner">
-              <div className="so-shortcut-banner-title">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                <span>Quick Actions</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
-                <span className="so-shortcut-label">Customer</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
-                <span className="so-shortcut-label">Item Search</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
-                <span className="so-shortcut-label">Barcode</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
-                <span className="so-shortcut-label">Bulk Qty</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
-                <span className="so-shortcut-label">Toggle UOM</span>
-              </div>
-              <div className="so-shortcut-badge emerald">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
-                <span className="so-shortcut-label">Save Draft</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
-                <span className="so-shortcut-label">Add Row</span>
-              </div>
-              <div className="so-shortcut-badge violet">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
-                <span className="so-shortcut-label">Branch</span>
-              </div>
-              <div className="so-shortcut-badge emerald">
-                <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
-                <span className="so-shortcut-label">Submit</span>
-              </div>
-              <div className="so-shortcut-badge slate">
-                <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
-                <span className="so-shortcut-label">Focus Table</span>
-              </div>
-              <div className="so-shortcut-badge rose">
-                <span className="so-shortcut-key">Escape</span>
-                <span className="so-shortcut-label">Close / Clear</span>
-              </div>
-            </div>
-
             <div className="so-layout">
                 <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
                     <AttachmentSection doctype="Sales Order" docname={isNew ? null : name} compact={true} />
@@ -1648,6 +1712,16 @@ export default function SalesOrderDetails() {
                                                                                 <div className="so-dropdown-item-code">{c.name}</div>
                                                                             </div>
                                                                         ))}
+                                                                        <div
+                                                                            style={{ padding: '0.75rem 1rem', borderTop: '2px solid #f1f5f9', background: '#f8fafc', fontSize: '0.75rem', color: themeColor, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                                                                            onMouseDown={(e) => {
+                                                                                e.preventDefault();
+                                                                                setIsCustomerModalOpen(true);
+                                                                                setShowCustomerDropdown(false);
+                                                                            }}
+                                                                        >
+                                                                            <Plus size={14} /> + Create a new Customer
+                                                                        </div>
                                                                     </div>
                                                                 )}
                                                             </>
@@ -1719,17 +1793,6 @@ export default function SalesOrderDetails() {
 
                             <div className="so-card">
                                 <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <h5 className="so-card-title">Orchestration Itemized Bill</h5>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowColConfig(true)}
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-                                            title="Column Configuration"
-                                        >
-                                            <Settings size={14} style={{ color: '#94a3b8' }} />
-                                        </button>
-                                    </div>
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
@@ -1764,31 +1827,41 @@ export default function SalesOrderDetails() {
                                                 </button>
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
-                                            <label className="so-label" style={{ marginBottom: '0.25rem', color: themeColor }}>Set Source Warehouse</label>
-                                            <select
-                                                className="so-select"
-                                                style={{ height: '2.5rem', fontSize: '0.75rem', fontWeight: 700 }}
-                                                value={form.set_source_warehouse || ''}
-                                                onChange={e => {
-                                                    const wh = e.target.value;
-                                                    setForm(prev => ({
-                                                        ...prev,
-                                                        set_source_warehouse: wh,
-                                                        items: prev.items.map(item => ({ ...item, warehouse: wh }))
-                                                    }));
-                                                }}
-                                            >
-                                                <option value="">Select Warehouse...</option>
-                                                {warehouses.map(w => (
-                                                    <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                        {isAdministrator && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
+                                                <label className="so-label" style={{ marginBottom: '0.25rem', color: themeColor }}>Set Source Warehouse</label>
+                                                <select
+                                                    className="so-select"
+                                                    style={{ height: '2.5rem', fontSize: '0.75rem', fontWeight: 700 }}
+                                                    value={form.set_source_warehouse || ''}
+                                                    onChange={e => {
+                                                        const wh = e.target.value;
+                                                        setForm(prev => ({
+                                                            ...prev,
+                                                            set_source_warehouse: wh,
+                                                            items: prev.items.map(item => ({ ...item, warehouse: wh }))
+                                                        }));
+                                                    }}
+                                                >
+                                                    <option value="">Select Warehouse...</option>
+                                                    {warehouses.map(w => (
+                                                        <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
                                         <button onClick={addItemRow} className="so-btn-ghost" style={{ marginTop: 'auto' }}>
                                             <Plus size={14} /> Add Row
                                         </button>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowColConfig(true)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                                        title="Column Configuration"
+                                    >
+                                        <Settings size={14} style={{ color: '#94a3b8' }} />
+                                    </button>
                                 </div>
                                 <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
                                     <table className="so-table">
@@ -2015,6 +2088,27 @@ export default function SalesOrderDetails() {
                                                                             )}
                                                                         </td>
                                                                     );
+                                                                case 'is_tax_inclusive':
+                                                                    return (
+                                                                        <td key={col.id}>
+                                                                            <select
+                                                                                className="so-td-input"
+                                                                                style={{ height: '38px', fontSize: '0.75rem', fontWeight: 'bold' }}
+                                                                                value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                                                                onChange={e => {
+                                                                                    const val = e.target.value === 'Inclusive';
+                                                                                    setForm(prev => {
+                                                                                        const items = [...(prev.items || [])];
+                                                                                        items[idx] = { ...items[idx], is_tax_inclusive: val };
+                                                                                        return recalcForm({ ...prev, items });
+                                                                                    });
+                                                                                }}
+                                                                            >
+                                                                                <option value="Inclusive">Inclusive</option>
+                                                                                <option value="Exclusive">Exclusive</option>
+                                                                            </select>
+                                                                        </td>
+                                                                    );
                                                                 case 'rate':
                                                                     return (
                                                                         <td key={col.id}>
@@ -2100,23 +2194,34 @@ export default function SalesOrderDetails() {
                                                 const val = e.target.value;
                                                 if (val) {
                                                     try {
-                                                        const encodedVal = encodeURIComponent(val);
-                                                        const res = await axios.get(`/api/resource/Sales Taxes and Charges Template/${encodedVal}`, { withCredentials: true });
-                                                        const rows = (res.data.data?.taxes || []).map(t => ({
+                                                        const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_so', { params: { template: val }, withCredentials: true });
+                                                        let rows = (res.data.message || []).map(t => ({
                                                             charge_type: t.charge_type,
                                                             account_head: t.account_head,
                                                             description: t.description || t.account_head || 'VAT',
                                                             rate: t.rate,
+                                                            add_deduct_tax: t.add_deduct_tax || 'Add',
                                                             tax_amount: 0,
                                                             total: 0
                                                         }));
+                                                        if (rows.length === 0 && val) {
+                                                            let rate = 0; let account = "";
+                                                            if (val.includes("5%")) { rate = 5; account = "VAT 5% - NS"; }
+                                                            else if (val.includes("Zero")) { rate = 0; account = "VAT Zero - NS"; }
+                                                            else if (val.includes("Exempted")) { rate = 0; account = "VAT Exempted - NS"; }
+                                                            else if (val.includes("50%")) { rate = 50; account = "Excise 50% - NS"; }
+                                                            else if (val.includes("100%")) { rate = 100; account = "Excise 100% - NS"; }
+                                                            if (account) {
+                                                                rows = [{ charge_type: "On Net Total", account_head: account, description: account, rate: rate, add_deduct_tax: "Add", tax_amount: 0, total: 0 }];
+                                                            }
+                                                        }
                                                         setForm(prev => recalcForm({
                                                             ...prev,
                                                             taxes_and_charges: val,
                                                             taxes: rows
                                                         }));
                                                     } catch (err) {
-                                                        console.error('Failed to fetch tax template details');
+                                                        console.error('Failed to fetch tax template details', err);
                                                         setForm(prev => ({ ...prev, taxes_and_charges: val }));
                                                     }
                                                 } else {
@@ -2277,10 +2382,12 @@ export default function SalesOrderDetails() {
                                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Fulfilment Data</span>
                                             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: themeColor }}>{form.delivery_date || 'N/A'}</span>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Source Warehouse</span>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: themeColor }}>{form.set_source_warehouse || 'Not Specified'}</span>
-                                        </div>
+                                        {isAdministrator && (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Source Warehouse</span>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: themeColor }}>{form.set_source_warehouse || 'Not Specified'}</span>
+                                            </div>
+                                        )}
                                         {form.po_no && (
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #e2e8f0', paddingTop: '0.75rem' }}>
                                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Customer PO</span>
@@ -2364,17 +2471,16 @@ export default function SalesOrderDetails() {
                             <div className="so-table-card">
                                 <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <h5 className="so-card-title">Orchestration Itemized Bill</h5>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowColConfig(true)}
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-                                            title="Column Configuration"
-                                        >
-                                            <Settings size={14} style={{ color: '#94a3b8' }} />
-                                        </button>
+                                        <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>{form.items.length} ACTIVE ITEMS</span>
                                     </div>
-                                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>{form.items.length} ACTIVE ITEMS</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowColConfig(true)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                                        title="Column Configuration"
+                                    >
+                                        <Settings size={14} style={{ color: '#94a3b8' }} />
+                                    </button>
                                 </div>
                                 <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
                                     <table className="so-table">
@@ -2485,6 +2591,22 @@ export default function SalesOrderDetails() {
                                                                             </div>
                                                                         </td>
                                                                     );
+                                                                case 'is_tax_inclusive':
+                                                                    return (
+                                                                        <td key={col.id} style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                                                            <span style={{
+                                                                                display: 'inline-block',
+                                                                                padding: '2px 8px',
+                                                                                borderRadius: '6px',
+                                                                                fontSize: '10px',
+                                                                                fontWeight: 'bold',
+                                                                                background: i.is_tax_inclusive !== false ? '#e0f2fe' : '#fef3c7',
+                                                                                color: i.is_tax_inclusive !== false ? '#0369a1' : '#b45309'
+                                                                            }}>
+                                                                                {i.is_tax_inclusive !== false ? 'INC' : 'EXC'}
+                                                                            </span>
+                                                                        </td>
+                                                                    );
                                                                 case 'qty':
                                                                     return (
                                                                         <td key={col.id} style={{ textAlign: 'left', paddingLeft: '10px', fontWeight: 800 }}>
@@ -2553,6 +2675,37 @@ export default function SalesOrderDetails() {
                 doctype="Sales Order"
                 themeColor={themeColor}
             />
+
+            {/* Quick Customer Creation Modal */}
+            {isCustomerModalOpen && (
+                <div className="so-modal-overlay" style={{ zIndex: 20000 }}>
+                    <div className="so-modal" style={{ width: '450px', background: '#fff', borderRadius: '1rem', overflow: 'hidden' }}>
+                        <div className="so-modal-header" style={{ background: themeColor, color: '#fff', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <User size={18} />
+                                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Create Customer</h3>
+                            </div>
+                            <X size={20} className="so-close-btn" onClick={() => setIsCustomerModalOpen(false)} style={{ color: '#fff', cursor: 'pointer' }} />
+                        </div>
+                        <div className="so-modal-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                            <div className="so-field">
+                                <label className="so-label">Customer Name *</label>
+                                <input className="so-input" value={newCustomer.customer_name} onChange={e => setNewCustomer({ ...newCustomer, customer_name: e.target.value })} placeholder="Enter customer name..." />
+                            </div>
+                            <div className="so-field">
+                                <label className="so-label">Mobile Number</label>
+                                <input className="so-input" value={newCustomer.mobile_no} onChange={e => setNewCustomer({ ...newCustomer, mobile_no: e.target.value })} placeholder="Enter mobile number..." />
+                            </div>
+                        </div>
+                        <div className="so-modal-footer" style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '1rem' }}>
+                            <button className="so-btn-secondary" style={{ flex: 1 }} onClick={() => setIsCustomerModalOpen(false)}>Cancel</button>
+                            <button className="so-btn-primary" style={{ flex: 1 }} disabled={savingCustomer} onClick={submitQuickCustomer}>
+                                {savingCustomer ? <Loader2 className="so-spinner" /> : 'Save & Select'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -2607,7 +2760,7 @@ const PortalDropdown = ({ itemsList, onSelect, targetEl, onClose, highlightedInd
     if (!targetEl || itemsList.length === 0) return null;
 
     return createPortal(
-        <div 
+        <div
             ref={dropdownRef}
             style={{
                 position: 'absolute',
@@ -2624,12 +2777,12 @@ const PortalDropdown = ({ itemsList, onSelect, targetEl, onClose, highlightedInd
             }}
         >
             {itemsList.map((it, idx) => (
-                <div 
-                    key={it.item_code} 
+                <div
+                    key={it.item_code}
                     onMouseDown={(e) => {
                         e.preventDefault();
                         onSelect(it);
-                    }} 
+                    }}
                     className="so-dropdown-item"
                     style={{
                         padding: '0.6rem 0.85rem',

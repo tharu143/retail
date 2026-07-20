@@ -1513,11 +1513,12 @@ function PurchaseOrder() {
       let taxAmt = 0;
       const rate = parseFloat(tax.rate) || 0;
       const chargeType = tax.charge_type || 'On Net Total';
+      const fixedAmount = parseFloat(tax.tax_amount) || 0; // The actual amount from template
 
       if (chargeType === "Actual") {
-        taxAmt = rate;
+        taxAmt = fixedAmount; // Use fixed amount for 'Actual'
       } else {
-        // Default to percentage check (On Net Total OR On Previous Row Amount simplified for now)
+        // Percentage based (On Net Total, etc.)
         taxAmt = (netTotal * rate) / 100;
       }
 
@@ -2214,231 +2215,6 @@ function PurchaseOrder() {
   return (
     <>
       <div className={`font-sans purchase-container ${theme === 'legacy' ? 'theme-legacy' : ''}`} style={{ height: '100vh', overflowY: 'auto' }}>
-        <div className="bg-white px-6 py-2 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="flex flex-col text-left">
-              <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
-                {formData.docstatus === 1 ? `Purchase Order: ${formData.name}` : (formData.name ? (isViewOnly ? `View PO: ${formData.name}` : `Edit PO: ${formData.name}`) : 'New Purchase Order')}
-              </h1>
-              <p className="text-[11px] font-normal text-slate-400 mt-0.5">
-                {formData.docstatus === 1 ? 'Submitted Document' : 'Procurement & Inventory'}
-              </p>
-            </div>
-
-
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Always show DELETE for drafts */}
-            {formData.name && formData.docstatus === 0 && allowedActions.includes('delete') && (
-              <button
-                onClick={() => handleDocAction('delete')}
-                className="so-btn-ghost hover:bg-red-50"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
-              >
-                <Trash2 size={14} className="inline mr-1" /> DELETE
-              </button>
-            )}
-
-            {/* Always show DUPLICATE if name exists */}
-            {formData.name && (
-              <button
-                onClick={handleDuplicate}
-                className="so-btn-secondary"
-                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-              >
-                <Copy size={14} /> DUPLICATE
-              </button>
-            )}
-
-            {/* NEW: CREATE & CONNECTIONS DROPDOWN BUTTON */}
-            {formData.name && (
-              <div className="relative" ref={createDropdownRef}>
-                <button
-                  onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                  className="so-btn-secondary"
-                  style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-                >
-                  <Plus size={14} /> CREATE <ChevronDown size={14} />
-                </button>
-                {showCreateDropdown && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-4 animate-fadeIn text-left">
-                    <div className="flex items-center gap-2 pb-2 mb-3 border-b border-slate-100">
-                      <Zap className="w-4 h-4 text-indigo-500 opacity-80 shrink-0" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Create & Connections</span>
-                    </div>
-
-                    {/* Primary Workflow Actions */}
-                    {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
-                      <div className="flex flex-col gap-2 mb-4">
-                        {formData.per_received < 100 && (
-                          <button
-                            onClick={() => {
-                              setShowCreateDropdown(false);
-                              handleCreateFlow('receipt');
-                            }}
-                            disabled={loadingLinks}
-                            className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Create Receipt
-                          </button>
-                        )}
-                        {formData.per_billed < 100 && (
-                          <button
-                            onClick={() => {
-                              setShowCreateDropdown(false);
-                              handleCreateFlow('invoice');
-                            }}
-                            disabled={loadingLinks}
-                            className="w-full flex items-center justify-center gap-2 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Create Invoice
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Connected Docs */}
-                    <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
-                      {linkedConnections.length > 0 ? (
-                        linkedConnections.filter(g => g.items.some(i => i.count > 0)).map((group) => (
-                          <div key={group.group} className="flex flex-col gap-1.5 text-left">
-                            <span className="text-[9px] font-black text-slate-450 uppercase tracking-tight text-slate-450">{group.group}</span>
-                            <div className="flex flex-col gap-2">
-                              {group.items.filter(item => item.count > 0).map((item) => (
-                                <div key={item.label} className="bg-slate-50/50 rounded-lg p-2 border border-slate-100/50">
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <div className="flex items-center gap-1.5">
-                                      <Link size={10} className="text-slate-450" />
-                                      <span className="text-[9px] font-black text-slate-550 uppercase tracking-wider text-slate-600">{item.label}</span>
-                                    </div>
-                                    <span className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded font-bold">{item.count}</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {(item.names || []).map(id => {
-                                      const s = linkedDocStatuses[id];
-                                      const isSub = s?.docstatus === 1;
-                                      return (
-                                        <button
-                                          key={id}
-                                          onClick={() => {
-                                            setShowCreateDropdown(false);
-                                            navigateToDoc(item.label, id);
-                                          }}
-                                          className="group/id flex items-center gap-1 p-0.5 px-1.5 bg-white border border-slate-100 rounded transition-all hover:border-indigo-200 hover:shadow-sm"
-                                          title={`View ${item.label}: ${id}`}
-                                        >
-                                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
-                                          <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{id}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="py-2 text-center">
-                          <p className="text-[9px] font-bold text-slate-450 italic text-slate-400">No connections yet</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Always show EDIT DRAFT as secondary action on the left of primary when in view mode */}
-            {formData.name && formData.docstatus === 0 && isViewOnly && (
-              <button
-                onClick={() => setIsViewOnly(false)}
-                className="so-btn-secondary"
-                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-              >
-                <Edit3 size={14} /> EDIT DRAFT
-              </button>
-            )}
-
-            {/* THE SINGLE DYNAMIC PRIMARY ACTION BUTTON (always rightmost) */}
-            {!formData.name ? (
-              // 1. New Document state -> SAVE DRAFT
-              <button
-                onClick={() => handleDocAction('save')}
-                disabled={saving}
-                className="so-btn-primary"
-                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : 'SAVE DRAFT'}
-              </button>
-            ) : (
-              formData.docstatus === 0 ? (
-                // 2. Draft phase
-                !isViewOnly ? (
-                  // Edit mode -> UPDATE DRAFT
-                  <button
-                    onClick={() => handleDocAction('save')}
-                    disabled={saving}
-                    className="so-btn-primary"
-                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                  >
-                    {saving ? <Loader2 size={14} className="animate-spin" /> : 'UPDATE DRAFT'}
-                  </button>
-                ) : (
-                  // View mode (not dirty) -> SUBMIT
-                  allowedActions.includes('submit') && (
-                    <button
-                      onClick={() => handleDocAction('submit')}
-                      disabled={saving}
-                      className="so-btn-primary"
-                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                    >
-                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'SUBMIT'}
-                    </button>
-                  )
-                )
-              ) : formData.docstatus === 1 ? (
-                // 3. Submitted phase -> CANCEL
-                <div className="flex items-center gap-3">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#ecfdf5', borderRadius: '0.75rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
-                    <CheckCircle2 size={14} /> SUBMITTED
-                  </div>
-                  {allowedActions.includes('cancel') && (
-                    <button
-                      onClick={() => handleDocAction('cancel')}
-                      disabled={saving}
-                      className="so-btn-primary"
-                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
-                    >
-                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'CANCEL'}
-                    </button>
-                  )}
-                </div>
-              ) : formData.docstatus === 2 ? (
-                // 4. Cancelled phase -> AMEND
-                <div className="flex items-center gap-3">
-                  <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
-                    CANCELLED
-                  </div>
-                  {allowedActions.includes('amend') && (
-                    <button
-                      onClick={() => handleDocAction('amend')}
-                      disabled={saving}
-                      className="so-btn-primary"
-                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
-                    >
-                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'AMEND'}
-                    </button>
-                  )}
-                </div>
-              ) : null
-            )}
-          </div>
-        </div>
-
         {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
         <div className="so-shortcut-guide-banner">
           <style>{`
@@ -2448,12 +2224,15 @@ function PurchaseOrder() {
               border-bottom: 1.5px solid #e2e8f0;
               padding: 6px 16px;
               display: flex;
-              flex-wrap: nowrap;
-              overflow-x: auto;
-              scrollbar-width: none;
-              -ms-overflow-style: none;
-              align-items: center;
+              align-items: flex-start;
               gap: 8px;
+            }
+            .so-shortcut-badges-wrapper {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              align-items: center;
+              flex: 1;
             }
             .so-shortcut-guide-banner::-webkit-scrollbar {
               display: none;
@@ -2461,6 +2240,7 @@ function PurchaseOrder() {
             .so-shortcut-banner-title {
               display: flex;
               align-items: center;
+              margin-top: 5px;
               gap: 4px;
               color: #64748b;
               font-size: 9px;
@@ -2737,6 +2517,7 @@ function PurchaseOrder() {
             </span>
             Quick Shortcuts
           </div>
+          <div className="so-shortcut-badges-wrapper">
           <div className="so-shortcut-badge blue">
             <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
             <span className="so-shortcut-label">Supplier</span>
@@ -2785,7 +2566,233 @@ function PurchaseOrder() {
             <span className="so-shortcut-key">+ / -</span>
             <span className="so-shortcut-label">Qty Adjust</span>
           </div>
+          </div>
         </div>
+        <div className="bg-white px-6 py-2 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col text-left">
+              <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
+                {formData.docstatus === 1 ? `Purchase Order: ${formData.name}` : (formData.name ? (isViewOnly ? `View PO: ${formData.name}` : `Edit PO: ${formData.name}`) : 'New Purchase Order')}
+              </h1>
+              <p className="text-[11px] font-normal text-slate-400 mt-0.5">
+                {formData.docstatus === 1 ? 'Submitted Document' : 'Procurement & Inventory'}
+              </p>
+            </div>
+
+
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Always show DELETE for drafts */}
+            {formData.name && formData.docstatus === 0 && allowedActions.includes('delete') && (
+              <button
+                onClick={() => handleDocAction('delete')}
+                className="so-btn-ghost hover:bg-red-50"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
+              >
+                <Trash2 size={14} className="inline mr-1" /> DELETE
+              </button>
+            )}
+
+            {/* Always show DUPLICATE if name exists */}
+            {formData.name && (
+              <button
+                onClick={handleDuplicate}
+                className="so-btn-secondary"
+                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+              >
+                <Copy size={14} /> DUPLICATE
+              </button>
+            )}
+
+            {/* NEW: CREATE & CONNECTIONS DROPDOWN BUTTON */}
+            {formData.name && (
+              <div className="relative" ref={createDropdownRef}>
+                <button
+                  onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                  className="so-btn-secondary"
+                  style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                >
+                  <Plus size={14} /> CREATE <ChevronDown size={14} />
+                </button>
+                {showCreateDropdown && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-4 animate-fadeIn text-left">
+                    <div className="flex items-center gap-2 pb-2 mb-3 border-b border-slate-100">
+                      <Zap className="w-4 h-4 text-indigo-500 opacity-80 shrink-0" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Create & Connections</span>
+                    </div>
+
+                    {/* Primary Workflow Actions */}
+                    {formData.docstatus === 1 && (formData.per_received < 100 || formData.per_billed < 100) && (
+                      <div className="flex flex-col gap-2 mb-4">
+                        {formData.per_received < 100 && (
+                          <button
+                            onClick={() => {
+                              setShowCreateDropdown(false);
+                              handleCreateFlow('receipt');
+                            }}
+                            disabled={loadingLinks}
+                            className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create Receipt
+                          </button>
+                        )}
+                        {formData.per_billed < 100 && (
+                          <button
+                            onClick={() => {
+                              setShowCreateDropdown(false);
+                              handleCreateFlow('invoice');
+                            }}
+                            disabled={loadingLinks}
+                            className="w-full flex items-center justify-center gap-2 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create Invoice
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Connected Docs */}
+                    <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                      {linkedConnections.length > 0 ? (
+                        linkedConnections.filter(g => g.items.some(i => i.count > 0)).map((group) => (
+                          <div key={group.group} className="flex flex-col gap-1.5 text-left">
+                            <span className="text-[9px] font-black text-slate-450 uppercase tracking-tight text-slate-450">{group.group}</span>
+                            <div className="flex flex-col gap-2">
+                              {group.items.filter(item => item.count > 0).map((item) => (
+                                <div key={item.label} className="bg-slate-50/50 rounded-lg p-2 border border-slate-100/50">
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <Link size={10} className="text-slate-450" />
+                                      <span className="text-[9px] font-black text-slate-550 uppercase tracking-wider text-slate-600">{item.label}</span>
+                                    </div>
+                                    <span className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded font-bold">{item.count}</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {(item.names || []).map(id => {
+                                      const s = linkedDocStatuses[id];
+                                      const isSub = s?.docstatus === 1;
+                                      return (
+                                        <button
+                                          key={id}
+                                          onClick={() => {
+                                            setShowCreateDropdown(false);
+                                            navigateToDoc(item.label, id);
+                                          }}
+                                          className="group/id flex items-center gap-1 p-0.5 px-1.5 bg-white border border-slate-100 rounded transition-all hover:border-indigo-200 hover:shadow-sm"
+                                          title={`View ${item.label}: ${id}`}
+                                        >
+                                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSub ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
+                                          <span className="text-[9px] font-bold text-slate-700 tabular-nums truncate">{id}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-2 text-center">
+                          <p className="text-[9px] font-bold text-slate-450 italic text-slate-400">No connections yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Always show EDIT DRAFT as secondary action on the left of primary when in view mode */}
+            {formData.name && formData.docstatus === 0 && isViewOnly && (
+              <button
+                onClick={() => setIsViewOnly(false)}
+                className="so-btn-secondary"
+                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+              >
+                <Edit3 size={14} /> EDIT DRAFT
+              </button>
+            )}
+
+            {/* THE SINGLE DYNAMIC PRIMARY ACTION BUTTON (always rightmost) */}
+            {!formData.name ? (
+              // 1. New Document state -> SAVE DRAFT
+              <button
+                onClick={() => handleDocAction('save')}
+                disabled={saving}
+                className="so-btn-primary"
+                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : 'SAVE DRAFT'}
+              </button>
+            ) : (
+              formData.docstatus === 0 ? (
+                // 2. Draft phase
+                !isViewOnly ? (
+                  // Edit mode -> UPDATE DRAFT
+                  <button
+                    onClick={() => handleDocAction('save')}
+                    disabled={saving}
+                    className="so-btn-primary"
+                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                  >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : 'UPDATE DRAFT'}
+                  </button>
+                ) : (
+                  // View mode (not dirty) -> SUBMIT
+                  allowedActions.includes('submit') && (
+                    <button
+                      onClick={() => handleDocAction('submit')}
+                      disabled={saving}
+                      className="so-btn-primary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                    >
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'SUBMIT'}
+                    </button>
+                  )
+                )
+              ) : formData.docstatus === 1 ? (
+                // 3. Submitted phase -> CANCEL
+                <div className="flex items-center gap-3">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#ecfdf5', borderRadius: '0.75rem', border: '1px solid #10b98140', color: '#10b981', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                    <CheckCircle2 size={14} /> SUBMITTED
+                  </div>
+                  {allowedActions.includes('cancel') && (
+                    <button
+                      onClick={() => handleDocAction('cancel')}
+                      disabled={saving}
+                      className="so-btn-primary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
+                    >
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'CANCEL'}
+                    </button>
+                  )}
+                </div>
+              ) : formData.docstatus === 2 ? (
+                // 4. Cancelled phase -> AMEND
+                <div className="flex items-center gap-3">
+                  <div style={{ padding: '0.5rem 1rem', background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 900, borderRadius: '0.75rem', textTransform: 'uppercase' }}>
+                    CANCELLED
+                  </div>
+                  {allowedActions.includes('amend') && (
+                    <button
+                      onClick={() => handleDocAction('amend')}
+                      disabled={saving}
+                      className="so-btn-primary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
+                    >
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : 'AMEND'}
+                    </button>
+                  )}
+                </div>
+              ) : null
+            )}
+          </div>
+        </div>
+
 
         <div className="po-layout-container !pt-4 pb-20">
           <div className="w-full flex flex-col gap-6 relative">
@@ -3042,10 +3049,12 @@ function PurchaseOrder() {
                               }
 
                               let alignClass = "text-center";
-                              if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
-                                alignClass = "text-left pl-3";
-                              } else if (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id)) {
-                                alignClass = "text-right pr-3";
+                              if (col.align === 'left') alignClass = "text-left pl-3";
+                              else if (col.align === 'right') alignClass = "text-right pr-3";
+                              else if (col.align === 'center') alignClass = "text-center";
+                              else {
+                                if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) alignClass = "text-left pl-3";
+                                else if (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id)) alignClass = "text-right pr-3";
                               }
 
                               return (
@@ -3059,7 +3068,11 @@ function PurchaseOrder() {
                               );
                             });
                           })()}
-                          <th className="purchase-th w-[50px]"></th>
+                          <th className="purchase-th w-[50px] text-center">
+                            <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-[var(--po-primary)] transition-colors p-1" title="Configure Columns">
+                              <Settings className="w-4 h-4" />
+                            </button>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3092,7 +3105,7 @@ function PurchaseOrder() {
                                                 if (e.key === 'Enter' && e.target.value) handleBarcodeEnter(e, idx);
                                                 else handleNextFocus(e);
                                               }}
-                                              className="text-center font-bold"
+                                              className={`font-bold \${alignClass}`}
                                             />
                                           </div>
                                         </div>
@@ -3192,7 +3205,7 @@ function PurchaseOrder() {
                                                 onFocus={(e) => e.target.select()}
                                                 onClick={(e) => e.target.select()}
                                                 onKeyDown={handleNextFocus}
-                                                className="text-left pl-3"
+                                                className={`\${alignClass}`}
                                                 title="Pieces per Box"
                                               />
                                             ) : (
@@ -3221,7 +3234,7 @@ function PurchaseOrder() {
                                                   onFocus={(e) => e.target.select()}
                                                   onClick={(e) => e.target.select()}
                                                   onKeyDown={handleNextFocus}
-                                                  className="text-right pr-3 font-bold"
+                                                  className={`font-bold \${alignClass}`}
                                                 />
                                               )
                                             ) : (
@@ -3249,7 +3262,7 @@ function PurchaseOrder() {
                                                 onFocus={(e) => e.target.select()}
                                                 onClick={(e) => e.target.select()}
                                                 onKeyDown={handleNextFocus}
-                                                className="text-right pr-3 font-bold !text-[var(--po-primary)]"
+                                                className={`font-bold \${alignClass} !text-[var(--po-primary)]`}
                                               />
                                             )}
                                           </div>
@@ -3395,8 +3408,8 @@ function PurchaseOrder() {
                               });
                             })()}
                             <td className="purchase-td text-center">
-                              {!isViewOnly && formData.docstatus === 0 && (
-                                <button type="button" onClick={() => removeItemRow(idx)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 className="w-4 h-4" /></button>
+                              {(!isViewOnly && formData.docstatus === 0) && (
+                                <button type="button" onClick={() => removeItemRow(idx)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all mx-auto"><Trash2 className="w-4 h-4" /></button>
                               )}
                             </td>
                           </tr>

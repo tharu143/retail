@@ -859,6 +859,220 @@ function PurchaseReturnList() {
           font-size: 1.35rem !important;
           font-weight: 900 !important;
         }
+
+        /* Full Dark Red Theme Overrides for Detail Panel */
+        .so-detail-page {
+          background: #f8fafc !important;
+          padding: 1.5rem !important;
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .so-detail-page .so-page-header {
+          background: #8c1d1d !important;
+          color: #ffffff !important;
+          border-bottom: none !important;
+          border-left: none !important;
+          border-radius: 12px !important;
+          padding: 1.25rem 2rem !important;
+          box-shadow: 0 4px 12px rgba(140, 29, 29, 0.15) !important;
+        }
+
+        .so-detail-page .so-page-header .so-page-title {
+          color: #ffffff !important;
+        }
+
+        .so-detail-page .so-page-header .so-page-title svg {
+          color: #ffffff !important;
+        }
+
+        .so-detail-page .so-page-header .so-page-subtitle {
+          color: #fca5a5 !important;
+        }
+
+        .so-detail-page .so-page-header button {
+          background: transparent !important;
+          color: #ffffff !important;
+          border: 1px solid rgba(255, 255, 255, 0.4) !important;
+          border-radius: 8px !important;
+          padding: 0.45rem 1.25rem !important;
+          font-weight: 700 !important;
+          font-size: 0.75rem !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.05em !important;
+          transition: all 0.2s !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 0.375rem !important;
+        }
+
+        .so-detail-page .so-page-header button:hover {
+          background: rgba(255, 255, 255, 0.1) !important;
+          border-color: #ffffff !important;
+        }
+
+        .so-detail-page .so-card,
+        .so-detail-page .so-table-card,
+        .so-detail-page .so-summary-bar {
+          background: #8c1d1d !important;
+          color: #ffffff !important;
+          border: none !important;
+          border-radius: 12px !important;
+          box-shadow: 0 4px 12px rgba(140, 29, 29, 0.15) !important;
+        }
+
+        .so-detail-page .so-card-header {
+          background: transparent !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+        }
+
+        .so-detail-page .so-card-title {
+          color: #ffffff !important;
+          font-weight: 800 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.08em !important;
+        }
+
+        .so-detail-page .so-summary-bar {
+          display: grid !important;
+          grid-template-columns: repeat(4, 1fr) !important;
+          gap: 1rem !important;
+          padding: 1.25rem 2rem !important;
+        }
+
+        .so-detail-page .so-summary-item {
+          border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 0.25rem !important;
+        }
+
+        .so-detail-page .so-summary-item:last-child {
+          border-right: none !important;
+        }
+
+        .so-detail-page .so-summary-label {
+          color: #fca5a5 !important;
+          font-weight: 700 !important;
+          font-size: 0.675rem !important;
+          letter-spacing: 0.05em !important;
+          text-transform: uppercase !important;
+        }
+
+        .so-detail-page .so-summary-value {
+          color: #ffffff !important;
+          font-weight: 800 !important;
+        }
+
+        .so-detail-page .so-summary-value.grand {
+          color: #ffffff !important;
+          font-size: 1.35rem !important;
+          font-weight: 900 !important;
+        }
+
+        .so-detail-page .so-card-body span[style*="text-transform"] {
+          color: #fca5a5 !important;
+        }
+
+        .so-detail-page .so-card-body span[style*="font-weight"] {
+          color: #ffffff !important;
+        }
+
+        .so-detail-page .so-card-body div[style*="justify-content"] {
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+          padding-bottom: 0.75rem !important;
+        }
+
+        .so-detail-page .so-card-body div[style*="justify-content"]:last-child {
+          border-bottom: none !important;
+          padding-bottom: 0 !important;
+        }
+
+        .so-detail-page .so-card-body div[style*="border-top"] {
+          border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+        }
+
+        .so-detail-page .so-table {
+          width: 100%;
+          border-collapse: collapse !important;
+        }
+
+        .so-detail-page .so-table thead th {
+          background: rgba(255, 255, 255, 0.05) !important;
+          color: #fca5a5 !important;
+          border-bottom: 2px solid rgba(255, 255, 255, 0.15) !important;
+          font-weight: 800 !important;
+          font-size: 0.725rem !important;
+          text-transform: uppercase !important;
+        }
+
+        .so-detail-page .so-table tbody td {
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+          color: #ffffff !important;
+        }
+
+        .so-detail-page .so-table tbody td div,
+        .so-detail-page .so-table tbody td span {
+          color: #ffffff !important;
+        }
+
+        .so-detail-page .so-table tbody td div[style*="color"] {
+          color: #fca5a5 !important;
+        }
+
+        .so-detail-page .so-table tbody tr:hover {
+          background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .so-detail-page .so-card [style*="background: rgb(255, 255, 255)"],
+        .so-detail-page [style*="background: rgb(255, 255, 255)"] {
+          background: #8c1d1d !important;
+          border-color: rgba(255, 255, 255, 0.15) !important;
+        }
+
+        .so-detail-page [style*="background: rgba(248, 250, 252, 0.5)"] {
+          background: rgba(255, 255, 255, 0.05) !important;
+          border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .so-detail-page [style*="color: rgb(51, 65, 85)"] {
+          color: #ffffff !important;
+        }
+
+        .so-detail-page [style*="color: rgb(148, 163, 184)"] {
+          color: #fca5a5 !important;
+        }
+
+        .so-detail-page [style*="color: rgb(100, 116, 139)"] {
+          color: #fca5a5 !important;
+        }
+
+        .so-detail-page [style*="background: rgb(241, 245, 249)"] {
+          background: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .so-detail-page .so-card label span,
+        .so-detail-page label span {
+          background: transparent !important;
+          color: #ffffff !important;
+          border: 1px solid rgba(255, 255, 255, 0.4) !important;
+          border-radius: 6px !important;
+          font-weight: 700 !important;
+          transition: all 0.2s !important;
+        }
+
+        .so-detail-page .so-card label span:hover,
+        .so-detail-page label span:hover {
+          background: rgba(255, 255, 255, 0.1) !important;
+          border-color: #ffffff !important;
+        }
+
+        .so-detail-page svg {
+          color: #ffffff !important;
+        }
       `}</style>
 
       {/* ────────────────────── LIST VIEW ────────────────────── */}
@@ -1450,7 +1664,7 @@ function PurchaseReturnList() {
 
       {/* ────────────────────── DETAIL VIEW (SUBMITTED / DRAFT DETAILS) ────────────────────── */}
       {view === 'detail' && selectedReturnDoc && (
-        <div className="so-page animate-in fade-in duration-500">
+        <div className="so-page so-detail-page animate-in fade-in duration-500">
           {/* 1. Page Header */}
           <div className="so-page-header">
             <div>

@@ -529,7 +529,19 @@ const SalesInvoiceList = () => {
     }
     try {
       const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_si', { params: { template } });
-      setForm(prev => ({ ...prev, taxes: res.data.message || [], taxes_and_charges: template }));
+      let rows = res.data.message || [];
+      if (rows.length === 0 && template) {
+        let rate = 0; let account = "";
+        if (template.includes("5%")) { rate = 5; account = "VAT 5% - NS"; }
+        else if (template.includes("Zero")) { rate = 0; account = "VAT Zero - NS"; }
+        else if (template.includes("Exempted")) { rate = 0; account = "VAT Exempted - NS"; }
+        else if (template.includes("50%")) { rate = 50; account = "Excise 50% - NS"; }
+        else if (template.includes("100%")) { rate = 100; account = "Excise 100% - NS"; }
+        if (account) {
+          rows = [{ charge_type: "On Net Total", account_head: account, description: account, rate: rate, add_deduct_tax: "Add", tax_amount: 0, total: 0 }];
+        }
+      }
+      setForm(prev => ({ ...prev, taxes: rows, taxes_and_charges: template }));
       calculateTotals();
     } catch (err) { }
   };
@@ -596,7 +608,8 @@ const SalesInvoiceList = () => {
       custom_box_qty: 1,
       custom_box_price: 0,
       custom_selling_price: parseFloat(item.selling_price || 0),
-      custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || ''
+      custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
+      is_tax_inclusive: true
     };
     try {
       const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_selling_rate_si', {
@@ -2166,6 +2179,7 @@ const SalesInvoiceList = () => {
                                       <th style={{ padding: "1rem 1.5rem", textAlign: "right", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "140px" }}>Rate</th>
                                     </>
                                   )}
+                                  <th style={{ padding: "1rem 1.5rem", textAlign: "center", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "100px" }}>Tax</th>
                                   <th style={{ padding: "1rem 1.5rem", textAlign: "right", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: "140px", paddingRight: "1.5rem" }}>Amount</th>
                                 </tr>
                               </thead>
@@ -2206,6 +2220,19 @@ const SalesInvoiceList = () => {
                                         </td>
                                       </>
                                     )}
+                                    <td style={{ padding: "1rem 1.5rem", textAlign: "center" }}>
+                                      <span style={{
+                                        display: 'inline-block',
+                                        padding: '2px 8px',
+                                        borderRadius: '6px',
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                        background: item.is_tax_inclusive !== false ? '#e0f2fe' : '#fef3c7',
+                                        color: item.is_tax_inclusive !== false ? '#0369a1' : '#b45309'
+                                      }}>
+                                        {item.is_tax_inclusive !== false ? 'INC' : 'EXC'}
+                                      </span>
+                                    </td>
                                     <td style={{ padding: "1rem 1.5rem", textAlign: "right", fontWeight: 800, color: themeColor, paddingRight: "1.5rem" }}>
                                       {getCurrencySymbol()}{item.amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                     </td>
@@ -2414,6 +2441,7 @@ const SalesInvoiceList = () => {
                                         <th style={{ width: '140px', textAlign: 'right' }}>Rate</th>
                                       </>
                                     )}
+                                    <th style={{ width: '100px', textAlign: 'center' }}>Tax</th>
                                     <th style={{ width: '140px', textAlign: 'right', paddingRight: '1.5rem' }}>Amount</th>
                                     <th style={{ width: '50px' }}></th>
                                   </tr>
@@ -2649,6 +2677,31 @@ const SalesInvoiceList = () => {
                                           />
                                         </td>
                                       )}
+
+                                      {/* Tax dropdown column */}
+                                      <td>
+                                        <select
+                                          className="so-select"
+                                          value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                          onChange={e => {
+                                            const val = e.target.value === 'Inclusive';
+                                            setForm(prev => {
+                                              const items = [...(prev.items || [])];
+                                              items[i] = { ...items[i], is_tax_inclusive: val };
+                                              return { ...prev, items };
+                                            });
+                                            // Trigger total calculation after updating is_tax_inclusive
+                                            setTimeout(() => {
+                                              calculateTotals();
+                                            }, 50);
+                                          }}
+                                          style={{ height: '36px', padding: '0.25rem 0.5rem', width: '100%' }}
+                                          disabled={isReturnMode}
+                                        >
+                                          <option value="Inclusive">Inclusive</option>
+                                          <option value="Exclusive">Exclusive</option>
+                                        </select>
+                                      </td>
 
                                       {/* Amount column */}
                                       <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.9rem', paddingRight: '1.5rem', color: 'var(--so-primary)' }}>

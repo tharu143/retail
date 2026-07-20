@@ -333,7 +333,7 @@ function CustomerList() {
 
   const [form, setForm] = useState({
     customer_name: '', mobile_no: '+971', email_id: '', salutation: '',
-    customer_type: 'Individual', customer_group: 'All Customer Groups',
+    customer_type: 'Individual', customer_group: 'Retail Customer',
     territory: 'All Territories', gender: '', tax_id: '',
     account_manager: '', prospect_name: '', image: '',
     default_price_list: '', is_internal_customer: 0, customer_pos_id: '',
@@ -496,7 +496,7 @@ function CustomerList() {
     setModalMode('create');
     setForm({
       customer_name: '', mobile_no: '+971', email_id: '', salutation: '',
-      customer_type: 'Individual', customer_group: 'All Customer Groups',
+      customer_type: 'Individual', customer_group: 'Retail Customer',
       territory: 'All Territories', gender: '', tax_id: '',
       account_manager: '', prospect_name: '', image: '',
       default_price_list: '', is_internal_customer: 0, customer_pos_id: '',
@@ -526,7 +526,7 @@ function CustomerList() {
       email_id: selectedCustomer.email_id || '',
       salutation: selectedCustomer.salutation || '',
       customer_type: selectedCustomer.customer_type || 'Individual',
-      customer_group: selectedCustomer.customer_group || 'All Customer Groups',
+      customer_group: selectedCustomer.customer_group || 'Retail Customer',
       territory: selectedCustomer.territory || 'All Territories',
       gender: selectedCustomer.gender || '',
       tax_id: selectedCustomer.tax_id || '',
