@@ -9,7 +9,6 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
-import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import AttachmentSection from './AttachmentSection';
 import ListCustomizer from './ListCustomizer';
@@ -610,289 +609,113 @@ function SalesReturnList() {
   /* ────────────────────── RENDER ────────────────────── */
   return (
     <div style={{
-      '--so-primary': themeColor,
-      '--so-primary-hover': themeColorHover,
-      '--so-primary-light': themeLight,
-      '--po-primary': themeColor,
-      '--po-primary-hover': themeColorHover,
-      '--po-primary-light': themeLight,
+      padding: '24px',
+      background: '#851515',
       minHeight: '100vh',
-      background: '#fafaf9',
       position: 'relative',
       fontFamily: "'DM Sans', sans-serif"
     }}>
       <style>{`
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .split-panel { height: calc(100vh - 270px); overflow-y: auto; padding-right: 4px; }
-        
-        /* Premium Core variables */
+
+        /* Solid Dark Red & Pure White Theme across ALL Return Views (List, Create & Detail) */
         .so-page,
-        .so-page * {
-          --so-primary: #be123c !important;
-          --so-primary-hover: #9f1239 !important;
-          --so-primary-light: #fff1f2 !important;
-          --po-primary: #be123c !important;
-          --po-primary-hover: #9f1239 !important;
-          --po-primary-light: #fff1f2 !important;
-          --so-success: #be123c !important;
-          --so-success-hover: #9f1239 !important;
-          --so-danger: #be123c !important;
-          --so-danger-hover: #9f1239 !important;
-          --so-warning: #d97706 !important;
-          --so-warning-hover: #b45309 !important;
-          --so-bg: #fafaf9 !important;
-        }
-
-        /* Modernized Elegant Header */
-        .so-page-header {
-          background: #ffffff !important;
-          color: #0f172a !important;
-          border-bottom: 1px solid #f1f5f9 !important;
-          border-left: 5px solid #be123c !important;
-          padding: 1.25rem 2rem !important;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02) !important;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .so-page-header .so-page-title {
-          color: #0f172a !important;
-          font-weight: 850 !important;
-          font-size: 1.35rem !important;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .so-page-header .so-page-title svg {
-          color: #be123c !important;
-        }
-        .so-page-header .so-page-subtitle {
-          color: #64748b !important;
-          font-weight: 700 !important;
-          font-size: 0.725rem !important;
-          letter-spacing: 0.08em !important;
-          text-transform: uppercase !important;
-          margin-top: 0.25rem;
-        }
-        .so-page-header .so-btn-secondary {
-          background: #ffffff !important;
-          color: #475569 !important;
-          border: 1px solid #e2e8f0 !important;
-        }
-        .so-page-header .so-btn-secondary:hover {
-          background: #f8fafc !important;
-          border-color: #cbd5e1 !important;
-          color: #0f172a !important;
-        }
-
-        /* Modernized Inputs & Form Elements */
-        .so-input,
-        .so-select {
-          border: 1px solid #cbd5e1 !important;
-          border-radius: 8px !important;
-          padding: 0.65rem 0.95rem !important;
-          font-size: 0.825rem !important;
-          font-weight: 600 !important;
-          color: #1e293b !important;
-          background: #ffffff !important;
-          transition: all 0.2s !important;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-        }
-        .so-input:focus,
-        .so-select:focus {
-          border-color: #be123c !important;
-          box-shadow: 0 0 0 3px rgba(190, 18, 60, 0.12) !important;
-          background: #ffffff !important;
-        }
-        .so-label {
-          font-size: 0.675rem !important;
-          font-weight: 800 !important;
-          color: #475569 !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.05em !important;
-          margin-bottom: 0.25rem !important;
-        }
-
-        /* Table Card and General Card Styling */
-        .so-table-card,
-        .so-card {
-          border-radius: 12px !important;
-          border: 1px solid #e2e8f0 !important;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
-          background: #ffffff !important;
-          overflow: hidden !important;
-          transition: all 0.2s !important;
-        }
-        .so-card:hover {
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05) !important;
-        }
-        .so-card-header {
-          border-bottom: 1px solid #f1f5f9 !important;
-          padding: 0.85rem 1.25rem !important;
-          background: #ffffff !important;
-        }
-        .so-card-title {
-          font-size: 0.75rem !important;
-          font-weight: 800 !important;
-          color: #475569 !important;
-          letter-spacing: 0.08em !important;
-        }
-
-        /* Custom Return Qty Input Table Styling */
-        .so-td-input {
-          border: 1px solid #e2e8f0 !important;
-          border-radius: 6px !important;
-          background: #ffffff !important;
-          font-weight: 700 !important;
-          color: #0f172a !important;
-          transition: all 0.15s !important;
-        }
-        .so-td-input:hover:not(:disabled) {
-          border-color: #cbd5e1 !important;
-          background: #f8fafc !important;
-        }
-        .so-td-input:focus:not(:disabled) {
-          border-color: #be123c !important;
-          background: #ffffff !important;
-          box-shadow: 0 0 0 2px rgba(190, 18, 60, 0.1) !important;
-        }
-        .so-td-input:disabled {
-          background: #f1f5f9 !important;
-          border-color: #e2e8f0 !important;
-          color: #94a3b8 !important;
-        }
-
-        /* Table Header Customization */
-        .so-table thead th {
-          background: #fff1f2 !important;
-          color: #9f1239 !important;
-          font-weight: 800 !important;
-          font-size: 0.725rem !important;
-          letter-spacing: 0.05em !important;
-          padding: 0.95rem 1.25rem !important;
-          border: none !important;
-          border-bottom: 2px solid #ffe4e6 !important;
-          text-transform: uppercase !important;
-        }
-        .so-table tbody td {
-          padding: 0.95rem 1.25rem !important;
-          font-size: 0.825rem !important;
-          border: none !important;
-          border-bottom: 1px solid #f1f5f9 !important;
-          color: #334155 !important;
-        }
-        .so-table tbody tr {
-          transition: all 0.15s !important;
-        }
-        .so-table tbody tr:hover {
-          background: #fff8f8 !important;
-        }
-
-        /* Pill status badges */
-        .so-badge {
-          display: inline-flex !important;
-          align-items: center !important;
-          padding: 0.25rem 0.75rem !important;
-          border-radius: 9999px !important;
-          font-size: 0.675rem !important;
-          font-weight: 800 !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.04em !important;
-        }
-        .so-badge-submitted {
-          background: #ffe4e6 !important;
-          color: #9f1239 !important;
-          border: 1px solid #fca5a5 !important;
-        }
-        .so-badge-draft {
-          background: #fef3c7 !important;
-          color: #b45309 !important;
-          border: 1px solid #fde68a !important;
-        }
-
-        /* Left Side Matching Invoices Cards */
-        .split-panel .so-card {
-          border: 1px solid #e2e8f0 !important;
-          border-radius: 10px !important;
-        }
-        .split-panel .so-card:hover {
-          border-color: #be123c !important;
-          transform: translateY(-1px);
-        }
-
-        /* Checkbox color overrides */
-        input[type="checkbox"] {
-          accent-color: #be123c !important;
-          cursor: pointer !important;
-        }
-
-        /* Detail View Summary Bar */
-        .so-summary-bar {
-          background: #ffffff !important;
-          border: 1px solid #e2e8f0 !important;
-          border-radius: 12px !important;
-          padding: 1.25rem 2rem !important;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
-        }
-        .so-summary-label {
-          font-size: 0.725rem !important;
-          font-weight: 700 !important;
-          color: #64748b !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.05em !important;
-        }
-        .so-summary-value {
-          font-size: 1.1rem !important;
-          font-weight: 800 !important;
-          color: #1e293b !important;
-        }
-        .so-summary-value.grand {
-          color: #be123c !important;
-          font-size: 1.35rem !important;
-          font-weight: 900 !important;
-        }
-
-        /* Full Dark Red Theme Overrides for Detail Panel */
-        /* Solid Dark Red & Pure White Premium Theme for Return Details Panel */
-        .so-detail-page {
+        div.so-page,
+        div.so-detail-page {
           background: #851515 !important;
           padding: 1.5rem !important;
           display: flex;
           flex-direction: column;
           gap: 1.25rem;
           color: #ffffff !important;
+          border-radius: 12px !important;
         }
 
-        .so-detail-page * {
+        /* High specificity overrides over SalesOrder.css */
+        .so-page div.so-page-header,
+        .so-page div.so-card,
+        .so-page div.so-table-card,
+        .so-page div.so-summary-bar,
+        .so-page div.so-content,
+        .so-detail-page div.so-page-header,
+        .so-detail-page div.so-card,
+        .so-detail-page div.so-table-card,
+        .so-detail-page div.so-summary-bar,
+        .so-detail-page div.so-content {
+          background: #751010 !important;
+          color: #ffffff !important;
+          border: 1px solid rgba(255, 255, 255, 0.3) !important;
+          border-radius: 12px !important;
+        }
+
+        .so-page div.so-card-header,
+        .so-page div.so-card-body,
+        .so-detail-page div.so-card-header,
+        .so-detail-page div.so-card-body {
+          background: transparent !important;
           color: #ffffff !important;
         }
 
-        .so-detail-page .so-page-header {
+        .so-page .so-label,
+        .so-page span.so-label,
+        .so-detail-page .so-label,
+        .so-detail-page span.so-label {
+          color: #ffffff !important;
+          opacity: 0.95 !important;
+          font-weight: 800 !important;
+        }
+
+        .so-page h1, .so-page h2, .so-page h3, .so-page h4, .so-page h5,
+        .so-page p, .so-page span, .so-page div, .so-page th, .so-page td, .so-page label,
+        .so-detail-page h1, .so-detail-page h2, .so-detail-page h3, .so-detail-page h4, .so-detail-page h5,
+        .so-detail-page p, .so-detail-page span, .so-detail-page div, .so-detail-page th, .so-detail-page td, .so-detail-page label {
+          color: #ffffff !important;
+        }
+
+        /* Page Header */
+        .so-page-header {
           background: #751010 !important;
           color: #ffffff !important;
           border: 1px solid rgba(255, 255, 255, 0.25) !important;
+          border-left: 6px solid #ffffff !important;
           border-radius: 12px !important;
           padding: 1.25rem 2rem !important;
           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
         }
 
-        .so-detail-page .so-page-header .so-page-title {
+        .so-page-header .so-page-title {
           color: #ffffff !important;
           font-weight: 900 !important;
+          font-size: 1.35rem !important;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
         }
 
-        .so-detail-page .so-page-header .so-page-title svg {
+        .so-page-header .so-page-title svg {
           color: #ffffff !important;
           stroke: #ffffff !important;
         }
 
-        .so-detail-page .so-page-header .so-page-subtitle {
+        .so-page-header .so-page-subtitle {
           color: #ffffff !important;
           opacity: 0.95 !important;
-          font-weight: 600 !important;
+          font-weight: 700 !important;
+          font-size: 0.725rem !important;
+          letter-spacing: 0.08em !important;
+          text-transform: uppercase !important;
+          margin-top: 0.25rem;
         }
 
-        .so-detail-page .so-page-header button {
+        /* Buttons & Badges */
+        .so-page-header button,
+        .so-page-header .so-btn-secondary,
+        .so-page .so-btn-secondary,
+        .so-detail-page button {
           background: transparent !important;
           color: #ffffff !important;
           border: 1.5px solid rgba(255, 255, 255, 0.7) !important;
@@ -908,29 +731,86 @@ function SalesReturnList() {
           gap: 0.375rem !important;
         }
 
-        .so-detail-page .so-page-header button:hover {
+        .so-page-header button:hover,
+        .so-page-header .so-btn-secondary:hover,
+        .so-page .so-btn-secondary:hover,
+        .so-detail-page button:hover {
           background: rgba(255, 255, 255, 0.2) !important;
           border-color: #ffffff !important;
           color: #ffffff !important;
         }
 
-        .so-detail-page .so-card,
-        .so-detail-page .so-table-card,
-        .so-detail-page .so-summary-bar {
+        .so-page-header .btn-primary,
+        .so-page-header button[class*="bg-"] {
+          background: #ffffff !important;
+          color: #751010 !important;
+          border: 1.5px solid #ffffff !important;
+          border-radius: 20px !important;
+          font-weight: 900 !important;
+        }
+
+        .so-page-header .btn-primary *,
+        .so-page-header button[class*="bg-"] * {
+          color: #751010 !important;
+          stroke: #751010 !important;
+        }
+
+        /* Inputs, Selects, and Textareas - Clean White Box with Dark Text */
+        .so-page input,
+        .so-page select,
+        .so-page textarea,
+        .so-detail-page input,
+        .so-detail-page select,
+        .so-detail-page textarea,
+        .so-input,
+        .so-select,
+        .so-td-input {
+          background: #ffffff !important;
+          color: #0f172a !important;
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 8px !important;
+          padding: 0.65rem 0.95rem !important;
+          font-size: 0.825rem !important;
+          font-weight: 700 !important;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .so-page input *,
+        .so-page select option,
+        .so-page textarea *,
+        .so-detail-page input *,
+        .so-detail-page select option,
+        .so-detail-page textarea * {
+          color: #0f172a !important;
+          background: #ffffff !important;
+        }
+
+        .so-page input::placeholder,
+        .so-page textarea::placeholder,
+        .so-detail-page input::placeholder,
+        .so-detail-page textarea::placeholder {
+          color: #94a3b8 !important;
+        }
+
+        /* Cards, Table Containers, Summary Bars */
+        .so-card,
+        .so-table-card,
+        .so-summary-bar {
           background: #751010 !important;
           color: #ffffff !important;
           border: 1px solid rgba(255, 255, 255, 0.25) !important;
-          border-radius: 10px !important;
+          border-radius: 12px !important;
           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
+          overflow: hidden !important;
         }
 
-        .so-detail-page .so-card-header {
+        .so-card-header {
           background: transparent !important;
           border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
           padding: 1rem 1.5rem !important;
         }
 
-        .so-detail-page .so-card-title {
+        .so-card-title {
           color: #ffffff !important;
           font-weight: 900 !important;
           text-transform: uppercase !important;
@@ -938,14 +818,15 @@ function SalesReturnList() {
           font-size: 0.85rem !important;
         }
 
-        .so-detail-page .so-summary-bar {
+        /* Summary Bar */
+        .so-summary-bar {
           display: grid !important;
           grid-template-columns: repeat(4, 1fr) !important;
           gap: 1rem !important;
           padding: 1.25rem 2rem !important;
         }
 
-        .so-detail-page .so-summary-item {
+        .so-summary-item {
           border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
           display: flex !important;
           flex-direction: column !important;
@@ -954,11 +835,11 @@ function SalesReturnList() {
           gap: 0.25rem !important;
         }
 
-        .so-detail-page .so-summary-item:last-child {
+        .so-summary-item:last-child {
           border-right: none !important;
         }
 
-        .so-detail-page .so-summary-label {
+        .so-summary-label {
           color: #ffffff !important;
           font-weight: 800 !important;
           font-size: 0.7rem !important;
@@ -967,101 +848,179 @@ function SalesReturnList() {
           opacity: 0.95 !important;
         }
 
-        .so-detail-page .so-summary-value {
+        .so-summary-value {
           color: #ffffff !important;
           font-weight: 900 !important;
           font-size: 1.15rem !important;
         }
 
-        .so-detail-page .so-summary-value.grand {
+        .so-summary-value.grand {
           color: #ffffff !important;
           font-size: 1.35rem !important;
           font-weight: 900 !important;
         }
 
-        .so-detail-page .so-card-body span,
-        .so-detail-page .so-card-body div,
-        .so-detail-page .so-card-body p,
-        .so-detail-page .so-card-body label {
-          color: #ffffff !important;
-        }
-
-        .so-detail-page .so-card-body div[style*="justify-content"] {
-          border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
-          padding-bottom: 0.75rem !important;
-        }
-
-        .so-detail-page .so-card-body div[style*="justify-content"]:last-child {
-          border-bottom: none !important;
-          padding-bottom: 0 !important;
-        }
-
-        .so-detail-page .so-card-body div[style*="border-top"] {
-          border-top: 1px solid rgba(255, 255, 255, 0.25) !important;
-        }
-
-        .so-detail-page .so-table {
+        /* Tables (Both List Table and Detail Table) */
+        .so-table {
           width: 100%;
           border-collapse: collapse !important;
         }
 
-        .so-detail-page .so-table thead th {
-          background: rgba(0, 0, 0, 0.2) !important;
+        .so-table thead th {
+          background: rgba(0, 0, 0, 0.25) !important;
           color: #ffffff !important;
-          border-bottom: 1.5px solid rgba(255, 255, 255, 0.3) !important;
+          border-bottom: 2px solid rgba(255, 255, 255, 0.3) !important;
           font-weight: 900 !important;
           font-size: 0.75rem !important;
           text-transform: uppercase !important;
           letter-spacing: 0.05em !important;
+          padding: 1rem 1.25rem !important;
         }
 
-        .so-detail-page .so-table tbody td {
+        .so-table tbody td {
           border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
           color: #ffffff !important;
+          padding: 0.95rem 1.25rem !important;
+          font-size: 0.825rem !important;
         }
 
-        .so-detail-page .so-table tbody td div,
-        .so-detail-page .so-table tbody td span {
-          color: #ffffff !important;
+        .so-table tbody tr {
+          background: transparent !important;
         }
 
-        .so-detail-page .so-table tbody tr:hover {
+        .so-table tbody tr:hover {
           background: rgba(255, 255, 255, 0.08) !important;
         }
 
-        .so-detail-page [style*="background: rgb(255, 255, 255)"],
-        .so-detail-page [style*="background: #ffffff"],
-        .so-detail-page [style*="background:#fff"] {
+        /* Modals & Popups Solid Dark Red Theme */
+        .fixed.inset-0 .bg-white,
+        .fixed.inset-0 [class*="bg-white"],
+        .fixed.inset-0 [class*="bg-slate-50"],
+        .fixed.inset-0 [class*="bg-slate-100"],
+        .fixed.inset-0 table,
+        .fixed.inset-0 thead,
+        .fixed.inset-0 tbody,
+        .fixed.inset-0 tr {
           background: #751010 !important;
           border-color: rgba(255, 255, 255, 0.25) !important;
           color: #ffffff !important;
         }
 
-        .so-detail-page [style*="background: rgba(248, 250, 252, 0.5)"],
-        .so-detail-page [style*="background: rgb(248, 250, 252)"] {
-          background: rgba(255, 255, 255, 0.08) !important;
+        .fixed.inset-0 div {
           border-color: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        .fixed.inset-0 h1,
+        .fixed.inset-0 h2,
+        .fixed.inset-0 h3,
+        .fixed.inset-0 h4,
+        .fixed.inset-0 p,
+        .fixed.inset-0 span,
+        .fixed.inset-0 div,
+        .fixed.inset-0 th,
+        .fixed.inset-0 td,
+        .fixed.inset-0 label {
           color: #ffffff !important;
         }
 
-        .so-detail-page [style*="color: rgb(51, 65, 85)"],
-        .so-detail-page [style*="color: rgb(148, 163, 184)"],
-        .so-detail-page [style*="color: rgb(100, 116, 139)"],
-        .so-detail-page [style*="color: #64748b"],
-        .so-detail-page [style*="color: #475569"],
-        .so-detail-page [style*="color: #334155"],
-        .so-detail-page [style*="color: #94a3b8"] {
+        .fixed.inset-0 th {
+          background: rgba(0, 0, 0, 0.25) !important;
           color: #ffffff !important;
         }
 
-        .so-detail-page .so-card label span,
-        .so-detail-page label span,
-        .so-detail-page button {
+        .fixed.inset-0 td {
+          color: #ffffff !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+        }
+
+        .fixed.inset-0 button {
+          color: #ffffff !important;
+          border-color: rgba(255, 255, 255, 0.5) !important;
+        }
+
+        .fixed.inset-0 button:hover {
+          background: rgba(255, 255, 255, 0.2) !important;
           color: #ffffff !important;
         }
 
-        .so-detail-page svg,
-        .so-detail-page svg path {
+        .fixed.inset-0 button[class*="bg-rose-"],
+        .fixed.inset-0 button[class*="bg-red-"],
+        .fixed.inset-0 button[class*="bg-slate-"] {
+          background: rgba(255, 255, 255, 0.2) !important;
+          color: #ffffff !important;
+          border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        }
+
+        .so-page input.so-input,
+        div.so-page input.so-input,
+        .so-content input.so-input {
+          padding-left: 3.5rem !important;
+          background: #ffffff !important;
+          color: #751010 !important;
+          font-weight: 800 !important;
+        }
+
+        .so-page div.relative svg,
+        .so-page div.relative svg path,
+        div.so-page div.relative svg,
+        div.so-page div.relative svg path {
+          color: #751010 !important;
+          stroke: #751010 !important;
+        }
+
+        .so-page input,
+        .so-page select,
+        .so-page textarea,
+        .fixed.inset-0 input,
+        .fixed.inset-0 select,
+        .fixed.inset-0 textarea {
+          background: #ffffff !important;
+          color: #751010 !important;
+          font-weight: 800 !important;
+          border: 1px solid #cbd5e1 !important;
+        }
+
+        .so-page input *,
+        .so-page select option,
+        .fixed.inset-0 input *,
+        .fixed.inset-0 select option {
+          background: #ffffff !important;
+          color: #751010 !important;
+        }
+
+        .so-page [style*="color: rgb(15, 23, 42)"],
+        .so-page [style*="color: #0f172a"],
+        .so-page [style*="color: rgb(71, 85, 105)"],
+        .so-page [style*="color: #475569"],
+        .so-page [style*="color: rgb(51, 65, 85)"],
+        .so-page [style*="color: #334155"],
+        .so-page [style*="color: rgb(148, 163, 184)"],
+        .so-page [style*="color: #94a3b8"],
+        .so-page [style*="color: rgb(100, 116, 139)"],
+        .so-page [style*="color: #64748b"] {
+          color: #ffffff !important;
+        }
+
+        .so-page tbody td,
+        .so-page tbody td p,
+        .so-page tbody td span,
+        .so-page tbody td div {
+          color: #ffffff !important;
+        }
+
+        .so-page tbody td div[style*="background"] {
+          background: rgba(255, 255, 255, 0.15) !important;
+          color: #ffffff !important;
+        }
+
+        .so-page tbody td span[style*="monospace"] {
+          background: rgba(255, 255, 255, 0.2) !important;
+          color: #ffffff !important;
+          border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        }
+
+        .fixed.inset-0 svg,
+        .fixed.inset-0 svg path {
           stroke: #ffffff !important;
           color: #ffffff !important;
         }
@@ -1069,46 +1028,78 @@ function SalesReturnList() {
 
       {/* ────────────────────── LIST VIEW ────────────────────── */}
       {view === 'list' && (
-        <div className="so-page animate-in fade-in duration-300">
-          <div className="so-page-header">
+        <div className="so-page animate-in fade-in duration-300" style={{ background: '#851515', padding: '1.5rem', color: '#ffffff', borderRadius: '12px' }}>
+          <div className="so-page-header" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderLeft: '6px solid #ffffff', borderRadius: '12px', padding: '1.25rem 2rem' }}>
             <div>
-              <h1 className="so-page-title">
-                <RotateCcw size={20} style={{ color: themeColor }} />
+              <h1 className="so-page-title" style={{ color: '#ffffff' }}>
+                <RotateCcw size={20} style={{ color: '#ffffff' }} />
                 Sales Returns
               </h1>
-              <p className="so-page-subtitle">{returns.length} CREDIT VOUCHERS INDEXED</p>
+              <p className="so-page-subtitle" style={{ color: '#ffffff' }}>{returns.length} CREDIT VOUCHERS INDEXED</p>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={toggleTheme} className="so-btn-secondary" style={{ color: themeColor }}>
-                <Palette size={14} /> {legacySubTheme.toUpperCase()}
-              </button>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <ListCustomizer
                 doctype="Sales Invoice"
                 saveKey="Sales Return"
                 onSave={cols => setCustomColumns(cols)}
                 themeColor={themeColor}
+                btnStyle={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  height: '40px',
+                  padding: '0 1.25rem',
+                  background: '#ffffff',
+                  color: '#751010',
+                  border: '1.5px solid #ffffff',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer'
+                }}
               />
-              <button className="so-btn-primary" onClick={() => setView('create')}>
+              <button
+                className="so-btn-primary"
+                onClick={() => setView('create')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  height: '40px',
+                  padding: '0 1.25rem',
+                  background: '#ffffff',
+                  color: '#751010',
+                  border: '1.5px solid #ffffff',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer'
+                }}
+              >
                 <Plus size={16} /> Initiate Credit Note
               </button>
             </div>
           </div>
 
-          <div className="so-content">
+          <div className="so-content" style={{ background: '#751010', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
             <div className="relative mb-6" style={{ position: 'relative', marginBottom: '1.25rem' }}>
-              <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+              <Search size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: '#751010', stroke: '#751010', zIndex: 10, pointerEvents: 'none' }} />
               <input
                 className="so-input"
-                style={{ paddingLeft: '2.75rem' }}
+                style={{ paddingLeft: '3.25rem', background: '#ffffff', color: '#751010', fontWeight: 800 }}
                 placeholder="Search Credit ID, Customer or Original SINV..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
 
-            <div className="so-table-card">
-              <div className="so-table-wrapper">
-                <table className="so-table">
+            <div className="so-table-card" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+              <div className="so-table-wrapper" style={{ background: '#751010' }}>
+                <table className="so-table" style={{ background: '#751010', color: '#ffffff' }}>
                   <thead>
                     <tr>
                       <th>Customer Node</th>
@@ -1217,40 +1208,40 @@ function SalesReturnList() {
 
       {/* ────────────────────── CREATE VIEW (WORKSPACE) ────────────────────── */}
       {view === 'create' && (
-        <div className="so-page animate-in fade-in duration-300">
+        <div className="so-page animate-in fade-in duration-300" style={{ background: '#851515', padding: '1.5rem', color: '#ffffff', borderRadius: '12px' }}>
           {/* Header & Filter Controls */}
-          <div className="so-page-header">
+          <div className="so-page-header" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderLeft: '6px solid #ffffff', borderRadius: '12px', padding: '1.25rem 2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <button onClick={() => setView('list')} className="so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto' }}>
+              <button onClick={() => setView('list')} className="so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto', color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.7)' }}>
                 <ArrowLeft size={18} />
               </button>
               <div className="flex flex-col text-left">
-                <h1 className="so-page-title" style={{ margin: 0 }}>Initiate Sales Return</h1>
-                <p className="so-page-subtitle">BRANCH: {warehouse || 'NO BRANCH CONFIGURED'}</p>
+                <h1 className="so-page-title" style={{ margin: 0, color: '#ffffff' }}>Initiate Sales Return</h1>
+                <p className="so-page-subtitle" style={{ color: '#ffffff' }}>BRANCH: {warehouse || 'NO BRANCH CONFIGURED'}</p>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={clearFilters} className="so-btn-secondary">
+              <button onClick={clearFilters} className="so-btn-secondary" style={{ color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.7)' }}>
                 Clear Filters (F5)
               </button>
               <button
                 onClick={() => handleSaveReturn(false)}
                 disabled={saving || returnQueue.length === 0}
                 className="so-btn-primary"
-                style={{ background: themeColor, borderColor: themeColor }}
+                style={{ background: '#ffffff', color: '#751010', borderColor: '#ffffff', fontWeight: 900 }}
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Draft (F7)
               </button>
             </div>
           </div>
 
-          <div className="so-content">
+          <div className="so-content" style={{ background: '#751010', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
             {/* Filters grid */}
-            <div className="so-card mb-6">
-              <div className="so-card-body">
+            <div className="so-card mb-6" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '12px' }}>
+              <div className="so-card-body" style={{ background: '#751010', color: '#ffffff' }}>
                 <div className="so-form-grid-4">
                   <div className="so-field">
-                    <span className="so-label">Customer (F2/F3)</span>
+                    <span className="so-label" style={{ color: '#ffffff' }}>Customer (F2/F3)</span>
                     <CustomSearchDropdown 
                       placeholder="Search customer..."
                       value={selectedCustomer}
@@ -1261,32 +1252,32 @@ function SalesReturnList() {
                     />
                   </div>
                   <div className="so-field">
-                    <span className="so-label">Start Date</span>
+                    <span className="so-label" style={{ color: '#ffffff' }}>Start Date</span>
                     <input
                       type="date"
                       className="so-input"
-                      style={{ height: '38px', padding: '0.5rem 0.75rem' }}
+                      style={{ height: '38px', padding: '0.5rem 0.75rem', background: '#ffffff', color: '#0f172a' }}
                       value={fromDate}
                       onChange={e => setFromDate(e.target.value)}
                     />
                   </div>
                   <div className="so-field">
-                    <span className="so-label">End Date</span>
+                    <span className="so-label" style={{ color: '#ffffff' }}>End Date</span>
                     <input
                       type="date"
                       className="so-input"
-                      style={{ height: '38px', padding: '0.5rem 0.75rem' }}
+                      style={{ height: '38px', padding: '0.5rem 0.75rem', background: '#ffffff', color: '#0f172a' }}
                       value={toDate}
                       onChange={e => setToDate(e.target.value)}
                     />
                   </div>
                   <div className="so-field">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="so-label m-0">Filter by Item (F4)</span>
+                      <span className="so-label m-0" style={{ color: '#ffffff' }}>Filter by Item (F4)</span>
                       {selectedCustomer && (
                         <button
                           onClick={() => fetchItemHistory(null)}
-                          className="text-[10px] font-black text-rose-600 hover:text-rose-800 transition-colors uppercase tracking-wider bg-transparent border-0 cursor-pointer"
+                          className="text-[10px] font-black text-white hover:underline transition-colors uppercase tracking-wider bg-transparent border-0 cursor-pointer"
                         >
                           Show All Customer Items
                         </button>
@@ -1313,14 +1304,15 @@ function SalesReturnList() {
             {/* Workspace Area */}
             <div className="w-full">
               {returnQueue.length === 0 ? (
-                <div className="so-card" style={{ height: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center' }}>
-                  <Receipt size={48} className="text-slate-300 mb-4 animate-bounce" />
-                  <h2 className="text-base font-black text-slate-800 mb-1">Return Queue Empty</h2>
-                  <p className="text-xs font-medium text-slate-400 max-w-sm mb-4">Search/select items or click "Show All Customer Items" above to add return items to your queue.</p>
+                <div className="so-card" style={{ height: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center', background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '12px' }}>
+                  <Receipt size={48} className="text-white mb-4 animate-bounce" />
+                  <h2 className="text-base font-black text-white mb-1" style={{ color: '#ffffff' }}>Return Queue Empty</h2>
+                  <p className="text-xs font-medium text-white/80 max-w-sm mb-4" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Search/select items or click "Show All Customer Items" above to add return items to your queue.</p>
                   {selectedCustomer && (
                     <button 
                       onClick={() => fetchItemHistory(null)}
-                      className="px-6 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-xs font-bold transition-all shadow-lg cursor-pointer"
+                      className="px-6 py-2 bg-white text-red-900 rounded-lg hover:bg-white/90 text-xs font-bold transition-all shadow-lg cursor-pointer"
+                      style={{ background: '#ffffff', color: '#751010', fontWeight: 900 }}
                     >
                       Search Customer Items History
                     </button>
@@ -1550,7 +1542,7 @@ function SalesReturnList() {
           {/* 2. Main Page Layout */}
           <div className="so-layout">
             <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
-              <AttachmentSection doctype="Sales Invoice" docname={selectedReturnDoc?.name} themeColor={themeColor} themeLight={themeLight} />
+              <AttachmentSection doctype="Sales Invoice" docname={selectedReturnDoc?.name} themeColor={themeColor} themeLight={themeLight} isDarkRedTheme={true} />
               {/* Summary Bar for Stats */}
               <div className="so-summary-bar">
                 <div className="so-summary-item">
@@ -1662,24 +1654,24 @@ function SalesReturnList() {
                     </thead>
                     <tbody>
                       {selectedReturnDoc.items?.map((item, idx) => (
-                        <tr key={idx} style={{ cursor: 'default' }}>
-                          <td>
-                            <div style={{ fontWeight: 700, color: '#1e293b' }}>{item.item_code}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{item.item_name}</div>
+                        <tr key={idx} style={{ cursor: 'default', background: '#751010' }}>
+                          <td style={{ color: '#ffffff' }}>
+                            <div style={{ fontWeight: 800, color: '#ffffff' }}>{item.item_code}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#ffffff', fontWeight: 600, opacity: 0.9 }}>{item.item_name}</div>
                           </td>
-                          <td style={{ textAlign: 'center', fontWeight: 800, color: '#475569' }}>
-                            {Math.abs(item.qty)} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>{item.uom}</span>
+                          <td style={{ textAlign: 'center', fontWeight: 800, color: '#ffffff' }}>
+                            {Math.abs(item.qty)} <span style={{ fontSize: '11px', color: '#ffffff', fontWeight: 700, opacity: 0.9 }}>{item.uom}</span>
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: '#ffffff' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#ffffff' }}>
                               {renderCurrency(selectedReturnDoc.currency, 12)}
-                              <span>{item.rate.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span style={{ color: '#ffffff' }}>{item.rate ? item.rate.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00'}</span>
                             </span>
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <td style={{ textAlign: 'right', fontWeight: 900, color: '#ffffff' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#ffffff' }}>
                               {renderCurrency(selectedReturnDoc.currency, 12)}
-                              <span>{Math.abs(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span style={{ color: '#ffffff' }}>{Math.abs(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </span>
                           </td>
                         </tr>
@@ -1794,19 +1786,19 @@ function SalesReturnList() {
                               {renderCurrency('AED', 10)} {row.rate ? row.rate.toFixed(2) : '0.00'}
                             </td>
                             <td className="py-4 px-4 text-center">
-                              <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
+                              <span className="text-[11px] font-black text-white bg-white/20 border border-white/40 px-2.5 py-1 rounded-md">
                                 {row.returnable_qty} {row.uom || 'Nos'}
                               </span>
                             </td>
                             <td className="py-4 px-4 text-center">
                               {isAdded ? (
-                                <button disabled className="px-4 py-1.5 rounded bg-slate-100 text-slate-400 text-xs font-bold cursor-not-allowed flex items-center justify-center gap-1 mx-auto w-24">
+                                <button disabled className="px-4 py-1.5 rounded bg-white/10 text-white/50 border border-white/20 text-xs font-bold cursor-not-allowed flex items-center justify-center gap-1 mx-auto w-24">
                                   <CheckCircle size={12} /> Added
                                 </button>
                               ) : (
                                 <button 
                                   onClick={() => handleSelectItemFromHistory(row)} 
-                                  className="px-4 py-1.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold transition-colors mx-auto block w-24"
+                                  className="px-4 py-1.5 rounded bg-white/20 text-white hover:bg-white/30 border border-white/40 text-xs font-bold transition-colors mx-auto block w-24"
                                 >
                                   Return
                                 </button>
