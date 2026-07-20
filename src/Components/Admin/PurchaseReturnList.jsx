@@ -861,43 +861,52 @@ function PurchaseReturnList() {
         }
 
         /* Full Dark Red Theme Overrides for Detail Panel */
+        /* Solid Dark Red & Pure White Premium Theme for Return Details Panel */
         .so-detail-page {
-          background: #f8fafc !important;
+          background: #851515 !important;
           padding: 1.5rem !important;
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 1.25rem;
+          color: #ffffff !important;
+        }
+
+        .so-detail-page * {
+          color: #ffffff !important;
         }
 
         .so-detail-page .so-page-header {
-          background: #8c1d1d !important;
+          background: #751010 !important;
           color: #ffffff !important;
-          border-bottom: none !important;
-          border-left: none !important;
+          border: 1px solid rgba(255, 255, 255, 0.25) !important;
           border-radius: 12px !important;
           padding: 1.25rem 2rem !important;
-          box-shadow: 0 4px 12px rgba(140, 29, 29, 0.15) !important;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
         }
 
         .so-detail-page .so-page-header .so-page-title {
           color: #ffffff !important;
+          font-weight: 900 !important;
         }
 
         .so-detail-page .so-page-header .so-page-title svg {
           color: #ffffff !important;
+          stroke: #ffffff !important;
         }
 
         .so-detail-page .so-page-header .so-page-subtitle {
-          color: #fca5a5 !important;
+          color: #ffffff !important;
+          opacity: 0.95 !important;
+          font-weight: 600 !important;
         }
 
         .so-detail-page .so-page-header button {
           background: transparent !important;
           color: #ffffff !important;
-          border: 1px solid rgba(255, 255, 255, 0.4) !important;
-          border-radius: 8px !important;
+          border: 1.5px solid rgba(255, 255, 255, 0.7) !important;
+          border-radius: 20px !important;
           padding: 0.45rem 1.25rem !important;
-          font-weight: 700 !important;
+          font-weight: 800 !important;
           font-size: 0.75rem !important;
           text-transform: uppercase !important;
           letter-spacing: 0.05em !important;
@@ -908,30 +917,33 @@ function PurchaseReturnList() {
         }
 
         .so-detail-page .so-page-header button:hover {
-          background: rgba(255, 255, 255, 0.1) !important;
+          background: rgba(255, 255, 255, 0.2) !important;
           border-color: #ffffff !important;
+          color: #ffffff !important;
         }
 
         .so-detail-page .so-card,
         .so-detail-page .so-table-card,
         .so-detail-page .so-summary-bar {
-          background: #8c1d1d !important;
+          background: #751010 !important;
           color: #ffffff !important;
-          border: none !important;
-          border-radius: 12px !important;
-          box-shadow: 0 4px 12px rgba(140, 29, 29, 0.15) !important;
+          border: 1px solid rgba(255, 255, 255, 0.25) !important;
+          border-radius: 10px !important;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
         }
 
         .so-detail-page .so-card-header {
           background: transparent !important;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
+          padding: 1rem 1.5rem !important;
         }
 
         .so-detail-page .so-card-title {
           color: #ffffff !important;
-          font-weight: 800 !important;
+          font-weight: 900 !important;
           text-transform: uppercase !important;
           letter-spacing: 0.08em !important;
+          font-size: 0.85rem !important;
         }
 
         .so-detail-page .so-summary-bar {
@@ -942,7 +954,7 @@ function PurchaseReturnList() {
         }
 
         .so-detail-page .so-summary-item {
-          border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+          border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
           display: flex !important;
           flex-direction: column !important;
           align-items: center !important;
@@ -955,16 +967,18 @@ function PurchaseReturnList() {
         }
 
         .so-detail-page .so-summary-label {
-          color: #fca5a5 !important;
-          font-weight: 700 !important;
-          font-size: 0.675rem !important;
-          letter-spacing: 0.05em !important;
+          color: #ffffff !important;
+          font-weight: 800 !important;
+          font-size: 0.7rem !important;
+          letter-spacing: 0.06em !important;
           text-transform: uppercase !important;
+          opacity: 0.95 !important;
         }
 
         .so-detail-page .so-summary-value {
           color: #ffffff !important;
-          font-weight: 800 !important;
+          font-weight: 900 !important;
+          font-size: 1.15rem !important;
         }
 
         .so-detail-page .so-summary-value.grand {
@@ -973,16 +987,15 @@ function PurchaseReturnList() {
           font-weight: 900 !important;
         }
 
-        .so-detail-page .so-card-body span[style*="text-transform"] {
-          color: #fca5a5 !important;
-        }
-
-        .so-detail-page .so-card-body span[style*="font-weight"] {
+        .so-detail-page .so-card-body span,
+        .so-detail-page .so-card-body div,
+        .so-detail-page .so-card-body p,
+        .so-detail-page .so-card-body label {
           color: #ffffff !important;
         }
 
         .so-detail-page .so-card-body div[style*="justify-content"] {
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
           padding-bottom: 0.75rem !important;
         }
 
@@ -992,7 +1005,7 @@ function PurchaseReturnList() {
         }
 
         .so-detail-page .so-card-body div[style*="border-top"] {
-          border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+          border-top: 1px solid rgba(255, 255, 255, 0.25) !important;
         }
 
         .so-detail-page .so-table {
@@ -1001,16 +1014,17 @@ function PurchaseReturnList() {
         }
 
         .so-detail-page .so-table thead th {
-          background: rgba(255, 255, 255, 0.05) !important;
-          color: #fca5a5 !important;
-          border-bottom: 2px solid rgba(255, 255, 255, 0.15) !important;
-          font-weight: 800 !important;
-          font-size: 0.725rem !important;
+          background: rgba(0, 0, 0, 0.2) !important;
+          color: #ffffff !important;
+          border-bottom: 1.5px solid rgba(255, 255, 255, 0.3) !important;
+          font-weight: 900 !important;
+          font-size: 0.75rem !important;
           text-transform: uppercase !important;
+          letter-spacing: 0.05em !important;
         }
 
         .so-detail-page .so-table tbody td {
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
           color: #ffffff !important;
         }
 
@@ -1019,58 +1033,44 @@ function PurchaseReturnList() {
           color: #ffffff !important;
         }
 
-        .so-detail-page .so-table tbody td div[style*="color"] {
-          color: #fca5a5 !important;
-        }
-
         .so-detail-page .so-table tbody tr:hover {
-          background: rgba(255, 255, 255, 0.05) !important;
+          background: rgba(255, 255, 255, 0.08) !important;
         }
 
-        .so-detail-page .so-card [style*="background: rgb(255, 255, 255)"],
-        .so-detail-page [style*="background: rgb(255, 255, 255)"] {
-          background: #8c1d1d !important;
-          border-color: rgba(255, 255, 255, 0.15) !important;
-        }
-
-        .so-detail-page [style*="background: rgba(248, 250, 252, 0.5)"] {
-          background: rgba(255, 255, 255, 0.05) !important;
-          border-color: rgba(255, 255, 255, 0.1) !important;
-        }
-
-        .so-detail-page [style*="color: rgb(51, 65, 85)"] {
+        .so-detail-page [style*="background: rgb(255, 255, 255)"],
+        .so-detail-page [style*="background: #ffffff"],
+        .so-detail-page [style*="background:#fff"] {
+          background: #751010 !important;
+          border-color: rgba(255, 255, 255, 0.25) !important;
           color: #ffffff !important;
         }
 
-        .so-detail-page [style*="color: rgb(148, 163, 184)"] {
-          color: #fca5a5 !important;
+        .so-detail-page [style*="background: rgba(248, 250, 252, 0.5)"],
+        .so-detail-page [style*="background: rgb(248, 250, 252)"] {
+          background: rgba(255, 255, 255, 0.08) !important;
+          border-color: rgba(255, 255, 255, 0.2) !important;
+          color: #ffffff !important;
         }
 
-        .so-detail-page [style*="color: rgb(100, 116, 139)"] {
-          color: #fca5a5 !important;
-        }
-
-        .so-detail-page [style*="background: rgb(241, 245, 249)"] {
-          background: rgba(255, 255, 255, 0.1) !important;
+        .so-detail-page [style*="color: rgb(51, 65, 85)"],
+        .so-detail-page [style*="color: rgb(148, 163, 184)"],
+        .so-detail-page [style*="color: rgb(100, 116, 139)"],
+        .so-detail-page [style*="color: #64748b"],
+        .so-detail-page [style*="color: #475569"],
+        .so-detail-page [style*="color: #334155"],
+        .so-detail-page [style*="color: #94a3b8"] {
+          color: #ffffff !important;
         }
 
         .so-detail-page .so-card label span,
-        .so-detail-page label span {
-          background: transparent !important;
+        .so-detail-page label span,
+        .so-detail-page button {
           color: #ffffff !important;
-          border: 1px solid rgba(255, 255, 255, 0.4) !important;
-          border-radius: 6px !important;
-          font-weight: 700 !important;
-          transition: all 0.2s !important;
         }
 
-        .so-detail-page .so-card label span:hover,
-        .so-detail-page label span:hover {
-          background: rgba(255, 255, 255, 0.1) !important;
-          border-color: #ffffff !important;
-        }
-
-        .so-detail-page svg {
+        .so-detail-page svg,
+        .so-detail-page svg path {
+          stroke: #ffffff !important;
           color: #ffffff !important;
         }
       `}</style>
