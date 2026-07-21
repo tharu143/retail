@@ -1160,9 +1160,12 @@ const SalesInvoiceList = () => {
         </body>
     </html>
     `;
-    const printKey = 'print_' + (invoiceData.name || Date.now());
-    localStorage.setItem(printKey, htmlContent);
-    window.open('/print.html#' + printKey, '_blank', 'noopener');
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    }
   };
 
   const loadForReturn = async (invoiceName) => {

@@ -16,7 +16,7 @@ export const DEFAULT_SHORTCUTS = {
         orders: 'F9',
         saveDraft: 'Alt+S',
         priceUpdate: 'F11',
-        loyalty: 'F12',
+        loyalty: 'Alt+L',
         clearBill: 'Alt+C',
         directCash: 'Alt+1',
         directBank: 'Ctrl+V',
@@ -153,6 +153,10 @@ export const useCustomShortcuts = () => {
                     }
                     if (parsed.pos_home.printBill === undefined) {
                         parsed.pos_home.printBill = 'F10';
+                        needsWrite = true;
+                    }
+                    if (parsed.pos_home.loyalty === 'F12' || !parsed.pos_home.loyalty) {
+                        parsed.pos_home.loyalty = 'Alt+L';
                         needsWrite = true;
                     }
                 }

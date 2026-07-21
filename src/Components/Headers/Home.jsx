@@ -1334,7 +1334,7 @@ function Home() {
         { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders' },
         { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Last Bill' },
         { key: getShortcut('pos_home', 'priceUpdate', 'F11'), label: 'Price Update' },
-        { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty' },
+        { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty' },
         { key: getShortcut('pos_home', 'pay', 'Space'), label: 'Pay' },
         { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash' },
         { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank' },
@@ -2688,13 +2688,17 @@ function Home() {
     };
 
     const onBarcodeKeyDown = (e) => {
+        if (e.altKey) {
+            e.preventDefault();
+        }
         if (e.key === 'ArrowDown') {
             if (showItemDropdown) {
                 e.preventDefault();
                 setActiveItemIndex(prev => Math.min(prev + 1, itemSearchResults.length - 1));
             } else if (billItems.length > 0) {
                 e.preventDefault();
-                setSelectedBillIndex(prev => Math.min(prev + 1, billItems.length - 1));
+                e.stopPropagation();
+                setSelectedBillIndex(prev => prev === -1 ? 0 : Math.min(prev + 1, billItems.length - 1));
             }
         } else if (e.key === 'ArrowUp') {
             if (showItemDropdown) {
@@ -2702,11 +2706,13 @@ function Home() {
                 setActiveItemIndex(prev => Math.max(prev - 1, 0));
             } else if (billItems.length > 0) {
                 e.preventDefault();
-                setSelectedBillIndex(prev => Math.max(prev - 1, 0));
+                e.stopPropagation();
+                setSelectedBillIndex(prev => prev === -1 ? billItems.length - 1 : Math.max(prev - 1, 0));
             }
         } else if (e.key === 'ArrowLeft') {
             if (selectedBillIndex !== -1) {
                 e.preventDefault();
+                e.stopPropagation();
                 const newBill = [...billItems];
                 newBill[selectedBillIndex].is_tax_inclusive = false;
                 setBillItems(newBill);
@@ -2714,6 +2720,7 @@ function Home() {
         } else if (e.key === 'ArrowRight') {
             if (selectedBillIndex !== -1) {
                 e.preventDefault();
+                e.stopPropagation();
                 const newBill = [...billItems];
                 newBill[selectedBillIndex].is_tax_inclusive = true;
                 setBillItems(newBill);
@@ -3274,7 +3281,8 @@ function Home() {
             Swal.fire('Error', 'Please enter a valid points value.', 'error');
             return;
         }
-        const redeemedValue = points * 1.0;
+        const LOYALTY_RATE = 0.01; // 100 pts = 1 AED
+        const redeemedValue = parseFloat((points * LOYALTY_RATE).toFixed(2));
         if (redeemedValue > subtotal) {
             Swal.fire('Error', 'Redemption amount cannot exceed subtotal.', 'error');
             return;
@@ -4624,68 +4632,68 @@ function Home() {
                     onClick={e => e.stopPropagation()}
                     style={{
                         width: '100%',
-                        maxWidth: '420px',
+                        maxWidth: '560px',
                         backgroundColor: '#ffffff',
-                        borderRadius: '32px',
+                        borderRadius: '28px',
                         overflow: 'hidden',
                         boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
                         display: 'flex',
                         flexDirection: 'column',
-                        margin: '20px'
+                        margin: '16px'
                     }}
                 >
-                    <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-6 flex justify-between items-center">
+                    <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 px-6 py-4 flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                                <Award size={20} />
+                            <div className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-md shadow-emerald-200">
+                                <Award size={18} />
                             </div>
-                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Redeem Loyalty</h3>
+                            <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Redeem Loyalty Points</h3>
                         </div>
                         <button
-                            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
+                            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
                             onClick={() => setShowLoyaltyModal(false)}
                         >
-                            <X size={20} />
+                            <X size={18} />
                         </button>
                     </div>
 
-                    <div className="home-modal-body p-8 flex flex-col gap-6">
+                    <div className="home-modal-body p-6 flex flex-col gap-4">
                         {/* Customer Loyalty Profile Card */}
-                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
+                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-5 rounded-2xl shadow-lg relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                            <div className="relative z-10 flex flex-col gap-4">
+                            <div className="relative z-10 flex flex-col gap-3">
                                 <div className="flex justify-between items-start">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Loyalty Program</span>
-                                        <span className="text-lg font-black tracking-tight truncate max-w-[200px]">
+                                        <span className="text-base font-black tracking-tight truncate max-w-[280px]">
                                             {selectedCustomer?.loyalty_program || 'Tier Program'}
                                         </span>
                                     </div>
-                                    <div className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-wider">
+                                    <div className="px-2.5 py-0.5 bg-white/20 rounded-full text-[9px] font-black uppercase tracking-wider">
                                         Active
                                     </div>
                                 </div>
-                                <div className="flex justify-between items-end pt-2">
+                                <div className="flex justify-between items-end pt-1">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Available Balance</span>
-                                        <span className="text-3xl font-black">{selectedCustomer?.loyalty_points || 0} <span className="text-xs font-normal">pts</span></span>
+                                        <span className="text-2xl font-black">{selectedCustomer?.loyalty_points || 0} <span className="text-xs font-normal">pts</span></span>
                                     </div>
                                     <div className="flex flex-col items-end">
                                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">Redemption Rate</span>
-                                        <span className="text-xs font-bold flex items-center gap-1">1 Pt = <DirhamIcon size={11} /> 1.00</span>
+                                        <span className="text-xs font-bold flex items-center gap-1">100 Pt = <DirhamIcon size={11} /> 1.00</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Input Area */}
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-1.5">
                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Points to Redeem</label>
                             <div className="relative group">
                                 <input
                                     type="number"
                                     placeholder="0"
-                                    className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-3xl text-3xl font-black text-slate-900 outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50 transition-all placeholder:text-slate-200"
+                                    className="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl font-black text-slate-900 outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50 transition-all placeholder:text-slate-200"
                                     value={loyaltyInput}
                                     onChange={e => {
                                         const val = parseInt(e.target.value) || 0;
@@ -4704,14 +4712,14 @@ function Home() {
 
                         {/* Cashier Secret Key Input for Loyalty Redemption */}
                         {points > 0 && (
-                            <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
+                            <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2">
                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Cashier Secret Key</label>
-                                <div className="relative flex items-center bg-slate-50 border-2 border-slate-100 rounded-3xl overflow-hidden focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-50 transition-all">
+                                <div className="relative flex items-center bg-slate-50 border-2 border-slate-100 rounded-2xl overflow-hidden focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-50 transition-all">
                                     <input
                                         id="loyalty-cashier-secret-key-input"
                                         type="password"
                                         placeholder="••••"
-                                        className="w-full px-6 py-4 bg-transparent text-lg font-black text-slate-900 outline-none placeholder:text-slate-300"
+                                        className="w-full px-5 py-3 bg-transparent text-base font-black text-slate-900 outline-none placeholder:text-slate-300"
                                         value={secretKeyInput}
                                         onChange={e => setSecretKeyInput(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && applyLoyaltyPoints()}
@@ -4721,33 +4729,33 @@ function Home() {
                         )}
 
                         {/* Impact Summary */}
-                        <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl relative overflow-hidden">
+                        <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-lg relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full -mr-12 -mt-12 blur-xl"></div>
                             <div className="flex justify-between items-center relative z-10">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Total</span>
-                                    <span className="text-lg font-black flex items-center gap-1"><DirhamIcon size={14} /> {subtotal.toFixed(2)}</span>
+                                    <span className="text-base font-black flex items-center gap-1"><DirhamIcon size={13} /> {subtotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex flex-col items-end">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Final Price</span>
-                                    <span className="text-2xl font-black text-emerald-400 flex items-center gap-1.5">
-                                        <DirhamIcon size={18} /> {Math.max(0, subtotal - redeemedValue).toFixed(2)}
+                                    <span className="text-xl font-black text-emerald-400 flex items-center gap-1.5">
+                                        <DirhamIcon size={16} /> {Math.max(0, subtotal - redeemedValue).toFixed(2)}
                                     </span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="home-modal-footer p-8 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
+                    <div className="home-modal-footer p-5 bg-slate-50 flex gap-3 items-center border-t border-slate-100">
                         <button
-                            className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
+                            className="flex-1 py-3 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
                             onClick={clearLoyaltyPoints}
                         >
                             Reset
                         </button>
                         <button
                             onClick={applyLoyaltyPoints}
-                            className="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all text-sm"
+                            className="flex-[2] py-3 bg-emerald-600 text-white rounded-xl font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all text-xs"
                         >
                             Confirm Redemption
                         </button>
@@ -5403,9 +5411,12 @@ function Home() {
         </html>
         `;
 
-        const printKey = 'print_' + (invoiceData.name || Date.now());
-        localStorage.setItem(printKey, htmlContent);
-        window.open('/print.html#' + printKey, '_blank', 'noopener');
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (printWindow) {
+            printWindow.document.open();
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+        }
     };
 
     // Background sync logic
@@ -5542,6 +5553,9 @@ function Home() {
     const handleBulkQtyUpdate = useCallback(() => {
         if (selectedBillIndex !== -1) {
             const item = billItems[selectedBillIndex];
+            const availQty = item.local_qty || 0;
+            const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
+
             Swal.fire({
                 title: 'Bulk Qty',
                 html: `<div style="font-size: 16px; font-weight: 700; color: #475569; margin-top: 8px; margin-bottom: 8px; padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 4px solid #d946ef; text-align: left; line-height: 1.4;">
@@ -5552,14 +5566,38 @@ function Home() {
                 showCancelButton: true,
                 confirmButtonText: 'Update',
                 confirmButtonColor: '#d946ef',
-                cancelButtonColor: '#64748b'
+                cancelButtonColor: '#64748b',
+                didOpen: () => {
+                    const input = Swal.getInput();
+                    if (input) {
+                        input.focus();
+                        input.select();
+                        const checkStock = () => {
+                            const val = parseFloat(input.value);
+                            if (!isNaN(val) && val * factor > availQty) {
+                                Swal.showValidationMessage(`Available quantity is ${availQty}. Insufficient stock.`);
+                            } else {
+                                Swal.resetValidationMessage();
+                            }
+                        };
+                        input.addEventListener('input', checkStock);
+                        input.addEventListener('keyup', checkStock);
+                        checkStock();
+                    }
+                },
+                inputValidator: (value) => {
+                    const newQty = parseFloat(value);
+                    if (isNaN(newQty) || newQty <= 0) {
+                        return 'Please enter a valid quantity.';
+                    }
+                    if (newQty * factor > availQty) {
+                        return `Available quantity is ${availQty}. Insufficient stock.`;
+                    }
+                }
             }).then(result => {
                 if (result.isConfirmed && result.value) {
                     const newQty = parseInt(result.value);
-                    const factor = item.uom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
-                    if (newQty * factor > (item.local_qty || 0)) {
-                        Swal.fire('Out of Stock', 'Insufficient stock.', 'warning');
-                    } else {
+                    if (newQty * factor <= availQty) {
                         const newBill = [...billItems];
                         newBill[selectedBillIndex].qty = newQty;
                         setBillItems(newBill);
@@ -5840,7 +5878,7 @@ function Home() {
             }
 
             // Loyalty Modal Toggle (Only outside payment modal)
-            if (!showPaymentModal && (isShortcutPressed(e, 'pos_home', 'loyalty', 'F12') || (e.key.toLowerCase() === 'l' && e.altKey))) {
+            if (!showPaymentModal && isShortcutPressed(e, 'pos_home', 'loyalty', 'Alt+L')) {
                 e.preventDefault();
                 if (showLoyaltyModal) {
                     setShowLoyaltyModal(false);
@@ -6091,9 +6129,10 @@ function Home() {
             }
 
             // Direct Cash
-            if (isShortcutPressed(e, 'pos_home', 'directCash', 'Alt+1')) {
+            if (isShortcutPressed(e, 'pos_home', 'directCash', 'Alt+1') || (e.altKey && (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1'))) {
                 e.preventDefault();
-                if (billItems.length > 0) {
+                e.stopPropagation();
+                if (billItems.length > 0 && grandTotal > 0 && !paymentLoading) {
                     completePayment('Cash');
                 }
             }
@@ -6102,14 +6141,16 @@ function Home() {
             if (isShortcutPressed(e, 'pos_home', 'directBank', 'Ctrl+V')) {
                 if (billItems.length > 0 && !isInputFocused) {
                     e.preventDefault();
+                    e.stopPropagation();
                     completePayment('Bank');
                 }
             }
 
             // Direct Card
-            if (isShortcutPressed(e, 'pos_home', 'directCard', 'Alt+2')) {
+            if (isShortcutPressed(e, 'pos_home', 'directCard', 'Alt+2') || (e.altKey && (e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2'))) {
                 e.preventDefault();
-                if (billItems.length > 0) {
+                e.stopPropagation();
+                if (billItems.length > 0 && grandTotal > 0 && !paymentLoading) {
                     completePayment('Card');
                 }
             }
@@ -6289,7 +6330,7 @@ function Home() {
             { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', colorClass: 'sky', action: () => setShowDraftsModal(prev => !prev) },
             { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', colorClass: 'amber', action: handleSaveDraft },
             { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', colorClass: 'indigo', action: () => { if (lastInvoiceData) handlePrint(lastInvoiceData); else Swal.fire('Info', 'No invoice created in this session yet to print.', 'info'); } },
-            { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty', colorClass: 'emerald', action: handleLoyaltyPointsClick },
+            { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty', colorClass: 'emerald', action: handleLoyaltyPointsClick },
             { key: 'SPACE', label: 'Pay', colorClass: 'emerald', action: handleCheckout },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', colorClass: 'rose', action: clearBillHandler },
             { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
@@ -6462,7 +6503,7 @@ function Home() {
         return (
             <div className="so-shortcuts-strip" style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '8px 14px', background: '#f8fafc',
+                padding: '6px 14px', background: '#f8fafc',
                 borderBottom: shortcutsPosition === 'top' ? '1px solid #e2e8f0' : 'none',
                 borderTop: shortcutsPosition === 'bottom' ? '1px solid #e2e8f0' : 'none',
                 overflow: 'visible',
@@ -6471,16 +6512,17 @@ function Home() {
             }}>
                 {renderDragHandle()}
                 {renderShortcutsSelector()}
-                <div style={{ height: '16px', width: '1px', background: '#cbd5e1', margin: '0 2px', flexShrink: 0 }}></div>
+                <div style={{ height: '36px', width: '1px', background: '#cbd5e1', margin: '0 2px', flexShrink: 0 }}></div>
                 <div style={{
                     display: 'flex',
+                    flexWrap: 'wrap',
                     alignItems: 'center',
-                    gap: '8px',
-                    overflowX: 'auto',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none',
+                    gap: '4px 6px',
                     width: '100%',
-                    overflowY: 'visible'
+                    overflowY: 'auto',
+                    maxHeight: '68px',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none'
                 }}>
                     {renderShortcutsList(false)}
                 </div>
@@ -6709,7 +6751,7 @@ function Home() {
                     }
                 }
             },
-            { key: getShortcut('pos_home', 'loyalty', 'F12'), label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
+            { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
             { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
             { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
@@ -6764,7 +6806,7 @@ function Home() {
         return (
             <div className="classic-shortcut-guide horizontal" style={{
                 display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '8px 16px',
+                padding: '6px 16px',
                 background: isGreen ? '#0d4a35' : '#0d3050',
                 borderBottom: shortcutsPosition === 'top' ? `2px solid ${borderColor}` : 'none',
                 borderTop: shortcutsPosition === 'bottom' ? `2px solid ${borderColor}` : 'none',
@@ -6773,17 +6815,17 @@ function Home() {
             }}>
                 {renderDragHandle()}
                 {renderShortcutsSelector()}
-                <div style={{ height: '20px', width: '2px', background: isGreen ? '#1e7556' : '#235985', margin: '0 2px', flexShrink: 0 }}></div>
+                <div style={{ height: '36px', width: '2px', background: isGreen ? '#1e7556' : '#235985', margin: '0 2px', flexShrink: 0 }}></div>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '12px',
-                    overflowX: 'auto',
+                    gap: '4px 8px',
+                    width: '100%',
+                    overflowY: 'auto',
+                    maxHeight: '68px',
                     scrollbarWidth: 'none',
                     msOverflowStyle: 'none',
-                    width: '100%',
-                    overflowY: 'visible',
-                    flexWrap: 'nowrap'
+                    flexWrap: 'wrap'
                 }}>
                     {renderClassicShortcutsList(false)}
                 </div>
@@ -7259,27 +7301,27 @@ function Home() {
                         <aside className="so-bill-side">
                             <div className="so-bill-header flex flex-col gap-3">
                                 <div className="relative group">
-                                    <div className="flex items-center border-2 border-slate-200 rounded-lg overflow-hidden bg-white focus-within:border-emerald-500 transition-all">
+                                    <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white focus-within:border-emerald-500 transition-all">
                                         <select
                                             value={countryCodePrefix}
                                             onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                            className="h-12 px-3 bg-slate-50 border-r border-slate-200 text-xs font-black text-slate-700 outline-none cursor-pointer"
-                                            style={{ minWidth: '75px' }}
+                                            className="h-8.5 px-2 bg-slate-50 border-r border-slate-200 text-[11px] font-black text-slate-700 outline-none cursor-pointer"
+                                            style={{ minWidth: '70px' }}
                                             title="Country Code (Press F4 to toggle)"
                                         >
                                             <option value="+971">🇦🇪 +971</option>
                                             <option value="+91">🇮🇳 +91</option>
                                         </select>
-                                        <div className="relative flex-1">
-                                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                                <UserPlus size={18} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+                                        <div className="relative flex-1 h-8.5 flex items-center">
+                                            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                                                <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
                                             </div>
                                             <input
                                                 ref={nameInputRef}
                                                 type="text"
-                                                placeholder="Customer Name..."
+                                                placeholder="Customer Name / Mobile..."
                                                 value={customerName === 'Cash' ? '' : customerName}
-                                                className="w-full pl-10 pr-3 py-2.5 text-lg font-black text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
+                                                className="w-full h-full pl-8 pr-2.5 py-1 text-xs font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
                                                 onChange={e => {
                                                     let val = e.target.value;
                                                     if (/^[\d+]*$/.test(val)) {
@@ -7401,7 +7443,7 @@ function Home() {
                                     )}
                                 </div>
 
-                                <div className="relative group">
+                                <div className="relative group flex items-center">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Search size={14} className="text-sky-400 group-focus-within:text-sky-600 transition-colors" />
                                     </div>
@@ -7413,8 +7455,16 @@ function Home() {
                                         onChange={e => setBarcodeInput(e.target.value)}
                                         onKeyDown={onBarcodeKeyDown}
                                         onFocus={() => setActiveCardIndex(-1)}
-                                        className="so-customer-input pl-10 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
+                                        className="so-customer-input w-full pl-10 pr-9 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCamera(true)}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-sky-600 hover:bg-sky-100 rounded-md transition-all cursor-pointer"
+                                        title="Camera Barcode Scanner"
+                                    >
+                                        <Camera size={15} />
+                                    </button>
                                 </div>
                             </div>
 
@@ -7435,46 +7485,63 @@ function Home() {
                                                 id={`bill-row-${idx}`}
                                                 className={`so-bill-item transition-all cursor-pointer ${idx === selectedBillIndex ? 'active' : ''}`}
                                                 onClick={() => setSelectedBillIndex(idx)}
+                                                style={{ padding: '0.25rem 0.4rem', gap: '2px' }}
                                             >
-                                                <div className="relative flex justify-between items-start">
-                                                    <div className="flex-1 pr-6">
-                                                        <h4 className="so-bill-item-name">{item.name}</h4>
-                                                        <div className="flex items-center gap-4">
-                                                            <span className="text-[11px] font-black text-slate-400 flex items-center gap-0.5"><DirhamIcon size={10} /> {item.price}</span>
-                                                            <div className="flex rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-                                                                <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => {
-                                                                    const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
-                                                                    toggleUom(item.id, targetUom);
-                                                                }} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}>PC</button>
-                                                                <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box} className={`px-2.5 py-1 text-[9px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}>BOX</button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex flex-col items-end gap-2">
-                                                        <div className="so-bill-qty-control shadow-sm">
-                                                            <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn">
-                                                                {item.qty > 1 ? <Minus size={11} className="opacity-40" /> : <X size={11} className="text-rose-400" />}
+                                                {/* Line 1: Item Name & Qty Controls + Delete */}
+                                                <div className="flex justify-between items-center gap-2">
+                                                    <h4 className="so-bill-item-name flex-1 truncate text-[11px] font-extrabold text-slate-800 m-0 leading-tight" title={item.name}>
+                                                        {item.name}
+                                                    </h4>
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        <div className="so-bill-qty-control shadow-xs" style={{ padding: '0px 2px' }}>
+                                                            <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn" style={{ width: '16px', height: '16px' }}>
+                                                                {item.qty > 1 ? <Minus size={9} className="opacity-40" /> : <X size={9} className="text-rose-400" />}
                                                             </button>
                                                             <input
                                                                 id={`qty-input-${idx}`}
                                                                 className="so-bill-qty-input"
+                                                                style={{ width: '20px', fontSize: '11px' }}
                                                                 value={item.qty}
                                                                 onChange={(e) => setQuantity(item.id, e.target.value)}
                                                                 onFocus={(e) => e.target.select()}
                                                                 onClick={(e) => e.target.select()}
                                                             />
-                                                            <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500"><Plus size={11} /></button>
+                                                            <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500" style={{ width: '16px', height: '16px' }}>
+                                                                <Plus size={9} />
+                                                            </button>
                                                         </div>
+                                                        <button onClick={() => removeFromBill(item.id)} className="so-bill-remove text-slate-300 hover:text-rose-500 transition-colors p-0.5">
+                                                            <X size={13} />
+                                                        </button>
                                                     </div>
-                                                    <button onClick={() => removeFromBill(item.id)} className="so-bill-remove">
-                                                        <X size={16} />
-                                                    </button>
                                                 </div>
 
-                                                <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-50">
+                                                {/* Line 2: Unit Price, UOM Toggle, INC/EXC Badge & Item Total */}
+                                                <div className="flex justify-between items-center text-[10px]">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Item Total</span>
+                                                        <span className="font-extrabold text-slate-400 flex items-center gap-0.5">
+                                                            <DirhamIcon size={8} /> {item.price}
+                                                        </span>
+                                                        <div className="flex rounded border border-slate-200 overflow-hidden">
+                                                            <button
+                                                                onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
+                                                                onClick={() => {
+                                                                    const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
+                                                                    toggleUom(item.id, targetUom);
+                                                                }}
+                                                                className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+                                                            >
+                                                                PC
+                                                            </button>
+                                                            <button
+                                                                onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
+                                                                onClick={() => toggleUom(item.id, 'Box')}
+                                                                disabled={!item.custom_pieces_per_box}
+                                                                className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}
+                                                            >
+                                                                BOX
+                                                            </button>
+                                                        </div>
                                                         <div
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -7482,13 +7549,16 @@ function Home() {
                                                                 newBill[idx].is_tax_inclusive = !newBill[idx].is_tax_inclusive;
                                                                 setBillItems(newBill);
                                                             }}
-                                                            className={`px-2 py-0.5 rounded-md text-[9px] font-black cursor-pointer hover:scale-105 active:scale-95 transition-all select-none ${item.is_tax_inclusive !== false ? 'bg-sky-100 text-sky-600 hover:bg-sky-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`}
+                                                            className={`px-1 py-0 rounded text-[7.5px] font-black cursor-pointer hover:scale-105 active:scale-95 transition-all select-none ${item.is_tax_inclusive !== false ? 'bg-sky-100 text-sky-600 hover:bg-sky-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`}
                                                             title={item.is_tax_inclusive !== false ? 'Tax Inclusive - Click to change' : 'Tax Exclusive - Click to change'}
                                                         >
                                                             {item.is_tax_inclusive !== false ? 'INC' : 'EXC'}
                                                         </div>
                                                     </div>
-                                                    <span className="text-[13px] font-black text-slate-800 flex items-center gap-0.5"><DirhamIcon size={12} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}</span>
+
+                                                    <span className="font-black text-slate-800 text-[11px] flex items-center gap-0.5 mr-[22px]">
+                                                        <DirhamIcon size={10} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}
+                                                    </span>
                                                 </div>
                                             </div>
                                         );
@@ -7496,136 +7566,117 @@ function Home() {
                                 )}
                             </div>
 
-                            <div className="so-bill-footer">
-                                {/* Sales Taxes and Charges Template Dropdown */}
-                                <div className="mb-4">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                                        Sales Taxes & Charges
-                                    </label>
-                                    <div className="relative">
-                                        <select
-                                            value={selectedTaxTemplate}
-                                            onChange={(e) => setSelectedTaxTemplate(e.target.value)}
-                                            className="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 pr-8 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold cursor-pointer transition-all duration-200 hover:bg-slate-50"
-                                        >
-                                            {taxTemplates.length === 0 ? (
-                                                <option value="">No Tax Templates Available</option>
-                                            ) : (
-                                                taxTemplates.map(t => (
-                                                    <option key={t.name} value={t.name}>
-                                                        {t.name}
-                                                    </option>
-                                                ))
-                                            )}
-                                        </select>
-                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
-                                            <Percent size={14} />
+                                <div className="so-bill-footer">
+                                    {/* Summary & Actions Side-by-Side */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-1.5">
+                                        {/* Left: 4 Action Buttons Stacked vertically (Ultra compact) */}
+                                        <div className="flex flex-col gap-1">
+                                            <button
+                                                onClick={() => setShowDiscountModal(true)}
+                                                className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
+                                                style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2' } : {}}
+                                            >
+                                                <Palette size={10} /> % Discount <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>F1</span>
+                                            </button>
+                                            <button
+                                                onClick={handleLoyaltyPointsClick}
+                                                className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
+                                                style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5' } : {}}
+                                            >
+                                                <Award size={10} /> Loyalty <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>Alt+L</span>
+                                            </button>
+                                            <button
+                                                onClick={handleSaveDraft}
+                                                className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
+                                                style={{ color: '#d97706', borderColor: '#fef3c7' }}
+                                                disabled={billItems.length === 0}
+                                            >
+                                                <Package size={10} /> Save Draft <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>F10</span>
+                                            </button>
+                                            <button
+                                                onClick={clearBillHandler}
+                                                className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
+                                                style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
+                                            >
+                                                <Trash2 size={10} /> Reset <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>Alt+C</span>
+                                            </button>
+                                        </div>
+
+                                        {/* Right: Subtotal / Total Box */}
+                                        <div className="so-total-box mb-0 flex flex-col justify-between p-1.5">
+                                            <div className="space-y-0.5">
+                                                <div className="so-total-row">
+                                                    <span>Subtotal</span>
+                                                    <span className="flex items-center gap-0.5"><DirhamIcon size={9} /> {displaySubtotal.toFixed(2)}</span>
+                                                </div>
+                                                {displayDiscount > 0 && (
+                                                    <div className="so-total-row" style={{ color: 'var(--so-danger)' }}>
+                                                        <span>Discount</span>
+                                                        <span className="flex items-center gap-0.5">-<DirhamIcon size={9} /> {displayDiscount.toFixed(2)}</span>
+                                                    </div>
+                                                )}
+                                                {loyaltyAmount > 0 && (
+                                                    <div className="so-total-row" style={{ color: '#10b981' }}>
+                                                        <span>Loyalty</span>
+                                                        <span className="flex items-center gap-0.5">-<DirhamIcon size={9} /> {loyaltyAmount.toFixed(2)}</span>
+                                                    </div>
+                                                )}
+                                                <div className="so-total-row">
+                                                    <span>Tax ({taxRate}%)</span>
+                                                    <span className="flex items-center gap-0.5"><DirhamIcon size={9} /> {displayTax.toFixed(2)}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="so-grand-total mt-0.5 pt-0.5">
+                                                <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
+                                                <span className="flex items-center gap-0.5"><DirhamIcon size={13} /> {grandTotal.toFixed(2)}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="so-total-box">
-                                    <div className="so-total-row">
-                                        <span>Subtotal</span>
-                                        <span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displaySubtotal.toFixed(2)}</span>
-                                    </div>
-                                    {displayDiscount > 0 && (
-                                        <div className="so-total-row" style={{ color: 'var(--so-danger)' }}>
-                                            <span>Discount</span>
-                                            <span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {displayDiscount.toFixed(2)}</span>
-                                        </div>
-                                    )}
-                                    {loyaltyAmount > 0 && (
-                                        <div className="so-total-row" style={{ color: '#10b981' }}>
-                                            <span>Loyalty Redeemed</span>
-                                            <span className="flex items-center gap-0.5">-<DirhamIcon size={11} /> {loyaltyAmount.toFixed(2)}</span>
-                                        </div>
-                                    )}
-                                    <div className="so-total-row">
-                                        <span>Tax ({taxRate}%)</span>
-                                        <span className="flex items-center gap-0.5"><DirhamIcon size={11} /> {displayTax.toFixed(2)}</span>
-                                    </div>
-
-                                    <div className="so-grand-total">
-                                        <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
-                                        <span className="flex items-center gap-0.5"><DirhamIcon size={15} /> {grandTotal.toFixed(2)}</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-1.5 mb-2">
-                                    <button
-                                        onClick={() => setShowDiscountModal(true)}
-                                        className="so-btn-secondary flex-1"
-                                        style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2' } : {}}
-                                    >
-                                        <Palette size={14} /> % Discount <span className="btn-shortcut-key">F1</span>
-                                    </button>
-                                    <button
-                                        onClick={handleLoyaltyPointsClick}
-                                        className="so-btn-secondary flex-1"
-                                        style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5' } : {}}
-                                    >
-                                        <Award size={14} /> Loyalty <span className="btn-shortcut-key">F12</span>
-                                    </button>
-                                </div>
-                                <div className="flex gap-1.5 mb-4">
-                                    <button
-                                        onClick={handleSaveDraft}
-                                        className="so-btn-secondary flex-1"
-                                        style={{ color: '#d97706', borderColor: '#fef3c7' }}
-                                        disabled={billItems.length === 0}
-                                    >
-                                        <Package size={14} /> Save Draft <span className="btn-shortcut-key">F10</span>
-                                    </button>
-                                    <button
-                                        onClick={clearBillHandler}
-                                        className="so-btn-secondary flex-1"
-                                        style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
-                                    >
-                                        <Trash2 size={14} /> Reset <span className="btn-shortcut-key">Alt+C</span>
-                                    </button>
-                                </div>
-
-                                <div className="flex gap-1.5 mb-4">
+                                <div className="flex gap-1.5 mb-1">
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}
-                                        className="so-btn-secondary flex-1"
-                                        style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
+                                        className="so-btn-secondary flex-1 px-2"
+                                        style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        'Cash' <span className="btn-shortcut-key">Alt+1</span>
+                                        <span>Cash</span> <span className="btn-shortcut-key">Alt+1</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
-                                        className="so-btn-secondary flex-1"
-                                        style={{ color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
+                                        className="so-btn-secondary flex-1 px-2"
+                                        style={{ color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        'Bank' <span className="btn-shortcut-key">Ctrl+V</span>
+                                        <span>Bank</span> <span className="btn-shortcut-key">Ctrl+V</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
-                                        className="so-btn-secondary flex-1"
-                                        style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
+                                        className="so-btn-secondary flex-1 px-2"
+                                        style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        'Card' <span className="btn-shortcut-key">Alt+2</span>
+                                        <span>Card</span> <span className="btn-shortcut-key">Alt+2</span>
                                     </button>
                                 </div>
 
                                 <button
-                                    className={`so-btn-pay ${paymentLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    className={`so-btn-pay ${paymentLoading ? 'opacity-70 cursor-not-allowed' : ''} flex items-center justify-between px-3`}
                                     disabled={grandTotal <= 0 || paymentLoading}
                                     onClick={handleCheckout}
                                 >
                                     {paymentLoading ? (
-                                        <div className="flex items-center justify-center gap-2">
+                                        <div className="flex items-center justify-center gap-2 w-full">
                                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                             <span>Processing...</span>
                                         </div>
                                     ) : (
                                         <>
-                                            <CreditCard size={18} /> Confirm & Pay <span className="btn-shortcut-key">Space</span>
+                                            <span className="flex items-center gap-2">
+                                                <CreditCard size={18} /> Confirm & Pay
+                                            </span>
+                                            <span className="btn-shortcut-key">Space</span>
                                         </>
                                     )}
                                 </button>
@@ -8361,13 +8412,13 @@ function Home() {
                                 {/* Column 1: Discount & Clear Bill */}
                                 <div className="col-span-1 flex flex-col gap-1.5">
                                     <button
-                                        className={`py-1.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
+                                        className={`py-1.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1 p-1`}
                                         onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
                                     >
                                         <Palette size={12} /> DISCOUNT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F1</span>
                                     </button>
                                     <button
-                                        className={`py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
+                                        className={`py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1 p-1`}
                                         onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
                                     >
                                         <Trash2 size={12} /> CLEAR BILL <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+C</span>
@@ -8377,13 +8428,13 @@ function Home() {
                                 {/* Column 2: Loyalty & Save Draft */}
                                 <div className="col-span-1 flex flex-col gap-1.5">
                                     <button
-                                        className={`py-1.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1`}
+                                        className={`py-1.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1 p-1`}
                                         onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
                                     >
-                                        <Award size={12} /> LOYALTY <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F12</span>
+                                        <Award size={12} /> LOYALTY <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+L</span>
                                     </button>
                                     <button
-                                        className={`py-1.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1`}
+                                        className={`py-1.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1`}
                                         onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
                                         disabled={billItems.length === 0}
                                     >
@@ -8396,21 +8447,21 @@ function Home() {
                                     {/* Row 1: Direct Cash, Direct Bank & Direct Card */}
                                     <div className="flex gap-1.5">
                                         <button
-                                            className="flex-1 py-1.5 bg-emerald-700 text-white border-none hover:bg-emerald-800 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
+                                            className="flex-1 py-1.5 bg-emerald-700 text-white border-none hover:bg-emerald-800 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1"
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
                                             CASH <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+1</span>
                                         </button>
                                         <button
-                                            className="flex-1 py-1.5 bg-sky-600 text-white border-none hover:bg-sky-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
+                                            className="flex-1 py-1.5 bg-sky-600 text-white border-none hover:bg-sky-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1"
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Bank'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
                                             BANK <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Ctrl+V</span>
                                         </button>
                                         <button
-                                            className="flex-1 py-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1"
+                                            className="flex-1 py-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1"
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Card'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
@@ -8419,7 +8470,7 @@ function Home() {
                                     </div>
                                     {/* Row 2: Process Payment */}
                                     <button
-                                        className={`py-2 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[12px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5`}
+                                        className={`py-2 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[12px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5 p-1`}
                                         onClick={() => { setShowSettingsMenu(false); handleCheckout(); }}
                                         disabled={grandTotal <= 0}
                                     >
@@ -8901,7 +8952,7 @@ function Home() {
                                         <div className="col-12">
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
                                                 <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? (discount.type === 'percent' ? `Edit (${discount.value}%)` : <span className="flex items-center justify-center gap-0.5">Edit (<DirhamIcon size={10} />{discount.value})</span>) : 'Add Discount'} <span className="btn-shortcut-key">F1</span></button>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'} <span className="btn-shortcut-key">F12</span></button>
+                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', itemsCenter: 'center', justifyContent: 'center', backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'} <span className="btn-shortcut-key">Alt+L</span></button>
                                                 {grandTotal > 0 && <button className="home-bill-pay-btn" style={{ flex: 1 }} onClick={handleCheckout}>Pay</button>}
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
