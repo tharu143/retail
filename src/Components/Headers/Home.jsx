@@ -5411,11 +5411,23 @@ function Home() {
         </html>
         `;
 
-        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        
+        const printWindow = iframe.contentWindow;
         if (printWindow) {
             printWindow.document.open();
             printWindow.document.write(htmlContent);
             printWindow.document.close();
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 5000);
         }
     };
 
@@ -7583,7 +7595,7 @@ function Home() {
                                                 className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
                                                 style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5' } : {}}
                                             >
-                                                <Award size={10} /> Loyalty <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>Alt+L</span>
+                                                <Award size={10} /> Loyalty <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span>
                                             </button>
                                             <button
                                                 onClick={handleSaveDraft}
@@ -7598,7 +7610,7 @@ function Home() {
                                                 className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
                                                 style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
                                             >
-                                                <Trash2 size={10} /> Reset <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>Alt+C</span>
+                                                <Trash2 size={10} /> Reset <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>{getShortcut('pos_home', 'clearBill', 'Alt+C')}</span>
                                             </button>
                                         </div>
 
@@ -7641,7 +7653,7 @@ function Home() {
                                         style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        <span>Cash</span> <span className="btn-shortcut-key">Alt+1</span>
+                                        <span>Cash</span> <span className="btn-shortcut-key">{getShortcut('pos_home', 'directCash', 'Alt+1')}</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
@@ -7657,7 +7669,7 @@ function Home() {
                                         style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        <span>Card</span> <span className="btn-shortcut-key">Alt+2</span>
+                                        <span>Card</span> <span className="btn-shortcut-key">{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
                                     </button>
                                 </div>
 
@@ -8421,7 +8433,7 @@ function Home() {
                                         className={`py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1 p-1`}
                                         onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
                                     >
-                                        <Trash2 size={12} /> CLEAR BILL <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+C</span>
+                                        <Trash2 size={12} /> CLEAR BILL <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'clearBill', 'Alt+C')}</span>
                                     </button>
                                 </div>
 
@@ -8431,7 +8443,7 @@ function Home() {
                                         className={`py-1.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1 p-1`}
                                         onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
                                     >
-                                        <Award size={12} /> LOYALTY <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+L</span>
+                                        <Award size={12} /> LOYALTY <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span>
                                     </button>
                                     <button
                                         className={`py-1.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1`}
@@ -8451,7 +8463,7 @@ function Home() {
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
-                                            CASH <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+1</span>
+                                            CASH <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'directCash', 'Alt+1')}</span>
                                         </button>
                                         <button
                                             className="flex-1 py-1.5 bg-sky-600 text-white border-none hover:bg-sky-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1"
@@ -8465,7 +8477,7 @@ function Home() {
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Card'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
                                         >
-                                            CARD <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Alt+2</span>
+                                            CARD <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
                                         </button>
                                     </div>
                                     {/* Row 2: Process Payment */}
@@ -8952,7 +8964,7 @@ function Home() {
                                         <div className="col-12">
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
                                                 <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? (discount.type === 'percent' ? `Edit (${discount.value}%)` : <span className="flex items-center justify-center gap-0.5">Edit (<DirhamIcon size={10} />{discount.value})</span>) : 'Add Discount'} <span className="btn-shortcut-key">F1</span></button>
-                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', itemsCenter: 'center', justifyContent: 'center', backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'} <span className="btn-shortcut-key">Alt+L</span></button>
+                                                <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', itemsCenter: 'center', justifyContent: 'center', backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'} <span className="btn-shortcut-key">{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span></button>
                                                 {grandTotal > 0 && <button className="home-bill-pay-btn" style={{ flex: 1 }} onClick={handleCheckout}>Pay</button>}
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>

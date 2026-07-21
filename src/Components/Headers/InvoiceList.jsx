@@ -296,11 +296,23 @@ function InvoiceList() {
                 </body>
             </html>
         `;
-        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        
+        const printWindow = iframe.contentWindow;
         if (printWindow) {
             printWindow.document.open();
             printWindow.document.write(htmlContent);
             printWindow.document.close();
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 5000);
         }
     };
 

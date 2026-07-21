@@ -94,7 +94,9 @@ export const matchShortcutEvent = (e, shortcutString) => {
     if (e.altKey !== needsAlt) return false;
     if (e.shiftKey !== needsShift) return false;
     
-    // Check key
+    // Check key - use both e.key and e.code for Mac compatibility.
+    // On Mac, Option+letter generates special characters in e.key (e.g. Option+S → "ß"),
+    // but e.code always reflects the physical key pressed (e.g. "KeyS").
     let eventKey = e.key.toUpperCase();
     let targetKey = mainKeyPart;
     
@@ -102,8 +104,21 @@ export const matchShortcutEvent = (e, shortcutString) => {
     if (targetKey === ' ' || targetKey === 'SPACE') targetKey = 'SPACE';
     if (eventKey === ' ' || eventKey === 'SPACE') eventKey = 'SPACE';
     
-    return eventKey === targetKey;
+    // Direct match on e.key
+    if (eventKey === targetKey) return true;
+    
+    // Fallback: check physical key via e.code (e.g. "KeyS" -> "S", "Digit1" -> "1", "F10" -> "F10")
+    if (e.code) {
+        let codeKey = e.code.toUpperCase();
+        if (codeKey.startsWith('KEY')) codeKey = codeKey.slice(3);         // "KEYS" -> "S"
+        else if (codeKey.startsWith('DIGIT')) codeKey = codeKey.slice(5);  // "DIGIT1" -> "1"
+        else if (codeKey.startsWith('NUMPAD')) codeKey = codeKey.slice(6); // "NUMPAD1" -> "1"
+        if (codeKey === targetKey) return true;
+    }
+    
+    return false;
 };
+
 
 export const getShortcutStringFromEvent = (e) => {
     // Exclude modifier keys themselves as main keys
@@ -191,14 +206,30 @@ export const useCustomShortcuts = () => {
         return () => window.removeEventListener(EVENT_NAME, handleUpdate);
     }, []);
 
-    const getShortcut = useCallback((page, actionId, defaultVal) => {
+    const getRawShortcut = useCallback((page, actionId, defaultVal) => {
         return shortcuts[page]?.[actionId] || defaultVal || DEFAULT_SHORTCUTS[page]?.[actionId] || '';
     }, [shortcuts]);
 
+    const getShortcut = useCallback((page, actionId, defaultVal) => {
+        const rawStr = getRawShortcut(page, actionId, defaultVal);
+        if (!rawStr) return '';
+        
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0 || navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+        if (!isMac) return rawStr;
+        
+        return rawStr.split('+').map(part => {
+            const p = part.trim().toUpperCase();
+            if (p === 'ALT') return '⌥ Option';
+            if (p === 'CTRL' || p === 'CONTROL') return '⌃ Ctrl';
+            if (p === 'SHIFT') return '⇧ Shift';
+            return part.trim();
+        }).join(' + ');
+    }, [getRawShortcut]);
+
     const isShortcutPressed = useCallback((e, page, actionId, defaultVal) => {
-        const keyString = getShortcut(page, actionId, defaultVal);
+        const keyString = getRawShortcut(page, actionId, defaultVal);
         return matchShortcutEvent(e, keyString);
-    }, [getShortcut]);
+    }, [getRawShortcut]);
 
     const updateShortcut = useCallback((page, actionId, newKey) => {
         setShortcuts(prev => {

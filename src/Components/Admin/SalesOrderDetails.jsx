@@ -1449,7 +1449,7 @@ export default function SalesOrderDetails() {
                     <span className="so-shortcut-label">Save Draft</span>
                 </div>
                 <div className="so-shortcut-badge sky">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
                     <span className="so-shortcut-label">Add Row</span>
                 </div>
                 {isAdministrator && (
@@ -1459,7 +1459,7 @@ export default function SalesOrderDetails() {
                     </div>
                 )}
                 <div className="so-shortcut-badge emerald">
-                    <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+                    <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
                     <span className="so-shortcut-label">Submit</span>
                 </div>
                 <div className="so-shortcut-badge slate">

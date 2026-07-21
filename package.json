@@ -1,7 +1,7 @@
 {
   "name": "kyle-retail",
   "private": true,
-  "version": "1.2.3",
+  "version": "1.4.1",
   "description": "Offline-First Retail POS Application",
   "author": "Kyle <dev@kylesolutions.in>",
   "type": "module",
@@ -20,7 +20,7 @@
     "appId": "com.kylesolutions.kyle_retail",
     "productName": "KyleRetailPOS",
     "executableName": "kyle-retail",
-    "artifactName": "${productName}-${version}.${ext}",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
     "directories": {
       "output": "release"
     },

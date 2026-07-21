@@ -2514,7 +2514,7 @@ function PurchaseReceiptList() {
             <span className="so-shortcut-label">Save Draft</span>
           </div>
           <div className="so-shortcut-badge sky">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / Alt+A</span>
+            <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
             <span className="so-shortcut-label">Add Row</span>
           </div>
           <div className="so-shortcut-badge violet">
@@ -2522,7 +2522,7 @@ function PurchaseReceiptList() {
             <span className="so-shortcut-label">Warehouse</span>
           </div>
           <div className="so-shortcut-badge emerald">
-            <span className="so-shortcut-key">Ctrl+Enter / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+            <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
             <span className="so-shortcut-label">Submit</span>
           </div>
           <div className="so-shortcut-badge slate">
