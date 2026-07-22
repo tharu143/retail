@@ -223,7 +223,7 @@ function UserRouter() {
           <Route path='homepage' element={<HomePage />} />
           <Route path='dashboard' element={<DashboardPage />} />
           <Route path='driver-dashboard' element={<DriverDashboardPage />} />
-          
+
           <Route element={<SidebarLayout />}>
             <Route path='closingentry' element={<ClosingEntryPage />} />
             <Route path='invoicelist' element={<InvoiceListPage />} />
