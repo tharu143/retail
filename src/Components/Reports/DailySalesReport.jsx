@@ -118,8 +118,19 @@ function DailySalesReport() {
         let bank = 0;
         let credit = 0;
         let total = 0;
+        let netTotal = 0;
+        let loyaltyAmount = 0;
+        let discountAmount = 0;
 
         invoices?.forEach(inv => {
+            netTotal += (inv.net_total || 0);
+            loyaltyAmount += (inv.loyalty_amount || 0);
+            discountAmount += (inv.discount_amount || 0);
+
+            if (inv.outstanding_amount > 0) {
+                credit += (inv.outstanding_amount || 0);
+            }
+
             inv.payments?.forEach(p => {
                 const mode = (p.mode_of_payment || '').toLowerCase().trim();
                 const amt = p.amount || 0;
@@ -127,21 +138,21 @@ function DailySalesReport() {
                 
                 if (mode === 'cash') {
                     cash += amt;
-                } else if (mode.includes('card')) {
+                } else if (mode.includes('card') || mode.includes('visa') || mode.includes('master')) {
                     card += amt;
                 } else if (mode.includes('insta')) {
                     instapay += amt;
                 } else if (mode.includes('bank') || mode.includes('transfer') || mode.includes('wire')) {
                     bank += amt;
                 } else if (mode.includes('credit')) {
-                    credit += amt;
+                    // Handled via outstanding_amount above or direct payment
                 } else {
-                    cash += amt; // default fallback
+                    cash += amt;
                 }
             });
         });
 
-        return { cash, card, instapay, bank, credit, total };
+        return { cash, card, instapay, bank, credit, total, netTotal, loyaltyAmount, discountAmount };
     };
 
     const totals = getPaymentTotals(data.invoices);
@@ -274,64 +285,81 @@ function DailySalesReport() {
             )}
 
             {/* Metrics cards bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-indigo-600">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">POS Sales Volume</span>
-                    <span className="text-lg font-black text-slate-800 mt-2 flex items-center gap-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                {/* 1. Total POS Revenue */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-indigo-600">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total POS Revenue</span>
+                    <span className="text-base font-black text-slate-800 mt-1 flex items-center gap-1">
                         <DirhamIcon size={13} /> {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        {totalInvoicesCount} Invoices
+                    <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                        Net Total: AED {totals.netTotal.toFixed(2)}
                     </span>
                 </div>
 
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cash Collected</span>
-                    <span className="text-lg font-black text-emerald-600 mt-2 flex items-center gap-1">
+                {/* 2. Cash Payments */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cash Payments</span>
+                    <span className="text-base font-black text-emerald-600 mt-1 flex items-center gap-1">
                         <DirhamIcon size={13} /> {totals.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        Physical Cash
+                    <span className="text-[8.5px] font-bold text-emerald-600 uppercase tracking-widest mt-1">
+                        Physical Cash Sales
                     </span>
                 </div>
 
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-blue-500">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Card Payments</span>
-                    <span className="text-lg font-black text-blue-600 mt-2 flex items-center gap-1">
+                {/* 3. Card Payments */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-blue-500">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Card Payments</span>
+                    <span className="text-base font-black text-blue-600 mt-1 flex items-center gap-1">
                         <DirhamIcon size={13} /> {totals.card.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        Card Terminal
+                    <span className="text-[8.5px] font-bold text-blue-500 uppercase tracking-widest mt-1">
+                        Credit & Debit Cards
                     </span>
                 </div>
 
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-purple-500">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bank Transfer</span>
-                    <span className="text-lg font-black text-purple-600 mt-2 flex items-center gap-1">
-                        <DirhamIcon size={13} /> {totals.bank.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        Direct to Bank
-                    </span>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">InstaPay Cash</span>
-                    <span className="text-lg font-black text-amber-600 mt-2 flex items-center gap-1">
+                {/* 4. InstaPay Payments */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-cyan-500">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">InstaPay Payments</span>
+                    <span className="text-base font-black text-cyan-600 mt-1 flex items-center gap-1">
                         <DirhamIcon size={13} /> {totals.instapay.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        InstaPay
+                    <span className="text-[8.5px] font-bold text-cyan-600 uppercase tracking-widest mt-1">
+                        InstaPay Transactions
                     </span>
                 </div>
 
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between border-l-4 border-l-rose-500">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Customer Credit</span>
-                    <span className="text-lg font-black text-rose-600 mt-2 flex items-center gap-1">
+                {/* 5. Credit Sales */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credit Sales</span>
+                    <span className="text-base font-black text-amber-600 mt-1 flex items-center gap-1">
                         <DirhamIcon size={13} /> {totals.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        Outstanding Debt
+                    <span className="text-[8.5px] font-bold text-amber-600 uppercase tracking-widest mt-1">
+                        Outstanding Credit Sales
+                    </span>
+                </div>
+
+                {/* 6. Loyalty Points Redeemed */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-purple-500">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Loyalty Points Redeemed</span>
+                    <span className="text-base font-black text-purple-600 mt-1 flex items-center gap-1">
+                        <DirhamIcon size={13} /> {totals.loyaltyAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[8.5px] font-bold text-purple-600 uppercase tracking-widest mt-1">
+                        Points Redeemed Value
+                    </span>
+                </div>
+
+                {/* 7. Total Discounts Given */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-pink-500">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Discounts Given</span>
+                    <span className="text-base font-black text-pink-600 mt-1 flex items-center gap-1">
+                        <DirhamIcon size={13} /> {totals.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[8.5px] font-bold text-pink-600 uppercase tracking-widest mt-1">
+                        Customer Price Discounts
                     </span>
                 </div>
             </div>
