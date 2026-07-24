@@ -2416,27 +2416,32 @@ function Home() {
 
     // ---------- ITEM HANDLERS ----------
     const handleFilter = (cat) => setSelectedCategory(cat);
-    const handleAddToBill = (item) => {
+    const handleAddToBill = (item, targetUom = null) => {
         setLastInteractedItem(item);
         setBillItems(prev => {
-            const existingIdx = prev.findIndex(i => i.id === item.id);
+            const selectedUom = targetUom || (item.uom_conversions?.Nos ? 'Nos' : (item.uom_conversions?.Piece ? 'Piece' : 'Nos'));
+            const existingIdx = prev.findIndex(i => i.id === item.id && i.uom === selectedUom);
             if (existingIdx !== -1) {
+                const updated = [...prev];
+                updated[existingIdx] = { ...updated[existingIdx], qty: updated[existingIdx].qty + 1 };
                 setSelectedBillIndex(existingIdx);
-                return prev;
+                return updated;
             } else {
                 if (item.local_qty <= 0) {
                     handleOutOfStockAlert(item);
                     return prev;
                 }
-                const baseUom = item.uom_conversions?.Nos ? 'Nos' : (item.uom_conversions?.Piece ? 'Piece' : 'Nos');
-                const initialPrice = item.prices?.[baseUom] || item.price || 0;
+                const pcsPerBox = item.custom_pieces_per_box || 12;
+                const baseNosPrice = item.prices?.['Nos'] || item.prices?.['Piece'] || item.price || 0;
+                const calcPrice = selectedUom === 'Box' ? (item.prices?.['Box'] || (baseNosPrice * pcsPerBox)) : baseNosPrice;
 
                 const newItem = {
                     ...item,
                     qty: 1,
-                    uom: baseUom,
-                    price: initialPrice,
-                    base_unit_price: initialPrice,
+                    uom: selectedUom,
+                    price: calcPrice,
+                    base_unit_price: calcPrice,
+                    custom_pieces_per_box: pcsPerBox,
                     is_tax_inclusive: true // Default to inclusive for retail
                 };
                 setSelectedBillIndex(prev.length);
@@ -2459,6 +2464,10 @@ function Home() {
             const apiItem = (results || [])[0];
 
             if (apiItem) {
+                const scannedBarcodeStr = barcode.trim();
+                const matchedBarcode = (apiItem.barcodes || []).find(b => b.barcode === scannedBarcodeStr);
+                const scannedUom = matchedBarcode?.uom === 'Box' ? 'Box' : 'Nos';
+
                 const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
                 let pendingQty = 0;
                 pendingInvoices.forEach(inv => {
@@ -2477,8 +2486,9 @@ function Home() {
                     actual_qty: apiItem.actual_qty || 0,
                     local_qty: (apiItem.actual_qty || 0) - pendingQty,
                     warehouse_details: apiItem.warehouse_details || [],
-                    custom_pieces_per_box: apiItem.pcs_per_box || apiItem.custom_pieces_per_box || 1,
+                    custom_pieces_per_box: apiItem.pcs_per_box || apiItem.custom_pieces_per_box || 12,
                     prices: apiItem.prices || {},
+                    barcodes: apiItem.barcodes || [],
                     uom_conversions: apiItem.uom_conversions || {},
                     barcode_image: apiItem.barcode_image || null
                 };
@@ -2486,9 +2496,6 @@ function Home() {
                 // Fallback for prices if missing
                 if (!itemToBill.prices.Nos && !itemToBill.prices.Piece) {
                     itemToBill.prices = { "Nos": apiItem.price_list_rate || 0 };
-                }
-                if (!itemToBill.uom_conversions.Nos && !itemToBill.uom_conversions.Piece) {
-                    itemToBill.uom_conversions = { "Nos": 1 };
                 }
 
                 if (itemToBill.local_qty <= 0) {
@@ -2498,7 +2505,7 @@ function Home() {
                     return;
                 }
 
-                handleAddToBill(itemToBill);
+                handleAddToBill(itemToBill, scannedUom);
                 setBarcodeInput('');
                 barcodeInputRef.current?.focus();
 

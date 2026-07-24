@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { 
-  Save, CheckCircle2, XCircle, Package, Building2, 
+  Save, CheckCircle2, XCircle, Package, Building2, User,
   Search, Trash2, Loader2, AlertTriangle, ArrowRight, Info, Plus, Scan, MapPin, X, Copy, Edit3, FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -18,6 +18,7 @@ const API_PATH = '/api/method/kyle_retail.retail_api.api';
 // Accept & Transfer Modal - shown to Branch B when accepting a request
 const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfirm }) => {
     const [prices, setPrices] = useState({});
+    const [itemQtys, setItemQtys] = useState({});
     const [loading, setLoading] = useState(false);
     const [minPrices, setMinPrices] = useState({});
     const [pinValue, setPinValue] = useState('');
@@ -26,6 +27,11 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
     useEffect(() => {
         if (isOpen && items?.length > 0 && sourceWarehouse) {
             fetchPrices();
+            const initialQtys = {};
+            items.forEach(it => {
+                initialQtys[it.item_code] = it.qty || 1;
+            });
+            setItemQtys(initialQtys);
         }
     }, [isOpen, items, sourceWarehouse]);
 
@@ -91,6 +97,14 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
         }));
     };
 
+    const handleQtyChange = (itemCode, value) => {
+        const numVal = parseFloat(value) || 0;
+        setItemQtys(prev => ({
+            ...prev,
+            [itemCode]: numVal
+        }));
+    };
+
     const handleConfirm = () => {
         if (Object.keys(validationErrors).length > 0) {
             return;
@@ -98,9 +112,10 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
         if (!pinValue) {
             return;
         }
-        // Build selling_prices array for the API
+        // Build selling_prices array with updated quantities for the API
         const sellingPrices = items.map(it => ({
             item_code: it.item_code,
+            qty: itemQtys[it.item_code] ?? it.qty,
             selling_price_nos: prices[it.item_code]?.nos_price || 0,
             selling_price_box: prices[it.item_code]?.box_price || 0
         }));
@@ -113,10 +128,11 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
 
     const grandTotal = items?.reduce((sum, item) => {
         const itemPrices = prices[item.item_code] || {};
-        return sum + ((item.qty || 0) * (itemPrices.selling_price || 0));
+        const q = itemQtys[item.item_code] ?? (item.qty || 0);
+        return sum + (q * (itemPrices.selling_price || 0));
     }, 0) || 0;
 
-    const totalQty = items?.reduce((sum, item) => sum + (item.qty || 0), 0) || 0;
+    const totalQty = items?.reduce((sum, item) => sum + (itemQtys[item.item_code] ?? (item.qty || 0)), 0) || 0;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 animate-fadeIn">
@@ -136,7 +152,7 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
                                     </span>
                                 </div>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">
-                                    Confirm selling prices and authorize dispatch
+                                    Verify quantities, confirm selling prices & authorize dispatch
                                 </p>
                             </div>
                         </div>
@@ -162,8 +178,8 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
                                         <thead>
                                             <tr className="border-b border-slate-150 bg-slate-50/75">
                                                 <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center" style={{ width: '50px' }}>#</th>
-                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Item Details</th>
-                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center" style={{ width: '120px' }}>Quantity</th>
+                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Item Details & Last Supplier</th>
+                                                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center" style={{ width: '130px' }}>Quantity</th>
                                                 <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right" style={{ width: '180px' }}>Selling Price</th>
                                                 <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right" style={{ width: '160px' }}>Total</th>
                                             </tr>
@@ -173,7 +189,8 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
                                                 const itemPrices = prices[item.item_code] || {};
                                                 const isBox = (item.uom || '').toLowerCase() === 'box';
                                                 const sellingPrice = itemPrices.selling_price || 0;
-                                                const totalPrice = (item.qty || 0) * sellingPrice;
+                                                const currentQty = itemQtys[item.item_code] ?? (item.qty || 0);
+                                                const totalPrice = currentQty * sellingPrice;
                                                 const error = validationErrors[item.item_code];
                                                 const minPrice = isBox ? (minPrices[item.item_code]?.box || 0) : (minPrices[item.item_code]?.nos || 0);
 
@@ -184,12 +201,25 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
                                                         </td>
                                                         <td className="px-4 py-4">
                                                             <span className="text-xs font-extrabold text-slate-900 block leading-tight">{item.item_name}</span>
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1 block">{item.item_code}</span>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{item.item_code}</span>
+                                                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                                                    Supplier: {item.last_purchase_supplier || 'N/A'}
+                                                                </span>
+                                                            </div>
                                                         </td>
                                                         <td className="px-4 py-4 text-center">
-                                                            <span className="text-xs font-black text-slate-800 bg-slate-50 border border-slate-100 px-3 py-1 rounded-md shadow-xs inline-block">
-                                                                {item.qty} <span className="text-[9px] text-slate-400 uppercase font-bold ml-0.5">{item.uom || 'Nos'}</span>
-                                                            </span>
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0.01"
+                                                                    className="w-20 h-9 px-2 border border-slate-200 rounded-xl font-extrabold text-xs outline-none text-center bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-inner"
+                                                                    value={currentQty}
+                                                                    onChange={(e) => handleQtyChange(item.item_code, e.target.value)}
+                                                                    onFocus={(e) => e.target.select()}
+                                                                />
+                                                                <span className="text-[8px] font-bold text-slate-400 uppercase">{item.uom || 'Nos'}</span>
+                                                            </div>
                                                         </td>
                                                         <td className="px-4 py-4">
                                                             <div className="flex flex-col items-end gap-1">
@@ -324,8 +354,13 @@ const DispatchPricesModal = ({ isOpen, onClose, items, sourceWarehouse }) => {
                                 </div>
                                 <div>
                                     <p className="text-xs font-black text-slate-700">{item.item_name}</p>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase">{item.item_code}</p>
-                                    <p className="text-[9px] font-bold text-blue-500">{item.qty} {item.uom || 'Nos'}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase">{item.item_code}</span>
+                                        <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                            Supplier: {item.last_purchase_supplier || 'N/A'}
+                                        </span>
+                                    </div>
+                                    <p className="text-[9px] font-bold text-blue-500 mt-0.5">{item.qty} {item.uom || 'Nos'}</p>
                                 </div>
                             </div>
                             <div className="text-right space-y-1">
@@ -508,12 +543,13 @@ function InterBranchTransferDetails() {
 
   // Fetch read-only source buying & selling prices for items
   useEffect(() => {
-    if (doc.items && doc.items.length > 0 && doc.set_from_warehouse) {
+    if (doc?.items && doc.items.length > 0 && doc.set_from_warehouse) {
       fetchSourcePrices();
     }
-  }, [doc.items, doc.set_from_warehouse]);
+  }, [doc?.items, doc?.set_from_warehouse]);
 
   const fetchSourcePrices = async () => {
+    if (!doc?.items) return;
     const prices = {};
     for (const it of doc.items) {
       if (!it.item_code) continue;
@@ -542,7 +578,7 @@ function InterBranchTransferDetails() {
   // Sync selling prices from doc when it arrives (with Box & Nos support)
   // Also fetch custom_pieces_per_box from Item master
   useEffect(() => {
-    if (doc.status === 'Transferred' && doc.items) {
+    if (doc?.status === 'Transferred' && doc?.items) {
         // Fetch pieces_per_box from Item master for each item
         const fetchPcsPerBox = async () => {
             const pcsMap = {};
@@ -606,8 +642,10 @@ function InterBranchTransferDetails() {
       const data = res.data?.message;
       if (data) {
           const loadedDoc = data.data || (Array.isArray(data) ? data[0] : data);
-          setDoc(loadedDoc);
-          setIsViewOnly(loadedDoc.docstatus > 0);
+          if (loadedDoc && typeof loadedDoc === 'object') {
+            setDoc(loadedDoc);
+            setIsViewOnly(Boolean(loadedDoc.docstatus > 0));
+          }
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -1230,9 +1268,16 @@ function InterBranchTransferDetails() {
                         </select>
                     </div>
                 ) : (
-                    <div className="premium-cell-readonly font-bold flex items-center gap-2">
-                      <Building2 size={14} className="text-slate-400" />
-                      {doc.set_from_warehouse}
+                    <div className="premium-cell-readonly font-bold flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Building2 size={14} className="text-slate-400" />
+                        {doc.set_from_warehouse}
+                      </span>
+                      {doc.set_from_warehouse === currentWarehouse && (
+                        <span className="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
+                          Source Branch (YOU)
+                        </span>
+                      )}
                     </div>
                 )}
             </div>
@@ -1244,11 +1289,50 @@ function InterBranchTransferDetails() {
                       <Building2 size={14} className="text-slate-400" />
                       {doc.set_warehouse || doc.warehouse}
                     </span>
-                    <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Requesting Branch (YOU)</span>
+                    {(doc.set_warehouse === currentWarehouse || doc.warehouse === currentWarehouse) && (
+                      <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
+                        Requesting Branch (YOU)
+                      </span>
+                    )}
                 </div>
             </div>
           </div>
         </div>
+
+        {/* Employee Audit Trail Card */}
+        {!isNew && (
+          <div className="po-card animate-fadeIn">
+            <div className="po-card-header">
+              <h3 className="po-card-title flex items-center gap-2">
+                <User size={14} style={{ color: themeColor }} />
+                EMPLOYEE AUTHORIZATION TRAIL
+              </h3>
+            </div>
+            <div className="po-card-body grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-150">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Requested By</span>
+                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 mt-1">
+                  <User size={13} className="text-blue-500" />
+                  {doc.requested_by_employee_name || 'System User'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-150">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Dispatched / Transferred By</span>
+                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 mt-1">
+                  <User size={13} className="text-amber-500" />
+                  {doc.dispatched_by_employee_name || (doc.status === 'Dispatched' || doc.status === 'Transferred' ? 'Branch B Staff' : 'Pending Dispatch')}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-150">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Received By</span>
+                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 mt-1">
+                  <User size={13} className="text-emerald-500" />
+                  {doc.received_by_employee_name || (doc.status === 'Transferred' ? 'Branch A Staff' : 'Pending Receipt')}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Item Selection Card - Redesigned to po-card with purchase-table */}
         <div className="po-card animate-fadeIn">
@@ -1311,7 +1395,16 @@ function InterBranchTransferDetails() {
                                                 <div className="premium-cell-readonly font-bold">{item.item_name}</div>
                                             )}
                                         </div>
-                                        {item.item_code && <span className="premium-subtext">{item.item_code}</span>}
+                                        {item.item_code && (
+                                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                <span className="premium-subtext">{item.item_code}</span>
+                                                {item.last_purchase_supplier && (
+                                                    <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                                        Supplier: {item.last_purchase_supplier}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </td>
                                 

@@ -1,11 +1,13 @@
 import { io } from 'socket.io-client';
 
-const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
-const hostname = typeof window !== 'undefined' ? window.location.hostname : '75.119.130.59';
+const isBrowser = typeof window !== 'undefined';
+const protocol = isBrowser ? window.location.protocol : 'http:';
+const hostname = isBrowser ? window.location.hostname : '75.119.130.59';
+const port = isBrowser && window.location.port ? `:${window.location.port}` : '';
 
-const socket = io(`${protocol}//${hostname}/retailpos`, {
+const socket = io(`${protocol}//${hostname}${port}`, {
   path: '/socket.io',
-  transports: ['websocket'],
+  transports: ['websocket', 'polling'],
   autoConnect: true,
   withCredentials: true
 });

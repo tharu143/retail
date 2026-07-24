@@ -1353,18 +1353,22 @@ function PurchaseInvoiceList() {
     setFormData(prev => {
       const items = [...prev.items];
       existingIdx = items.findIndex((i, idx) => i.item_code === item.item_code && idx !== rowIndex);
+      const isBoxScan = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
+      const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
 
       if (existingIdx !== -1) {
         // Merge with existing item!
         const existingItem = { ...items[existingIdx] };
-        if (existingItem.use_box_entry) {
+        if (isBoxScan || existingItem.use_box_entry) {
+          existingItem.use_box_entry = true;
+          existingItem.uom = 'Box';
+          existingItem.custom_pieces_per_box = pcsPerBox;
           existingItem.custom_box_qty = (parseFloat(existingItem.custom_box_qty) || 0) + 1;
-          existingItem.qty = existingItem.custom_box_qty * (parseFloat(existingItem.custom_pieces_per_box) || 1);
+          existingItem.qty = existingItem.custom_box_qty * pcsPerBox;
         } else {
           existingItem.qty = (parseFloat(existingItem.qty) || 0) + 1;
-          const pPerBox = parseFloat(existingItem.custom_pieces_per_box) || 1;
-          if (pPerBox > 0) {
-            existingItem.custom_box_qty = existingItem.qty / pPerBox;
+          if (pcsPerBox > 0) {
+            existingItem.custom_box_qty = existingItem.qty / pcsPerBox;
           }
         }
         existingItem.amount = (existingItem.qty * (parseFloat(existingItem.rate) || 0)).toFixed(2);
@@ -1387,17 +1391,17 @@ function PurchaseInvoiceList() {
         };
       } else {
         // Normal item selection
-        const isBoxUom = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box';
+        const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
         items[rowIndex] = {
           item_code: item.item_code,
           item_name: item.item_name,
-          uom: item.stock_uom || 'Nos',
-          qty: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
+          uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
+          qty: isBoxUom ? pcsPerBox : 1,
           rate: 0,
           amount: 0,
           custom_box_qty: 1,
-          custom_pieces_per_box: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
-          default_pieces_per_box: parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1),
+          custom_pieces_per_box: pcsPerBox,
+          default_pieces_per_box: pcsPerBox,
           custom_selling_price: parseFloat(item.custom_selling_price || 0),
           custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',

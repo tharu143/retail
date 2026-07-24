@@ -52,17 +52,23 @@ export default defineConfig({
         },
       },
       '/files': {
-        target: 'http://75.119.130.59',
+        target: 'http://75.119.130.59:8089',
         changeOrigin: true,
         secure: false,
       },
       '/app': {
-        target: 'http://75.119.130.59',
+        target: 'http://75.119.130.59:8089',
         changeOrigin: true,
         secure: false,
       },
       '/assets': {
-        target: 'http://75.119.130.59',
+        target: 'http://75.119.130.59:8089',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/socket.io': {
+        target: 'http://75.119.130.59:8089',
+        ws: true,
         changeOrigin: true,
         secure: false,
       },

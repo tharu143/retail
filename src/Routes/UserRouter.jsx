@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import ScrollToTop from '../Components/ScrollToTop'
 import { useSelector, useDispatch } from 'react-redux';
@@ -76,7 +76,29 @@ function UserRouter() {
     }
   }, [user, user_roles, location.pathname, navigate]);
 
-  // Fetch initial notifications list
+  const seenNotifIdsRef = useRef(new Set());
+
+  // Sound helper for real-time notifications
+  const playNotificationChime = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    } catch (e) {
+      // Audio autoplay blocked or unsupported
+    }
+  };
+
+  // Fetch initial notifications list and trigger popup banners for unread items
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     try {
@@ -87,15 +109,62 @@ function UserRouter() {
       const resData = await response.json();
       const data = resData.message || resData;
       if (data && data.status === 'success') {
-        dispatch(setNotifications(data.notifications || []));
+        const notifs = data.notifications || [];
+        dispatch(setNotifications(notifs));
+
+        // Auto-popup floating banner on top of screen for unread notifications!
+        const unread = notifs.filter(n => !n.read && !seenNotifIdsRef.current.has(n.name));
+        if (unread.length > 0) {
+          unread.forEach(n => {
+            seenNotifIdsRef.current.add(n.name);
+            playNotificationChime();
+
+            let titleIcon = '🚨 NEW STOCK REQUEST';
+            let btnText = '⚡ VIEW REQUEST';
+            let btnColor = '#2563eb';
+
+            if (n.notification_type === 'Dispatch') {
+              titleIcon = '📦 STOCK DISPATCHED';
+              btnText = '✅ ACCEPT STOCK';
+              btnColor = '#059669';
+            } else if (n.notification_type === 'Decision') {
+              titleIcon = '🎉 TRANSFER COMPLETED';
+              btnText = 'VIEW SUMMARY';
+              btnColor = '#059669';
+            }
+
+            const targetDoc = n.document_name || n.doc_name || n.name;
+            Swal.fire({
+              title: titleIcon,
+              html: `<div style="font-size:13px; text-align:left; color:#1e293b; margin-top:4px;"><b>${n.title || ''}</b><br/>${n.message || ''}</div>`,
+              icon: n.notification_type === 'Dispatch' ? 'success' : 'info',
+              toast: true,
+              position: 'top',
+              showConfirmButton: true,
+              confirmButtonText: btnText,
+              confirmButtonColor: btnColor,
+              timer: 25000,
+              timerProgressBar: true
+            }).then((result) => {
+              if (result.isConfirmed && targetDoc) {
+                navigate(`/interbranchrequest/${targetDoc}`);
+              }
+            });
+          });
+        }
       }
     } catch (error) {
       console.error("[UserRouter] Failed to fetch notifications:", error);
     }
-  }, [user, dispatch]);
+  }, [user, dispatch, navigate]);
 
   useEffect(() => {
     fetchNotifications();
+    // Background polling fallback every 6 seconds so notifications pop up without page refresh
+    const pollInterval = setInterval(() => {
+      fetchNotifications();
+    }, 6000);
+    return () => clearInterval(pollInterval);
   }, [fetchNotifications]);
 
   // Global socket listener for real-time stock notifications
@@ -126,26 +195,27 @@ function UserRouter() {
 
     const handleNewRequest = (data) => {
       console.log("[Socket] New Inter-Branch Request Received:", data);
-      // Only notify if we are the SOURCE warehouse (Case-insensitive check)
-      if (data.from_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+      // Notify if we are the SOURCE warehouse (Case-insensitive check)
+      if (!data.from_warehouse || data.from_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
         fetchNotifications();
+        playNotificationChime();
         const description = data.item_code
           ? `is requesting <b>${data.qty}</b> of <b>${data.item_code}</b>.`
-          : `is requesting <b>${data.item_count} items</b> (Total Qty: ${data.qty}).`;
+          : `is requesting <b>${data.item_count || 'multiple'} items</b> (Total Qty: ${data.qty || ''}).`;
 
         Swal.fire({
-          title: 'NEW STOCK REQUEST',
-          html: `Branch <b>${data.to_warehouse}</b> ${description}`,
+          title: '🚨 NEW STOCK REQUEST',
+          html: `<div style="font-size:13px; text-align:left;">Branch <b>${data.to_warehouse || 'Target Branch'}</b> ${description}</div>`,
           icon: 'info',
           toast: true,
-          position: 'top-end',
+          position: 'top',
           showConfirmButton: true,
-          confirmButtonText: 'VIEW REQUEST',
-          confirmButtonColor: '#3b82f6',
-          timer: 15000,
+          confirmButtonText: '⚡ VIEW & DISPATCH',
+          confirmButtonColor: '#2563eb',
+          timer: 20000,
           timerProgressBar: true
         }).then((result) => {
-          if (result.isConfirmed) {
+          if (result.isConfirmed && data.name) {
             navigate(`/interbranchrequest/${data.name}`);
           }
         });
@@ -155,18 +225,19 @@ function UserRouter() {
     const handleDecision = (data) => {
       console.log("[Socket] Inter-Branch Decision Received:", data);
       fetchNotifications();
+      playNotificationChime();
       // Show notification for decision (Accepted/Rejected)
       Swal.fire({
-        title: `TRANSFER ${data.decision.toUpperCase()}`,
+        title: `TRANSFER ${data.decision?.toUpperCase() || 'UPDATE'}`,
         text: `Request ${data.name} has been ${data.decision}. ${data.message || ''}`,
         icon: data.decision === 'accepted' ? 'success' : 'error',
         toast: true,
-        position: 'top-end',
+        position: 'top',
         showConfirmButton: true,
-        confirmButtonText: 'OPEN',
-        timer: 8000
+        confirmButtonText: 'VIEW DETAILS',
+        timer: 15000
       }).then((result) => {
-        if (result.isConfirmed) {
+        if (result.isConfirmed && data.name) {
           navigate(`/interbranchrequest/${data.name}`);
         }
       });
@@ -174,22 +245,47 @@ function UserRouter() {
 
     const handleDispatched = (data) => {
       console.log("[Socket] Inter-Branch Dispatch Received:", data);
-      // Only notify if we are the DESTINATION warehouse (Case-insensitive check)
-      if (data.to_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+      // Notify if we are the DESTINATION warehouse (Case-insensitive check)
+      if (!data.to_warehouse || data.to_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
         fetchNotifications();
+        playNotificationChime();
         Swal.fire({
-          title: 'MATERIAL DISPATCHED',
-          html: `Branch <b>${data.from_warehouse}</b> has dispatched stock. Please accept the items!`,
+          title: '📦 STOCK DISPATCHED',
+          html: `<div style="font-size:13px; text-align:left;">Branch <b>${data.from_warehouse || 'Source Branch'}</b> has dispatched stock. Please accept and verify items!</div>`,
           icon: 'success',
           toast: true,
-          position: 'top-end',
+          position: 'top',
           showConfirmButton: true,
-          confirmButtonText: 'ACCEPT STOCK',
-          confirmButtonColor: '#10b981',
+          confirmButtonText: '✅ ACCEPT STOCK',
+          confirmButtonColor: '#059669',
+          timer: 20000,
+          timerProgressBar: true
+        }).then((result) => {
+          if (result.isConfirmed && data.name) {
+            navigate(`/interbranchrequest/${data.name}`);
+          }
+        });
+      }
+    };
+
+    const handleReceived = (data) => {
+      console.log("[Socket] Inter-Branch Received Event:", data);
+      if (!data.from_warehouse || data.from_warehouse?.toLowerCase() === warehouse?.toLowerCase()) {
+        fetchNotifications();
+        playNotificationChime();
+        Swal.fire({
+          title: '🎉 TRANSFER COMPLETED',
+          html: `<div style="font-size:13px; text-align:left;">Branch <b>${data.to_warehouse || 'Destination Branch'}</b> (${data.receiver_name || 'Staff'}) has received and accepted stock for request <b>${data.name}</b>.</div>`,
+          icon: 'success',
+          toast: true,
+          position: 'top',
+          showConfirmButton: true,
+          confirmButtonText: 'VIEW SUMMARY',
+          confirmButtonColor: '#059669',
           timer: 15000,
           timerProgressBar: true
         }).then((result) => {
-          if (result.isConfirmed) {
+          if (result.isConfirmed && data.name) {
             navigate(`/interbranchrequest/${data.name}`);
           }
         });
@@ -199,6 +295,7 @@ function UserRouter() {
     socket.on('inter_branch_request_created', handleNewRequest);
     socket.on('inter_branch_decision', handleDecision);
     socket.on('inter_branch_dispatched', handleDispatched);
+    socket.on('inter_branch_received', handleReceived);
 
     return () => {
       socket.off('connect', onConnect);
@@ -207,6 +304,7 @@ function UserRouter() {
       socket.off('inter_branch_request_created', handleNewRequest);
       socket.off('inter_branch_decision', handleDecision);
       socket.off('inter_branch_dispatched', handleDispatched);
+      socket.off('inter_branch_received', handleReceived);
     };
   }, [warehouse, navigate, fetchNotifications]);
 

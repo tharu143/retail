@@ -361,13 +361,13 @@ function PurchaseReceiptList() {
       e.preventDefault();
       const barcode = barcodeInput.trim();
       try {
-        // Fetch items by barcode (your existing endpoint supports it)
+        // Fetch items by barcode
         const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
-        const res = await axios.get(`${LEGACY_API}.get_items_for_pr?${warehouseParam}`, {
-          params: { query: barcode },
+        const res = await axios.get(`${API_PATH}.get_item_by_barcode_pr?${warehouseParam}`, {
+          params: { barcode: barcode },
           withCredentials: true
         });
-        const matchedItems = Array.isArray(res.data.message) ? res.data.message : [];
+        const matchedItems = Array.isArray(res.data.message) ? res.data.message : (res.data.message ? [res.data.message] : []);
         if (matchedItems.length > 0) {
           const item = matchedItems[0]; // First match
           // Fetch rate (reuse existing logic)
@@ -388,8 +388,9 @@ function PurchaseReceiptList() {
           // Add to last row
           const lastIndex = formData.items.length - 1;
           selectItem(lastIndex, item);
-          updateItem(lastIndex, 'rate', rate);
-          updateItem(lastIndex, 'accepted_qty', 1); // auto qty 1
+          if (rate > 0) {
+            updateItem(lastIndex, 'rate', rate);
+          }
           // Clear input
           setBarcodeInput('');
           // Add new empty row
@@ -947,7 +948,8 @@ function PurchaseReceiptList() {
           stock_uom: ''
         };
       } else {
-        const isBoxUom = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box';
+        const isBoxUom = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box' || (item.scanned_uom || '').toLowerCase() === 'box';
+        const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
         const currentAccepted = parseFloat(items[rowIndex].accepted_qty) || 0;
         const newAccepted = currentAccepted > 0 ? currentAccepted : 1;
         const currentRejected = parseFloat(items[rowIndex].rejected_qty) || 0;
@@ -956,13 +958,13 @@ function PurchaseReceiptList() {
           ...items[rowIndex],
           item_code: item.item_code,
           item_name: item.item_name,
-          uom: item.stock_uom || 'Nos',
+          uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
           accepted_qty: newAccepted,
           received_qty: newAccepted + currentRejected,
-          qty: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : newAccepted,
-          custom_box_qty: isBoxUom ? 1 : newAccepted,
-          custom_pieces_per_box: isBoxUom ? (parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1)) : 1,
-          default_pieces_per_box: parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1),
+          qty: isBoxUom ? pcsPerBox : newAccepted,
+          custom_box_qty: 1,
+          custom_pieces_per_box: pcsPerBox,
+          default_pieces_per_box: pcsPerBox,
           custom_selling_price: parseFloat(item.custom_selling_price || 0),
           custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',

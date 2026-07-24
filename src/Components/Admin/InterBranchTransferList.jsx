@@ -206,7 +206,7 @@ function InterBranchTransferList() {
                           </span>
                         </td>
                         
-                        {/* 2. Directional Branch */}
+                        {/* 2. Directional Branch & Staff Audit */}
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: themeLight, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -214,7 +214,11 @@ function InterBranchTransferList() {
                             </div>
                             <div>
                               <p style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px', margin: 0 }}>
-                                {activeTab === 'incoming' ? req.target_warehouse?.replace(' - KSPL', '') : req.set_from_warehouse?.replace(' - KSPL', '')}
+                                {activeTab === 'incoming' ? (req.set_warehouse || req.target_warehouse)?.replace(' - KSPL', '') : req.set_from_warehouse?.replace(' - KSPL', '')}
+                              </p>
+                              <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, margin: '2px 0 0 0' }}>
+                                Req by: {req.requested_by_employee_name || 'Staff'}
+                                {req.dispatched_by_employee_name ? ` • Transfer: ${req.dispatched_by_employee_name}` : ''}
                               </p>
                             </div>
                           </div>

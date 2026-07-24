@@ -877,7 +877,7 @@ function PurchaseOrder() {
     setScanningRow(rowIndex);
     try {
       const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
-      const res = await fetch(`${API_PATH}.get_item_by_barcode_retail?barcode=${encodeURIComponent(barcode)}${warehouseParam}`, {
+      const res = await fetch(`${API_PATH}.get_item_by_barcode_po?barcode=${encodeURIComponent(barcode)}${warehouseParam}`, {
         headers: { 'X-Frappe-SID': getSession() },
         credentials: 'include'
       });
@@ -908,20 +908,27 @@ function PurchaseOrder() {
           }
         } else {
           // Item does not exist, add it to the current row
-          const piecesPerBox = parseFloat(item.custom_pieces_per_box || 1);
+          const isBox = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
+          const piecesPerBox = parseFloat(item.custom_pieces_per_box || 12);
+          const baseRate = parseFloat(item.last_buying_rate || item.rate || 0);
+          const boxQty = 1;
+          const totalPieces = isBox ? (boxQty * piecesPerBox) : 1;
+          const totalAmount = totalPieces * baseRate;
+
           items[rowIndex] = {
             ...items[rowIndex],
             item_code: item.item_code,
             item_name: item.item_name,
-            stock_uom: item.stock_uom || '',
-            uom: item.stock_uom || '',
-            rate: rate,
-            last_buying_rate: rate,
-            qty: piecesPerBox,
-            amount: rate * piecesPerBox,
+            stock_uom: item.stock_uom || 'Nos',
+            uom: isBox ? 'Box' : (item.stock_uom || 'Nos'),
+            rate: baseRate,
+            last_buying_rate: baseRate,
+            qty: totalPieces,
+            amount: totalAmount,
             custom_pieces_per_box: piecesPerBox,
-            custom_box_price: rate * piecesPerBox,
-            custom_box_qty: 1,
+            custom_box_price: baseRate * piecesPerBox,
+            custom_box_qty: isBox ? boxQty : (piecesPerBox > 0 ? 1 / piecesPerBox : 1),
+            use_box_entry: isBox,
             custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
             supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
             temp_barcode: ''
