@@ -536,6 +536,36 @@ function SalesReport() {
               </span>
               <span style={{ fontSize: '9px', fontWeight: 700, color: '#f59e0b', display: 'block', marginTop: '0.25rem' }}>Outstanding Credit Sales</span>
             </div>
+
+            {/* Card 6: Loyalty Points Redeemed */}
+            <div 
+              className="po-card shadow-sm" 
+              style={{ borderLeft: '4px solid #8b5cf6', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#8b5cf6' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Loyalty Points Redeemed</span>
+                <Coins size={14} style={{ color: '#8b5cf6' }} />
+              </div>
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#6d28d9', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <DirhamIcon size={18} /> {(breakdown.loyalty_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#8b5cf6', display: 'block', marginTop: '0.25rem' }}>Customer Points Redeemed Value</span>
+            </div>
+
+            {/* Card 7: Total Discounts Given */}
+            <div 
+              className="po-card shadow-sm" 
+              style={{ borderLeft: '4px solid #ec4899', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#ec4899' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Total Discounts Given</span>
+                <TrendingUp size={14} style={{ color: '#ec4899' }} />
+              </div>
+              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#be185d', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <DirhamIcon size={18} /> {(breakdown.discount_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#ec4899', display: 'block', marginTop: '0.25rem' }}>Customer Price Discounts</span>
+            </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

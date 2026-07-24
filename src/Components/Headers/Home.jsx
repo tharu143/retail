@@ -3346,6 +3346,10 @@ function Home() {
             Swal.fire('Notice', 'Selected customer is not enrolled in a loyalty program.', 'info');
             return;
         }
+        // Fetch dynamic loyalty program details if online
+        if (selectedCustomer.name) {
+            fetchLoyaltyProgramDetails(selectedCustomer.name);
+        }
         setLoyaltyInput(loyaltyPointsToRedeem > 0 ? String(loyaltyPointsToRedeem) : "");
         setShowLoyaltyModal(true);
     };
@@ -3356,10 +3360,21 @@ function Home() {
             Swal.fire('Error', 'Please enter a valid points value.', 'error');
             return;
         }
-        const LOYALTY_RATE = 0.01; // 100 pts = 1 AED
+        
+        // Dynamic conversion factor from ERPNext backend
+        const factor = loyaltyProgramConfig?.conversion_factor || 0.01;
+        const LOYALTY_RATE = factor <= 1.0 ? factor : (1.0 / factor);
         const redeemedValue = parseFloat((points * LOYALTY_RATE).toFixed(2));
+        
         if (redeemedValue > subtotal) {
             Swal.fire('Error', 'Redemption amount cannot exceed subtotal.', 'error');
+            return;
+        }
+
+        // Maximum Redemption Limit Validation (from ERPNext settings / local storage fallback)
+        const maxRedeemLimit = loyaltyProgramConfig?.max_loyalty_redemption_amount || parseFloat(localStorage.getItem('max_loyalty_redemption_amount') || 0);
+        if (maxRedeemLimit > 0 && redeemedValue > maxRedeemLimit) {
+            Swal.fire('Restricted', `Redemption amount (${redeemedValue.toFixed(2)} AED) exceeds maximum allowed limit of ${maxRedeemLimit.toFixed(2)} AED per transaction.`, 'warning');
             return;
         }
 
@@ -4863,7 +4878,9 @@ function Home() {
                                     </div>
                                     <div className="flex flex-col items-end">
                                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-200">Redemption Rate</span>
-                                        <span className="text-xs font-bold flex items-center gap-1">100 Pt = <DirhamIcon size={11} /> 1.00</span>
+                                        <span className="text-xs font-bold flex items-center gap-1">
+                                            1 Pt = <DirhamIcon size={11} /> {(loyaltyProgramConfig?.conversion_factor || 0.01).toFixed(2)}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
