@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import axios from 'axios';
 import kyleLogo from '../../assets/kyleretail.png';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -3327,6 +3328,33 @@ function Home() {
         setShowDeliveryFee(false);
         setInstapayServiceFee('');
     }, []);
+
+    // Dynamic Loyalty Program Details Fetcher
+    const [loyaltyProgramConfig, setLoyaltyProgramConfig] = useState({ conversion_factor: 0.01, max_loyalty_redemption_amount: 0 });
+
+    const fetchLoyaltyProgramDetails = async (customerName) => {
+        if (!customerName) return;
+        try {
+            if (navigator.onLine) {
+                const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_loyalty_program_details', {
+                    params: { customer: customerName, warehouse },
+                    withCredentials: true
+                });
+                if (res.data?.message) {
+                    const config = res.data.message;
+                    setLoyaltyProgramConfig(config);
+                    localStorage.setItem(`loyalty_config_${customerName}`, JSON.stringify(config));
+                }
+            } else {
+                const cached = localStorage.getItem(`loyalty_config_${customerName}`);
+                if (cached) {
+                    setLoyaltyProgramConfig(JSON.parse(cached));
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching loyalty program details:', err);
+        }
+    };
 
     // Loyalty Points
     const handleLoyaltyPointsClick = () => {

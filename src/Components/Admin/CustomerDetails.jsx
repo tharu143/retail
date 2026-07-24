@@ -6,7 +6,7 @@ import {
   Globe, Tag, Receipt, Layers, ShoppingCart, Edit2, Save, X,
   Clock, Award, User, Briefcase, Hash, FileText, ShieldCheck,
   UserPlus, Shield, UserCircle2, Percent, Warehouse, Plus, Trash2,
-  ChevronDown, ChevronUp, RotateCcw
+  ChevronDown, ChevronUp, RotateCcw, Calendar, Filter
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { motion } from 'framer-motion';
@@ -338,6 +338,8 @@ const CustomerDetails = () => {
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'loyalty'
   const [loyaltyLedger, setLoyaltyLedger] = useState([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [loyaltyFromDate, setLoyaltyFromDate] = useState('');
+  const [loyaltyToDate, setLoyaltyToDate] = useState('');
   const [dashboardData, setDashboardData] = useState(null);
   const [expandedSection, setExpandedSection] = useState(null);
 
@@ -387,10 +389,16 @@ const CustomerDetails = () => {
     branch_availability: []
   });
 
-  const fetchLoyaltyLedger = async () => {
+  const fetchLoyaltyLedger = async (fromDate = loyaltyFromDate, toDate = loyaltyToDate) => {
     try {
       setLedgerLoading(true);
-      const res = await axios.get(`${API_BASE}.get_customer_loyalty_ledger`, { params: { customer: id } });
+      const res = await axios.get(`${API_BASE}.get_customer_loyalty_ledger`, { 
+        params: { 
+          customer: id,
+          from_date: fromDate || undefined,
+          to_date: toDate || undefined
+        } 
+      });
       setLoyaltyLedger(res.data.message || []);
     } catch (err) {
       console.error("Ledger fetch failed", err);
@@ -693,15 +701,23 @@ const CustomerDetails = () => {
 
               {/* TOP FULL WIDTH ROW: Loyalty Balance Banner */}
               <div className="lg:col-span-2">
-                <div className="rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1" style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}>
+                <div 
+                  onClick={() => setActiveTab('loyalty')}
+                  title="Click to view full Loyalty Points History & Ledger"
+                  className="rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer group border border-white/10"
+                  style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}
+                >
                   <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]" />
 
                   <div className="flex items-center gap-4 z-10">
-                    <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner">
+                    <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner group-hover:scale-110 transition-transform">
                       <Award className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/80 mb-1">Loyalty Program Balance</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/80 mb-1">Loyalty Program Balance</p>
+                        <span className="bg-white/20 text-white text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider group-hover:bg-emerald-500 transition-colors shadow-sm">View History ➔</span>
+                      </div>
                       <h4 className="text-xl font-bold text-white leading-tight">{customer?.loyalty_program || 'Standard Program'}</h4>
                     </div>
                   </div>
@@ -1096,19 +1112,57 @@ const CustomerDetails = () => {
           ) : (
             /* LOYALTY LEDGER TAB */
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden pb-12 animate-in fade-in duration-300">
-              <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/20">
+              <div className="px-8 py-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/20">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100/50" style={{ backgroundColor: `${themeColor}08`, color: themeColor }}>
                     <Award size={20} />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">Loyalty Points Balance Ledger</h3>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-1">Historical record of point credits and redemptions</p>
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Historical record of point credits and redemptions</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-2.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Balance:</span>
-                  <span className="text-sm font-black text-slate-800">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts</span>
+
+                {/* DATE RANGE FILTERS & ACTIVE BALANCE */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-1.5 shadow-sm text-xs">
+                    <Calendar size={14} className="text-slate-400" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">From:</span>
+                    <input 
+                      type="date" 
+                      value={loyaltyFromDate} 
+                      onChange={(e) => setLoyaltyFromDate(e.target.value)} 
+                      className="bg-slate-50 px-2 py-1 rounded-lg text-xs font-semibold text-slate-700 outline-none border border-slate-100 focus:border-indigo-300"
+                    />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">To:</span>
+                    <input 
+                      type="date" 
+                      value={loyaltyToDate} 
+                      onChange={(e) => setLoyaltyToDate(e.target.value)} 
+                      className="bg-slate-50 px-2 py-1 rounded-lg text-xs font-semibold text-slate-700 outline-none border border-slate-100 focus:border-indigo-300"
+                    />
+                    <button 
+                      onClick={() => fetchLoyaltyLedger(loyaltyFromDate, loyaltyToDate)}
+                      className="px-3.5 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-1"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      <Filter size={11} /> Filter
+                    </button>
+                    {(loyaltyFromDate || loyaltyToDate) && (
+                      <button 
+                        onClick={() => { setLoyaltyFromDate(''); setLoyaltyToDate(''); fetchLoyaltyLedger('', ''); }}
+                        className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold uppercase hover:bg-slate-200"
+                        title="Clear Date Filters"
+                      >
+                        <X size={12} /> Clear
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100/80 rounded-2xl px-5 py-2.5 shadow-sm">
+                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Active Balance:</span>
+                    <span className="text-sm font-black text-emerald-700">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts</span>
+                  </div>
                 </div>
               </div>
 
@@ -1153,17 +1207,30 @@ const CustomerDetails = () => {
                             {row.loyalty_points > 0 ? '+' : ''}{parseFloat(row.loyalty_points).toFixed(2)} pts
                           </td>
                           <td className="py-2 px-4 font-bold text-indigo-600" style={{ color: themeColor }}>
-                            <a href={`/app/sales-invoice/${row.invoice}`} target={window.location.protocol === 'file:' ? '_self' : '_blank'} rel="noopener noreferrer" className="hover:underline flex items-center gap-1 select-all">
+                            <button 
+                              type="button"
+                              onClick={() => navigate(`/salesinvoice?search=${encodeURIComponent(row.invoice)}`)} 
+                              className="hover:underline flex items-center gap-1 font-bold text-left cursor-pointer transition-colors"
+                              style={{ color: themeColor }}
+                            >
                               <FileText size={12} className="opacity-60" /> {row.invoice}
-                            </a>
+                            </button>
                           </td>
                           <td className="py-2 px-4 text-[10px] font-bold text-slate-400 uppercase">
                             {row.type === 'Redeemed' && row.original_invoice ? (
                               <span className="text-slate-600 flex items-center gap-1 select-all">
-                                Used against: <b className="text-indigo-600" style={{ color: themeColor }}>{row.original_invoice}</b>
+                                Used against: 
+                                <button 
+                                  type="button"
+                                  onClick={() => navigate(`/salesinvoice?search=${encodeURIComponent(row.original_invoice)}`)} 
+                                  className="hover:underline font-bold text-indigo-600 text-left cursor-pointer transition-colors"
+                                  style={{ color: themeColor }}
+                                >
+                                  {row.original_invoice}
+                                </button>
                               </span>
                             ) : row.type === 'Earned' ? (
-                              <span className="text-emerald-600">Credit Credited</span>
+                              <span className="text-emerald-600 font-bold">Credit Credited</span>
                             ) : (
                               '—'
                             )}

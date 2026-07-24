@@ -7,7 +7,7 @@ import {
   Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck,
   Zap, Link as LinkIcon
 } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import AttachmentSection from './AttachmentSection';
@@ -56,8 +56,9 @@ const SalesInvoiceList = () => {
 
 
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
+  const [searchParams] = useSearchParams();
+  const querySearch = searchParams.get('search') || searchParams.get('name') || location.state?.search || '';
+  const [searchTerm, setSearchTerm] = useState(querySearch);
   const [titleFilter, setTitleFilter] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
