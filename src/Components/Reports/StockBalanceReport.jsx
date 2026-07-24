@@ -659,8 +659,7 @@ function StockBalanceReport() {
                               case 'warehouse':
                                 return (
                                   <td key={col.id} className="warehouse-cell">
-                                    <span className="warehouse-name">{row.warehouse?.replace(' - KSPL', '')}</span>
-                                    <span className="warehouse-sub">KSPL</span>
+                                    <span className="warehouse-name">{row.warehouse}</span>
                                   </td>
                                 );
                               case 'stock_uom':

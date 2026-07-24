@@ -3124,17 +3124,26 @@ function PurchaseOrder() {
                                         <div className="premium-cell-container" style={{ minHeight: '36px', justifyContent: 'center' }}>
                                           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
                                             {!(isViewOnly || formData.docstatus !== 0) ? (
-                                              <CustomSearchDropdown
-                                                value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
-                                                placeholder="Search item..."
-                                                onSelect={(val) => handleItemSelect(val, idx)}
-                                                themeColor="var(--po-primary)"
-                                                optionsLabel="name"
-                                                fetchData={fetchItems}
-                                                globalSearch={true}
-                                                onGlobalSearch={handleGlobalItemSearch}
-                                                onActivate={handleActivateItem}
-                                              />
+                                              <div>
+                                                <CustomSearchDropdown
+                                                  value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                  placeholder="Search item..."
+                                                  onSelect={(val) => handleItemSelect(val, idx)}
+                                                  themeColor="var(--po-primary)"
+                                                  optionsLabel="name"
+                                                  fetchData={fetchItems}
+                                                  globalSearch={true}
+                                                  onGlobalSearch={handleGlobalItemSearch}
+                                                  onActivate={handleActivateItem}
+                                                />
+                                                {Boolean(item.item_code && (item.last_purchase_rate || item.last_buying_rate || item.last_buying_price || item.rate)) && (
+                                                  <div className="flex items-center gap-1 mt-1 px-1">
+                                                    <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-xs">
+                                                      Last Pur: AED {formatPrice(item.last_purchase_rate || item.last_buying_rate || item.last_buying_price || item.rate)}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                              </div>
                                             ) : (
                                               item.item_code && (
                                                 <div style={{

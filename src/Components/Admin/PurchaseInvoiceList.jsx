@@ -909,7 +909,12 @@ function PurchaseInvoiceList() {
         return mapped;
       }
     } catch (err) {
-      alert('Failed to load invoice');
+      console.error('Error fetching invoice:', err);
+      if (err.response?.status === 404) {
+        setSearchParams({}, { replace: true });
+      } else {
+        alert('Failed to load invoice: ' + (err.response?.data?.message || err.message));
+      }
     }
     return null;
   }, [fetchWorkflowActions]);
@@ -1392,12 +1397,14 @@ function PurchaseInvoiceList() {
       } else {
         // Normal item selection
         const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
+        const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || item.rate || 0);
         items[rowIndex] = {
           item_code: item.item_code,
           item_name: item.item_name,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
           qty: isBoxUom ? pcsPerBox : 1,
           rate: 0,
+          last_purchase_rate: lastPurRate,
           amount: 0,
           custom_box_qty: 1,
           custom_pieces_per_box: pcsPerBox,
@@ -1680,6 +1687,10 @@ function PurchaseInvoiceList() {
         openCreateModal();
       }
     } else if (nameParam) {
+      if (nameParam.startsWith('MAT-PRE-') || nameParam.startsWith('PR-') || nameParam.startsWith('PUR-ORD-') || nameParam.startsWith('PO-')) {
+        setSearchParams({}, { replace: true });
+        return;
+      }
       // Don't reload if we are currently showing a return draft against this document
       if (nameParam !== docName || !isModalOpen) {
         if (nameParam !== formData.return_against || !isModalOpen) {

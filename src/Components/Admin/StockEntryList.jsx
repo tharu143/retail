@@ -178,12 +178,12 @@ function StockEntryList() {
 
                                                 {/* From */}
                                                 <td style={{ fontSize: '13px', color: '#475569' }}>
-                                                    {entry.from_warehouse ? entry.from_warehouse.replace(' - KSPL', '') : '--'}
+                                                    {entry.from_warehouse || '--'}
                                                 </td>
 
                                                 {/* To */}
                                                 <td style={{ fontSize: '13px', color: '#475569' }}>
-                                                    {entry.to_warehouse ? entry.to_warehouse.replace(' - KSPL', '') : '--'}
+                                                    {entry.to_warehouse || '--'}
                                                 </td>
 
                                                 {/* Status */}

@@ -1315,7 +1315,11 @@ function PurchaseReceiptList() {
       });
     } catch (err) {
       console.error('Error fetching receipt:', err);
-      alert('Failed to load receipt');
+      if (err.response?.status === 404) {
+        setSearchParams({}, { replace: true });
+      } else {
+        alert('Failed to load receipt: ' + (err.response?.data?.message || err.message));
+      }
     } finally {
       setLoading(false);
     }
@@ -1702,6 +1706,10 @@ function PurchaseReceiptList() {
         openCreateModal();
       }
     } else if (nameParam) {
+      if (nameParam.startsWith('ACC-PINV-') || nameParam.startsWith('PINV-') || nameParam.startsWith('PUR-ORD-') || nameParam.startsWith('PO-')) {
+        setSearchParams({}, { replace: true });
+        return;
+      }
       if (nameParam !== docName) {
         if (nameParam !== formData.return_against) {
           fetchReceiptForEdit(nameParam);
@@ -2926,14 +2934,23 @@ function PurchaseReceiptList() {
                                               <div className="premium-cell-container" style={{ minHeight: '36px', justifyContent: 'center' }}>
                                                 <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
                                                   {!isViewMode ? (
-                                                    <CustomSearchDropdown
-                                                      value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
-                                                      placeholder="Search item..."
-                                                      onSelect={(val) => selectItem(i, val)}
-                                                      fetchData={fetchItems}
-                                                      themeColor={themeColor}
-                                                      optionsLabel="name"
-                                                    />
+                                                    <div>
+                                                      <CustomSearchDropdown
+                                                        value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                        placeholder="Search item..."
+                                                        onSelect={(val) => selectItem(i, val)}
+                                                        fetchData={fetchItems}
+                                                        themeColor={themeColor}
+                                                        optionsLabel="name"
+                                                      />
+                                                      {Boolean(item.item_code && (item.last_purchase_rate || item.last_buying_rate || item.rate)) && (
+                                                        <div className="flex items-center gap-1 mt-1 px-1">
+                                                          <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-xs">
+                                                            Last Pur: AED {formatPrice(item.last_purchase_rate || item.last_buying_rate || item.rate)}
+                                                          </span>
+                                                        </div>
+                                                      )}
+                                                    </div>
                                                   ) : (
                                                     item.item_code && (
                                                       <div style={{

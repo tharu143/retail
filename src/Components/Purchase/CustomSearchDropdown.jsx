@@ -327,6 +327,11 @@ const CustomSearchDropdown = ({
                           Stock: {item.actual_qty}
                         </span>
                       )}
+                      {(item.last_purchase_rate || item.last_buying_rate || item.last_buying_price || item.rate) > 0 && (
+                        <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold px-1.5 py-0.5 rounded tracking-tight">
+                          Last Pur: AED {parseFloat(item.last_purchase_rate || item.last_buying_rate || item.last_buying_price || item.rate).toFixed(2)}
+                        </span>
+                      )}
                     </div>
                     {(item.name || item.item_code) && (item.name || item.item_code) !== item[optionsLabel] && (
                       <span className="text-[10px] text-slate-400 font-medium">{item.item_name || item.name || item.item_code}</span>
