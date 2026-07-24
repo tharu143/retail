@@ -1371,7 +1371,9 @@ function Home() {
         { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Last Bill' },
         { key: getShortcut('pos_home', 'priceUpdate', 'F11'), label: 'Price Update' },
         { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty' },
-        { key: getShortcut('pos_home', 'pay', 'Space'), label: 'Pay' },
+        { key: getShortcut('pos_home', 'pay', 'Space'), label: 'Pay & Print' },
+        { key: 'Alt+N', label: 'Pay No Print' },
+        { key: 'Alt+A', label: 'Pay A4 Print' },
         { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash' },
         { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank' },
         { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card' },
@@ -1414,6 +1416,7 @@ function Home() {
 
     // Payment
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [checkoutMode, setCheckoutMode] = useState('normal'); // 'normal', 'print', 'no-print', 'print-a4'
     const [showItemDetailModal, setShowItemDetailModal] = useState(false);
     const [selectedDetailItem, setSelectedDetailItem] = useState(null);
     const [lastInvoiceData, setLastInvoiceData] = useState(null);
@@ -3403,6 +3406,11 @@ function Home() {
     };
 
     // Checkout
+    const handleCheckoutWithMode = async (mode) => {
+        setCheckoutMode(mode);
+        await handleCheckout();
+    };
+
     // Checkout
     const handleCheckout = async () => {
         if (grandTotal <= 0) {
@@ -3842,24 +3850,70 @@ function Home() {
                 };
                 setLastInvoiceData(printData);
 
-                Swal.fire({
-                    icon: 'success',
-                    title: isSuccess && String(data.message || data.name || "").includes("Duplicate") ? 'Already Sync Verified' : 'Invoice Created',
-                    text: `Invoice: ${serverName} | Total: AED ${grandTotal.toFixed(2)}`,
-                    showCancelButton: true,
-                    confirmButtonText: 'Done',
-                    cancelButtonText: 'Print Receipt',
-                    confirmButtonColor: '#16a34a',
-                    cancelButtonColor: '#3b82f6',
-                    focusConfirm: true
-                }).then((res) => {
-                    if (res.dismiss === 'cancel') {
-                        handlePrint(printData);
-                    }
-                    setTimeout(() => {
-                        barcodeInputRef.current?.focus();
-                    }, 100);
-                });
+                if (checkoutMode === 'print') {
+                    handlePrint(printData);
+                    Swal.fire({
+                        icon: 'success',
+                        title: isSuccess && String(data.message || data.name || "").includes("Duplicate") ? 'Already Sync Verified' : 'Invoice Created',
+                        text: `Invoice: ${serverName} | Total: AED ${grandTotal.toFixed(2)}`,
+                        showCancelButton: false,
+                        confirmButtonText: 'Done',
+                        confirmButtonColor: '#16a34a',
+                        focusConfirm: true
+                    }).then(() => {
+                        setTimeout(() => {
+                            barcodeInputRef.current?.focus();
+                        }, 100);
+                    });
+                } else if (checkoutMode === 'no-print') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: isSuccess && String(data.message || data.name || "").includes("Duplicate") ? 'Already Sync Verified' : 'Invoice Created',
+                        text: `Invoice: ${serverName} | Total: AED ${grandTotal.toFixed(2)}`,
+                        showCancelButton: false,
+                        confirmButtonText: 'Done',
+                        confirmButtonColor: '#16a34a',
+                        focusConfirm: true
+                    }).then(() => {
+                        setTimeout(() => {
+                            barcodeInputRef.current?.focus();
+                        }, 100);
+                    });
+                } else if (checkoutMode === 'print-a4') {
+                    handlePrintA4(printData);
+                    Swal.fire({
+                        icon: 'success',
+                        title: isSuccess && String(data.message || data.name || "").includes("Duplicate") ? 'Already Sync Verified' : 'Invoice Created',
+                        text: `Invoice: ${serverName} | Total: AED ${grandTotal.toFixed(2)}`,
+                        showCancelButton: false,
+                        confirmButtonText: 'Done',
+                        confirmButtonColor: '#16a34a',
+                        focusConfirm: true
+                    }).then(() => {
+                        setTimeout(() => {
+                            barcodeInputRef.current?.focus();
+                        }, 100);
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'success',
+                        title: isSuccess && String(data.message || data.name || "").includes("Duplicate") ? 'Already Sync Verified' : 'Invoice Created',
+                        text: `Invoice: ${serverName} | Total: AED ${grandTotal.toFixed(2)}`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Done',
+                        cancelButtonText: 'Print Receipt',
+                        confirmButtonColor: '#16a34a',
+                        cancelButtonColor: '#3b82f6',
+                        focusConfirm: true
+                    }).then((res) => {
+                        if (res.dismiss === 'cancel') {
+                            handlePrint(printData);
+                        }
+                        setTimeout(() => {
+                            barcodeInputRef.current?.focus();
+                        }, 100);
+                    });
+                }
 
                 // Save to synced history locally
                 await db.invoices.add({
@@ -3925,6 +3979,11 @@ function Home() {
                     loyalty: null
                 };
                 setLastInvoiceData(offlinePrintData);
+                if (checkoutMode === 'print') {
+                    handlePrint(offlinePrintData);
+                } else if (checkoutMode === 'print-a4') {
+                    handlePrintA4(offlinePrintData);
+                }
                 Swal.fire({
                     icon: 'info',
                     title: 'Saved Offline',
@@ -4069,6 +4128,7 @@ function Home() {
     };
 
     const finalizeOrder = (shouldFocusBarcode = true) => {
+        setCheckoutMode('normal');
         setBillItems([]);
         setSelectedBillIndex(-1);
         setDiscount({ type: 'amount', value: 0 });
@@ -5736,6 +5796,221 @@ function Home() {
         }
     };
 
+    const handlePrintA4 = (invoiceData) => {
+        const cashierName = user?.split('@')[0].toUpperCase() || 'CASHIER';
+        const companyName = company || 'KYLE RETAIL';
+        const storeAddress = getBranchName(warehouse) || 'Main Store Address';
+        const barCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${invoiceData.name}&scale=2&height=10`;
+
+        // Calculate total paid and change due
+        const totalPaidAmount = (invoiceData.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        const changeDue = Math.max(0, totalPaidAmount - (parseFloat(invoiceData.grand_total) || 0));
+
+        const htmlContent = `
+        <html>
+            <head>
+                <title>Tax Invoice - ${invoiceData.name}</title>
+                <style>
+                    @page { size: A4; margin: 15mm; }
+                    body { 
+                        margin: 0; padding: 0; 
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                        font-size: 13px; line-height: 1.4; color: #333;
+                    }
+                    .invoice-box { width: 100%; margin: auto; padding: 0; }
+                    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                    .company-details { font-size: 14px; }
+                    .company-name { font-size: 24px; font-weight: 800; color: #10b981; text-transform: uppercase; margin-bottom: 5px; }
+                    .invoice-title { font-size: 26px; font-weight: 800; color: #1e293b; text-align: right; text-transform: uppercase; margin: 0; }
+                    .invoice-meta { text-align: right; font-size: 12px; }
+                    .divider { border-top: 2px solid #e2e8f0; margin: 15px 0; }
+                    .details-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                    .details-table td { width: 50%; vertical-align: top; padding: 5px 0; }
+                    .section-title { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; tracking-wider; margin-bottom: 5px; }
+                    .info-block { background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; min-height: 80px; }
+                    .info-block p { margin: 3px 0; }
+                    .items-table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px; }
+                    .items-table th { background: #1f2937; color: #ffffff; text-align: left; padding: 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+                    .items-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+                    .text-left { text-align: left !important; }
+                    .text-center { text-align: center !important; }
+                    .text-right { text-align: right !important; }
+                    .totals-section { display: flex; justify-content: flex-end; margin-top: 20px; }
+                    .totals-table { width: 320px; border-collapse: collapse; }
+                    .totals-table td { padding: 6px 10px; font-size: 13px; }
+                    .totals-table tr.grand-total { border-top: 2px solid #10b981; font-weight: bold; font-size: 16px; color: #1e293b; }
+                    .payments-section { margin-top: 20px; font-size: 12px; color: #475569; }
+                    .barcode-container { text-align: center; margin-top: 40px; }
+                    .barcode { max-height: 45px; margin-bottom: 8px; }
+                    .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+                </style>
+            </head>
+            <body>
+                <div class="invoice-box">
+                    <table class="header-table">
+                        <tr>
+                            <td class="company-details">
+                                <div class="company-name">${companyName}</div>
+                                <div>${storeAddress}</div>
+                                <div>Tel: +971 00 000 0000</div>
+                                <div>VAT No: 100XXXXXXXXXXXX</div>
+                            </td>
+                            <td>
+                                <h1 class="invoice-title">Tax Invoice</h1>
+                                <div class="invoice-meta">
+                                    <p style="margin: 3px 0;"><strong>Invoice No:</strong> ${invoiceData.name}</p>
+                                    <p style="margin: 3px 0;"><strong>Date:</strong> ${invoiceData.posting_date}</p>
+                                    <p style="margin: 3px 0;"><strong>Time:</strong> ${invoiceData.posting_time || 'N/A'}</p>
+                                    <p style="margin: 3px 0;"><strong>Cashier:</strong> ${cashierName}</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="divider"></div>
+
+                    <table class="details-table">
+                        <tr>
+                            <td style="padding-right: 10px;">
+                                <div class="section-title">Bill To</div>
+                                <div class="info-block">
+                                    <p><strong>Name:</strong> ${selectedCustomer?.customer_name || customerName || 'Cash'}</p>
+                                    <p><strong>Phone:</strong> ${phoneNumber || selectedCustomer?.mobile_no || 'N/A'}</p>
+                                </div>
+                            </td>
+                            <td style="padding-left: 10px;">
+                                <div class="section-title">Delivery Details</div>
+                                <div class="info-block">
+                                    <p><strong>Driver:</strong> ${selectedDriver || 'N/A'}</p>
+                                    <p><strong>Delivery Fee:</strong> AED ${parseFloat(deliveryFee || 0).toFixed(2)}</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th class="text-left" style="width: 5%;">SL</th>
+                                <th class="text-left" style="width: 35%;">Item Description</th>
+                                <th class="text-center" style="width: 10%;">Qty</th>
+                                <th class="text-center" style="width: 10%;">UOM</th>
+                                <th class="text-right" style="width: 12%;">Unit Price</th>
+                                <th class="text-center" style="width: 8%;">VAT %</th>
+                                <th class="text-right" style="width: 10%;">VAT Amt</th>
+                                <th class="text-right" style="width: 12%;">Total (AED)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(invoiceData.items || []).map((it, idx) => {
+                                const qty = parseFloat(it.qty) || 1;
+                                const price = parseFloat(it.price || it.rate || it.basePrice || 0);
+                                const isInc = it.is_tax_inclusive !== false;
+                                const taxRatePercent = 5.0;
+
+                                const vatVal = isInc
+                                    ? (price - (price / (1 + (taxRatePercent / 100))))
+                                    : (price * (taxRatePercent / 100));
+
+                                const lineTotal = isInc
+                                    ? (qty * price)
+                                    : (qty * (price + vatVal));
+
+                                return `
+                                    <tr>
+                                        <td class="text-left">${idx + 1}</td>
+                                        <td class="text-left" style="font-weight: 600;">${it.name || it.item_name || it.item_code || 'ITEM'}</td>
+                                        <td class="text-center">${qty}</td>
+                                        <td class="text-center">${it.uom || ''}</td>
+                                        <td class="text-right">${price.toFixed(2)}</td>
+                                        <td class="text-center">5%</td>
+                                        <td class="text-right">${(vatVal * qty).toFixed(2)}</td>
+                                        <td class="text-right" style="font-weight: 600;">${parseFloat(lineTotal).toFixed(2)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+
+                    <div class="totals-section">
+                        <table class="totals-table">
+                            <tr>
+                                <td>Subtotal</td>
+                                <td class="text-right">AED ${parseFloat(invoiceData.subtotal || invoiceData.grand_total).toFixed(2)}</td>
+                            </tr>
+                            ${invoiceData.discount_amount > 0 ? `
+                                <tr>
+                                    <td>Discount</td>
+                                    <td class="text-right" style="color: #ef4444;">-AED ${parseFloat(invoiceData.discount_amount).toFixed(2)}</td>
+                                </tr>
+                            ` : ''}
+                            ${invoiceData.tax_amount > 0 ? `
+                                <tr>
+                                    <td>VAT (5%)</td>
+                                    <td class="text-right">AED ${parseFloat(invoiceData.tax_amount).toFixed(2)}</td>
+                                </tr>
+                            ` : ''}
+                            <tr class="grand-total">
+                                <td><strong>Grand Total</strong></td>
+                                <td class="text-right"><strong>AED ${parseFloat(invoiceData.grand_total).toFixed(2)}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="payments-section">
+                        <p><strong>Payment Summary:</strong></p>
+                        <ul style="list-style: none; padding-left: 0; margin: 5px 0;">
+                            ${(invoiceData.payments || [{ mode_of_payment: 'CASH', amount: invoiceData.grand_total }]).map(p => `
+                                <li>• ${(p.mode_of_payment || 'Payment').toUpperCase()}: AED ${parseFloat(p.amount || 0).toFixed(2)}</li>
+                            `).join('')}
+                            ${changeDue > 0 ? `<li>• Change Due: AED ${changeDue.toFixed(2)}</li>` : ''}
+                        </ul>
+                    </div>
+
+                    ${invoiceData.loyalty?.enabled ? `
+                        <div class="divider"></div>
+                        <div style="font-size: 11px; color: #475569; margin-top: 10px;">
+                            <p><strong>Loyalty Points Summary:</strong> Balance: ${invoiceData.loyalty.oldPoints} | Earned: +${invoiceData.loyalty.pointsEarned} ${invoiceData.loyalty.pointsRedeemed > 0 ? `| Redeemed: -${invoiceData.loyalty.pointsRedeemed}` : ''} | New Balance: ${invoiceData.loyalty.newBalance}</p>
+                        </div>
+                    ` : ''}
+
+                    <div class="barcode-container">
+                        <img class="barcode" src="${barCodeUrl}" />
+                        <div style="font-size: 10px; color: #94a3b8;">${invoiceData.name}</div>
+                    </div>
+
+                    <div class="footer">
+                        <p style="font-weight: bold; font-size: 12px; margin: 0 0 5px 0;">THANK YOU FOR YOUR BUSINESS!</p>
+                        <p style="margin: 0;">Powered by KYLE RETAIL</p>
+                    </div>
+                </div>
+                <script>
+                    window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+                </script>
+            </body>
+        </html>
+        `;
+
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+
+        const printWindow = iframe.contentWindow;
+        if (printWindow) {
+            printWindow.document.open();
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 5000);
+        }
+    };
+
     // Background sync logic
     // Centralized Global Sync Listeners
     useEffect(() => {
@@ -6440,7 +6715,34 @@ function Home() {
                 if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
                     if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
                         e.preventDefault();
-                        handleCheckout();
+                        handleCheckoutWithMode('print');
+                    }
+                }
+            }
+
+            if (e.altKey && e.key.toLowerCase() === 'p') {
+                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                    if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                        e.preventDefault();
+                        handleCheckoutWithMode('print');
+                    }
+                }
+            }
+
+            if (e.altKey && e.key.toLowerCase() === 'n') {
+                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                    if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                        e.preventDefault();
+                        handleCheckoutWithMode('no-print');
+                    }
+                }
+            }
+
+            if (e.altKey && e.key.toLowerCase() === 'a') {
+                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                    if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                        e.preventDefault();
+                        handleCheckoutWithMode('print-a4');
                     }
                 }
             }
@@ -6675,7 +6977,9 @@ function Home() {
             { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', colorClass: 'amber', action: handleSaveDraft },
             { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', colorClass: 'indigo', action: handleShowRecentInvoicesPrint },
             { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty', colorClass: 'emerald', action: handleLoyaltyPointsClick },
-            { key: 'SPACE', label: 'Pay', colorClass: 'emerald', action: handleCheckout },
+            { key: 'SPACE', label: 'Pay & Print', colorClass: 'emerald', action: () => handleCheckoutWithMode('print') },
+            { key: 'Alt+N', label: 'Pay No Print', colorClass: 'blue', action: () => handleCheckoutWithMode('no-print') },
+            { key: 'Alt+A', label: 'Pay A4 Print', colorClass: 'violet', action: () => handleCheckoutWithMode('print-a4') },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', colorClass: 'rose', action: clearBillHandler },
             { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
             { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank', colorClass: 'sky', action: () => { if (billItems.length > 0) completePayment('Bank'); } },
@@ -7091,6 +7395,9 @@ function Home() {
             { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
             { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
+            { key: 'SPACE', label: 'Pay & Print', color: '#10b981', icon: <Printer size={12} />, action: () => handleCheckoutWithMode('print') },
+            { key: 'Alt+N', label: 'Pay No Print', color: '#3b82f6', icon: <CreditCard size={12} />, action: () => handleCheckoutWithMode('no-print') },
+            { key: 'Alt+A', label: 'Pay A4 Print', color: '#8b5cf6', icon: <Printer size={12} />, action: () => handleCheckoutWithMode('print-a4') },
             { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
             { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
             { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
@@ -7937,25 +8244,52 @@ function Home() {
                                     </button>
                                 </div>
 
-                                <button
-                                    className={`so-btn-pay ${paymentLoading ? 'opacity-70 cursor-not-allowed' : ''} flex items-center justify-between px-3`}
-                                    disabled={grandTotal <= 0 || paymentLoading}
-                                    onClick={handleCheckout}
-                                >
-                                    {paymentLoading ? (
-                                        <div className="flex items-center justify-center gap-2 w-full">
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                            <span>Processing...</span>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <span className="flex items-center gap-2">
-                                                <CreditCard size={18} /> Confirm & Pay
+                                {paymentLoading ? (
+                                    <button
+                                        className="so-btn-pay opacity-70 cursor-not-allowed flex items-center justify-center"
+                                        disabled
+                                        style={{ height: '42px' }}
+                                    >
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                        <span>Processing...</span>
+                                    </button>
+                                ) : (
+                                    <div className="flex gap-1.5 mt-2">
+                                        <button
+                                            className="so-btn-pay flex items-center justify-between"
+                                            disabled={grandTotal <= 0}
+                                            style={{ backgroundColor: '#10b981', height: '42px', minHeight: '42px', flex: 1, padding: '4px 6px', fontSize: '9.5px', textTransform: 'none' }}
+                                            onClick={() => handleCheckoutWithMode('print')}
+                                        >
+                                            <span className="flex items-center gap-1">
+                                                <Printer size={11} /> Pay & Print
                                             </span>
-                                            <span className="btn-shortcut-key">Space</span>
-                                        </>
-                                    )}
-                                </button>
+                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1px 3px' }}>Space</span>
+                                        </button>
+                                        <button
+                                            className="so-btn-pay flex items-center justify-between"
+                                            disabled={grandTotal <= 0}
+                                            style={{ backgroundColor: '#3b82f6', height: '42px', minHeight: '42px', flex: 1, padding: '4px 6px', fontSize: '9.5px', textTransform: 'none' }}
+                                            onClick={() => handleCheckoutWithMode('no-print')}
+                                        >
+                                            <span className="flex items-center gap-1">
+                                                <CreditCard size={11} /> Pay No Print
+                                            </span>
+                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1px 3px' }}>Alt+N</span>
+                                        </button>
+                                        <button
+                                            className="so-btn-pay flex items-center justify-between"
+                                            disabled={grandTotal <= 0}
+                                            style={{ backgroundColor: '#8b5cf6', height: '42px', minHeight: '42px', flex: 1, padding: '4px 6px', fontSize: '9.5px', textTransform: 'none' }}
+                                            onClick={() => handleCheckoutWithMode('print-a4')}
+                                        >
+                                            <span className="flex items-center gap-1">
+                                                <Printer size={11} /> Pay A4 Print
+                                            </span>
+                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1px 3px' }}>Alt+A</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </aside>
                     </main>
@@ -8760,14 +9094,52 @@ function Home() {
                                             CARD <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
                                         </button>
                                     </div>
-                                    {/* Row 2: Process Payment */}
-                                    <button
-                                        className={`py-2 ${isGreen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'} text-white border-none transition-all font-black text-[12px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5 p-1`}
-                                        onClick={() => { setShowSettingsMenu(false); handleCheckout(); }}
-                                        disabled={grandTotal <= 0}
-                                    >
-                                        <CreditCard size={14} /> PROCESS PAYMENT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Space</span>
-                                    </button>
+                                    {/* Row 2: Process Payment Options */}
+                                    {paymentLoading ? (
+                                        <button
+                                            className="w-full py-2 bg-slate-500 text-white border-none transition-all font-black text-[11px] rounded shadow-md uppercase tracking-wider opacity-70 cursor-not-allowed flex items-center justify-center gap-1.5 p-1"
+                                            disabled
+                                        >
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                            <span>Processing...</span>
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-1.5">
+                                            <button
+                                                className="flex-1 py-2 text-white border-none transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between p-1 px-2"
+                                                style={{ backgroundColor: '#10b981' }}
+                                                onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
+                                                disabled={grandTotal <= 0}
+                                            >
+                                                <span className="flex items-center gap-1">
+                                                    <Printer size={12} /> PRINT
+                                                </span>
+                                                <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3.5px', borderRadius: '3px' }}>Space</span>
+                                            </button>
+                                            <button
+                                                className="flex-1 py-2 text-white border-none transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between p-1 px-2"
+                                                style={{ backgroundColor: '#3b82f6' }}
+                                                onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
+                                                disabled={grandTotal <= 0}
+                                            >
+                                                <span className="flex items-center gap-1">
+                                                    <CreditCard size={12} /> DIRECT
+                                                </span>
+                                                <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3.5px', borderRadius: '3px' }}>Alt+N</span>
+                                            </button>
+                                            <button
+                                                className="flex-1 py-2 text-white border-none transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between p-1 px-2"
+                                                style={{ backgroundColor: '#8b5cf6' }}
+                                                onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
+                                                disabled={grandTotal <= 0}
+                                            >
+                                                <span className="flex items-center gap-1">
+                                                    <Printer size={12} /> A4
+                                                </span>
+                                                <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3.5px', borderRadius: '3px' }}>Alt+A</span>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -9245,11 +9617,89 @@ function Home() {
                                 <div className="container-fluid">
                                     <div className="row">
                                         <div className="col-12">
-                                            <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '2px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '4px' }}>
                                                 <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowDiscountModal(true)}>{discount.value > 0 ? (discount.type === 'percent' ? `Edit (${discount.value}%)` : <span className="flex items-center justify-center gap-0.5">Edit (<DirhamIcon size={10} />{discount.value})</span>) : 'Add Discount'} <span className="btn-shortcut-key">F1</span></button>
                                                 <button className="home-bill-discount-btn" style={{ flex: 1, display: 'flex', itemsCenter: 'center', justifyContent: 'center', backgroundColor: loyaltyAmount > 0 ? '#10b981' : '#64748b' }} onClick={handleLoyaltyPointsClick}>{loyaltyAmount > 0 ? `Loyalty: ${loyaltyPointsToRedeem} pts` : 'Add Loyalty'} <span className="btn-shortcut-key">{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span></button>
-                                                {grandTotal > 0 && <button className="home-bill-pay-btn" style={{ flex: 1 }} onClick={handleCheckout}>Pay</button>}
                                             </div>
+                                            {grandTotal > 0 && (
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '4px' }}>
+                                                    <button 
+                                                        className="home-bill-pay-btn" 
+                                                        style={{ 
+                                                            flex: 1, 
+                                                            backgroundColor: '#10b981', 
+                                                            borderColor: '#059669', 
+                                                            color: 'white', 
+                                                            display: 'flex', 
+                                                            alignItems: 'center', 
+                                                            justifyContent: 'space-between', 
+                                                            gap: '4px',
+                                                            fontSize: '10px',
+                                                            fontWeight: 'bold',
+                                                            padding: '8px 6px',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer'
+                                                        }} 
+                                                        onClick={() => handleCheckoutWithMode('print')}
+                                                    >
+                                                        <span className="flex items-center gap-1">
+                                                            <Printer size={12} />
+                                                            <span>Pay & Print</span>
+                                                        </span>
+                                                        <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '3px' }}>Space</span>
+                                                    </button>
+                                                    <button 
+                                                        className="home-bill-pay-btn" 
+                                                        style={{ 
+                                                            flex: 1, 
+                                                            backgroundColor: '#3b82f6', 
+                                                            borderColor: '#2563eb', 
+                                                            color: 'white', 
+                                                            display: 'flex', 
+                                                            alignItems: 'center', 
+                                                            justifyContent: 'space-between', 
+                                                            gap: '4px',
+                                                            fontSize: '10px',
+                                                            fontWeight: 'bold',
+                                                            padding: '8px 6px',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer'
+                                                        }} 
+                                                        onClick={() => handleCheckoutWithMode('no-print')}
+                                                    >
+                                                        <span className="flex items-center gap-1">
+                                                            <CreditCard size={12} />
+                                                            <span>Pay No Print</span>
+                                                        </span>
+                                                        <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '3px' }}>Alt+N</span>
+                                                    </button>
+                                                    <button 
+                                                        className="home-bill-pay-btn" 
+                                                        style={{ 
+                                                            flex: 1, 
+                                                            backgroundColor: '#8b5cf6', 
+                                                            borderColor: '#7c3aed', 
+                                                            color: 'white', 
+                                                            display: 'flex', 
+                                                            alignItems: 'center', 
+                                                            justifyContent: 'space-between', 
+                                                            gap: '4px',
+                                                            fontSize: '10px',
+                                                            fontWeight: 'bold',
+                                                            padding: '8px 6px',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer'
+                                                        }} 
+                                                        onClick={() => handleCheckoutWithMode('print-a4')}
+                                                    >
+                                                        <span className="flex items-center gap-1">
+                                                            <Printer size={12} />
+                                                            <span>Pay A4 Print</span>
+                                                        </span>
+                                                        <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '3px' }}>Alt+A</span>
+                                                    </button>
+                                                </div>
+                                            )}
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
                                                 {billItems.length > 0 && <button className="home-bill-clear-btn" style={{ flex: 1 }} onClick={clearBillHandler}>Clear Bill</button>}
                                                 <button 

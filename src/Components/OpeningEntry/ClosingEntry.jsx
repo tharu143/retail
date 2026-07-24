@@ -671,6 +671,63 @@ function ClosingEntry() {
                 </div>
               </div>
 
+              {/* Shift Transactions by Payment Method Summary */}
+              <div className="so-card mb-6">
+                <div className="so-card-header" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <span className="so-card-title flex items-center gap-2">
+                    <TrendingUp size={16} style={{ color: themeColor }} />
+                    Shift Transactions by Payment Method
+                  </span>
+                </div>
+                <div className="so-card-body" style={{ padding: '1.25rem' }}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    {paymentReconciliation.map((pr) => {
+                      let color = '#475569';
+                      let bg = '#f8fafc';
+                      let border = '1px solid #e2e8f0';
+                      const mode = pr.mode_of_payment.toLowerCase();
+                      
+                      if (mode === 'cash') {
+                        color = '#10b981';
+                        bg = '#ecfdf5';
+                        border = '1px solid #a7f3d0';
+                      } else if (mode.includes('card')) {
+                        color = '#3b82f6';
+                        bg = '#eff6ff';
+                        border = '1px solid #bfdbfe';
+                      } else if (mode.includes('bank') || mode.includes('transfer')) {
+                        color = '#8b5cf6';
+                        bg = '#f5f3ff';
+                        border = '1px solid #ddd6fe';
+                      } else if (mode.includes('insta')) {
+                        color = '#d97706';
+                        bg = '#fffbeb';
+                        border = '1px solid #fde68a';
+                      } else if (mode.includes('credit')) {
+                        color = '#f43f5e';
+                        bg = '#fff1f2';
+                        border = '1px solid #fecdd3';
+                      }
+
+                      return (
+                        <div 
+                          key={pr.mode_of_payment} 
+                          className="rounded-xl p-3 text-center transition-all hover:shadow-xs" 
+                          style={{ backgroundColor: bg, border }}
+                        >
+                          <span className="block text-[9.5px] font-black uppercase tracking-wider text-slate-400">
+                            {pr.mode_of_payment}
+                          </span>
+                          <span className="block text-base font-black mt-1" style={{ color }}>
+                            AED {(pr.paid_amount || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
               {/* Two Column Layout for Denominations, Reconciliation and Details */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-6">
@@ -715,8 +772,10 @@ function ClosingEntry() {
                         <thead>
                           <tr>
                             <th>Payment Mode</th>
+                            <th style={{ textAlign: 'right' }}>Opening</th>
+                            <th style={{ textAlign: 'right' }}>Sales</th>
                             <th style={{ textAlign: 'right' }}>Expected</th>
-                            <th style={{ textAlign: 'right', width: '30%' }}>Closing Amount</th>
+                            <th style={{ textAlign: 'right', width: '25%' }}>Closing Amount</th>
                             <th style={{ textAlign: 'right' }}>Diff</th>
                           </tr>
                         </thead>
@@ -724,6 +783,8 @@ function ClosingEntry() {
                           {paymentReconciliation.map((pr, idx) => (
                             <tr key={pr.mode_of_payment}>
                               <td style={{ fontWeight: 600 }}>{pr.mode_of_payment}</td>
+                              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{flt(pr.opening_amount).toFixed(2)}</td>
+                              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#10b981', fontWeight: 'bold' }}>{flt(pr.paid_amount).toFixed(2)}</td>
                               <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{flt(pr.expected_amount).toFixed(2)}</td>
                               <td>
                                 <input
