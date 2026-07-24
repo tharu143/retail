@@ -2163,13 +2163,14 @@ function PurchaseOrder() {
       return { ...prev, items, ...totals };
     });
 
-    // Auto-focus the quantity field of the selected item row
+    // Auto-focus the custom_ref_sl_no field of the selected item row
     setTimeout(() => {
       const rowNum = rowIndex + 1;
-      const qtyInput = document.querySelector(`tr:nth-child(${rowNum}) input[name="custom_box_qty"], tr:nth-child(${rowNum}) input[name="qty"]`);
-      if (qtyInput) {
-        qtyInput.focus();
-        qtyInput.select?.();
+      const targetInput = document.querySelector(`tr:nth-child(${rowNum}) input[name="custom_ref_sl_no"]`) ||
+                          document.querySelector(`tr:nth-child(${rowNum}) input[name="custom_box_qty"], tr:nth-child(${rowNum}) input[name="qty"]`);
+      if (targetInput) {
+        targetInput.focus();
+        targetInput.select?.();
       }
     }, 150);
   };

@@ -443,9 +443,11 @@ function PurchaseReceiptList() {
       });
       const data = Array.isArray(res.data.message) ? res.data.message : [];
       setSuppliers(data);
+      return data;
     } catch (err) {
       console.error('Supplier fetch error:', err);
       setSuppliers([]);
+      return [];
     }
   };
   const fetchItems = async (query = '') => {
@@ -1001,6 +1003,16 @@ function PurchaseReceiptList() {
         }
       });
     }
+
+    // Auto-focus the custom_ref_sl_no field of the selected item row
+    setTimeout(() => {
+      const rowNum = rowIndex + 1;
+      const targetInput = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) input[name="custom_ref_sl_no"]`);
+      if (targetInput) {
+        targetInput.focus();
+        targetInput.select?.();
+      }
+    }, 150);
   };
   const handleSupplierCreate = async (name) => {
     try {
@@ -2916,6 +2928,7 @@ function PurchaseReceiptList() {
                                                   ) : (
                                                     <input
                                                       type="text"
+                                                      name="custom_ref_sl_no"
                                                       value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
                                                       onFocus={e => e.target.select()}
                                                       onClick={e => e.target.select()}
@@ -4050,6 +4063,7 @@ function PurchaseReceiptList() {
                                                   ) : (
                                                     <input
                                                       type="text"
+                                                      name="custom_ref_sl_no"
                                                       value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
                                                       onFocus={e => e.target.select()}
                                                       onClick={e => e.target.select()}

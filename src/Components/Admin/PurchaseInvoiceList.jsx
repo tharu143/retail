@@ -648,8 +648,13 @@ function PurchaseInvoiceList() {
         params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
         withCredentials: true
       });
-      setSuppliers(Array.isArray(res.data.message) ? res.data.message : []);
-    } catch (err) { setSuppliers([]); }
+      const data = Array.isArray(res.data.message) ? res.data.message : [];
+      setSuppliers(data);
+      return data;
+    } catch (err) {
+      setSuppliers([]);
+      return [];
+    }
   };
 
   const fetchItems = async (query = '') => {
@@ -1440,6 +1445,16 @@ function PurchaseInvoiceList() {
     } catch (err) {
       console.log("No buying rate found");
     }
+
+    // Auto-focus the custom_ref_sl_no field of the selected item row
+    setTimeout(() => {
+      const rowNum = rowIndex + 1;
+      const targetInput = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) input[name="custom_ref_sl_no"]`);
+      if (targetInput) {
+        targetInput.focus();
+        targetInput.select?.();
+      }
+    }, 150);
   };
 
   const handleItemSearch = (index, value) => {
@@ -2529,7 +2544,7 @@ function PurchaseInvoiceList() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', margin: '0.1rem 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{docName} • Accounts</p>
                     <a
-                      href={`/app/purchase-invoice/${encodeURIComponent(docName)}`}
+                      href={`http://75.119.130.59:8089/app/purchase-invoice/${encodeURIComponent(docName)}`}
                       target={window.location.protocol === 'file:' ? '_self' : '_blank'}
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase ml-2 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
@@ -3051,6 +3066,7 @@ function PurchaseInvoiceList() {
                                             ) : (
                                               <input
                                                 type="text"
+                                                name="custom_ref_sl_no"
                                                 value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
                                                 onChange={e => updateItem(i, 'custom_ref_sl_no', e.target.value)}
                                                 onFocus={e => e.target.select()}

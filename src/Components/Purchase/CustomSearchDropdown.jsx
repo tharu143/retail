@@ -226,19 +226,25 @@ const CustomSearchDropdown = ({
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
+      e.stopPropagation();
       setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
+      e.stopPropagation();
       setSelectedIndex(prev => (prev > 0 ? prev - 1 : 0));
     } else if (e.key === 'Enter') {
       if (selectedIndex >= 0 && results[selectedIndex]) {
         e.preventDefault();
+        e.stopPropagation();
         handleItemClick(results[selectedIndex]);
       } else if (query.trim() && createOption && results.length === 0) {
         e.preventDefault();
+        e.stopPropagation();
         handleCreate();
       }
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
       setShow(false);
     }
   };
