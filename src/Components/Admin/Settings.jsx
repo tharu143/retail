@@ -99,6 +99,71 @@ const Settings = () => {
 
 
 
+    // Loyalty Program Settings
+    const [conversionFactor, setConversionFactor] = useState(0.01);
+    const [maxLoyaltyRedemption, setMaxLoyaltyRedemption] = useState(0);
+    const [savingLoyalty, setSavingLoyalty] = useState(false);
+
+    useEffect(() => {
+        const fetchLoyaltySettings = async () => {
+            try {
+                const res = await fetch('/api/method/kyle_retail.retail_api.api.get_loyalty_settings', {
+                    headers: { 'X-Frappe-SID': session },
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.message) {
+                    setConversionFactor(data.message.conversion_factor || 0.01);
+                    setMaxLoyaltyRedemption(data.message.max_redemption_amount || 0);
+                }
+            } catch (err) {
+                console.error("Failed to fetch loyalty settings:", err);
+            }
+        };
+
+        if (session) {
+            fetchLoyaltySettings();
+        }
+    }, [session]);
+
+    const handleSaveLoyaltySettings = async () => {
+        setSavingLoyalty(true);
+        try {
+            const res = await fetch('/api/method/kyle_retail.retail_api.api.update_loyalty_settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Frappe-SID': session
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    conversion_factor: parseFloat(conversionFactor),
+                    max_redemption_amount: parseFloat(maxLoyaltyRedemption)
+                })
+            });
+            const data = await res.json();
+            if (data.message && data.message.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Loyalty Rules Saved',
+                    text: 'Points valuation and redemption limit updated across all POS terminals.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                throw new Error("Failed to update loyalty settings.");
+            }
+        } catch (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Save Failed',
+                text: err.message
+            });
+        } finally {
+            setSavingLoyalty(false);
+        }
+    };
+
     const handleSave = () => {
         if (!selectedWarehouse) {
             Swal.fire({
@@ -111,13 +176,7 @@ const Settings = () => {
         }
 
         dispatch(updateActiveWarehouse(selectedWarehouse));
-        Swal.fire({
-            icon: 'success',
-            title: 'Registry Updated',
-            text: `Station source redirected to: ${selectedWarehouse}`,
-            timer: 2000,
-            showConfirmButton: false
-        });
+        handleSaveLoyaltySettings();
     };
 
     const handleForceReset = async () => {
@@ -264,6 +323,80 @@ const Settings = () => {
                                 <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '8px', fontStyle: 'italic' }}>
                                     Changing the warehouse redirects all sales, item searches, and stock counts to the selected location instantly.
                                 </p>
+                            </div>
+                        </div>
+
+                        {/* Loyalty Program Configuration Card */}
+                        <div className="so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${themeColor}30` }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ background: `${themeColor}15`, color: themeColor, padding: '8px', borderRadius: '10px' }}>
+                                        <Award size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0 }}>Loyalty Points & Redemption Rules</h3>
+                                        <p style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', margin: 0 }}>Define point-to-Dirham conversion rate and per-customer invoice redemption limits.</p>
+                                    </div>
+                                </div>
+                                <span style={{ fontSize: '0.65rem', fontWeight: 800, color: themeColor, background: `${themeColor}15`, padding: '4px 8px', borderRadius: '6px', textTransform: 'uppercase' }}>
+                                    Active Program
+                                </span>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.25rem' }}>
+                                {/* Point Valuation */}
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--so-text-muted)', marginBottom: '6px' }}>
+                                        Point Valuation (AED per 1 Point)
+                                    </label>
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                        <input
+                                            type="number"
+                                            step="0.001"
+                                            min="0"
+                                            value={conversionFactor}
+                                            onChange={(e) => setConversionFactor(e.target.value)}
+                                            style={{
+                                                width: '100%', height: '44px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                                                padding: '0 1rem', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', background: '#f8fafc'
+                                            }}
+                                            placeholder="0.01"
+                                        />
+                                        <span style={{ position: 'absolute', right: '12px', fontSize: '0.7rem', fontWeight: 800, color: '#64748b' }}>
+                                            AED / PT
+                                        </span>
+                                    </div>
+                                    <p style={{ fontSize: '0.65rem', color: '#64748b', marginTop: '6px', lineHeight: '1.3' }}>
+                                        Example: <b>0.01</b> means 100 points = AED 1.00 discount.
+                                    </p>
+                                </div>
+
+                                {/* Max Redemption Limit */}
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--so-text-muted)', marginBottom: '6px' }}>
+                                        Max Redemption Limit (per Bill)
+                                    </label>
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                        <input
+                                            type="number"
+                                            step="1"
+                                            min="0"
+                                            value={maxLoyaltyRedemption}
+                                            onChange={(e) => setMaxLoyaltyRedemption(e.target.value)}
+                                            style={{
+                                                width: '100%', height: '44px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                                                padding: '0 1rem', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', background: '#f8fafc'
+                                            }}
+                                            placeholder="e.g. 50"
+                                        />
+                                        <span style={{ position: 'absolute', right: '12px', fontSize: '0.7rem', fontWeight: 800, color: '#64748b' }}>
+                                            AED MAX
+                                        </span>
+                                    </div>
+                                    <p style={{ fontSize: '0.65rem', color: '#64748b', marginTop: '6px', lineHeight: '1.3' }}>
+                                        Max AED discount allowed per transaction. Set <b>0</b> for unlimited.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 

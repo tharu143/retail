@@ -13,6 +13,7 @@ import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import AttachmentSection from './AttachmentSection';
 import ListCustomizer from './ListCustomizer';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
+import { frappeCall } from '../../utils/frappe';
 
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
@@ -39,6 +40,95 @@ const SalesInvoiceList = () => {
   const [isReturnMode, setIsReturnMode] = useState(false);
   const [returnAgainst, setReturnAgainst] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [showBundleModal, setShowBundleModal] = useState(false);
+  const [availableBundles, setAvailableBundles] = useState([]);
+  const [loadingBundles, setLoadingBundles] = useState(false);
+  const [bundleSearchTerm, setBundleSearchTerm] = useState('');
+  const [bundleItemGroup, setBundleItemGroup] = useState('All');
+  const [bundleItemGroupsList, setBundleItemGroupsList] = useState(['All']);
+
+  // Fetch Product Bundles for Sales Invoice modal
+  const fetchBundlesForSI = async () => {
+    try {
+      setLoadingBundles(true);
+      const res = await frappeCall({
+        method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_product_bundles',
+        args: {
+          warehouse: form.set_warehouse || warehouse,
+          item_group: bundleItemGroup,
+          search_term: bundleSearchTerm
+        },
+        type: 'POST'
+      });
+      if (res?.status === 'success') {
+        setAvailableBundles(res.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching bundles for SI:', err);
+    } finally {
+      setLoadingBundles(false);
+    }
+  };
+
+  const fetchBundleItemGroupsForSI = async () => {
+    try {
+      const res = await frappeCall({
+        method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_bundle_item_groups',
+        type: 'POST'
+      });
+      if (res?.status === 'success') {
+        setBundleItemGroupsList(['All', ...(res.data || [])]);
+      }
+    } catch (err) {
+      console.error('Error fetching bundle item groups:', err);
+    }
+  };
+
+  const handleOpenBundleModal = () => {
+    setShowBundleModal(true);
+    fetchBundlesForSI();
+    fetchBundleItemGroupsForSI();
+  };
+
+  const handleAddBundleToSI = (bundle) => {
+    if (!bundle.items || bundle.items.length === 0) {
+      Swal.fire('Empty Bundle', 'This bundle has no component items.', 'warning');
+      return;
+    }
+
+    const newRows = bundle.items.map(child => ({
+      row_id: Date.now() + Math.random(),
+      item_code: child.item_code,
+      item_name: child.item_name || child.item_code,
+      qty: child.qty || 1,
+      uom: child.uom || 'Nos',
+      rate: child.rate || 0,
+      amount: (child.rate || 0) * (child.qty || 1),
+      income_account: defaultIncomeAccount || '',
+      custom_pieces_per_box: 1,
+      default_pieces_per_box: 1,
+      custom_box_qty: 1,
+      custom_box_price: 0,
+      custom_ref_sl_no: '',
+      use_box_entry: false,
+      uom_list: []
+    }));
+
+    setForm(prev => ({
+      ...prev,
+      items: [...(prev.items || []).filter(i => i.item_code), ...newRows]
+    }));
+
+    setShowBundleModal(false);
+    Swal.fire({
+      icon: 'success',
+      title: 'Bundle Added',
+      text: `Added ${newRows.length} component items from bundle '${bundle.item_name}'`,
+      timer: 1500,
+      showConfirmButton: false
+    });
+  };
+
 
   // Theme toggle (synced with POS & Sales Order)
   const [siTheme, setSiTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
@@ -2420,16 +2510,26 @@ const SalesInvoiceList = () => {
 
                     {/* Items Card */}
                     <div className="so-card">
-                      <div className="so-card-header">
+                      <div className="so-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <p className="so-card-title">Items Information</p>
-                        {!isReturnMode && (
-                          <button
-                            onClick={addItemRow}
-                            className="so-btn-ghost"
-                            style={{ fontSize: '0.7rem', color: 'var(--so-primary)' }}
-                          >
-                            <Plus size={14} /> Add New Row
-                          </button>
+                        {!isReturnMode && !isViewOnly && (
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={handleOpenBundleModal}
+                              className="so-btn-ghost"
+                              style={{ fontSize: '0.7rem', color: themeColor, borderColor: `${themeColor}40`, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                            >
+                              <Zap size={14} /> Add Product Bundle
+                            </button>
+                            <button
+                              onClick={addItemRow}
+                              className="so-btn-ghost"
+                              style={{ fontSize: '0.7rem', color: 'var(--so-primary)' }}
+                            >
+                              <Plus size={14} /> Add New Row
+                            </button>
+                          </div>
                         )}
                       </div>
                       <div className="so-card-body" style={{ padding: 0 }}>

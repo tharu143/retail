@@ -54,10 +54,11 @@ const routeMap = {
   'Item List': { icon: Boxes },
   'Price List': { icon: Tag },
   'Item Group': { icon: Layers },
+  'Product Bundles': { icon: Boxes },
   'Stock Entry': { icon: Activity },
   'Stock Balance Report': { icon: FileText },
   'Stock Ledger Report': { icon: FileText },
-
+ 
   // POS
   'POS Profile': { icon: LayoutDashboard },
   'Opening Entry': { icon: Lock },
@@ -101,7 +102,7 @@ const sections = [
     icon: Boxes,
     colorClass: 'icon-items',
     cardClass: 'card-items',
-    items: ['Item List', 'Item Group', 'Price List', 'Stock Entry', 'Stock Balance Report', 'Stock Ledger Report'],
+    items: ['Item List', 'Item Group', 'Price List', 'Product Bundles', 'Stock Entry', 'Stock Balance Report', 'Stock Ledger Report'],
   },
   {
     title: 'POS Operations',
@@ -162,6 +163,7 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
     if (pathname.includes('/item-details') || pathname === '/itemlist') return 'Item List';
     if (pathname === '/itempricelist') return 'Price List';
     if (pathname === '/itemgrouplist') return 'Item Group';
+    if (pathname === '/product-bundles') return 'Product Bundles';
     if (pathname.includes('/stock-entry') || pathname === '/stock-entries') return 'Stock Entry';
     if (pathname === '/stockbalancereport') return 'Stock Balance Report';
     if (pathname === '/stockledgerreport') return 'Stock Ledger Report';

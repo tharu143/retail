@@ -24,7 +24,11 @@ import {
     Bell,
     Eye,
     EyeOff,
-    Columns
+    Columns,
+    Receipt,
+    ShieldCheck,
+    Gift,
+    Star
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -35,6 +39,7 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ModernNoImageGrid from './ModernNoImageGrid';
+import PrintJobModal from './PrintJobModal';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 import { db } from '../../db';
@@ -271,6 +276,7 @@ function Home() {
 
     const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
     const [showOpeningModal, setShowOpeningModal] = useState(false);
+    const [showPrintJobModal, setShowPrintJobModal] = useState(false);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
     // Classic Theme Settings menu dropdown states
@@ -728,6 +734,12 @@ function Home() {
             {showLoyaltyModal && renderLoyaltyModal()}
             {showPaymentModal && renderPaymentModal()}
             {showCreateModal && renderCreateModal()}
+            <PrintJobModal
+                isOpen={showPrintJobModal}
+                onClose={() => setShowPrintJobModal(false)}
+                onAddJobToCart={(item) => handleAddToBill(item)}
+                themeColor="#10b981"
+            />
             {showOpeningModal && (
                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
                     <div className="home-modal" style={{ maxWidth: '1450px', width: '98vw', maxHeight: '98vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
@@ -2253,7 +2265,8 @@ function Home() {
                             barcodes: item.barcodes || [],
                             modified: item.modified,
                             custom_pieces_per_box: item.custom_pieces_per_box || 1,
-                            custom_loyalty_eligible: item.custom_loyalty_eligible || 0
+                            custom_loyalty_eligible: item.custom_loyalty_eligible || 0,
+                            is_bundle: item.is_bundle || 0
                         }))).catch(e => console.error("Dexie background update failed", e));
 
                         if (results.length > 0) {
@@ -2461,6 +2474,34 @@ function Home() {
 
         try {
             setSearchLoading(true);
+
+            // 1. Check if barcode belongs to a Printing Job or EMC Machine Barcode
+            const jobResult = await frappeCall({
+                method: 'kyle_retail.retail_api.api.get_printing_job_by_barcode',
+                args: { barcode: barcode.trim() }
+            });
+
+            if (jobResult) {
+                // Auto load Printing Job into bill
+                const printJobItem = {
+                    id: jobResult.job_name,
+                    name: `PRINT JOB [${jobResult.paper_size}] - ${jobResult.total_qty} PAGES`,
+                    price: jobResult.unit_rate,
+                    actual_qty: jobResult.total_qty,
+                    local_qty: jobResult.total_qty,
+                    stock_uom: 'Nos',
+                    custom_job_barcode: jobResult.barcode,
+                    is_print_job: true
+                };
+                handleAddToBill(printJobItem, 'Nos', jobResult.total_qty);
+                setBarcodeInput('');
+                barcodeInputRef.current?.focus();
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500 });
+                Toast.fire({ icon: 'success', title: `Loaded Print Job ${jobResult.job_name}: AED ${jobResult.total_amount}` });
+                setSearchLoading(false);
+                return;
+            }
+
             const results = await frappeCall({
                 method: 'kyle_retail.retail_api.api.get_retail_item_details',
                 args: { search_term: barcode.trim(), warehouse: warehouse }
@@ -6798,6 +6839,13 @@ function Home() {
                 setShowDraftsModal(prev => !prev);
             }
 
+            // Print Job Modal Shortcut (F11 or Alt+P / Option+P for Mac)
+            if (e.key === 'F11' || (e.altKey && e.key.toLowerCase() === 'p')) {
+                e.preventDefault();
+                console.log("Print Job hotkey triggered");
+                setShowPrintJobModal(prev => !prev);
+            }
+
             // Esc: Close Modals (Fallbacks)
             if (e.key === 'Escape') {
                 if (showLoyaltyModal) {
@@ -7436,6 +7484,7 @@ function Home() {
             },
             { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
             { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', color: '#6366f1', icon: <Printer size={12} />, action: handleShowRecentInvoicesPrint },
+            { key: 'F11', label: 'PRINT JOB', color: '#0ea5e9', icon: <Printer size={12} />, action: () => setShowPrintJobModal(true) },
             { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
             { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
@@ -7587,7 +7636,7 @@ function Home() {
                         background: '#ffffff'
                     }}>
                         {/* Group 1: Navigation & Shift */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             {/* Active Orders */}
                             <button
                                 onClick={() => setShowDraftsModal(true)}
@@ -7601,6 +7650,27 @@ function Home() {
                                 }}
                             >
                                 <Package size={11} /> Active Orders
+                            </button>
+
+                            {/* Print Job Calculator Header Button */}
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    console.log("PRINT JOB Header button clicked!");
+                                    setShowPrintJobModal(true);
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                    padding: '0 0.65rem', height: '1.85rem', background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+                                    border: '1.5px solid #334155', borderRadius: '0.375rem',
+                                    fontSize: '0.65rem', fontWeight: 900, color: '#38bdf8',
+                                    cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
+                                    whiteSpace: 'nowrap', boxShadow: '0 2px 4px rgba(0,0,0,0.12)'
+                                }}
+                                title="Print Job Calculator & Barcode Generator (Option + P)"
+                            >
+                                <Printer size={12} color="#38bdf8" /> PRINT JOB
                             </button>
                         </div>
 
@@ -7699,6 +7769,16 @@ function Home() {
                                 title={window.location.protocol === 'file:' ? "Go to POS Homepage" : "Open POS in New Tab"}
                             >
                                 <ExternalLink size={16} />
+                            </button>
+
+                            {/* Sales Invoice Quick Button */}
+                            <button
+                                onClick={() => navigate('/salesinvoice')}
+                                style={{ padding: '4px 8px', background: 'var(--so-primary-light, #f0fdf4)', border: '1px solid var(--so-primary, #10b981)', cursor: 'pointer', color: 'var(--so-primary, #10b981)', borderRadius: '8px', flexShrink: 0, fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
+                                title="Sales Invoice"
+                            >
+                                <Receipt size={14} />
+                                <span>Sales Invoice</span>
                             </button>
 
                             {/* Logout */}
@@ -7916,36 +7996,52 @@ function Home() {
                                                 <span className="font-black text-sm uppercase tracking-[0.2em]">No products found</span>
                                             </div>
                                         ) : (
-                                            filteredItems.map((item, index) => (
-                                                <div
-                                                    key={item.id}
-                                                    className={`so-item-card ${activeCardIndex === index ? 'focused-card' : ''}`}
-                                                    onClick={() => {
-                                                        setActiveCardIndex(index);
-                                                        setLastInteractedItem(item);
-                                                        if (item.local_qty > 0) {
-                                                            handleAddToBill(item);
-                                                        } else {
-                                                            handleOutOfStockAlert(item);
-                                                        }
-                                                    }}
-                                                    style={{ opacity: item.local_qty > 0 ? 1 : 0.6 }}
-                                                >
-                                                    <div className="relative group">
-                                                        {item.image ? (
-                                                            <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
-                                                        ) : (
-                                                            <div className="so-item-img flex flex-col items-center justify-center bg-slate-50 border border-slate-100 text-slate-300">
-                                                                <Package size={28} strokeWidth={1.5} />
-                                                                <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">No Image</span>
+                                            filteredItems.map((item, index) => {
+                                                const isBundle = item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO'))) || (item.name && item.name.toLowerCase().includes('combo'));
+                                                return (
+                                                    <div
+                                                        key={item.id}
+                                                        className={`so-item-card ${activeCardIndex === index ? 'focused-card' : ''} ${isBundle ? 'bundle-card' : ''}`}
+                                                        onClick={() => {
+                                                            setActiveCardIndex(index);
+                                                            setLastInteractedItem(item);
+                                                            if (item.local_qty > 0) {
+                                                                handleAddToBill(item);
+                                                            } else {
+                                                                handleOutOfStockAlert(item);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            opacity: item.local_qty > 0 ? 1 : 0.6,
+                                                            ...(isBundle ? {
+                                                                borderColor: '#059669',
+                                                                boxShadow: '0 0 0 2px #10b981, 0 4px 18px rgba(16, 185, 129, 0.15)',
+                                                                background: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)'
+                                                            } : {})
+                                                        }}
+                                                    >
+                                                        {isBundle && (
+                                                            <div className="bundle-ribbon-tag">
+                                                                <div className="bundle-ribbon-tag-content">
+                                                                    ★ ★ ★<br/>COMBO<br/>BUNDLE
+                                                                </div>
                                                             </div>
                                                         )}
-                                                        {activeCardIndex === index && (
-                                                            <div className="absolute top-2 right-2 z-20 bg-amber-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-md uppercase tracking-wider animate-pulse flex items-center gap-1">
-                                                                <span className="bg-amber-600 px-1 rounded text-[8px]">ENTER</span> ADD
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                        <div className="relative group">
+                                                            {item.image ? (
+                                                                <img src={getImageUrl(item.image)} alt={item.name} className="so-item-img" />
+                                                            ) : (
+                                                                <div className="so-item-img flex flex-col items-center justify-center bg-slate-50 border border-slate-100 text-slate-300">
+                                                                    <Package size={28} strokeWidth={1.5} />
+                                                                    <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">No Image</span>
+                                                                </div>
+                                                            )}
+                                                            {activeCardIndex === index && (
+                                                                <div className="absolute top-2 right-2 z-20 bg-amber-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-md uppercase tracking-wider animate-pulse flex items-center gap-1">
+                                                                    <span className="bg-amber-600 px-1 rounded text-[8px]">ENTER</span> ADD
+                                                                </div>
+                                                            )}
+                                                        </div>
 
                                                     <div className="flex flex-col flex-1 justify-between gap-1.5">
                                                         <h4 className="so-item-name">
@@ -7963,6 +8059,14 @@ function Home() {
                                                                 </span>
                                                             )}
                                                         </div>
+
+                                                        {isBundle && (
+                                                            <div className="grid grid-cols-3 gap-0.5 text-[7px] font-bold text-emerald-800 bg-emerald-50/90 border border-emerald-200/70 rounded px-1 py-1 mt-1 text-center">
+                                                                <span className="flex items-center justify-center gap-0.5 truncate"><ShieldCheck size={9} className="text-emerald-600 shrink-0" /> Reliable</span>
+                                                                <span className="flex items-center justify-center gap-0.5 truncate border-x border-emerald-200/60"><Gift size={9} className="text-emerald-600 shrink-0" /> Combo</span>
+                                                                <span className="flex items-center justify-center gap-0.5 truncate"><Star size={9} className="text-emerald-600 shrink-0" /> Value</span>
+                                                            </div>
+                                                        )}
 
                                                         <div className="flex items-center justify-between pt-2">
                                                             <div className="flex flex-col">
@@ -7996,7 +8100,8 @@ function Home() {
                                                         )}
                                                     </div>
                                                 </div>
-                                            ))
+                                                );
+                                            })
                                         )}
                                     </div>
                                 )}
@@ -8380,6 +8485,20 @@ function Home() {
                             className={`font-black text-[12px] uppercase tracking-wider transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
                         >
                             DASHBOARD
+                        </button>
+
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log("PRINT JOB Legacy Header button clicked!");
+                                setShowPrintJobModal(true);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-sky-400 rounded-lg text-[11px] font-black uppercase tracking-wider hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
+                            title="Print Job Calculator & Barcode Generator (Option + P)"
+                        >
+                            <Printer size={13} className="text-sky-400" />
+                            <span>PRINT JOB</span>
                         </button>
 
                         <div style={{ width: '1px', height: '24px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.5, flexShrink: 0 }} />
@@ -9027,6 +9146,14 @@ function Home() {
                                     <Printer size={14} />
                                     <span>Print Bill</span>
                                     <span className="btn-shortcut-key">F10</span>
+                                </button>
+                                <button
+                                    onClick={() => setShowPrintJobModal(true)}
+                                    className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 text-sky-400 hover:bg-slate-800 transition-all font-black text-[11px] uppercase tracking-wider shadow-sm select-none"
+                                    title="Print Job Calculator"
+                                >
+                                    <Printer size={14} className="text-sky-400" />
+                                    <span>PRINT JOB</span>
                                 </button>
                             </div>
 
@@ -9777,6 +9904,14 @@ function Home() {
 
             {/* Common Modals */}
             {renderCommonModals()}
+
+            {/* Print Job Calculator Modal */}
+            <PrintJobModal
+                isOpen={showPrintJobModal}
+                onClose={() => setShowPrintJobModal(false)}
+                onAddJobToCart={(item) => handleAddToBill(item)}
+                themeColor="#10b981"
+            />
         </div>
     );
 }

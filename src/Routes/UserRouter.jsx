@@ -56,6 +56,7 @@ import InterBranchTransferList from '../Components/Admin/InterBranchTransferList
 import InterBranchTransferDetails from '../Components/Admin/InterBranchTransferDetails'
 import StockEntryDetails from '../Components/Admin/StockEntryDetails'
 import StockEntryList from '../Components/Admin/StockEntryList'
+import ProductBundleList from '../Components/Admin/ProductBundleList'
 import SidebarLayout from '../Components/Nav/SidebarLayout'
 import DriverDashboardPage from '../Pages/DriverDashboardPage'
 
@@ -372,6 +373,7 @@ function UserRouter() {
             <Route path='interbranchrequest/:name' element={<InterBranchTransferDetails />} />
             <Route path='stock-entry/:id' element={<StockEntryDetails />} />
             <Route path='stock-entries' element={<StockEntryList />} />
+            <Route path='product-bundles' element={<ProductBundleList />} />
           </Route>
         </Routes>
       </div>

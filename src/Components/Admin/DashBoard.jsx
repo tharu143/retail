@@ -52,6 +52,7 @@ import SalesReturnList from './SalesReturnList';
 import ItemList from './ItemList';
 import ItemGroupList from './ItemGroupList';
 import ItemPriceList from './ItemPriceList';
+import ProductBundleList from './ProductBundleList';
 import StockEntryList from './StockEntryList';
 import StockBalanceReport from '../Reports/StockBalanceReport';
 import StockLedgerReport from '../Reports/StockLedgerReport';
@@ -318,6 +319,8 @@ function Dashboard() {
         return <ItemPriceList />;
       case 'Item Group':
         return <ItemGroupList />;
+      case 'Product Bundles':
+        return <ProductBundleList />;
       case 'Stock Entry':
         return <StockEntryList />;
       case 'Stock Balance Report':
