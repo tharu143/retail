@@ -66,7 +66,8 @@ export default function PrintJobModal({ isOpen, onClose, onAddJobToCart, themeCo
                         local_qty: jobData.total_qty,
                         stock_uom: 'Nos',
                         custom_job_barcode: jobData.barcode,
-                        is_print_job: true
+                        is_print_job: true,
+                        is_tax_inclusive: true
                     }, 'Nos', jobData.total_qty);
                     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
                     Toast.fire({ icon: 'success', title: `Print Job Loaded to Bill: AED ${jobData.total_amount}` });

@@ -1517,7 +1517,7 @@ function Home() {
             const lineTotal = item.price * item.qty;
             // If inclusive, extract base price; if exclusive, use the total as base
             let netItem = lineTotal;
-            if (item.is_tax_inclusive) {
+            if (item.is_tax_inclusive !== false) {
                 netItem = lineTotal / (1 + (taxRate / 100));
             }
             return sum + flt(netItem);
@@ -2506,7 +2506,8 @@ function Home() {
                     local_qty: jobResult.total_qty,
                     stock_uom: 'Nos',
                     custom_job_barcode: jobResult.barcode,
-                    is_print_job: true
+                    is_print_job: true,
+                    is_tax_inclusive: true
                 };
                 handleAddToBill(printJobItem, 'Nos', jobResult.total_qty);
                 setBarcodeInput('');
@@ -8997,27 +8998,27 @@ function Home() {
                                                                     newBill[idx].is_tax_inclusive = !newBill[idx].is_tax_inclusive;
                                                                     setBillItems(newBill);
                                                                 }}
-                                                                className={`px-1 py-0.5 rounded text-[8px] font-black tracking-tight select-none border-none cursor-pointer shrink-0 transition-all ${item.is_tax_inclusive
+                                                                className={`px-1 py-0.5 rounded text-[8px] font-black tracking-tight select-none border-none cursor-pointer shrink-0 transition-all ${item.is_tax_inclusive !== false
                                                                     ? 'bg-sky-100 text-sky-600 hover:bg-sky-200'
                                                                     : 'bg-amber-100 text-amber-600 hover:bg-amber-200'
                                                                     }`}
                                                                 style={{ fontSize: '8px', lineHeight: '1' }}
                                                             >
-                                                                {item.is_tax_inclusive ? 'INC' : 'EXC'}
+                                                                {item.is_tax_inclusive !== false ? 'INC' : 'EXC'}
                                                             </button>
                                                         </div>
                                                     </td>
                                                 )}
                                                 {visibleClassicCols.some(c => c.id === 'vat') && (
                                                     <td className="text-right px-2 font-bold text-slate-500 text-[10px] italic">
-                                                        {item.is_tax_inclusive
+                                                        {item.is_tax_inclusive !== false
                                                             ? (lineTotal - (lineTotal / (1 + (taxRate / 100)))).toFixed(2)
                                                             : (lineTotal * (taxRate / 100)).toFixed(2)}
                                                     </td>
                                                 )}
                                                 {visibleClassicCols.some(c => c.id === 'total') && (
                                                     <td className="text-right px-2 font-black text-slate-900 bg-slate-50/50 flex items-center justify-end gap-0.5">
-                                                        <DirhamIcon size={12} /> {item.is_tax_inclusive
+                                                        <DirhamIcon size={12} /> {item.is_tax_inclusive !== false
                                                             ? (parseFloat(lineTotal) || 0).toFixed(2)
                                                             : (parseFloat(lineTotal) * (1 + (taxRate / 100))).toFixed(2)}
                                                     </td>
