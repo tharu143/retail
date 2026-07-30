@@ -737,7 +737,7 @@ function Home() {
             <PrintJobModal
                 isOpen={showPrintJobModal}
                 onClose={() => setShowPrintJobModal(false)}
-                onAddJobToCart={(item) => handleAddToBill(item)}
+                onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
                 themeColor="#10b981"
             />
             {showOpeningModal && (
@@ -2433,18 +2433,19 @@ function Home() {
 
     // ---------- ITEM HANDLERS ----------
     const handleFilter = (cat) => setSelectedCategory(cat);
-    const handleAddToBill = (item, targetUom = null) => {
+    const handleAddToBill = (item, targetUom = null, initialQty = 1) => {
         setLastInteractedItem(item);
+        const addQty = parseInt(initialQty) || 1;
         setBillItems(prev => {
             const selectedUom = targetUom || (item.uom_conversions?.Nos ? 'Nos' : (item.uom_conversions?.Piece ? 'Piece' : 'Nos'));
             const existingIdx = prev.findIndex(i => i.id === item.id && i.uom === selectedUom);
             if (existingIdx !== -1) {
                 const updated = [...prev];
-                updated[existingIdx] = { ...updated[existingIdx], qty: updated[existingIdx].qty + 1 };
+                updated[existingIdx] = { ...updated[existingIdx], qty: updated[existingIdx].qty + addQty };
                 setSelectedBillIndex(existingIdx);
                 return updated;
             } else {
-                if (item.local_qty <= 0) {
+                if (!item.is_print_job && item.local_qty <= 0) {
                     handleOutOfStockAlert(item);
                     return prev;
                 }
@@ -2454,7 +2455,7 @@ function Home() {
 
                 const newItem = {
                     ...item,
-                    qty: 1,
+                    qty: addQty,
                     uom: selectedUom,
                     price: calcPrice,
                     base_unit_price: calcPrice,
@@ -2481,11 +2482,25 @@ function Home() {
                 args: { barcode: barcode.trim() }
             });
 
-            if (jobResult) {
+            if (jobResult && (jobResult.job_name || jobResult.status === 'already_billed')) {
+                if (jobResult.status === 'already_billed') {
+                    setBarcodeInput('');
+                    setSearchLoading(false);
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Already Billed!',
+                        text: jobResult.message || 'This Printing Job has already been billed and completed.',
+                        confirmButtonColor: '#f59e0b'
+                    });
+                    barcodeInputRef.current?.focus();
+                    return;
+                }
+
                 // Auto load Printing Job into bill
                 const printJobItem = {
-                    id: jobResult.job_name,
-                    name: `PRINT JOB [${jobResult.paper_size}] - ${jobResult.total_qty} PAGES`,
+                    id: jobResult.item_code || 'Document Print',
+                    item_code: jobResult.item_code || 'Document Print',
+                    name: `PRINT JOB [${jobResult.paper_size}] - ${jobResult.total_qty} PAGES (${jobResult.barcode})`,
                     price: jobResult.unit_rate,
                     actual_qty: jobResult.total_qty,
                     local_qty: jobResult.total_qty,
@@ -2855,24 +2870,7 @@ function Home() {
                 }
             } else if (barcodeInput.trim()) {
                 const query = barcodeInput.trim();
-                const localMatch = Items.find(it => it.id.toLowerCase() === query.toLowerCase() || (it.barcodes || []).some(b => b.barcode.toLowerCase() === query.toLowerCase()));
-                if (localMatch) {
-                    handleAddToBill(localMatch);
-                    setBarcodeInput(''); setShowItemDropdown(false);
-                } else {
-                    // NOT IN BRANCH PROMPT
-                    Swal.fire({
-                        title: 'Item Not in Branch!',
-                        text: `"${query}" was not found in ${getBranchName(warehouse)}. Would you like to check the Global Industry Registry?`,
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: '🔄 Search Industry-wide',
-                        cancelButtonText: 'Close',
-                        confirmButtonColor: '#0284c7'
-                    }).then((result) => {
-                        if (result.isConfirmed) handleGlobalSearch(query);
-                    });
-                }
+                handleBarcodeScan(query);
             }
         } else if (e.key === 'Escape') {
             setShowItemDropdown(false);
@@ -8255,26 +8253,28 @@ function Home() {
                                                         <span className="font-extrabold text-slate-400 flex items-center gap-0.5">
                                                             <DirhamIcon size={8} /> {item.price}
                                                         </span>
-                                                        <div className="flex rounded border border-slate-200 overflow-hidden">
-                                                            <button
-                                                                onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
-                                                                onClick={() => {
-                                                                    const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
-                                                                    toggleUom(item.id, targetUom);
-                                                                }}
-                                                                className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-                                                            >
-                                                                PC
-                                                            </button>
-                                                            <button
-                                                                onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
-                                                                onClick={() => toggleUom(item.id, 'Box')}
-                                                                disabled={!item.custom_pieces_per_box}
-                                                                className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'} disabled:opacity-30`}
-                                                            >
-                                                                BOX
-                                                            </button>
-                                                        </div>
+                                                        {!(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && (
+                                                            <div className="flex rounded border border-slate-200 overflow-hidden">
+                                                                <button
+                                                                    onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
+                                                                    onClick={() => {
+                                                                        const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
+                                                                        toggleUom(item.id, targetUom);
+                                                                    }}
+                                                                    className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+                                                                >
+                                                                    PC
+                                                                </button>                                                                {item.custom_pieces_per_box > 1 && (
+                                                                    <button
+                                                                        onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
+                                                                        onClick={() => toggleUom(item.id, 'Box')}
+                                                                        className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+                                                                    >
+                                                                        BOX
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                         <div
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -8931,12 +8931,15 @@ function Home() {
                                                 {visibleClassicCols.some(c => c.id === 'uom') && (
                                                     <td className="p-0">
                                                         <select
-                                                            value={item.uom}
+                                                            value={item.uom || 'Nos'}
                                                             onChange={e => toggleUom(item.id, e.target.value)}
-                                                            className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-amber-200 cursor-pointer hover:bg-slate-100 transition-colors"
+                                                            disabled={item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO'))) || !item.custom_pieces_per_box || item.custom_pieces_per_box <= 1}
+                                                            className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-amber-200 cursor-pointer hover:bg-slate-100 transition-colors disabled:cursor-default"
                                                         >
-                                                            <option value="Piece">Pc</option>
-                                                            {item.custom_pieces_per_box > 0 && <option value="Box">Box ({item.custom_pieces_per_box})</option>}
+                                                            <option value={item.uom || 'Nos'}>{item.uom || 'Nos'}</option>
+                                                            {item.custom_pieces_per_box > 1 && !(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && (
+                                                                <option value="Box">Box ({item.custom_pieces_per_box})</option>
+                                                            )}
                                                         </select>
                                                     </td>
                                                 )}
@@ -9766,10 +9769,12 @@ function Home() {
                                                         </div>
                                                     </div>
                                                     {/* PIECE VS BOX TOGGLE */}
-                                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                                        <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, item.uom_conversions?.Nos ? 'Nos' : 'Piece')} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #3b82f6', background: (item.uom === 'Piece' || item.uom === 'Nos') ? '#3b82f6' : '#fff', color: (item.uom === 'Piece' || item.uom === 'Nos') ? '#fff' : '#3b82f6' }}>Piece</button>
-                                                        <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #8b5cf6', background: item.uom === 'Box' ? '#8b5cf6' : '#fff', color: item.uom === 'Box' ? '#fff' : '#8b5cf6', opacity: (!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1) ? 0.5 : 1 }}>Box ({item.custom_pieces_per_box || 1})</button>
-                                                    </div>
+                                                    {!(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && item.custom_pieces_per_box > 1 && (
+                                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                                            <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, item.uom_conversions?.Nos ? 'Nos' : 'Piece')} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #3b82f6', background: (item.uom === 'Piece' || item.uom === 'Nos') ? '#3b82f6' : '#fff', color: (item.uom === 'Piece' || item.uom === 'Nos') ? '#fff' : '#3b82f6' }}>Piece</button>
+                                                            <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #8b5cf6', background: item.uom === 'Box' ? '#8b5cf6' : '#fff', color: item.uom === 'Box' ? '#fff' : '#8b5cf6', opacity: (!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1) ? 0.5 : 1 }}>Box ({item.custom_pieces_per_box || 1})</button>
+                                                        </div>
+                                                    )}
                                                 </li>
                                             ))}
                                         </ul>
@@ -9909,7 +9914,7 @@ function Home() {
             <PrintJobModal
                 isOpen={showPrintJobModal}
                 onClose={() => setShowPrintJobModal(false)}
-                onAddJobToCart={(item) => handleAddToBill(item)}
+                onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
                 themeColor="#10b981"
             />
         </div>

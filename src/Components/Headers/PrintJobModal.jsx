@@ -59,14 +59,15 @@ export default function PrintJobModal({ isOpen, onClose, onAddJobToCart, themeCo
 
                 if (autoAddCart && onAddJobToCart) {
                     onAddJobToCart({
-                        id: jobData.job_name,
-                        name: `PRINT JOB [${jobData.paper_size}] - ${jobData.total_qty} PAGES`,
+                        id: jobData.item_code || 'Document Print',
+                        item_code: jobData.item_code || 'Document Print',
+                        name: `PRINT JOB [${jobData.paper_size}] - ${jobData.total_qty} PAGES (${jobData.barcode})`,
                         price: jobData.unit_rate,
                         local_qty: jobData.total_qty,
                         stock_uom: 'Nos',
                         custom_job_barcode: jobData.barcode,
                         is_print_job: true
-                    });
+                    }, 'Nos', jobData.total_qty);
                     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
                     Toast.fire({ icon: 'success', title: `Print Job Loaded to Bill: AED ${jobData.total_amount}` });
                     onClose();
