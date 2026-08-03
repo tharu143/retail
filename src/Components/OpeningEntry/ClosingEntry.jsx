@@ -44,34 +44,9 @@ function ClosingEntry() {
   );
   const [discrepancyReason, setDiscrepancyReason] = useState('');
   
-  // Shift Expenses / Petty Cash state
-  const [shiftExpenses, setShiftExpenses] = useState([]);
-  const [expenseType, setExpenseType] = useState('Telephone Bill');
-  const [expenseAmount, setExpenseAmount] = useState('');
-  const [expenseReceipt, setExpenseReceipt] = useState('');
-  const [expenseRemarks, setExpenseRemarks] = useState('');
-
-  const handleAddExpense = () => {
-    const amt = parseFloat(expenseAmount);
-    if (!amt || amt <= 0) {
-      alert('Please enter a valid expense amount');
-      return;
-    }
-    const newExp = {
-      expense_type: expenseType,
-      amount: amt,
-      receipt_number: expenseReceipt,
-      remarks: expenseRemarks
-    };
-    setShiftExpenses(prev => [...prev, newExp]);
-    setExpenseAmount('');
-    setExpenseReceipt('');
-    setExpenseRemarks('');
-  };
-
-  const handleRemoveExpense = (index) => {
-    setShiftExpenses(prev => prev.filter((_, i) => i !== index));
-  };
+  // Telephone Machine Balance state
+  const [telephoneBalance, setTelephoneBalance] = useState('');
+  const [telephoneCash, setTelephoneCash] = useState('');
 
   const getCurrentISTDateTime = () => {
     const now = new Date();
@@ -300,24 +275,7 @@ function ClosingEntry() {
     fetchInvoices();
   }, [selectedOpeningEntry, company]);
 
-  useEffect(() => {
-    if (paymentReconciliation && paymentReconciliation.length > 0) {
-      const totalExpenses = shiftExpenses.reduce((sum, e) => sum + flt(e.amount), 0);
-      setPaymentReconciliation(prev => prev.map(pr => {
-        if (pr.mode_of_payment === 'Cash') {
-          const rawExpected = flt(pr.opening_amount + pr.paid_amount);
-          const adjustedExpected = Math.max(0, rawExpected - totalExpenses);
-          const counted = flt(pr.closing_amount);
-          return {
-            ...pr,
-            expected_amount: adjustedExpected,
-            difference: counted - adjustedExpected
-          };
-        }
-        return pr;
-      }));
-    }
-  }, [shiftExpenses]);
+
 
   useEffect(() => {
     if (invoicesData && paymentReconciliation.length > 0 && closingAmountRefs.current[0]) {
@@ -414,7 +372,8 @@ function ClosingEntry() {
       save_as_draft: saveAsDraft,
       closing_denominations: JSON.stringify(formattedClosingDenoms),
       discrepancy_reason: discrepancyReason,
-      shift_expenses: JSON.stringify(shiftExpenses)
+      telephone_balance: telephoneBalance ? parseFloat(telephoneBalance) : 0,
+      telephone_cash: telephoneCash ? parseFloat(telephoneCash) : 0
     };
 
     try {
@@ -780,95 +739,55 @@ function ClosingEntry() {
               {/* Two Column Layout for Denominations, Reconciliation and Details */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-6">
-                  {/* Shift Expenses & Petty Cash Section */}
+                  {/* Telephone Machine Balance Section */}
                   <div className="so-card">
                     <div className="so-card-header">
                       <span className="so-card-title flex items-center gap-2">
                         <Receipt size={16} style={{ color: themeColor }} />
-                        Shift Expenses & Petty Cash Payments
+                        Telephone Machine Balance
                       </span>
                     </div>
                     <div className="p-4 bg-slate-50 space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Expense Type</label>
-                          <select 
-                            value={expenseType} 
-                            onChange={e => setExpenseType(e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white font-semibold"
-                          >
-                            <option value="Telephone Bill">Telephone Bill</option>
-                            <option value="Car / Fuel Expense">Car / Fuel Expense</option>
-                            <option value="Office / Cleaning Supply">Office / Cleaning Supply</option>
-                            <option value="Miscellaneous Petty Cash">Miscellaneous Petty Cash</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Amount (AED)</label>
-                          <input 
-                            type="number" 
-                            placeholder="0.00" 
-                            value={expenseAmount} 
-                            onChange={e => setExpenseAmount(e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white font-semibold"
+                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">User</label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={currentUser || localStorage.getItem('user') || 'Current User'}
+                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-100 font-bold text-slate-700 cursor-not-allowed"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Receipt / Ref #</label>
-                          <input 
-                            type="text" 
-                            placeholder="Bill Ref #" 
-                            value={expenseReceipt} 
-                            onChange={e => setExpenseReceipt(e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white font-semibold"
+                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Date & Time</label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={new Date().toLocaleString()}
+                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-100 font-semibold text-slate-700 cursor-not-allowed"
                           />
                         </div>
-                        <div className="flex items-end">
-                          <button 
-                            type="button"
-                            onClick={handleAddExpense}
-                            className="w-full py-1.5 px-3 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors"
-                          >
-                            + Add Expense
-                          </button>
+                        <div>
+                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Balance</label>
+                          <input
+                            type="number"
+                            placeholder="0.00"
+                            value={telephoneBalance}
+                            onChange={e => setTelephoneBalance(e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Cash</label>
+                          <input
+                            type="number"
+                            placeholder="0.00"
+                            value={telephoneCash}
+                            onChange={e => setTelephoneCash(e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
                         </div>
                       </div>
-
-                      {shiftExpenses.length > 0 && (
-                        <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-                          <table className="w-full text-xs text-left">
-                            <thead className="bg-slate-100 font-bold text-slate-600">
-                              <tr>
-                                <th className="p-2">Type</th>
-                                <th className="p-2">Ref #</th>
-                                <th className="p-2 text-right">Amount</th>
-                                <th className="p-2 text-center">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {shiftExpenses.map((exp, i) => (
-                                <tr key={i}>
-                                  <td className="p-2 font-semibold text-slate-800">{exp.expense_type}</td>
-                                  <td className="p-2 text-slate-500">{exp.receipt_number || '-'}</td>
-                                  <td className="p-2 text-right font-bold text-red-600">AED {flt(exp.amount).toFixed(2)}</td>
-                                  <td className="p-2 text-center">
-                                    <button 
-                                      type="button" 
-                                      onClick={() => handleRemoveExpense(i)}
-                                      className="text-red-500 font-bold hover:underline"
-                                    >
-                                      Remove
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          <div className="p-2 bg-slate-50 text-right font-bold text-xs text-slate-800 border-t border-slate-200">
-                            Total Shift Expenses: AED {shiftExpenses.reduce((sum, e) => sum + flt(e.amount), 0).toFixed(2)}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
 

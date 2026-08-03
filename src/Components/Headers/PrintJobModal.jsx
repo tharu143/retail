@@ -23,6 +23,20 @@ export default function PrintJobModal({ isOpen, onClose, onAddJobToCart, themeCo
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && isOpen) {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+            }
+        };
+        if (isOpen) {
+            window.addEventListener('keydown', handleKeyDown);
+        }
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
     // Auto set default rate when size changes
     const handleSizeSelect = (sizeObj) => {
         setSelectedSize(sizeObj.id);

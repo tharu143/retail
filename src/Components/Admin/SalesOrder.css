@@ -33,14 +33,9 @@
   src: local('Gilroy-Heavy'), url('https://fonts.cdnfonts.com/s/16219/Gilroy-Heavy.woff') format('woff');
 }
 
-body,
-button,
-input,
-select,
-textarea,
 .so-page,
 .so-page * {
-  font-family: 'Gilroy', sans-serif !important;
+  font-family: 'Gilroy', 'Inter', system-ui, sans-serif;
 }
 
 /* ============================================

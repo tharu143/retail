@@ -28,7 +28,8 @@ import {
     Receipt,
     ShieldCheck,
     Gift,
-    Star
+    Star,
+    Zap
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -40,6 +41,7 @@ import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ModernNoImageGrid from './ModernNoImageGrid';
 import PrintJobModal from './PrintJobModal';
+import FastPrintModal from './FastPrintModal';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 import { db } from '../../db';
@@ -271,12 +273,14 @@ function Home() {
     const branchPrefix = useSelector((state) => state.user.branchPrefix);
     const loading = useSelector((state) => state.user.loading || false);
     const user_roles = useSelector((state) => state.user.user_roles || []);
+    const isMac = useMemo(() => typeof navigator !== 'undefined' && (navigator.platform.toUpperCase().indexOf('MAC') >= 0 || navigator.userAgent.toUpperCase().indexOf('MAC') >= 0), []);
     const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
     const isManager = useSelector((state) => state.user.is_manager || false) || isAdmin;
 
     const [posOpeningEntry, setPosOpeningEntry] = useState(localStorage.getItem('posOpeningEntry') || '');
     const [showOpeningModal, setShowOpeningModal] = useState(false);
     const [showPrintJobModal, setShowPrintJobModal] = useState(false);
+    const [showFastPrintModal, setShowFastPrintModal] = useState(false);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
     // Classic Theme Settings menu dropdown states
@@ -739,6 +743,11 @@ function Home() {
                 onClose={() => setShowPrintJobModal(false)}
                 onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
                 themeColor="#10b981"
+            />
+            <FastPrintModal
+                isOpen={showFastPrintModal}
+                onClose={() => setShowFastPrintModal(false)}
+                onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
             />
             {showOpeningModal && (
                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
@@ -3553,9 +3562,7 @@ function Home() {
             customer_name: customerName,
             contact_mobile: phoneNumber,
             items: billItems.map(item => {
-                const discRate = item.is_tax_inclusive !== false
-                    ? round2(item.price / (1 + (taxRate / 100)))
-                    : item.price;
+                const discRate = item.price;
                 return {
                     item_code: item.id,
                     item_name: item.name || item.item_name,
@@ -3844,9 +3851,7 @@ function Home() {
             customer: customerId,
             contact_mobile: phoneNumber,
             items: billItems.map(item => {
-                const itemRate = item.is_tax_inclusive !== false
-                    ? round2(item.price / (1 + (taxRate / 100)))
-                    : item.price;
+                const itemRate = item.price;
                 return {
                     item_code: item.id,
                     item_name: item.name,
@@ -6838,16 +6843,25 @@ function Home() {
                 setShowDraftsModal(prev => !prev);
             }
 
-            // Print Job Modal Shortcut (F11 or Alt+P / Option+P for Mac)
-            if (e.key === 'F11' || (e.altKey && e.key.toLowerCase() === 'p')) {
+            // Print Job Modal Shortcut (Alt+P / Option+P)
+            if ((e.altKey && (e.key.toLowerCase() === 'p' || e.code === 'KeyP')) || e.key === 'π' || e.key === '∏') {
                 e.preventDefault();
-                console.log("Print Job hotkey triggered");
                 setShowPrintJobModal(prev => !prev);
+            }
+
+            // Fast Print Modal Shortcut (Alt+F / Option+F)
+            if ((e.altKey && (e.key.toLowerCase() === 'f' || e.code === 'KeyF')) || e.key === 'ƒ' || e.key === 'Ï') {
+                e.preventDefault();
+                setShowFastPrintModal(prev => !prev);
             }
 
             // Esc: Close Modals (Fallbacks)
             if (e.key === 'Escape') {
-                if (showLoyaltyModal) {
+                if (showPrintJobModal) {
+                    setShowPrintJobModal(false);
+                } else if (showFastPrintModal) {
+                    setShowFastPrintModal(false);
+                } else if (showLoyaltyModal) {
                     setShowLoyaltyModal(false);
                 } else if (showItemDropdown) {
                     setShowItemDropdown(false);
@@ -7483,7 +7497,8 @@ function Home() {
             },
             { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
             { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', color: '#6366f1', icon: <Printer size={12} />, action: handleShowRecentInvoicesPrint },
-            { key: 'F11', label: 'PRINT JOB', color: '#0ea5e9', icon: <Printer size={12} />, action: () => setShowPrintJobModal(true) },
+            { key: isMac ? '⌥P' : 'Alt+P', label: 'PRINT JOB', color: '#0ea5e9', icon: <Printer size={12} />, action: () => setShowPrintJobModal(true) },
+            { key: isMac ? '⌥F' : 'Alt+F', label: 'FAST PRINT', color: '#e11d48', icon: <Zap size={12} />, action: () => setShowFastPrintModal(true) },
             { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
             { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
@@ -7667,9 +7682,35 @@ function Home() {
                                     cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
                                     whiteSpace: 'nowrap', boxShadow: '0 2px 4px rgba(0,0,0,0.12)'
                                 }}
-                                title="Print Job Calculator & Barcode Generator (Option + P)"
+                                title="Print Job Calculator & Barcode Generator"
                             >
                                 <Printer size={12} color="#38bdf8" /> PRINT JOB
+                                <span style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', fontSize: '9px', padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', fontWeight: 800 }}>
+                                    {isMac ? '⌥P' : 'Alt+P'}
+                                </span>
+                            </button>
+
+                            {/* Fast Print Header Button */}
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowFastPrintModal(true);
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                    padding: '0 0.65rem', height: '1.85rem', background: 'linear-gradient(135deg, #881337, #be123c)',
+                                    border: '1.5px solid #fda4af', borderRadius: '0.375rem',
+                                    fontSize: '0.65rem', fontWeight: 900, color: '#ffffff',
+                                    cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
+                                    whiteSpace: 'nowrap', boxShadow: '0 2px 4px rgba(225,29,72,0.2)'
+                                }}
+                                title="Fast Print - Enter Direct Amount & Machine Barcode"
+                            >
+                                <Zap size={12} color="#ffffff" /> FAST PRINT
+                                <span style={{ background: 'rgba(255, 255, 255, 0.25)', color: '#ffffff', fontSize: '9px', padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', fontWeight: 800 }}>
+                                    {isMac ? '⌥F' : 'Alt+F'}
+                                </span>
                             </button>
                         </div>
 
@@ -7810,8 +7851,8 @@ function Home() {
 
                                 {showSettingsMenu && (
                                     <div
-                                        className="absolute right-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-[9999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
-                                        style={{ borderTop: `4px solid var(--so-primary)` }}
+                                        className="absolute right-0 top-full mt-3 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[999999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
+                                        style={{ borderTop: `4px solid var(--so-primary)`, boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}
                                     >
                                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
                                             Configuration
@@ -9917,6 +9958,13 @@ function Home() {
                 onClose={() => setShowPrintJobModal(false)}
                 onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
                 themeColor="#10b981"
+            />
+
+            {/* Fast Print Modal (Direct Amount & Calculator Numpad) */}
+            <FastPrintModal
+                isOpen={showFastPrintModal}
+                onClose={() => setShowFastPrintModal(false)}
+                onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
             />
         </div>
     );

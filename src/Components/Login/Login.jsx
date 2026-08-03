@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import kyleLogo from '../../assets/kyleretail.png';
+import kyleLogo from '../../assets/reatilkyle.png';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../Redux/Slices/userSlice';
 import Swal from 'sweetalert2';
 import {
-  User, Lock, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck
+  User, Lock, Eye, EyeOff, Loader2, ArrowRight, Package, ShoppingCart, BarChart3, ShieldCheck, Check,
+  Barcode, Scan, Receipt, Printer, Coins, Tag, Building2
 } from 'lucide-react';
 import './Login.css';
 import packageJson from '../../../package.json';
@@ -14,6 +15,7 @@ function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -109,7 +111,6 @@ function Login() {
       localStorage.setItem("branch_prefix", branch_prefix || "");
       localStorage.setItem("is_manager", resp.is_manager || false);
       localStorage.setItem("user_roles", JSON.stringify(resp.user_roles || []));
-      // Set active opening entry from login response (if exists)
       localStorage.setItem("posOpeningEntry", resp.active_pos_opening || "");
 
       Swal.fire({
@@ -139,77 +140,183 @@ function Login() {
   };
 
   return (
-    <div className="login-page-container">
-      <div className="login-card">
-        <div className="login-header">
-          <img src={kyleLogo} alt="Kyle Retail Logo" className="h-24 w-auto mx-auto object-contain mix-blend-multiply mb-6 drop-shadow-sm transition-transform duration-300 hover:scale-105" />
-          <p className="login-subtitle">Sign in to manage your retail empire</p>
+    <div className="enterprise-login-wrapper">
+      {/* LEFT BRANDING SIDE (45%) */}
+      <div className="branding-section">
+        {/* Abstract waves & soft glowing circles */}
+        <div className="floating-circle circle-1"></div>
+        <div className="floating-circle circle-2"></div>
+        <div className="abstract-wave wave-1"></div>
+        <div className="abstract-wave wave-2"></div>
+        <div className="grid-overlay"></div>
+
+        <div className="branding-content">
+          <div className="branding-logo-wrapper">
+            <img src={kyleLogo} alt="Kyle Retail POS Logo" className="branding-logo-img floating-logo" />
+          </div>
+
+          <h1 className="branding-title">Kyle Retail POS</h1>
+          <p className="branding-tagline">Smart Retail Management for Modern Businesses</p>
+
+          {/* Feature Showcase Cards */}
+          <div className="features-list">
+            <div className="feature-card">
+              <div className="feature-icon-box bg-sky-light">
+                <Package size={22} color="#0ea5e9" />
+              </div>
+              <div className="feature-text">
+                <h3>Smart Inventory & Stock</h3>
+                <p>Live tracking across warehouses & auto reorder alerts</p>
+              </div>
+            </div>
+
+            <div className="feature-card">
+              <div className="feature-icon-box bg-blue-light">
+                <ShoppingCart size={22} color="#2563eb" />
+              </div>
+              <div className="feature-text">
+                <h3>High-Speed POS Checkout</h3>
+                <p>Instant print job calculator, barcodes & split payments</p>
+              </div>
+            </div>
+
+            <div className="feature-card">
+              <div className="feature-icon-box bg-indigo-light">
+                <BarChart3 size={22} color="#0284c7" />
+              </div>
+              <div className="feature-text">
+                <h3>Analytics & Cashier Reports</h3>
+                <p>Detailed daily sales metrics & shift closing entries</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="branding-footer-badge">
+            <ShieldCheck size={16} color="#0ea5e9" /> Secured with End-to-End Encryption & Audit Logging
+          </div>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="login-form-group">
-            <label className="login-label">Username</label>
-            <div className="login-input-wrapper">
-              <User className="login-input-icon" size={18} />
-              <input
-                type="text"
-                className="login-input"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Manager or Cashier ID"
-                required
-              />
+      {/* RIGHT LOGIN CARD SIDE (55%) */}
+      <div className="form-section">
+        {/* Ambient Floating POS Retail Background Icons */}
+        <div className="pos-bg-icon icon-pos-1"><Barcode size={42} /></div>
+        <div className="pos-bg-icon icon-pos-2"><Scan size={46} /></div>
+        <div className="pos-bg-icon icon-pos-3"><Receipt size={40} /></div>
+        <div className="pos-bg-icon icon-pos-4"><Printer size={44} /></div>
+        <div className="pos-bg-icon icon-pos-5"><Coins size={38} /></div>
+        <div className="pos-bg-icon icon-pos-6"><Tag size={36} /></div>
+        <div className="pos-bg-icon icon-pos-7"><Building2 size={48} /></div>
+
+        <div className="login-glass-card">
+          <div className="card-top">
+            <div className="card-logo-container">
+              <img src={kyleLogo} alt="Kyle Retail POS Logo" className="card-logo-img" />
             </div>
+            <div className="pos-terminal-badge">
+              <span className="terminal-dot"></span>
+              <span>NAJMA STATIONERY LLC • POS TERMINAL</span>
+            </div>
+            <h2 className="welcome-title">Welcome Back</h2>
+            <p className="welcome-subtitle">Sign in to manage your retail business & POS cashier session.</p>
           </div>
 
-          <div className="login-form-group">
-            <label className="login-label">Password</label>
-            <div className="login-input-wrapper">
-              <Lock className="login-input-icon" size={18} />
-              <input
-                type={showPassword ? "text" : "password"}
-                className="login-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Secure Access Key"
-                required
-              />
-              <button
-                className="password-toggle"
-                onClick={togglePasswordVisibility}
-                type="button"
-                title={showPassword ? "Hide password" : "Show password"}
+          <form onSubmit={handleSubmit} className="login-form-content">
+            <div className="form-group">
+              <label className="field-label">Username</label>
+              <div className="input-field-box">
+                <User size={18} className="input-icon" />
+                <input
+                  type="text"
+                  className="custom-input"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Manager / Cashier ID"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="field-label">Password</label>
+              <div className="input-field-box">
+                <Lock size={18} className="input-icon" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="custom-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Secure Access Key"
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={togglePasswordVisibility}
+                  title={showPassword ? "Hide Password" : "Show Password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-options">
+              <label className="remember-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="custom-checkbox"
+                />
+                <span>Remember Me</span>
+              </label>
+
+              <a
+                href="#forgot"
+                onClick={(e) => {
+                  e.preventDefault();
+                  Swal.fire({
+                    title: 'Reset Password',
+                    text: 'Please contact your System Administrator or Branch Manager to reset your access key.',
+                    icon: 'info',
+                    confirmButtonColor: '#0ea5e9'
+                  });
+                }}
+                className="forgot-password-link"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+                Forgot Password?
+              </a>
             </div>
+
+            <button type="submit" className="login-primary-btn" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="spin-loader" size={20} />
+                  <span>VERIFYING...</span>
+                </>
+              ) : (
+                <>
+                  <span>LOGIN TO DASHBOARD</span>
+                  <ArrowRight size={20} className="btn-arrow-icon" />
+                </>
+              )}
+            </button>
+
+            {errorMessage && (
+              <div className="error-banner">
+                {errorMessage}
+              </div>
+            )}
+          </form>
+
+          <div className="card-footer-branding">
+            <p className="powered-text">Powered by Kyle Solutions</p>
+            <span className="version-badge">v{packageJson.version}</span>
           </div>
 
-          <button type="submit" className="login-submit-btn" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="animate-spin" size={18} />
-                Verifying...
-              </>
-            ) : (
-              <>
-                Login to Portal
-                <ArrowRight size={18} />
-              </>
-            )}
-          </button>
-
-          {errorMessage && (
-            <div className="login-error-message">
-              {errorMessage}
-            </div>
-          )}
-        </form>
-
-        <div style={{ marginTop: '2.5rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>
-            Powered by Kyle Solutions v{packageJson.version}
-          </p>
+          <div className="copyright-text">
+            © 2026 Kyle Solutions Pvt Ltd • All Rights Reserved
+          </div>
         </div>
       </div>
     </div>

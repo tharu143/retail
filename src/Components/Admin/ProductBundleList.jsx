@@ -506,15 +506,15 @@ const ProductBundleList = () => {
       {/* Create / Edit Bundle Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[88vh] flex flex-col overflow-hidden border border-gray-100">
             {/* Header */}
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl" style={{ backgroundColor: themeLight, color: themeColor }}>
                   <Boxes className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">
+                  <h2 className="text-base font-bold text-gray-900">
                     {isEditing ? `Edit Product Bundle: ${formParentItem}` : 'Create New Product Bundle'}
                   </h2>
                   <p className="text-xs text-gray-500">Define child items and stock availability rules</p>
@@ -523,18 +523,18 @@ const ProductBundleList = () => {
 
               <button
                 onClick={() => setShowModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Form Content */}
-            <div className="p-6 space-y-5 overflow-y-auto flex-grow pb-32">
+            {/* Modal Form Scrollable Content Body */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-white">
               {/* Parent Item Code & Bundle Selling Rate */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5 relative">
-                  <label className="block text-xs font-semibold text-gray-700">Parent Item Code (Bundle Main Item)*</label>
+                  <label className="block text-xs font-bold text-gray-700">Parent Item Code (Bundle Main Item)*</label>
                   <input
                     type="text"
                     disabled={isEditing}
@@ -547,7 +547,7 @@ const ProductBundleList = () => {
                       setFormParentItem(e.target.value);
                       if (!isEditing) handleParentItemSearch(e.target.value);
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:bg-gray-50 font-mono"
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:bg-gray-50 font-mono font-bold text-gray-800"
                   />
 
                   {/* Parent Item Autocomplete Dropdown */}
@@ -579,9 +579,9 @@ const ProductBundleList = () => {
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-gray-700">Overall Bundle Selling Rate (AED)</label>
+                    <label className="block text-xs font-bold text-gray-700">Overall Bundle Selling Rate (AED)</label>
                     {formItems.length > 0 && (
-                      <span className="text-[10px] text-gray-400 font-medium">
+                      <span className="text-[10px] text-gray-400 font-semibold">
                         Sum: AED {formItems.reduce((acc, row) => acc + ((row.qty || 0) * (row.rate || 0)), 0).toFixed(2)}
                       </span>
                     )}
@@ -592,26 +592,26 @@ const ProductBundleList = () => {
                     placeholder={`e.g. ${formItems.reduce((acc, row) => acc + ((row.qty || 0) * (row.rate || 0)), 0).toFixed(2)}`}
                     value={formSellingRate}
                     onChange={(e) => setFormSellingRate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-gray-900"
                   />
                 </div>
               </div>
 
               {/* Description */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700">Bundle Description</label>
+                <label className="block text-xs font-bold text-gray-700">Bundle Description</label>
                 <textarea
                   rows={2}
                   placeholder="Brief description of items included in this bundle..."
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-gray-800"
                 />
               </div>
 
               {/* Branch Availability Child Table */}
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-gray-700">Branch Availability</label>
+                <label className="block text-xs font-bold text-gray-700">Branch Availability</label>
                 <div className="flex flex-wrap gap-2">
                   {warehousesList.map((wh) => {
                     const whName = wh.name || wh;
@@ -627,9 +627,9 @@ const ProductBundleList = () => {
                             setFormBranchAvailability([...formBranchAvailability, whName]);
                           }
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
                           isChecked
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm'
                             : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                         }`}
                       >
@@ -643,32 +643,32 @@ const ProductBundleList = () => {
               {/* Child Items Table */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-gray-700">Component Items *</label>
+                  <label className="text-xs font-bold text-gray-700">Component Items *</label>
                   <button
                     type="button"
                     onClick={handleAddBundleRow}
-                    className="flex items-center gap-1 text-xs text-emerald-600 font-semibold hover:text-emerald-700"
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg font-bold transition"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Item
                   </button>
                 </div>
 
-                <div className="border border-gray-200 rounded-xl overflow-visible">
+                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-gray-50 text-gray-600 border-b border-gray-200">
                       <tr>
-                        <th className="p-2.5 font-semibold">#</th>
-                        <th className="p-2.5 font-semibold">Child Item Code *</th>
-                        <th className="p-2.5 font-semibold w-24">Qty *</th>
-                        <th className="p-2.5 font-semibold w-24">UOM</th>
-                        <th className="p-2.5 font-semibold text-right w-28">Unit Rate (AED)</th>
-                        <th className="p-2.5 font-semibold text-center w-12">Action</th>
+                        <th className="p-2.5 font-bold w-8 text-center">#</th>
+                        <th className="p-2.5 font-bold">Child Item Code *</th>
+                        <th className="p-2.5 font-bold w-24 text-center">Qty *</th>
+                        <th className="p-2.5 font-bold w-24 text-center">UOM</th>
+                        <th className="p-2.5 font-bold text-right w-28">Unit Rate (AED)</th>
+                        <th className="p-2.5 font-bold text-center w-12">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 bg-white">
                       {formItems.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50/50">
-                          <td className="p-2.5 text-gray-400 text-center">{idx + 1}</td>
+                        <tr key={idx} className="hover:bg-gray-50/60">
+                          <td className="p-2.5 text-gray-400 font-bold text-center">{idx + 1}</td>
                           <td className="p-2.5 relative">
                             <input
                               type="text"
@@ -685,7 +685,7 @@ const ProductBundleList = () => {
                                 setFormItems(newItems);
                                 handleItemSearch(e.target.value, idx);
                               }}
-                              className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-mono font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-gray-900"
                             />
 
                             {/* Dropdown Suggestions */}
@@ -723,7 +723,7 @@ const ProductBundleList = () => {
                                 newItems[idx].qty = parseFloat(e.target.value) || 0;
                                 setFormItems(newItems);
                               }}
-                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-center"
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs text-center font-bold text-gray-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                             />
                           </td>
                           <td className="p-2.5">
@@ -734,7 +734,7 @@ const ProductBundleList = () => {
                                 newItems[idx].uom = e.target.value;
                                 setFormItems(newItems);
                               }}
-                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs bg-white text-center font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-center font-semibold text-gray-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                             >
                               <option value="Nos">Nos</option>
                               <option value="Box">Box</option>
@@ -749,16 +749,12 @@ const ProductBundleList = () => {
                           <td className="p-2.5">
                             <input
                               type="number"
-                              min="0"
-                              step="0.01"
-                              value={row.rate !== undefined ? row.rate : ''}
-                              onChange={(e) => {
-                                const newItems = [...formItems];
-                                newItems[idx].rate = parseFloat(e.target.value) || 0;
-                                setFormItems(newItems);
-                              }}
+                              readOnly
+                              disabled
+                              value={row.rate !== undefined ? row.rate : 0}
                               placeholder="0.00"
-                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-right font-semibold text-gray-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-right font-bold text-gray-700 bg-gray-100 cursor-not-allowed select-none"
+                              title="Unit Rate is auto-fetched from item master"
                             />
                           </td>
                           <td className="p-2.5 text-center">
@@ -778,12 +774,12 @@ const ProductBundleList = () => {
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
+            {/* Fixed Footer */}
+            <div className="p-4 px-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition"
+                className="px-5 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-200/80 rounded-xl transition border border-gray-200"
               >
                 Cancel
               </button>
@@ -791,7 +787,7 @@ const ProductBundleList = () => {
                 type="button"
                 disabled={saving}
                 onClick={handleSaveBundle}
-                className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white rounded-xl shadow-sm transition hover:opacity-90"
+                className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white rounded-xl shadow-md transition hover:opacity-95 active:scale-95"
                 style={{ backgroundColor: themeColor }}
               >
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
