@@ -1511,3 +1511,9 @@ input[type=number].so-td-input::-webkit-outer-spin-button {
   --key-text: #e11d48;
   --key-inner-border: rgba(244, 63, 94, 0.1);
 }
+
+/* Hide default browser calendar icon in date pickers */
+.so-filter-input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none !important;
+  -webkit-appearance: none !important;
+}

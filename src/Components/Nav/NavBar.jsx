@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import kyleLogo from '/public/kyleretail.png';
+import kyleLogo from '../../assets/kyleretail.png';
 import './NavBar.css';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";

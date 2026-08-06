@@ -486,8 +486,10 @@ const DeliveryNoteDetails = () => {
         items: [], taxes: [], taxes_and_charges: '',
         apply_discount_on: 'Grand Total', additional_discount_percentage: 0,
         discount_amount: 0, total_qty: 0, base_total: 0, total_taxes_and_charges: 0,
-        grand_total: 0, rounded_total: 0, in_words: ''
     });
+
+    const isNew = !form.name;
+    const isEditing = !isViewOnly;
 
     const [customers, setCustomers] = useState([]);
     const [warehouses, setWarehouses] = useState([]);
@@ -1245,9 +1247,6 @@ const DeliveryNoteDetails = () => {
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Loading Delivery Note...</p>
         </div>
     );
-
-    const isNew = !form.name;
-    const isEditing = !isViewOnly;
 
     // Helper to extract linked docs safely
     const getLinkedDocs = (doctype) => {

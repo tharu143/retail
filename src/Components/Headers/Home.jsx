@@ -755,7 +755,7 @@ function Home() {
                         <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-5 flex justify-between items-center">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                                    <DollarSign size={20} />
+                                    <DirhamIcon size={20} />
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight m-0">Open POS Session</h3>
@@ -3437,12 +3437,12 @@ function Home() {
             Swal.fire('Error', 'Please enter a valid points value.', 'error');
             return;
         }
-        
+
         // Dynamic conversion factor from ERPNext backend
         const factor = loyaltyProgramConfig?.conversion_factor || 0.01;
         const LOYALTY_RATE = factor <= 1.0 ? factor : (1.0 / factor);
         const redeemedValue = parseFloat((points * LOYALTY_RATE).toFixed(2));
-        
+
         if (redeemedValue > subtotal) {
             Swal.fire('Error', 'Redemption amount cannot exceed subtotal.', 'error');
             return;
@@ -4557,13 +4557,14 @@ function Home() {
 
                     {/* Input Area */}
                     <div className="relative group">
-                        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+                        <div className="absolute inset-y-0 flex items-center pointer-events-none" style={{ left: '24px' }}>
                             <span className="text-2xl font-black text-blue-500 flex items-center justify-center">{discount.type === 'amount' ? <DirhamIcon size={20} /> : '%'}</span>
                         </div>
                         <input
                             type="number"
                             placeholder="0.00"
-                            className="w-full pl-20 pr-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-4xl font-black text-slate-900 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-200"
+                            className="w-full pr-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-4xl font-black text-slate-900 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-200"
+                            style={{ paddingLeft: '76px' }}
                             value={discountInput}
                             onChange={e => setDiscountInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -4605,7 +4606,7 @@ function Home() {
                             {creatingDiscountCust ? "Creating Discount Customer..." : "Create & Select Discount Customer"}
                         </label>
                         <div className="relative flex items-center bg-slate-50 border-2 border-slate-100 rounded-3xl overflow-hidden focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-50 transition-all">
-                            <div className="absolute left-5 text-slate-400">
+                            <div className="absolute text-slate-400" style={{ left: '20px' }}>
                                 {creatingDiscountCust ? (
                                     <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                                 ) : (
@@ -4615,7 +4616,8 @@ function Home() {
                             <input
                                 type="text"
                                 placeholder="Enter name or mobile & press Enter"
-                                className="w-full pl-14 pr-6 py-4 bg-transparent text-sm font-bold text-slate-900 outline-none placeholder:text-slate-300"
+                                className="w-full pr-6 py-4 bg-transparent text-sm font-bold text-slate-900 outline-none placeholder:text-slate-300"
+                                style={{ paddingLeft: '56px' }}
                                 value={discountCustInput}
                                 onChange={e => setDiscountCustInput(e.target.value)}
                                 onKeyDown={(e) => {
@@ -5533,11 +5535,11 @@ function Home() {
                     const total = inv.grand_total || 0;
                     const itemsCount = inv.items?.length || 0;
                     const isSelected = idx === selectedIndex;
-                    
+
                     const borderStyle = isSelected ? '2px solid #4f46e5' : '2px solid #e2e8f0';
                     const backgroundStyle = isSelected ? '#f5f3ff' : '#f8fafc';
                     const actionLabel = isSelected ? '👉 PRESS ENTER TO PRINT' : 'SELECT TO PRINT';
-                    
+
                     return `
                         <button class="recent-inv-btn" id="recent-inv-btn-${idx}" onclick="window.printSpecificInvoice(${idx})" style="
                             width: 100%;
@@ -5993,20 +5995,20 @@ function Home() {
                         </thead>
                         <tbody>
                             ${(invoiceData.items || []).map((it, idx) => {
-                                const qty = parseFloat(it.qty) || 1;
-                                const price = parseFloat(it.price || it.rate || it.basePrice || 0);
-                                const isInc = it.is_tax_inclusive !== false;
-                                const taxRatePercent = 5.0;
+            const qty = parseFloat(it.qty) || 1;
+            const price = parseFloat(it.price || it.rate || it.basePrice || 0);
+            const isInc = it.is_tax_inclusive !== false;
+            const taxRatePercent = 5.0;
 
-                                const vatVal = isInc
-                                    ? (price - (price / (1 + (taxRatePercent / 100))))
-                                    : (price * (taxRatePercent / 100));
+            const vatVal = isInc
+                ? (price - (price / (1 + (taxRatePercent / 100))))
+                : (price * (taxRatePercent / 100));
 
-                                const lineTotal = isInc
-                                    ? (qty * price)
-                                    : (qty * (price + vatVal));
+            const lineTotal = isInc
+                ? (qty * price)
+                : (qty * (price + vatVal));
 
-                                return `
+            return `
                                     <tr>
                                         <td class="text-left">${idx + 1}</td>
                                         <td class="text-left" style="font-weight: 600;">${it.name || it.item_name || it.item_code || 'ITEM'}</td>
@@ -6018,7 +6020,7 @@ function Home() {
                                         <td class="text-right" style="font-weight: 600;">${parseFloat(lineTotal).toFixed(2)}</td>
                                     </tr>
                                 `;
-                            }).join('')}
+        }).join('')}
                         </tbody>
                     </table>
 
@@ -7864,15 +7866,22 @@ function Home() {
                                                 navigate('/dashboard');
                                                 setShowSettingsMenu(false);
                                             }}
-                                            className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                            className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left"
+                                            style={{
+                                                height: '46px',
+                                                padding: '8px 14px',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '12px',
+                                                cursor: 'pointer'
+                                            }}
                                         >
-                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
-                                                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:scale-110 transition-transform">
+                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
+                                                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:scale-110 transition-transform flex items-center justify-center">
                                                     <LayoutDashboard size={14} />
                                                 </div>
                                                 Admin Dashboard
                                             </div>
-                                            <ChevronRight size={14} className="text-slate-400" />
+                                            <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                                         </button>
 
                                         {/* Theme Switcher Button */}
@@ -7881,15 +7890,22 @@ function Home() {
                                                 setShowThemeSidebar(true);
                                                 setShowSettingsMenu(false);
                                             }}
-                                            className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                            className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left"
+                                            style={{
+                                                height: '46px',
+                                                padding: '8px 14px',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '12px',
+                                                cursor: 'pointer'
+                                            }}
                                         >
-                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
-                                                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-500 group-hover:scale-110 transition-transform">
+                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
+                                                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-500 group-hover:scale-110 transition-transform flex items-center justify-center">
                                                     <Palette size={14} />
                                                 </div>
                                                 Theme Config
                                             </div>
-                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
+                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                                                 {legacySubTheme.toUpperCase()}
                                             </span>
                                         </button>
@@ -8063,7 +8079,7 @@ function Home() {
                                                         {isBundle && (
                                                             <div className="bundle-ribbon-tag">
                                                                 <div className="bundle-ribbon-tag-content">
-                                                                    ★ ★ ★<br/>COMBO<br/>BUNDLE
+                                                                    ★ ★ ★<br />COMBO<br />BUNDLE
                                                                 </div>
                                                             </div>
                                                         )}
@@ -8083,63 +8099,63 @@ function Home() {
                                                             )}
                                                         </div>
 
-                                                    <div className="flex flex-col flex-1 justify-between gap-1.5">
-                                                        <h4 className="so-item-name">
-                                                            {item.name}
-                                                        </h4>
+                                                        <div className="flex flex-col flex-1 justify-between gap-1.5">
+                                                            <h4 className="so-item-name">
+                                                                {item.name}
+                                                            </h4>
 
-                                                        <div style={{ height: '16px', display: 'flex', alignItems: 'center', marginTop: '2px' }}>
-                                                            {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) ? (
-                                                                <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                                    <Barcode size={10} style={{ opacity: 0.6 }} /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
-                                                                </span>
+                                                            <div style={{ height: '16px', display: 'flex', alignItems: 'center', marginTop: '2px' }}>
+                                                                {((item.barcodes && item.barcodes.length > 0) || item.barcode || item.id) ? (
+                                                                    <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                        <Barcode size={10} style={{ opacity: 0.6 }} /> {item.barcodes?.[0]?.barcode || item.barcode || item.id}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span style={{ fontSize: '9px', color: '#cbd5e1', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                        <Barcode size={10} style={{ opacity: 0.3 }} /> -
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            {isBundle && (
+                                                                <div className="grid grid-cols-3 gap-0.5 text-[7px] font-bold text-emerald-800 bg-emerald-50/90 border border-emerald-200/70 rounded px-1 py-1 mt-1 text-center">
+                                                                    <span className="flex items-center justify-center gap-0.5 truncate"><ShieldCheck size={9} className="text-emerald-600 shrink-0" /> Reliable</span>
+                                                                    <span className="flex items-center justify-center gap-0.5 truncate border-x border-emerald-200/60"><Gift size={9} className="text-emerald-600 shrink-0" /> Combo</span>
+                                                                    <span className="flex items-center justify-center gap-0.5 truncate"><Star size={9} className="text-emerald-600 shrink-0" /> Value</span>
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex items-center justify-between pt-2">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Price</span>
+                                                                    <span className="font-black text-slate-900 text-[13px] flex items-center gap-0.5">
+                                                                        <DirhamIcon size={10} className="text-slate-400" /> {parseFloat(item.price).toFixed(2)}
+                                                                    </span>
+                                                                </div>
+
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
+                                                                >
+                                                                    <Info size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div style={{ height: '32px', display: 'flex', alignItems: 'center', marginTop: 'auto', flexShrink: 0 }}>
+                                                            {item.local_qty <= 0 ? (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
+                                                                    className="w-full py-1.5 bg-slate-50 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 text-[8px] font-bold uppercase tracking-tight transition-all flex items-center justify-center"
+                                                                >
+                                                                    Request More Stock
+                                                                </button>
                                                             ) : (
-                                                                <span style={{ fontSize: '9px', color: '#cbd5e1', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                                    <Barcode size={10} style={{ opacity: 0.3 }} /> -
-                                                                </span>
+                                                                <div className={`so-item-instock-placeholder ${item.local_qty <= 10 ? 'low-stock' : ''}`}>
+                                                                    {item.local_qty} UNITS
+                                                                </div>
                                                             )}
                                                         </div>
-
-                                                        {isBundle && (
-                                                            <div className="grid grid-cols-3 gap-0.5 text-[7px] font-bold text-emerald-800 bg-emerald-50/90 border border-emerald-200/70 rounded px-1 py-1 mt-1 text-center">
-                                                                <span className="flex items-center justify-center gap-0.5 truncate"><ShieldCheck size={9} className="text-emerald-600 shrink-0" /> Reliable</span>
-                                                                <span className="flex items-center justify-center gap-0.5 truncate border-x border-emerald-200/60"><Gift size={9} className="text-emerald-600 shrink-0" /> Combo</span>
-                                                                <span className="flex items-center justify-center gap-0.5 truncate"><Star size={9} className="text-emerald-600 shrink-0" /> Value</span>
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex items-center justify-between pt-2">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">Price</span>
-                                                                <span className="font-black text-slate-900 text-[13px] flex items-center gap-0.5">
-                                                                    <DirhamIcon size={10} className="text-slate-400" /> {parseFloat(item.price).toFixed(2)}
-                                                                </span>
-                                                            </div>
-
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
-                                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                            >
-                                                                <Info size={14} />
-                                                            </button>
-                                                        </div>
                                                     </div>
-
-                                                    <div style={{ height: '32px', display: 'flex', alignItems: 'center', marginTop: 'auto', flexShrink: 0 }}>
-                                                        {item.local_qty <= 0 ? (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleFindNearestStock(item); }}
-                                                                className="w-full py-1.5 bg-slate-50 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 text-[8px] font-bold uppercase tracking-tight transition-all flex items-center justify-center"
-                                                            >
-                                                                Request More Stock
-                                                            </button>
-                                                        ) : (
-                                                            <div className={`so-item-instock-placeholder ${item.local_qty <= 10 ? 'low-stock' : ''}`}>
-                                                                {item.local_qty} UNITS
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
                                                 );
                                             })
                                         )}
@@ -8152,19 +8168,19 @@ function Home() {
                         <aside className="so-bill-side">
                             <div className="so-bill-header flex flex-col gap-3">
                                 <div className="relative group">
-                                    <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white focus-within:border-emerald-500 transition-all">
+                                    <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all" style={{ height: '42px' }}>
                                         <select
                                             value={countryCodePrefix}
                                             onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                            className="h-8.5 px-2 bg-slate-50 border-r border-slate-200 text-[11px] font-black text-slate-700 outline-none cursor-pointer"
-                                            style={{ minWidth: '70px' }}
+                                            className="h-full px-3 bg-slate-50/85 border-r border-slate-200 text-[11px] font-bold text-slate-700 outline-none cursor-pointer hover:bg-slate-100 transition-colors"
+                                            style={{ minWidth: '80px' }}
                                             title="Country Code (Press F4 to toggle)"
                                         >
                                             <option value="+971">🇦🇪 +971</option>
                                             <option value="+91">🇮🇳 +91</option>
                                         </select>
-                                        <div className="relative flex-1 h-8.5 flex items-center">
-                                            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                                        <div className="relative flex-1 h-full flex items-center">
+                                            <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none" style={{ paddingLeft: '14px' }}>
                                                 <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
                                             </div>
                                             <input
@@ -8172,7 +8188,8 @@ function Home() {
                                                 type="text"
                                                 placeholder="Customer Name / Mobile..."
                                                 value={customerName === 'Cash' ? '' : customerName}
-                                                className="w-full h-full pl-8 pr-2.5 py-1 text-xs font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
+                                                className="w-full h-full pr-3 py-2 text-xs font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
+                                                style={{ paddingLeft: '36px' }}
                                                 onChange={e => {
                                                     justSelectedCustomerRef.current = false;
                                                     setActiveCustomerIndex(-1);
@@ -8196,29 +8213,39 @@ function Home() {
                                         </div>
                                     </div>
                                     {showDropdown && (
-                                        <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-[300] mt-1 max-h-56 overflow-y-auto">
+                                        <div ref={dropdownRef} className="so-customer-dropdown animate-in fade-in slide-in-from-top-2 duration-150">
                                             {searchResults.map((c, idx) => {
                                                 const isSelected = idx === activeCustomerIndex;
                                                 return (
-                                                    <div key={c.name} id={`cust-item-0-${idx}`} onMouseDown={() => { pickCustomer(c); setActiveCustomerIndex(-1); }} className={`p-3.5 border-b border-slate-50 cursor-pointer flex justify-between items-center group ${isSelected ? 'bg-sky-100 font-bold' : 'hover:bg-slate-50'}`}>
+                                                    <div
+                                                        key={c.name}
+                                                        id={`cust-item-0-${idx}`}
+                                                        onMouseDown={() => { pickCustomer(c); setActiveCustomerIndex(-1); }}
+                                                        className={`so-customer-dropdown-item ${isSelected ? 'active' : ''}`}
+                                                    >
                                                         <div>
-                                                            <div className="font-black text-sm text-slate-800 uppercase">{c.customer_name}</div>
-                                                            <div className="text-xs text-slate-400 font-bold">{c.mobile_no}</div>
+                                                            <div className="so-customer-name">{c.customer_name}</div>
+                                                            <div className="so-customer-mobile">
+                                                                <Phone size={10} className="text-slate-400" /> {c.mobile_no}
+                                                            </div>
                                                         </div>
-                                                        <ChevronRight size={14} className={`text-slate-300 ${isSelected ? 'text-sky-600 font-bold' : 'group-hover:text-emerald-500'}`} />
+                                                        <ChevronRight size={14} className={`text-slate-400 transition-colors ${isSelected ? 'text-sky-600 font-bold' : 'group-hover:text-emerald-500'}`} />
                                                     </div>
                                                 );
                                             })}
-                                            <div onMouseDown={() => openCreate(customerName.trim())} className="p-3.5 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center">
+                                            <div
+                                                onMouseDown={() => openCreate(customerName.trim())}
+                                                className="so-customer-register-btn"
+                                            >
                                                 + Register New Customer
                                             </div>
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="relative group flex items-center">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Search size={14} className="text-sky-400 group-focus-within:text-sky-600 transition-colors" />
+                                <div className="relative group flex items-center" style={{ height: '42px' }}>
+                                    <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none" style={{ paddingLeft: '14px' }}>
+                                        <Search size={14} className="text-slate-400 group-focus-within:text-sky-500 transition-colors" />
                                     </div>
                                     <input
                                         ref={barcodeInputRef}
@@ -8228,20 +8255,19 @@ function Home() {
                                         onChange={e => setBarcodeInput(e.target.value)}
                                         onKeyDown={onBarcodeKeyDown}
                                         onFocus={() => setActiveCardIndex(-1)}
-                                        className="so-customer-input w-full pl-10 pr-9 border-sky-100 bg-sky-50 focus:border-sky-500 focus:bg-white"
+                                        className="w-full h-full border border-slate-200 rounded-xl bg-slate-50 focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 transition-all text-xs font-bold text-slate-800 placeholder:text-slate-400 outline-none"
+                                        style={{ paddingLeft: '36px', paddingRight: '40px' }}
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowCamera(true)}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-sky-600 hover:bg-sky-100 rounded-md transition-all cursor-pointer"
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-100 rounded-lg transition-all cursor-pointer"
                                         title="Camera Barcode Scanner"
                                     >
-                                        <Camera size={15} />
+                                        <Camera size={14} />
                                     </button>
                                 </div>
-                            </div>
-
-                            <div className="so-bill-items">
+                            </div><div className="so-bill-items">
                                 {billItems.length === 0 ? (
                                     <div className="flex-1 flex flex-col items-center justify-center opacity-20 gap-3 grayscale">
                                         <MonitorSmartphone size={64} strokeWidth={1} />
@@ -8343,43 +8369,47 @@ function Home() {
 
                             <div className="so-bill-footer">
                                 {/* Summary & Actions Side-by-Side */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-1.5">
-                                    {/* Left: 4 Action Buttons Stacked vertically (Ultra compact) */}
-                                    <div className="flex flex-col gap-1">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                    {/* Left: 4 Action Buttons Stacked vertically */}
+                                    <div className="flex flex-col gap-1.5">
                                         <button
                                             onClick={() => setShowDiscountModal(true)}
-                                            className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
-                                            style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2' } : {}}
+                                            className="so-btn-secondary w-full h-8 px-2.5 text-[10px] flex items-center justify-between transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                            style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2', height: '32px', borderRadius: '0.5rem' } : { color: '#6366f1', borderColor: '#e0e7ff', backgroundColor: '#f5f3ff', height: '32px', borderRadius: '0.5rem' }}
                                         >
-                                            <Palette size={10} /> % Discount <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>F1</span>
+                                            <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Palette size={11} /> Discount</span>
+                                            <span className="btn-shortcut-key">F1</span>
                                         </button>
                                         <button
                                             onClick={handleLoyaltyPointsClick}
-                                            className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
-                                            style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5' } : {}}
+                                            className="so-btn-secondary w-full h-8 px-2.5 text-[10px] flex items-center justify-between transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                            style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5', height: '32px', borderRadius: '0.5rem' } : { color: '#10b981', borderColor: '#ecfdf5', backgroundColor: '#f0fdf4', height: '32px', borderRadius: '0.5rem' }}
                                         >
-                                            <Award size={10} /> Loyalty <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span>
+                                            <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Award size={11} /> Loyalty</span>
+                                            <span className="btn-shortcut-key">{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span>
                                         </button>
                                         <button
                                             onClick={handleSaveDraft}
-                                            className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
-                                            style={{ color: '#d97706', borderColor: '#fef3c7' }}
+                                            className="so-btn-secondary w-full h-8 px-2.5 text-[10px] flex items-center justify-between transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                            style={{ color: '#d97706', borderColor: '#fef3c7', backgroundColor: '#fffbeb', height: '32px', borderRadius: '0.5rem' }}
                                             disabled={billItems.length === 0}
                                         >
-                                            <Package size={10} /> Save Draft <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>{getShortcut('pos_home', 'saveDraft', 'Alt+S')}</span>
+                                            <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Package size={11} /> Save Draft</span>
+                                            <span className="btn-shortcut-key">{getShortcut('pos_home', 'saveDraft', 'Alt+S')}</span>
                                         </button>
                                         <button
                                             onClick={clearBillHandler}
-                                            className="so-btn-secondary w-full h-5.5 py-0 text-[9px]"
-                                            style={{ color: 'var(--so-danger)', borderColor: '#fecaca' }}
+                                            className="so-btn-secondary w-full h-8 px-2.5 text-[10px] flex items-center justify-between transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                            style={{ color: 'var(--so-danger)', borderColor: '#fecaca', backgroundColor: '#fef2f2', height: '32px', borderRadius: '0.5rem' }}
                                         >
-                                            <Trash2 size={10} /> Reset <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '0px 2px' }}>{getShortcut('pos_home', 'clearBill', 'Alt+C')}</span>
+                                            <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Trash2 size={11} /> Reset</span>
+                                            <span className="btn-shortcut-key">{getShortcut('pos_home', 'clearBill', 'Alt+C')}</span>
                                         </button>
                                     </div>
 
                                     {/* Right: Subtotal / Total Box */}
-                                    <div className="so-total-box mb-0 flex flex-col justify-between p-1.5">
-                                        <div className="space-y-0.5">
+                                    <div className="so-total-box mb-0 flex flex-col justify-between">
+                                        <div className="space-y-1">
                                             <div className="so-total-row">
                                                 <span>Subtotal</span>
                                                 <span className="flex items-center gap-0.5"><DirhamIcon size={9} /> {displaySubtotal.toFixed(2)}</span>
@@ -8402,37 +8432,37 @@ function Home() {
                                             </div>
                                         </div>
 
-                                        <div className="so-grand-total mt-0.5 pt-0.5">
+                                        <div className="so-grand-total">
                                             <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
                                             <span className="flex items-center gap-0.5"><DirhamIcon size={13} /> {grandTotal.toFixed(2)}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-1.5 mb-1">
+                                <div className="flex gap-2.5 mb-2.5">
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}
-                                        className="so-btn-secondary flex-1 px-2"
-                                        style={{ color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}
+                                        className="so-btn-secondary flex-1 px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                        style={{ height: '36px', borderRadius: '0.625rem', color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        <span>Cash</span> <span className="btn-shortcut-key">{getShortcut('pos_home', 'directCash', 'Alt+1')}</span>
+                                        <span>Cash</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{getShortcut('pos_home', 'directCash', 'Alt+1')}</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
-                                        className="so-btn-secondary flex-1 px-2"
-                                        style={{ color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}
+                                        className="so-btn-secondary flex-1 px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                        style={{ height: '36px', borderRadius: '0.625rem', color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        <span>Bank</span> <span className="btn-shortcut-key">Ctrl+V</span>
+                                        <span>Bank</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>Ctrl+V</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
-                                        className="so-btn-secondary flex-1 px-2"
-                                        style={{ color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}
+                                        className="so-btn-secondary flex-1 px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                        style={{ height: '36px', borderRadius: '0.625rem', color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        <span>Card</span> <span className="btn-shortcut-key">{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
+                                        <span>Card</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
                                     </button>
                                 </div>
 
@@ -8440,50 +8470,88 @@ function Home() {
                                     <button
                                         className="so-btn-pay opacity-70 cursor-not-allowed flex items-center justify-center"
                                         disabled
-                                        style={{ height: '42px' }}
+                                        style={{ height: '46px', borderRadius: '0.75rem' }}
                                     >
                                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                                         <span>Processing...</span>
                                     </button>
                                 ) : (
-                                    <div className="flex gap-1.5 mt-2">
+                                    <div className="flex gap-2.5 mt-3">
                                         <button
-                                            className="so-btn-pay flex items-center justify-between"
+                                            className="so-btn-pay flex items-center justify-between transition-all hover:brightness-105 active:scale-[0.98]"
                                             disabled={grandTotal <= 0}
-                                            style={{ backgroundColor: '#10b981', height: '42px', minHeight: '42px', flex: 1, padding: '4px 6px', fontSize: '9.5px', textTransform: 'none' }}
+                                            style={{
+                                                backgroundColor: '#10b981',
+                                                height: '46px',
+                                                minHeight: '46px',
+                                                flex: 1,
+                                                padding: '8px 12px',
+                                                fontSize: '11px',
+                                                fontWeight: '900',
+                                                borderRadius: '0.75rem',
+                                                boxShadow: grandTotal > 0 ? '0 4px 12px rgba(16, 185, 129, 0.2)' : 'none',
+                                                border: 'none',
+                                                cursor: grandTotal > 0 ? 'pointer' : 'not-allowed',
+                                                color: '#ffffff'
+                                            }}
                                             onClick={() => handleCheckoutWithMode('print')}
                                         >
-                                            <span className="flex items-center gap-1">
-                                                <Printer size={11} /> Pay & Print
+                                            <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                                                <Printer size={12} /> Pay & Print
                                             </span>
-                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1px 3px' }}>Space</span>
+                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>Space</span>
                                         </button>
                                         <button
-                                            className="so-btn-pay flex items-center justify-between"
+                                            className="so-btn-pay flex items-center justify-between transition-all hover:brightness-105 active:scale-[0.98]"
                                             disabled={grandTotal <= 0}
-                                            style={{ backgroundColor: '#3b82f6', height: '42px', minHeight: '42px', flex: 1, padding: '4px 6px', fontSize: '9.5px', textTransform: 'none' }}
+                                            style={{
+                                                backgroundColor: '#3b82f6',
+                                                height: '46px',
+                                                minHeight: '46px',
+                                                flex: 1,
+                                                padding: '8px 12px',
+                                                fontSize: '11px',
+                                                fontWeight: '900',
+                                                borderRadius: '0.75rem',
+                                                boxShadow: grandTotal > 0 ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
+                                                border: 'none',
+                                                cursor: grandTotal > 0 ? 'pointer' : 'not-allowed',
+                                                color: '#ffffff'
+                                            }}
                                             onClick={() => handleCheckoutWithMode('no-print')}
                                         >
-                                            <span className="flex items-center gap-1">
-                                                <CreditCard size={11} /> Pay No Print
+                                            <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                                                <CreditCard size={12} /> Pay No Print
                                             </span>
-                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1px 3px' }}>Alt+N</span>
+                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>Alt+N</span>
                                         </button>
                                         <button
-                                            className="so-btn-pay flex items-center justify-between"
+                                            className="so-btn-pay flex items-center justify-between transition-all hover:brightness-105 active:scale-[0.98]"
                                             disabled={grandTotal <= 0}
-                                            style={{ backgroundColor: '#8b5cf6', height: '42px', minHeight: '42px', flex: 1, padding: '4px 6px', fontSize: '9.5px', textTransform: 'none' }}
+                                            style={{
+                                                backgroundColor: '#8b5cf6',
+                                                height: '46px',
+                                                minHeight: '46px',
+                                                flex: 1,
+                                                padding: '8px 12px',
+                                                fontSize: '11px',
+                                                fontWeight: '900',
+                                                borderRadius: '0.75rem',
+                                                boxShadow: grandTotal > 0 ? '0 4px 12px rgba(139, 92, 246, 0.2)' : 'none',
+                                                border: 'none',
+                                                cursor: grandTotal > 0 ? 'pointer' : 'not-allowed',
+                                                color: '#ffffff'
+                                            }}
                                             onClick={() => handleCheckoutWithMode('print-a4')}
                                         >
-                                            <span className="flex items-center gap-1">
-                                                <Printer size={11} /> Pay A4 Print
+                                            <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                                                <Printer size={12} /> Pay A4 Print
                                             </span>
-                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1px 3px' }}>Alt+A</span>
+                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>Alt+A</span>
                                         </button>
                                     </div>
                                 )}
-                            </div>
-                        </aside>
+                            </div></aside>
                     </main>
                 </div>
 
@@ -8675,15 +8743,22 @@ function Home() {
                                                 navigate('/dashboard');
                                                 setShowSettingsMenu(false);
                                             }}
-                                            className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                            className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left"
+                                            style={{
+                                                height: '46px',
+                                                padding: '8px 14px',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '12px',
+                                                cursor: 'pointer'
+                                            }}
                                         >
-                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
-                                                <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-500'} group-hover:scale-110 transition-transform`}>
+                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
+                                                <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-505'} group-hover:scale-110 transition-transform flex items-center justify-center`}>
                                                     <LayoutDashboard size={14} />
                                                 </div>
                                                 Admin Dashboard
                                             </div>
-                                            <ChevronRight size={14} className="text-slate-400" />
+                                            <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                                         </button>
 
                                         {/* Theme Switcher Button */}
@@ -8692,15 +8767,22 @@ function Home() {
                                                 setShowThemeSidebar(true);
                                                 setShowSettingsMenu(false);
                                             }}
-                                            className="w-full p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                            className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left"
+                                            style={{
+                                                height: '46px',
+                                                padding: '8px 14px',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '12px',
+                                                cursor: 'pointer'
+                                            }}
                                         >
-                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
-                                                <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-500'} group-hover:scale-110 transition-transform`}>
+                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
+                                                <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-550'} group-hover:scale-110 transition-transform flex items-center justify-center`}>
                                                     <Palette size={14} />
                                                 </div>
                                                 Theme Config
                                             </div>
-                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>
+                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`} style={{ display: 'inline-flex', alignItems: 'center', justifycontent: 'center' }}>
                                                 {legacySubTheme.toUpperCase()}
                                             </span>
                                         </button>
@@ -8711,15 +8793,22 @@ function Home() {
                                                 onClick={() => {
                                                     toggleTheme();
                                                 }}
-                                                className="w-full mt-2 p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
+                                                className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left mt-1.5"
+                                                style={{
+                                                    height: '46px',
+                                                    padding: '8px 14px',
+                                                    border: '1px solid #e2e8f0',
+                                                    borderRadius: '12px',
+                                                    cursor: 'pointer'
+                                                }}
                                             >
-                                                <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
-                                                    <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-sky-50 text-sky-500' : 'bg-emerald-50 text-emerald-500'} group-hover:scale-110 transition-transform`}>
+                                                <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
+                                                    <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-sky-50 text-sky-500' : 'bg-emerald-50 text-emerald-500'} group-hover:scale-110 transition-transform flex items-center justify-center`}>
                                                         <Palette size={14} />
                                                     </div>
                                                     Switch Color
                                                 </div>
-                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600'}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     {isGreen ? 'BLUE' : 'GREEN'}
                                                 </span>
                                             </button>
@@ -8819,21 +8908,36 @@ function Home() {
                                 )}
                             </div>
                             {showDropdown && (
-                                <div className="absolute top-full left-0 w-full bg-white border-2 border-slate-900 shadow-[4px_4px_0_rgba(0,0,0,0.1)] z-[9999] max-h-48 overflow-y-auto mt-1">
+                                <div className="absolute top-full left-0 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-[9999] max-h-48 overflow-y-auto mt-1 py-1">
                                     {searchResults.length === 0 ? (
-                                        <div style={{ padding: '0.75rem', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                                        <div style={{ padding: '12px 14px', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>
                                             {(customerMobile || customerName).trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}
                                         </div>
                                     ) : searchResults.map((c, idx) => {
                                         const isSelected = idx === activeCustomerIndex;
                                         return (
-                                            <div key={c.name} id={`cust-item-1-${idx}`} className={`p-2.5 border-b border-slate-100 cursor-pointer text-sm font-bold ${isSelected ? 'bg-sky-200 text-sky-950 font-black' : 'hover:bg-slate-50 text-slate-900'}`} onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); setActiveCustomerIndex(-1); }}>
-                                                {c.customer_name} — {c.mobile_no}
+                                            <div
+                                                key={c.name}
+                                                id={`cust-item-1-${idx}`}
+                                                className={`cursor-pointer text-xs transition-colors ${isSelected ? 'bg-sky-100 text-sky-950 font-black' : 'hover:bg-slate-50 text-slate-700 font-semibold'}`}
+                                                style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}
+                                                onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); setActiveCustomerIndex(-1); }}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="truncate">{c.customer_name}</span>
+                                                    {c.mobile_no && (
+                                                        <span className="text-[10px] opacity-60 font-mono bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0 text-slate-700">{c.mobile_no}</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
                                     {searchResults.every(c => c.customer_name.toLowerCase() !== (customerMobile || customerName).trim().toLowerCase()) && (customerMobile || customerName).trim() && (
-                                        <div onMouseDown={(e) => { e.preventDefault(); openCreate((customerMobile || customerName).trim()); }} className="p-2.5 bg-sky-50 text-sky-600 font-black text-xs uppercase tracking-wider cursor-pointer hover:bg-sky-100 text-center">
+                                        <div
+                                            onMouseDown={(e) => { e.preventDefault(); openCreate((customerMobile || customerName).trim()); }}
+                                            className="bg-sky-50 text-sky-600 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-sky-100 text-center border-t border-sky-100 transition-colors"
+                                            style={{ padding: '10px 14px' }}
+                                        >
                                             + Register New Customer
                                         </div>
                                     )}
@@ -9249,119 +9353,103 @@ function Home() {
                         </div>
 
                         {/* ACTION BAR */}
-                        <div className="flex bg-white border-t border-slate-200 w-full px-3 py-2 items-center">
-                            <div className="flex-1" />
-                            <div className="grid grid-cols-4 gap-2 w-full max-w-[720px]">
-                                {/* Column 1: Discount & Clear Bill */}
-                                <div className="col-span-1 flex flex-col gap-1.5">
-                                    <button
-                                        className={`py-1.5 bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-100' : 'text-sky-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1 p-1`}
-                                        onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
-                                    >
-                                        <Palette size={12} /> DISCOUNT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>F1</span>
-                                    </button>
-                                    <button
-                                        className={`py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1 p-1`}
-                                        onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
-                                    >
-                                        <Trash2 size={12} /> CLEAR BILL <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'clearBill', 'Alt+C')}</span>
-                                    </button>
-                                </div>
+                        <div className="flex justify-end bg-white border-t border-slate-200 w-full px-3 py-2 items-center">
+                            <div className="grid grid-cols-12 gap-2 flex-grow flex-shrink-0" style={{ width: '100%', maxWidth: '900px' }}>
+                                {/* Row 1: DISCOUNT, LOYALTY, CASH, BANK, CARD */}
+                                <button
+                                    className={`bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-50' : 'text-sky-700 hover:bg-slate-50'} transition-all font-black text-[9px] rounded-lg shadow-sm uppercase tracking-wide flex items-center justify-between gap-1 py-2 px-3 col-span-3`}
+                                    onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
+                                    style={{ height: '32px', cursor: 'pointer' }}
+                                >
+                                    <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Palette size={10} /> DISCOUNT</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>F1</span>
+                                </button>
+                                <button
+                                    className={`bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-50'} transition-all font-black text-[9px] rounded-lg shadow-sm uppercase tracking-wide flex items-center justify-between gap-1 py-2 px-3 col-span-3`}
+                                    onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
+                                    style={{ height: '32px', cursor: 'pointer' }}
+                                >
+                                    <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Award size={10} /> LOYALTY</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span>
+                                </button>
+                                <button
+                                    className="bg-emerald-700 text-white border-none hover:bg-emerald-800 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
+                                    onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
+                                    disabled={grandTotal <= 0 || paymentLoading}
+                                    style={{ height: '32px', cursor: 'pointer' }}
+                                >
+                                    <span className="flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}>CASH</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'directCash', 'Alt+1')}</span>
+                                </button>
+                                <button
+                                    className="bg-sky-600 text-white border-none hover:bg-sky-700 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
+                                    onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Bank'); }}
+                                    disabled={grandTotal <= 0 || paymentLoading}
+                                    style={{ height: '32px', cursor: 'pointer' }}
+                                >
+                                    <span className="flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}>BANK</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>Ctrl+V</span>
+                                </button>
+                                <button
+                                    className="bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
+                                    onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Card'); }}
+                                    disabled={grandTotal <= 0 || paymentLoading}
+                                    style={{ height: '32px', cursor: 'pointer' }}
+                                >
+                                    <span className="flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}>CARD</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
+                                </button>
 
-                                {/* Column 2: Loyalty & Save Draft */}
-                                <div className="col-span-1 flex flex-col gap-1.5">
+                                {/* Row 2: CLEAR BILL, SAVE DRAFT, [PRINT, DIRECT, A4 / Processing] */}
+                                <button
+                                    className={`bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[9px] rounded-lg shadow-sm uppercase tracking-wide flex items-center justify-between gap-1 py-2 px-3 col-span-3`}
+                                    onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
+                                    style={{ height: '32px', cursor: 'pointer' }}
+                                >
+                                    <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Trash2 size={10} /> CLEAR BILL</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'clearBill', 'Alt+C')}</span>
+                                </button>
+                                <button
+                                    className={`bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wide active:scale-95 flex items-center justify-between gap-1 py-2 px-3 col-span-3`}
+                                    onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
+                                    disabled={billItems.length === 0}
+                                    style={{ height: '32px', cursor: 'pointer' }}
+                                >
+                                    <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Package size={10} /> SAVE DRAFT</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'saveDraft', 'Alt+S')}</span>
+                                </button>
+                                {paymentLoading ? (
                                     <button
-                                        className={`py-1.5 bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-100'} transition-all font-black text-[10px] rounded shadow-sm uppercase tracking-wide flex items-center justify-center gap-1 p-1`}
-                                        onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
+                                        className="col-span-6 bg-slate-500 text-white border-none transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider opacity-70 cursor-not-allowed flex items-center justify-center gap-1.5 py-2 px-3"
+                                        disabled
+                                        style={{ height: '32px' }}
                                     >
-                                        <Award size={12} /> LOYALTY <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                        <span>Processing...</span>
                                     </button>
-                                    <button
-                                        className={`py-1.5 bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1`}
-                                        onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
-                                        disabled={billItems.length === 0}
-                                    >
-                                        <Package size={12} /> SAVE DRAFT <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'saveDraft', 'Alt+S')}</span>
-                                    </button>
-                                </div>
-
-                                {/* Column 3 & 4 (col-span-2): Direct Checkout (top) and Process Payment (bottom) */}
-                                <div className="col-span-2 flex flex-col gap-1.5">
-                                    {/* Row 1: Direct Cash, Direct Bank & Direct Card */}
-                                    <div className="flex gap-1.5">
+                                ) : (
+                                    <>
                                         <button
-                                            className="flex-1 py-1.5 bg-emerald-700 text-white border-none hover:bg-emerald-800 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1"
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
-                                            disabled={grandTotal <= 0 || paymentLoading}
+                                            className="text-white border-none transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
+                                            style={{ backgroundColor: '#10b981', height: '32px', cursor: 'pointer' }}
+                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
+                                            disabled={grandTotal <= 0}
                                         >
-                                            CASH <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'directCash', 'Alt+1')}</span>
+                                            <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Printer size={10} /> PRINT</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>Space</span>
                                         </button>
                                         <button
-                                            className="flex-1 py-1.5 bg-sky-600 text-white border-none hover:bg-sky-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1"
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Bank'); }}
-                                            disabled={grandTotal <= 0 || paymentLoading}
+                                            className="text-white border-none transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
+                                            style={{ backgroundColor: '#3b82f6', height: '32px', cursor: 'pointer' }}
+                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
+                                            disabled={grandTotal <= 0}
                                         >
-                                            BANK <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>Ctrl+V</span>
+                                            <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><CreditCard size={10} /> DIRECT</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>Alt+N</span>
                                         </button>
                                         <button
-                                            className="flex-1 py-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1 p-1"
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Card'); }}
-                                            disabled={grandTotal <= 0 || paymentLoading}
+                                            className="text-white border-none transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
+                                            style={{ backgroundColor: '#8b5cf6', height: '32px', cursor: 'pointer' }}
+                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
+                                            disabled={grandTotal <= 0}
                                         >
-                                            CARD <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '0px 3.5px' }}>{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
+                                            <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Printer size={10} /> A4</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>Alt+A</span>
                                         </button>
-                                    </div>
-                                    {/* Row 2: Process Payment Options */}
-                                    {paymentLoading ? (
-                                        <button
-                                            className="w-full py-2 bg-slate-500 text-white border-none transition-all font-black text-[11px] rounded shadow-md uppercase tracking-wider opacity-70 cursor-not-allowed flex items-center justify-center gap-1.5 p-1"
-                                            disabled
-                                        >
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                                            <span>Processing...</span>
-                                        </button>
-                                    ) : (
-                                        <div className="flex gap-1.5">
-                                            <button
-                                                className="flex-1 py-2 text-white border-none transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between p-1 px-2"
-                                                style={{ backgroundColor: '#10b981' }}
-                                                onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
-                                                disabled={grandTotal <= 0}
-                                            >
-                                                <span className="flex items-center gap-1">
-                                                    <Printer size={12} /> PRINT
-                                                </span>
-                                                <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3.5px', borderRadius: '3px' }}>Space</span>
-                                            </button>
-                                            <button
-                                                className="flex-1 py-2 text-white border-none transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between p-1 px-2"
-                                                style={{ backgroundColor: '#3b82f6' }}
-                                                onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
-                                                disabled={grandTotal <= 0}
-                                            >
-                                                <span className="flex items-center gap-1">
-                                                    <CreditCard size={12} /> DIRECT
-                                                </span>
-                                                <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3.5px', borderRadius: '3px' }}>Alt+N</span>
-                                            </button>
-                                            <button
-                                                className="flex-1 py-2 text-white border-none transition-all font-black text-[10px] rounded shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between p-1 px-2"
-                                                style={{ backgroundColor: '#8b5cf6' }}
-                                                onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
-                                                disabled={grandTotal <= 0}
-                                            >
-                                                <span className="flex items-center gap-1">
-                                                    <Printer size={12} /> A4
-                                                </span>
-                                                <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3.5px', borderRadius: '3px' }}>Alt+A</span>
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                                    </>
+                                )}
                             </div>
-                        </div>
-
-                        {/* STATUS BAR */}
+                        </div>{/* STATUS BAR */}
                         <div className="classic-statusbar">
                             <div className="flex items-center gap-2">
                                 <span className="text-white/20 font-bold uppercase">Items:</span>
@@ -9842,23 +9930,23 @@ function Home() {
                                             </div>
                                             {grandTotal > 0 && (
                                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '4px' }}>
-                                                    <button 
-                                                        className="home-bill-pay-btn" 
-                                                        style={{ 
-                                                            flex: 1, 
-                                                            backgroundColor: '#10b981', 
-                                                            borderColor: '#059669', 
-                                                            color: 'white', 
-                                                            display: 'flex', 
-                                                            alignItems: 'center', 
-                                                            justifyContent: 'space-between', 
+                                                    <button
+                                                        className="home-bill-pay-btn"
+                                                        style={{
+                                                            flex: 1,
+                                                            backgroundColor: '#10b981',
+                                                            borderColor: '#059669',
+                                                            color: 'white',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'space-between',
                                                             gap: '4px',
                                                             fontSize: '10px',
                                                             fontWeight: 'bold',
                                                             padding: '8px 6px',
                                                             borderRadius: '6px',
                                                             cursor: 'pointer'
-                                                        }} 
+                                                        }}
                                                         onClick={() => handleCheckoutWithMode('print')}
                                                     >
                                                         <span className="flex items-center gap-1">
@@ -9867,23 +9955,23 @@ function Home() {
                                                         </span>
                                                         <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '3px' }}>Space</span>
                                                     </button>
-                                                    <button 
-                                                        className="home-bill-pay-btn" 
-                                                        style={{ 
-                                                            flex: 1, 
-                                                            backgroundColor: '#3b82f6', 
-                                                            borderColor: '#2563eb', 
-                                                            color: 'white', 
-                                                            display: 'flex', 
-                                                            alignItems: 'center', 
-                                                            justifyContent: 'space-between', 
+                                                    <button
+                                                        className="home-bill-pay-btn"
+                                                        style={{
+                                                            flex: 1,
+                                                            backgroundColor: '#3b82f6',
+                                                            borderColor: '#2563eb',
+                                                            color: 'white',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'space-between',
                                                             gap: '4px',
                                                             fontSize: '10px',
                                                             fontWeight: 'bold',
                                                             padding: '8px 6px',
                                                             borderRadius: '6px',
                                                             cursor: 'pointer'
-                                                        }} 
+                                                        }}
                                                         onClick={() => handleCheckoutWithMode('no-print')}
                                                     >
                                                         <span className="flex items-center gap-1">
@@ -9892,23 +9980,23 @@ function Home() {
                                                         </span>
                                                         <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '3px' }}>Alt+N</span>
                                                     </button>
-                                                    <button 
-                                                        className="home-bill-pay-btn" 
-                                                        style={{ 
-                                                            flex: 1, 
-                                                            backgroundColor: '#8b5cf6', 
-                                                            borderColor: '#7c3aed', 
-                                                            color: 'white', 
-                                                            display: 'flex', 
-                                                            alignItems: 'center', 
-                                                            justifyContent: 'space-between', 
+                                                    <button
+                                                        className="home-bill-pay-btn"
+                                                        style={{
+                                                            flex: 1,
+                                                            backgroundColor: '#8b5cf6',
+                                                            borderColor: '#7c3aed',
+                                                            color: 'white',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'space-between',
                                                             gap: '4px',
                                                             fontSize: '10px',
                                                             fontWeight: 'bold',
                                                             padding: '8px 6px',
                                                             borderRadius: '6px',
                                                             cursor: 'pointer'
-                                                        }} 
+                                                        }}
                                                         onClick={() => handleCheckoutWithMode('print-a4')}
                                                     >
                                                         <span className="flex items-center gap-1">
@@ -9921,18 +10009,18 @@ function Home() {
                                             )}
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
                                                 {billItems.length > 0 && <button className="home-bill-clear-btn" style={{ flex: 1 }} onClick={clearBillHandler}>Clear Bill</button>}
-                                                <button 
-                                                    className="home-bill-clear-btn" 
-                                                    style={{ 
-                                                        flex: 1, 
-                                                        backgroundColor: '#4f46e5', 
-                                                        borderColor: '#4338ca', 
-                                                        color: 'white', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
-                                                        justifyContent: 'center', 
-                                                        gap: '4px' 
-                                                    }} 
+                                                <button
+                                                    className="home-bill-clear-btn"
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor: '#4f46e5',
+                                                        borderColor: '#4338ca',
+                                                        color: 'white',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '4px'
+                                                    }}
                                                     onClick={handleShowRecentInvoicesPrint}
                                                 >
                                                     <Printer size={12} />

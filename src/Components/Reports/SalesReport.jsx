@@ -590,14 +590,14 @@ function SalesReport() {
                 <tbody>
                   {loading && data.length === 0 ? (
                     <tr>
-                      <td colSpan={columnConfig.filter(c => c.show && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
+                      <td colSpan={columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
                         <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                         <p style={{ marginTop: '1rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.65rem' }}>Processing Data Streams...</p>
                       </td>
                     </tr>
                   ) : data.length === 0 ? (
                     <tr>
-                      <td colSpan={columnConfig.filter(c => c.show && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
+                      <td colSpan={columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
                         <div style={{ opacity: 0.2, marginBottom: '1rem' }}>
                            <FileText size={48} style={{ margin: '0 auto' }} />
                         </div>

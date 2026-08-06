@@ -248,7 +248,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                 {/* UAE Cash Denominations Counting Grid */}
                 <div className="border-t border-slate-100 pt-4">
                     <h2 className="text-sm font-black text-slate-800 mb-2 uppercase tracking-wider flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-blue-500" />
+                        <DirhamIcon size={14} className="text-blue-500" />
                         UAE Cash Denomination Count
                     </h2>
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
@@ -261,8 +261,8 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                     <div
                                         key={d.value}
                                         className={`bg-white rounded-xl p-2 border-2 transition-all flex flex-col justify-between relative overflow-hidden group ${count > 0
-                                                ? 'border-blue-500 shadow-sm shadow-blue-500/5'
-                                                : 'border-slate-100 hover:border-slate-300'
+                                            ? 'border-blue-500 shadow-sm shadow-blue-500/5'
+                                            : 'border-slate-100 hover:border-slate-300'
                                             }`}
                                     >
                                         <div className="absolute -right-2 -top-2 w-8 h-8 bg-slate-50 rounded-full group-hover:scale-125 transition-transform duration-300"></div>
@@ -306,14 +306,14 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
 
                 <div className="border-t border-slate-100 pt-4">
                     <h2 className="text-sm font-black text-slate-800 mb-2 uppercase tracking-wider flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-emerald-500" />
+                        <DirhamIcon size={14} className="text-emerald-500" />
                         Opening Payment Mode Balances
                     </h2>
 
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-3">
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-3" >
                         {balanceDetails.map((detail, index) => (
                             <div key={index} className="bg-white rounded-lg p-3 shadow-sm border border-slate-200/60 relative">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                                             Mode of Payment
@@ -321,7 +321,8 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                         <select
                                             value={detail.mode_of_payment}
                                             onChange={(e) => handleBalanceDetailChange(index, 'mode_of_payment', e.target.value)}
-                                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none bg-white font-medium"
+                                            className="w-full px-4 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none bg-white font-medium"
+                                            style={{ height: '42px', boxSizing: 'border-box' }}
                                         >
                                             <option value="">Select payment mode</option>
                                             <option value="Cash" disabled={index > 0 || detail.mode_of_payment === 'Cash'}>Cash</option>
@@ -334,9 +335,9 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                                             Opening Amount
                                         </label>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 items-center">
                                             <div className="flex-1 relative">
-                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <div className="absolute inset-y-0 left-0 p-3 flex items-center pointer-events-none">
                                                     <DirhamIcon size={12} className="text-slate-400 font-bold" />
                                                 </div>
                                                 <input
@@ -347,13 +348,15 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                                     min="0"
                                                     step="0.01"
                                                     placeholder="0.00"
-                                                    className={`w-full pl-12 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none font-semibold text-slate-800 ${detail.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-black' : ''}`}
+                                                    className={`w-full pr-4 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all outline-none font-semibold text-slate-800 ${detail.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-black' : ''}`}
+                                                    style={{ paddingLeft: '2.5rem', height: '42px', boxSizing: 'border-box' }}
                                                 />
                                             </div>
                                             <button
                                                 onClick={() => handleRemoveBalanceDetail(index)}
                                                 disabled={balanceDetails.length === 1 || detail.mode_of_payment === 'Cash'}
-                                                className="px-3 py-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center font-medium border border-rose-100"
+                                                className="px-3 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center font-medium border border-rose-100"
+                                                style={{ height: '42px', boxSizing: 'border-box' }}
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -417,7 +420,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                 <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
                     <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-8 py-6">
                         <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                            <DollarSign className="w-8 h-8" />
+                            <DirhamIcon size={28} className="text-white" />
                             Create POS Opening Entry
                         </h1>
                         <p className="text-slate-200 mt-2">Initialize your point of sale system for the day</p>
@@ -494,7 +497,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                         {/* UAE Cash Denominations Counting Grid */}
                         <div className="border-t border-slate-200 pt-6 mb-8">
                             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <DollarSign className="w-5 h-5 text-blue-500" />
+                                <DirhamIcon size={18} className="text-blue-500" />
                                 UAE Cash Denomination Count
                             </h2>
                             <div className="bg-slate-50 rounded-xl p-6">
@@ -522,56 +525,61 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
 
                         <div className="mb-8">
                             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <DollarSign className="w-5 h-5 text-emerald-500" />
+                                <DirhamIcon size={18} className="text-emerald-500" />
                                 Payment Mode Balances
                             </h2>
-
-                            <div className="bg-slate-50 rounded-xl p-6 space-y-4">
+<div className="bg-slate-50 rounded-xl p-6 space-y-4">
                                 {balanceDetails.map((detail, index) => (
                                     <div key={index} className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-slate-700">
-                                                    Mode of Payment
-                                                </label>
-                                                <select
-                                                    value={detail.mode_of_payment}
-                                                    onChange={(e) => handleBalanceDetailChange(index, 'mode_of_payment', e.target.value)}
-                                                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
-                                                >
-                                                    <option value="">Select payment mode</option>
-                                                    <option value="Cash" disabled={index > 0 || detail.mode_of_payment === 'Cash'}>Cash</option>
-                                                    <option value="Credit Card">Credit Card</option>
-                                                    <option value="UPI">UPI</option>
-                                                </select>
-                                            </div>
+                                             <div className="space-y-2">
+                                                 <label className="text-sm font-medium text-slate-700">
+                                                     Mode of Payment
+                                                 </label>
+                                                 <select
+                                                     value={detail.mode_of_payment}
+                                                     onChange={(e) => handleBalanceDetailChange(index, 'mode_of_payment', e.target.value)}
+                                                     className="w-full px-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
+                                                     style={{ height: '42px', boxSizing: 'border-box' }}
+                                                 >
+                                                     <option value="">Select payment mode</option>
+                                                     <option value="Cash" disabled={index > 0 || detail.mode_of_payment === 'Cash'}>Cash</option>
+                                                     <option value="Credit Card">Credit Card</option>
+                                                     <option value="UPI">UPI</option>
+                                                 </select>
+                                             </div>
 
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-slate-700">
-                                                    Opening Amount
-                                                </label>
-                                                <div className="flex gap-2">
-                                                    <div className="flex-1 relative">
-                                                        <input
-                                                            type="number"
-                                                            value={detail.opening_amount}
-                                                            onChange={(e) => handleBalanceDetailChange(index, 'opening_amount', e.target.value)}
-                                                            disabled={detail.mode_of_payment === 'Cash'}
-                                                            min="0"
-                                                            step="0.01"
-                                                            placeholder="0.00"
-                                                            className={`w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none font-semibold ${detail.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
-                                                        />
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleRemoveBalanceDetail(index)}
-                                                        disabled={balanceDetails.length === 1 || detail.mode_of_payment === 'Cash'}
-                                                        className="px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
+                                             <div className="space-y-2">
+                                                 <label className="text-sm font-medium text-slate-700">
+                                                     Opening Amount
+                                                 </label>
+                                                 <div className="flex gap-2 items-center">
+                                                     <div className="flex-1 relative">
+                                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                             <DirhamIcon size={12} className="text-slate-400 font-bold" />
+                                                         </div>
+                                                         <input
+                                                             type="number"
+                                                             value={detail.opening_amount}
+                                                             onChange={(e) => handleBalanceDetailChange(index, 'opening_amount', e.target.value)}
+                                                             disabled={detail.mode_of_payment === 'Cash'}
+                                                             min="0"
+                                                             step="0.01"
+                                                             placeholder="0.00"
+                                                             className={`w-full pr-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none font-semibold ${detail.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                             style={{ paddingLeft: '2.5rem', height: '42px', boxSizing: 'border-box' }}
+                                                         />
+                                                     </div>
+                                                     <button
+                                                         onClick={() => handleRemoveBalanceDetail(index)}
+                                                         disabled={balanceDetails.length === 1 || detail.mode_of_payment === 'Cash'}
+                                                         className="px-4 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
+                                                         style={{ height: '42px', boxSizing: 'border-box' }}
+                                                     >
+                                                         <Trash2 className="w-4 h-4" />
+                                                     </button>
+                                                 </div>
+                                             </div>
                                         </div>
                                     </div>
                                 ))}

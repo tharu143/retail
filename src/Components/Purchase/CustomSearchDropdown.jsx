@@ -58,16 +58,16 @@ const CustomSearchDropdown = ({
           const rect = inputRef.current.getBoundingClientRect();
           const spaceBelow = window.innerHeight - rect.bottom;
           const spaceAbove = rect.top;
-          
+
           let topPos = rect.bottom + 8;
           let maxHeight = 288;
-          
+
           if (spaceBelow < 280 && spaceAbove > spaceBelow) {
-             // flip upwards
-             maxHeight = Math.min(288, spaceAbove - 16);
-             topPos = rect.top - maxHeight - 8;
+            // flip upwards
+            maxHeight = Math.min(288, spaceAbove - 16);
+            topPos = rect.top - maxHeight - 8;
           } else {
-             maxHeight = Math.min(288, spaceBelow - 16);
+            maxHeight = Math.min(288, spaceBelow - 16);
           }
 
           const dropdownWidth = Math.max(rect.width, 350);

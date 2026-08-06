@@ -248,12 +248,13 @@ function DailySalesReport() {
                                 alignItems: 'center',
                                 gap: '8px',
                                 background: '#f8fafc',
-                                border: '1.5px solid #e2e8f0',
+                                border: '1px solid #e2e8f0',
                                 borderRadius: '12px',
                                 padding: '0 12px',
                                 fontSize: '14px',
                                 fontWeight: 700,
-                                color: '#475569'
+                                color: '#475569',
+                                boxSizing: 'border-box'
                             }}>
                                 <Shield size={14} style={{ color: '#604BE8' }} />
                                 {warehouse || 'Branch User'}
@@ -287,10 +288,10 @@ function DailySalesReport() {
             {/* Metrics cards bar */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
                 {/* 1. Total POS Revenue */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-indigo-600">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-indigo-600 p-3">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total POS Revenue</span>
                     <span className="text-base font-black text-slate-800 mt-1 flex items-center gap-1">
-                        <DirhamIcon size={13} /> {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <DirhamIcon size={15} /> {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                         Net Total: AED {totals.netTotal.toFixed(2)}
@@ -298,10 +299,10 @@ function DailySalesReport() {
                 </div>
 
                 {/* 2. Cash Payments */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500 p-3">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cash Payments</span>
                     <span className="text-base font-black text-emerald-600 mt-1 flex items-center gap-1">
-                        <DirhamIcon size={13} /> {totals.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <DirhamIcon size={15} /> {totals.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[8.5px] font-bold text-emerald-600 uppercase tracking-widest mt-1">
                         Physical Cash Sales
@@ -309,10 +310,10 @@ function DailySalesReport() {
                 </div>
 
                 {/* 3. Card Payments */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-blue-500">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-blue-500 p-3">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Card Payments</span>
                     <span className="text-base font-black text-blue-600 mt-1 flex items-center gap-1">
-                        <DirhamIcon size={13} /> {totals.card.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <DirhamIcon size={15} /> {totals.card.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[8.5px] font-bold text-blue-500 uppercase tracking-widest mt-1">
                         Credit & Debit Cards
@@ -320,10 +321,10 @@ function DailySalesReport() {
                 </div>
 
                 {/* 4. InstaPay Payments */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-cyan-500">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-cyan-500 p-3">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">InstaPay Payments</span>
                     <span className="text-base font-black text-cyan-600 mt-1 flex items-center gap-1">
-                        <DirhamIcon size={13} /> {totals.instapay.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <DirhamIcon size={15} /> {totals.instapay.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[8.5px] font-bold text-cyan-600 uppercase tracking-widest mt-1">
                         InstaPay Transactions
@@ -331,10 +332,10 @@ function DailySalesReport() {
                 </div>
 
                 {/* 5. Credit Sales */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500 p-3">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credit Sales</span>
                     <span className="text-base font-black text-amber-600 mt-1 flex items-center gap-1">
-                        <DirhamIcon size={13} /> {totals.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <DirhamIcon size={15} /> {totals.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[8.5px] font-bold text-amber-600 uppercase tracking-widest mt-1">
                         Outstanding Credit Sales
@@ -342,10 +343,10 @@ function DailySalesReport() {
                 </div>
 
                 {/* 6. Loyalty Points Redeemed */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-purple-500">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-purple-500 p-3">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Loyalty Points Redeemed</span>
                     <span className="text-base font-black text-purple-600 mt-1 flex items-center gap-1">
-                        <DirhamIcon size={13} /> {totals.loyaltyAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <DirhamIcon size={15} /> {totals.loyaltyAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[8.5px] font-bold text-purple-600 uppercase tracking-widest mt-1">
                         Points Redeemed Value
@@ -353,10 +354,10 @@ function DailySalesReport() {
                 </div>
 
                 {/* 7. Total Discounts Given */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-pink-500">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between border-l-4 border-l-pink-500 p-3">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Discounts Given</span>
                     <span className="text-base font-black text-pink-600 mt-1 flex items-center gap-1">
-                        <DirhamIcon size={13} /> {totals.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <DirhamIcon size={15} /> {totals.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                     <span className="text-[8.5px] font-bold text-pink-600 uppercase tracking-widest mt-1">
                         Customer Price Discounts
@@ -397,13 +398,13 @@ function DailySalesReport() {
 
                     {/* Section 1: Sales Invoices (Prints always, but active dynamically on tab in UI) */}
                     <div className={`${activeTab === 'invoices' ? 'block' : 'hidden print:block'} bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm`}>
-                        <h3 className="text-base font-black text-slate-800 mb-4 uppercase tracking-tight flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <h3 className="text-base font-black text-slate-800 mb-4 uppercase tracking-tight flex items-center gap-2 border-b border-slate-100 p-3">
                             <FileText className="w-5 h-5 text-indigo-500" />
                             Sales Invoices List
                         </h3>
 
                         {data.invoices?.length === 0 ? (
-                            <div className="py-12 text-center text-slate-400 font-semibold text-sm">
+                            <div className="py-12 text-center text-slate-400 font-semibold text-sm pb-3">
                                 No sales invoices submitted on this date.
                             </div>
                         ) : (
