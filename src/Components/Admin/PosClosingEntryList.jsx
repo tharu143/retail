@@ -5,9 +5,11 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import './SalesOrder.css';
+import { useSelector } from 'react-redux';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 function PosClosingEntryList() {
+  const { warehouse } = useSelector(state => state.user || {});
   const [closings, setClosings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -44,16 +46,19 @@ function PosClosingEntryList() {
   /* ────────────────────── FETCH CLOSINGS ────────────────────── */
   useEffect(() => {
     fetchClosings();
-  }, [currentPage, pageSize, filters]);
+  }, [currentPage, pageSize, filters, warehouse]);
 
   const fetchClosings = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
+      const queryObj = {
         page_length: pageSize,
         page_start: (currentPage - 1) * pageSize,
         filters: JSON.stringify(filters)
-      });
+      };
+      if (warehouse) queryObj.warehouse = warehouse;
+
+      const params = new URLSearchParams(queryObj);
 
       const res = await fetch(`${API_PATH}.get_closing_entries?${params}`, {
         headers: { 'X-Frappe-SID': getSession() },

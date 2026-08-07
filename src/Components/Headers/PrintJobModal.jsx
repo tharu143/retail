@@ -65,7 +65,8 @@ export default function PrintJobModal({ isOpen, onClose, onAddJobToCart, themeCo
                     existing_bar_code: emcBarcode.trim() || null,
                     notes: notes.trim() || null,
                     item_code: 'Document Print',
-                    item_name: `Print Job (${selectedSize}) - ${totalPages} Pgs`
+                    item_name: `Print Job (${selectedSize}) - ${totalPages} Pgs`,
+                    pos_profile: localStorage.getItem('pos_profile') || null
                 }
             });
 

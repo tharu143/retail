@@ -392,12 +392,12 @@ const CustomerDetails = () => {
   const fetchLoyaltyLedger = async (fromDate = loyaltyFromDate, toDate = loyaltyToDate) => {
     try {
       setLedgerLoading(true);
-      const res = await axios.get(`${API_BASE}.get_customer_loyalty_ledger`, { 
-        params: { 
+      const res = await axios.get(`${API_BASE}.get_customer_loyalty_ledger`, {
+        params: {
           customer: id,
           from_date: fromDate || undefined,
           to_date: toDate || undefined
-        } 
+        }
       });
       setLoyaltyLedger(res.data.message || []);
     } catch (err) {
@@ -573,7 +573,7 @@ const CustomerDetails = () => {
   const activeCont = contacts?.[0] || {};
 
   return (
-    <div className="customer-details-page min-h-screen bg-white pb-24 font-sans antialiased text-slate-800">
+    <div className="customer-details-page min-h-screen bg-slate-50/50 pb-24 font-sans antialiased text-slate-800">
       {/* Sticky Header Bar */}
       <div className="sticky z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 md:px-8 customer-details-navbar">
         <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-2.5">
@@ -701,32 +701,32 @@ const CustomerDetails = () => {
 
               {/* TOP FULL WIDTH ROW: Loyalty Balance Banner */}
               <div className="lg:col-span-2">
-                <div 
+                <div
                   onClick={() => setActiveTab('loyalty')}
                   title="Click to view full Loyalty Points History & Ledger"
-                  className="rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer group border border-white/10"
-                  style={{ background: `linear-gradient(135deg, ${themeColor || '#4f46e5'} 0%, #1e1b4b 100%)` }}
+                  className="rounded-2xl p-7 text-white shadow-lg relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 transition-all duration-300 hover:shadow-xl cursor-pointer group border border-emerald-500/20"
+                  style={{ background: `linear-gradient(135deg, ${themeColor || '#10b981'} 0%, #064e3b 100%)` }}
                 >
-                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]" />
+                  <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:20px_20px]" />
 
-                  <div className="flex items-center gap-4 z-10">
-                    <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner group-hover:scale-110 transition-transform">
-                      <Award className="w-8 h-8 text-white" />
+                  <div className="flex items-center gap-5 z-10">
+                    <div className="p-4 bg-white/15 rounded-2xl backdrop-blur-md border border-white/20 shadow-sm group-hover:scale-105 transition-transform">
+                      <Award className="w-9 h-9 text-white" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/80 mb-1">Loyalty Program Balance</p>
-                        <span className="bg-white/20 text-white text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider group-hover:bg-emerald-500 transition-colors shadow-sm">View History ➔</span>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-100/90">Loyalty Program Balance</span>
+                        <span className="bg-white/20 text-white text-[10px] px-3 py-0.5 rounded-full font-bold uppercase tracking-wider group-hover:bg-white group-hover:text-emerald-800 transition-all shadow-sm">View History ➔</span>
                       </div>
-                      <h4 className="text-xl font-bold text-white leading-tight">{customer?.loyalty_program || 'Standard Program'}</h4>
+                      <h4 className="text-2xl font-black text-white leading-none tracking-tight">{customer?.loyalty_program || 'Standard Program'}</h4>
                     </div>
                   </div>
 
-                  <div className="z-10 text-left sm:text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300/60 mb-1">Available Points</p>
-                    <div className="flex items-baseline sm:justify-end gap-2">
-                      <span className="text-4xl font-extrabold tracking-tight">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'}</span>
-                      <span className="text-sm font-semibold text-slate-300 uppercase tracking-widest">pts</span>
+                  <div className="z-10 text-left sm:text-right bg-white/10 px-6 py-3 rounded-2xl backdrop-blur-sm border border-white/15">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-100/80 block mb-1">Available Points</span>
+                    <div className="flex items-baseline sm:justify-end gap-1.5">
+                      <span className="text-3xl font-black tracking-tight text-white">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'}</span>
+                      <span className="text-xs font-bold text-emerald-200 uppercase tracking-widest">pts</span>
                     </div>
                   </div>
                 </div>
@@ -852,17 +852,17 @@ const CustomerDetails = () => {
 
               {/* BOTTOM FULL WIDTH ROW: Transactions Dashboard (ERPNext style) */}
               <div className="lg:col-span-2 mt-2">
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }} 
-                  whileInView={{ opacity: 1, y: 0 }} 
-                  viewport={{ once: true, margin: "-50px" }} 
-                  transition={{ duration: 0.4, delay: 0.5 }} 
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.4, delay: 0.5 }}
                   className="bg-white rounded-2xl border border-slate-100 overflow-hidden"
                 >
                   <SectionHeader text="Transactions Dashboard" themeColor={themeColor} />
                   <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
                     {/* Sales Orders */}
-                    <div 
+                    <div
                       onClick={() => setExpandedSection(prev => prev === 'sales_order' ? null : 'sales_order')}
                       className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'sales_order' ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'}`}
                     >
@@ -876,7 +876,7 @@ const CustomerDetails = () => {
                     </div>
 
                     {/* Sales Invoices */}
-                    <div 
+                    <div
                       onClick={() => setExpandedSection(prev => prev === 'sales_invoice' ? null : 'sales_invoice')}
                       className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'sales_invoice' ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`}
                     >
@@ -890,7 +890,7 @@ const CustomerDetails = () => {
                     </div>
 
                     {/* Delivery Notes */}
-                    <div 
+                    <div
                       onClick={() => setExpandedSection(prev => prev === 'delivery_note' ? null : 'delivery_note')}
                       className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'delivery_note' ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'}`}
                     >
@@ -904,7 +904,7 @@ const CustomerDetails = () => {
                     </div>
 
                     {/* Payment Entry */}
-                    <div 
+                    <div
                       onClick={() => setExpandedSection(prev => prev === 'payment_entry' ? null : 'payment_entry')}
                       className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'payment_entry' ? 'bg-violet-50 border-violet-200' : 'bg-slate-50 border-slate-100'}`}
                     >
@@ -918,7 +918,7 @@ const CustomerDetails = () => {
                     </div>
 
                     {/* Journal Entry */}
-                    <div 
+                    <div
                       onClick={() => setExpandedSection(prev => prev === 'journal_entry' ? null : 'journal_entry')}
                       className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'journal_entry' ? 'bg-sky-50 border-sky-200' : 'bg-slate-50 border-slate-100'}`}
                     >
@@ -932,7 +932,7 @@ const CustomerDetails = () => {
                     </div>
 
                     {/* Returns */}
-                    <div 
+                    <div
                       onClick={() => setExpandedSection(prev => prev === 'returns' ? null : 'returns')}
                       className={`group cursor-pointer p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${expandedSection === 'returns' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-100'}`}
                     >
@@ -1019,7 +1019,7 @@ const CustomerDetails = () => {
                               Recent {current.title}
                             </h4>
                           </div>
-                          
+
                           {/* View All Button */}
                           <button
                             onClick={() => {
@@ -1124,44 +1124,44 @@ const CustomerDetails = () => {
                 </div>
 
                 {/* DATE RANGE FILTERS & ACTIVE BALANCE */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-1.5 shadow-sm text-xs">
-                    <Calendar size={14} className="text-slate-400" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">From:</span>
-                    <input 
-                      type="date" 
-                      value={loyaltyFromDate} 
-                      onChange={(e) => setLoyaltyFromDate(e.target.value)} 
-                      className="bg-slate-50 px-2 py-1 rounded-lg text-xs font-semibold text-slate-700 outline-none border border-slate-100 focus:border-indigo-300"
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-3 bg-slate-50/80 border border-slate-200/80 rounded-2xl px-4 py-2 shadow-xs text-xs whitespace-nowrap">
+                    <Calendar size={15} className="text-slate-500" />
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">From:</span>
+                    <input
+                      type="date"
+                      value={loyaltyFromDate}
+                      onChange={(e) => setLoyaltyFromDate(e.target.value)}
+                      className="bg-white px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-800 outline-none border border-slate-200 focus:border-emerald-500 shadow-2xs"
                     />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">To:</span>
-                    <input 
-                      type="date" 
-                      value={loyaltyToDate} 
-                      onChange={(e) => setLoyaltyToDate(e.target.value)} 
-                      className="bg-slate-50 px-2 py-1 rounded-lg text-xs font-semibold text-slate-700 outline-none border border-slate-100 focus:border-indigo-300"
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">To:</span>
+                    <input
+                      type="date"
+                      value={loyaltyToDate}
+                      onChange={(e) => setLoyaltyToDate(e.target.value)}
+                      className="bg-white px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-800 outline-none border border-slate-200 focus:border-emerald-500 shadow-2xs"
                     />
-                    <button 
+                    <button
                       onClick={() => fetchLoyaltyLedger(loyaltyFromDate, loyaltyToDate)}
-                      className="px-3.5 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-1"
+                      className="px-4 py-1.5 bg-emerald-600 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1.5 active:scale-95"
                       style={{ backgroundColor: themeColor }}
                     >
-                      <Filter size={11} /> Filter
+                      <Filter size={12} /> Filter
                     </button>
                     {(loyaltyFromDate || loyaltyToDate) && (
-                      <button 
+                      <button
                         onClick={() => { setLoyaltyFromDate(''); setLoyaltyToDate(''); fetchLoyaltyLedger('', ''); }}
-                        className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold uppercase hover:bg-slate-200"
+                        className="px-2.5 py-1.5 bg-slate-200/70 text-slate-600 rounded-xl text-[11px] font-bold uppercase hover:bg-slate-300 transition-colors"
                         title="Clear Date Filters"
                       >
-                        <X size={12} /> Clear
+                        <X size={13} /> Clear
                       </button>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100/80 rounded-2xl px-5 py-2.5 shadow-sm">
-                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Active Balance:</span>
-                    <span className="text-sm font-black text-emerald-700">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts</span>
+                  <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-6 py-2.5 shadow-2xs whitespace-nowrap">
+                    <span className="text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider">Active Balance:</span>
+                    <span className="text-base font-black text-emerald-800 tracking-tight">{customer?.loyalty_points ? parseFloat(customer.loyalty_points).toFixed(2) : '0.00'} pts</span>
                   </div>
                 </div>
               </div>
@@ -1207,9 +1207,9 @@ const CustomerDetails = () => {
                             {row.loyalty_points > 0 ? '+' : ''}{parseFloat(row.loyalty_points).toFixed(2)} pts
                           </td>
                           <td className="py-2 px-4 font-bold text-indigo-600" style={{ color: themeColor }}>
-                            <button 
+                            <button
                               type="button"
-                              onClick={() => navigate(`/salesinvoice?search=${encodeURIComponent(row.invoice)}`)} 
+                              onClick={() => navigate(`/salesinvoice?search=${encodeURIComponent(row.invoice)}`)}
                               className="hover:underline flex items-center gap-1 font-bold text-left cursor-pointer transition-colors"
                               style={{ color: themeColor }}
                             >
@@ -1219,10 +1219,10 @@ const CustomerDetails = () => {
                           <td className="py-2 px-4 text-[10px] font-bold text-slate-400 uppercase">
                             {row.type === 'Redeemed' && row.original_invoice ? (
                               <span className="text-slate-600 flex items-center gap-1 select-all">
-                                Used against: 
-                                <button 
+                                Used against:
+                                <button
                                   type="button"
-                                  onClick={() => navigate(`/salesinvoice?search=${encodeURIComponent(row.original_invoice)}`)} 
+                                  onClick={() => navigate(`/salesinvoice?search=${encodeURIComponent(row.original_invoice)}`)}
                                   className="hover:underline font-bold text-indigo-600 text-left cursor-pointer transition-colors"
                                   style={{ color: themeColor }}
                                 >

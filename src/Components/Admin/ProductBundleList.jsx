@@ -10,8 +10,8 @@ import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { frappeCall } from '../../utils/frappe';
-import './SalesOrder.css';
 import '../../Pages/CustomerEditPage.css';
+import './BundleDetailsModal.css';
 
 const ProductBundleList = () => {
   const navigate = useNavigate();
@@ -931,11 +931,19 @@ const ProductBundleList = () => {
         </div>
         <div style={{ flex: '1 1 180px' }}>
           <label className="so-filter-label">Warehouse / Branch</label>
-          <select className="so-filter-input" value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)}>
-            <option value="">All Warehouses / Branches</option>
-            {warehousesList.map((wh) => (
-              <option key={wh.name || wh} value={wh.name || wh}>{wh.warehouse_name || wh.name || wh}</option>
-            ))}
+          <select
+            className="so-filter-input"
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            disabled={!isAdmin}
+            style={!isAdmin ? { opacity: 0.7, cursor: 'not-allowed', backgroundColor: '#f1f5f9' } : {}}
+          >
+            {isAdmin && <option value="">All Warehouses / Branches</option>}
+            {warehousesList
+              .filter(wh => isAdmin || (wh.name || wh) === warehouse)
+              .map((wh) => (
+                <option key={wh.name || wh} value={wh.name || wh}>{wh.warehouse_name || wh.name || wh}</option>
+              ))}
           </select>
         </div>
         <button className="so-clear-btn" style={{ width: 'auto', padding: '0 1.5rem', height: '38px', margin: 0 }} onClick={() => {
@@ -1091,55 +1099,106 @@ const ProductBundleList = () => {
 
       {/* Bundle Details Drawer Modal */}
       {showDetailModal && selectedBundle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">{selectedBundle.item_name}</h3>
-                <p className="text-xs text-slate-400 font-mono font-bold">{selectedBundle.new_item_code}</p>
-              </div>
-              <button onClick={() => setShowDetailModal(false)} className="p-1.5 text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <React.Fragment>
+          {/* Modal Backdrop */}
+          <div
+            className="bundle-modal-overlay"
+            onClick={() => setShowDetailModal(false)}
+          />
 
-            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="p-4 bg-slate-50 rounded-xl flex items-center justify-between text-xs border border-slate-100">
-                <span className="text-slate-500 font-bold">Calculated Bundle Total:</span>
-                <span className="font-black pb-text-theme text-sm">
-                  AED {selectedBundle.selling_price?.toFixed(2)}
-                </span>
-              </div>
-
-              <div className="space-y-2.5">
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Included Component Items</h4>
-                <div className="space-y-2">
-                  {(selectedBundle.items || []).map((item, idx) => (
-                    <div key={idx} className="p-3 border border-slate-150 rounded-xl bg-white space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-800">{item.item_name || item.item_code}</span>
-                        <span className="font-black pb-text-theme">AED {(item.rate * item.qty).toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-450">
-                        <span>{item.qty} {item.uom} × AED {item.rate}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${item.actual_qty > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-655'}`}>Stock: {item.actual_qty}</span>
-                      </div>
-                    </div>
-                  ))}
+          {/* Modal Container */}
+          <div className="bundle-modal-wrapper">
+            <div className="bundle-modal-box" role="dialog" aria-modal="true">
+              {/* Header */}
+              <header className="bundle-modal-header">
+                <div>
+                  <h2 className="bundle-modal-title">
+                    {selectedBundle.item_name}
+                  </h2>
+                  <div className="bundle-modal-meta">
+                    <span className="bundle-modal-code-badge">
+                      {selectedBundle.new_item_code}
+                    </span>
+                    <span className="bundle-modal-count-text">
+                      {(selectedBundle.items || []).length} Included Items
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </div>
+                <button
+                  type="button"
+                  aria-label="Close modal"
+                  onClick={() => setShowDetailModal(false)}
+                  className="bundle-modal-close-btn"
+                >
+                  <X style={{ width: '20px', height: '20px' }} />
+                </button>
+              </header>
 
-            <div className="p-4 border-t border-slate-100 text-right bg-slate-50/50">
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="px-5 py-2.5 bg-white border border-slate-200 text-xs font-bold text-slate-650 rounded-xl cursor-pointer"
-              >
-                Close
-              </button>
+              {/* Body */}
+              <main className="bundle-modal-body">
+                {/* Hero Pricing Card */}
+                <div className="bundle-modal-hero-card">
+                  <div className="bundle-modal-hero-decor" />
+                  <div>
+                    <h3 className="bundle-modal-hero-title">
+                      Bundle Selling Price
+                    </h3>
+                    <p className="bundle-modal-hero-sub">
+                      Calculated total rate
+                    </p>
+                  </div>
+                  <div className="bundle-modal-hero-price">
+                    AED {selectedBundle.selling_price?.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Items List */}
+                <div>
+                  <h3 className="bundle-modal-section-title">
+                    Included Component Items
+                  </h3>
+                  <div>
+                    {(selectedBundle.items || []).map((item, idx) => (
+                      <div key={idx} className="bundle-modal-item-card">
+                        <div className="bundle-modal-item-header">
+                          <h4 className="bundle-modal-item-name">
+                            {item.item_name || item.item_code}
+                          </h4>
+                          <span className="bundle-modal-item-price">
+                            AED {(item.rate * item.qty).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="bundle-modal-item-footer">
+                          <div className="bundle-modal-qty-text">
+                            <span>Quantity:</span>
+                            <span className="bundle-modal-qty-val">{item.qty} {item.uom}</span>
+                            <span style={{ color: '#94a3b8' }}>×</span>
+                            <span>AED {item.rate}</span>
+                          </div>
+                          <div className="bundle-modal-stock-badge">
+                            <span className="bundle-modal-stock-dot" />
+                            Stock {item.actual_qty}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </main>
+
+              {/* Footer */}
+              <footer className="bundle-modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setShowDetailModal(false)}
+                  className="bundle-modal-close-action"
+                >
+                  Close
+                </button>
+              </footer>
             </div>
           </div>
-        </div>
+        </React.Fragment>
       )}
     </div>
   );

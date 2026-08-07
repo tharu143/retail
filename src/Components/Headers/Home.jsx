@@ -3866,7 +3866,8 @@ function Home() {
                     income_account: 'Sales of I/C - KSPL',
                     warehouse: warehouse,
                     sales_order: item.sales_order || null,
-                    so_detail: item.so_detail || null
+                    so_detail: item.so_detail || null,
+                    custom_job_barcode: item.custom_job_barcode || null
                 };
             }),
             company,

@@ -45,7 +45,8 @@ export default function FastPrintModal({ isOpen, onClose, onAddJobToCart, themeC
                     existing_bar_code: emcBarcode.trim() || null,
                     notes: notes.trim() || null,
                     item_code: 'Document Print',
-                    item_name: `Fast Print Job (AED ${parsedAmount.toFixed(2)})`
+                    item_name: `Fast Print Job (AED ${parsedAmount.toFixed(2)})`,
+                    pos_profile: localStorage.getItem('pos_profile') || null
                 }
             });
 

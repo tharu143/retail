@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Calendar, DollarSign, User, Building2, CreditCard, Plus, Trash2, Check, X } from 'lucide-react';
 import { db } from '../../db';
 import POSService from '../../utils/posService';
+import { frappeCall } from '../../utils/frappe';
+import './OpeningEntryDetail.css';
 
 const UAE_DENOMINATIONS = [
     { value: 1000, label: '1000 AED (Note)' },
@@ -23,6 +25,7 @@ const UAE_DENOMINATIONS = [
 function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: propUser, onOpeningEntrySuccess, isModal, onCancel }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const { id: routeId } = useParams();
     const userData = useSelector((state) => state.user);
 
     const getCurrentISTDateTime = () => {
@@ -39,6 +42,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
     const [posProfile, setPosProfile] = useState(propPosProfile || '');
     const [balanceDetails, setBalanceDetails] = useState([{ mode_of_payment: 'Cash', opening_amount: '0.00' }]);
     const [loading, setLoading] = useState(false);
+    const [isReadOnly, setIsReadOnly] = useState(false);
 
     // UAE Denominations counts
     const [denomCounts, setDenomCounts] = useState(
@@ -46,6 +50,37 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
     );
 
     useEffect(() => {
+        if (routeId) {
+            setIsReadOnly(true);
+            const fetchEntry = async () => {
+                try {
+                    setLoading(true);
+                    const res = await frappeCall({
+                        method: 'kyle_retail.retail_api.api.get_opening_entry_details',
+                        args: { name: routeId },
+                        type: 'POST'
+                    });
+                    if (res?.status === 'success' && res.data) {
+                        const entry = res.data;
+                        setUser(entry.user || '');
+                        setPosProfile(entry.pos_profile || '');
+                        setCompany(entry.company || '');
+                        if (entry.period_start_date) setPeriodStartDate(entry.period_start_date);
+                        if (entry.posting_date) setPostingDate(entry.posting_date);
+                        if (entry.balance_details && entry.balance_details.length > 0) {
+                            setBalanceDetails(entry.balance_details);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching opening entry details:', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchEntry();
+            return;
+        }
+
         const { user: navUser, pos_profile: navPosProfile, company: navCompany } = location.state || {};
         const reduxUser = userData?.user || localStorage.getItem('user') || '';
         const reduxPosProfile = userData?.posProfile || localStorage.getItem('pos_profile') || '';
@@ -54,8 +89,7 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         setUser(propUser || navUser || reduxUser);
         setPosProfile(propPosProfile || navPosProfile || reduxPosProfile);
         setCompany(propCompany || navCompany || reduxCompany);
-        console.log('OpeningEntry - posProfile:', propPosProfile || reduxPosProfile);
-    }, [location.state, userData, propCompany, propPosProfile, propUser]);
+    }, [routeId, location.state, userData, propCompany, propPosProfile, propUser]);
 
     const handleAddBalanceDetail = () => {
         setBalanceDetails((prev) => [...prev, { mode_of_payment: '', opening_amount: '' }]);
@@ -202,43 +236,43 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
 
     if (isModal) {
         return (
-            <div className="p-4 md:p-6 space-y-4">
+            <div className="p-5 md:p-6 space-y-4">
                 {/* Session Metadata Bar */}
                 <div className="bg-white border border-slate-200/80 rounded-xl p-3 grid grid-cols-2 md:grid-cols-4 gap-3 shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
                             <User className="w-4 h-4" />
                         </div>
-                        <div>
-                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">Cashier</span>
-                            <span className="block text-xs font-bold text-slate-700">{user || 'N/A'}</span>
+                        <div className="min-w-0 flex-1">
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">Cashier</span>
+                            <span className="block text-xs font-bold text-slate-700 truncate" title={user || 'N/A'}>{user || 'N/A'}</span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
                             <Building2 className="w-4 h-4" />
                         </div>
-                        <div>
-                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">Company</span>
-                            <span className="block text-xs font-bold text-slate-700">{company || 'N/A'}</span>
+                        <div className="min-w-0 flex-1">
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">Company</span>
+                            <span className="block text-xs font-bold text-slate-700 truncate" title={company || 'N/A'}>{company || 'N/A'}</span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
                             <CreditCard className="w-4 h-4" />
                         </div>
-                        <div>
-                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">POS Profile</span>
-                            <span className="block text-xs font-bold text-slate-700">{posProfile || 'N/A'}</span>
+                        <div className="min-w-0 flex-1">
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">POS Profile</span>
+                            <span className="block text-xs font-bold text-slate-700 truncate" title={posProfile || 'N/A'}>{posProfile || 'N/A'}</span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
                             <Calendar className="w-4 h-4" />
                         </div>
-                        <div>
-                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">Posting Date</span>
-                            <span className="block text-xs font-bold text-slate-700">
+                        <div className="min-w-0 flex-1">
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">Posting Date</span>
+                            <span className="block text-xs font-bold text-slate-700 truncate">
                                 {postingDate ? new Date(postingDate).toLocaleDateString() : 'N/A'}
                             </span>
                         </div>
@@ -384,31 +418,148 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                     <span className="text-2xl font-black text-emerald-400 flex items-center gap-1.5"><DirhamIcon size={18} /> {totalAmount.toFixed(2)}</span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 justify-end border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-5 mt-6">
                     <button
+                        type="button"
                         onClick={onCancel || (() => navigate('/'))}
-                        className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider border border-slate-200/40"
+                        className="h-[44px] px-5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-700 font-semibold text-[15px] tracking-normal rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 flex items-center justify-center gap-3 whitespace-nowrap shrink-0 cursor-pointer"
                     >
-                        <X className="w-4 h-4" />
-                        Cancel / Exit
+                        <X className="w-[18px] h-[18px] text-slate-500 shrink-0" />
+                        <span>Cancel / Exit</span>
                     </button>
                     <button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={loading}
-                        className="px-7 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-600/10 text-xs uppercase tracking-wider"
+                        className="h-[44px] px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[15px] tracking-normal rounded-xl shadow-md transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 whitespace-nowrap shrink-0 cursor-pointer"
                     >
                         {loading ? (
                             <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                Opening Shift...
+                                <div className="w-[18px] h-[18px] border-2 border-white border-t-transparent rounded-full animate-spin shrink-0"></div>
+                                <span>Opening Shift...</span>
                             </>
                         ) : (
                             <>
-                                <Check className="w-4 h-4" />
-                                Start POS Session
+                                <Check className="w-[18px] h-[18px] stroke-[2.5] shrink-0" />
+                                <span>Start POS Session</span>
                             </>
                         )}
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (isReadOnly || routeId) {
+        return (
+            <div className="pos-opening-detail-container">
+                <div className="pos-opening-detail-card">
+                    <div className="pos-opening-detail-header">
+                        <div>
+                            <h1 className="pos-opening-detail-title">
+                                <DirhamIcon size={24} className="text-emerald-400" />
+                                {routeId || 'POS Opening Entry'}
+                            </h1>
+                            <p className="pos-opening-detail-subtitle">Point of Sale Shift Opening Entry Record</p>
+                        </div>
+                        <span className="pos-opening-badge">
+                            ● Submitted / Open
+                        </span>
+                    </div>
+
+                    <div className="pos-opening-detail-body">
+                        <div className="pos-opening-grid">
+                            <div className="pos-opening-field-card">
+                                <div className="pos-opening-field-label">
+                                    <User className="w-3.5 h-3.5" />
+                                    Cashier / User
+                                </div>
+                                <div className="pos-opening-field-value">{user || 'N/A'}</div>
+                            </div>
+
+                            <div className="pos-opening-field-card">
+                                <div className="pos-opening-field-label">
+                                    <Building2 className="w-3.5 h-3.5" />
+                                    Company
+                                </div>
+                                <div className="pos-opening-field-value">{company || 'N/A'}</div>
+                            </div>
+
+                            <div className="pos-opening-field-card">
+                                <div className="pos-opening-field-label">
+                                    <CreditCard className="w-3.5 h-3.5" />
+                                    POS Profile
+                                </div>
+                                <div className="pos-opening-field-value">{posProfile || 'N/A'}</div>
+                            </div>
+
+                            <div className="pos-opening-field-card">
+                                <div className="pos-opening-field-label">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    Period Start Date
+                                </div>
+                                <div className="pos-opening-field-value">
+                                    {periodStartDate ? new Date(periodStartDate).toLocaleString('en-IN', {
+                                        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                    }) : 'N/A'}
+                                </div>
+                            </div>
+
+                            <div className="pos-opening-field-card">
+                                <div className="pos-opening-field-label">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    Posting Date
+                                </div>
+                                <div className="pos-opening-field-value">
+                                    {postingDate ? new Date(postingDate).toLocaleString('en-IN', {
+                                        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                    }) : 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 className="pos-opening-section-title">
+                            <DirhamIcon size={18} className="text-emerald-600" />
+                            Opening Payment Mode Balances
+                        </h3>
+
+                        <table className="pos-opening-table">
+                            <thead>
+                                <tr>
+                                    <th>Mode of Payment</th>
+                                    <th style={{ textAlign: 'right' }}>Opening Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {balanceDetails.map((detail, idx) => (
+                                    <tr key={idx}>
+                                        <td className="font-semibold text-slate-800">{detail.mode_of_payment || 'Cash'}</td>
+                                        <td style={{ textAlign: 'right' }} className="font-bold text-emerald-600">
+                                            AED {parseFloat(detail.opening_amount || 0).toFixed(2)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <div className="pos-opening-hero-summary">
+                            <div className="pos-opening-hero-label">Total Opening Shift Amount</div>
+                            <div className="pos-opening-hero-amount">
+                                <DirhamIcon size={26} /> {totalAmount.toFixed(2)}
+                            </div>
+                        </div>
+
+                        <div className="pos-opening-detail-footer">
+                            <button
+                                type="button"
+                                onClick={() => navigate('/posopeningentrylist')}
+                                className="pos-opening-back-btn"
+                            >
+                                <X className="w-4 h-4" />
+                                <span>Back to List</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -494,103 +645,111 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                             </div>
                         </div>
 
-                        {/* UAE Cash Denominations Counting Grid */}
-                        <div className="border-t border-slate-200 pt-6 mb-8">
-                            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <DirhamIcon size={18} className="text-blue-500" />
-                                UAE Cash Denomination Count
-                            </h2>
-                            <div className="bg-slate-50 rounded-xl p-6">
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                    {UAE_DENOMINATIONS.map((d) => (
-                                        <div key={d.value} className="bg-white rounded-lg p-3 shadow-sm border border-slate-200 flex flex-col justify-between">
-                                            <span className="text-xs font-semibold text-slate-500">
-                                                {d.label}
-                                            </span>
-                                            <div className="mt-2">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={denomCounts[d.value] || ''}
-                                                    onChange={(e) => handleDenomChange(d.value, e.target.value)}
-                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none font-semibold"
-                                                />
+                        {/* UAE Denominations Calculator */}
+                        {!isReadOnly && (
+                            <div className="mb-8 border-t border-slate-200 pt-6">
+                                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <DirhamIcon size={18} className="text-blue-600" />
+                                    UAE Opening Cash Denominations (Optional Calculator)
+                                </h2>
+                                <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {UAE_DENOMINATIONS.map((d) => (
+                                            <div key={d.value} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+                                                <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1">
+                                                    <DirhamIcon size={11} className="text-slate-400" />
+                                                    {d.label}
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        placeholder="0"
+                                                        value={denomCounts[d.value] || ''}
+                                                        onChange={(e) => handleDenomChange(d.value, e.target.value)}
+                                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none font-semibold"
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="mb-8">
                             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                                 <DirhamIcon size={18} className="text-emerald-500" />
                                 Payment Mode Balances
                             </h2>
-<div className="bg-slate-50 rounded-xl p-6 space-y-4">
+                            <div className="bg-slate-50 rounded-xl p-6 space-y-4">
                                 {balanceDetails.map((detail, index) => (
                                     <div key={index} className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                                             <div className="space-y-2">
-                                                 <label className="text-sm font-medium text-slate-700">
-                                                     Mode of Payment
-                                                 </label>
-                                                 <select
-                                                     value={detail.mode_of_payment}
-                                                     onChange={(e) => handleBalanceDetailChange(index, 'mode_of_payment', e.target.value)}
-                                                     className="w-full px-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none"
-                                                     style={{ height: '42px', boxSizing: 'border-box' }}
-                                                 >
-                                                     <option value="">Select payment mode</option>
-                                                     <option value="Cash" disabled={index > 0 || detail.mode_of_payment === 'Cash'}>Cash</option>
-                                                     <option value="Credit Card">Credit Card</option>
-                                                     <option value="UPI">UPI</option>
-                                                 </select>
-                                             </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-slate-700">
+                                                    Mode of Payment
+                                                </label>
+                                                <select
+                                                    value={detail.mode_of_payment}
+                                                    onChange={(e) => handleBalanceDetailChange(index, 'mode_of_payment', e.target.value)}
+                                                    disabled={isReadOnly}
+                                                    className="w-full px-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                                                    style={{ height: '42px', boxSizing: 'border-box' }}
+                                                >
+                                                    <option value="">Select payment mode</option>
+                                                    <option value="Cash" disabled={index > 0 || detail.mode_of_payment === 'Cash'}>Cash</option>
+                                                    <option value="Credit Card">Credit Card</option>
+                                                    <option value="UPI">UPI</option>
+                                                </select>
+                                            </div>
 
-                                             <div className="space-y-2">
-                                                 <label className="text-sm font-medium text-slate-700">
-                                                     Opening Amount
-                                                 </label>
-                                                 <div className="flex gap-2 items-center">
-                                                     <div className="flex-1 relative">
-                                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                             <DirhamIcon size={12} className="text-slate-400 font-bold" />
-                                                         </div>
-                                                         <input
-                                                             type="number"
-                                                             value={detail.opening_amount}
-                                                             onChange={(e) => handleBalanceDetailChange(index, 'opening_amount', e.target.value)}
-                                                             disabled={detail.mode_of_payment === 'Cash'}
-                                                             min="0"
-                                                             step="0.01"
-                                                             placeholder="0.00"
-                                                             className={`w-full pr-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none font-semibold ${detail.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
-                                                             style={{ paddingLeft: '2.5rem', height: '42px', boxSizing: 'border-box' }}
-                                                         />
-                                                     </div>
-                                                     <button
-                                                         onClick={() => handleRemoveBalanceDetail(index)}
-                                                         disabled={balanceDetails.length === 1 || detail.mode_of_payment === 'Cash'}
-                                                         className="px-4 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
-                                                         style={{ height: '42px', boxSizing: 'border-box' }}
-                                                     >
-                                                         <Trash2 className="w-4 h-4" />
-                                                     </button>
-                                                 </div>
-                                             </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-slate-700">
+                                                    Opening Amount
+                                                </label>
+                                                <div className="flex gap-2 items-center">
+                                                    <div className="flex-1 relative">
+                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                            <DirhamIcon size={12} className="text-slate-400 font-bold" />
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            value={detail.opening_amount}
+                                                            onChange={(e) => handleBalanceDetailChange(index, 'opening_amount', e.target.value)}
+                                                            disabled={isReadOnly || detail.mode_of_payment === 'Cash'}
+                                                            min="0"
+                                                            step="0.01"
+                                                            placeholder="0.00"
+                                                            className={`w-full pr-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all outline-none font-semibold ${detail.mode_of_payment === 'Cash' || isReadOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                                            style={{ paddingLeft: '2.5rem', height: '42px', boxSizing: 'border-box' }}
+                                                        />
+                                                    </div>
+                                                    {!isReadOnly && (
+                                                        <button
+                                                            onClick={() => handleRemoveBalanceDetail(index)}
+                                                            disabled={balanceDetails.length === 1 || detail.mode_of_payment === 'Cash'}
+                                                            className="px-4 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
+                                                            style={{ height: '42px', boxSizing: 'border-box' }}
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
 
-                                <button
-                                    onClick={handleAddBalanceDetail}
-                                    className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-600 hover:border-slate-400 hover:bg-white hover:text-slate-700 transition-all flex items-center justify-center gap-2 font-medium"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                    Add Payment Mode
-                                </button>
+                                {!isReadOnly && (
+                                    <button
+                                        onClick={handleAddBalanceDetail}
+                                        className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-600 hover:border-slate-400 hover:bg-white hover:text-slate-700 transition-all flex items-center justify-center gap-2 font-medium"
+                                    >
+                                        <Plus className="w-5 h-5" />
+                                        Add Payment Mode
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -603,29 +762,31 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-end">
                             <button
-                                onClick={onCancel || (() => navigate('/'))}
-                                className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+                                onClick={() => navigate('/posopeningentrylist')}
+                                className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 <X className="w-5 h-5" />
-                                Cancel
+                                Back to List
                             </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={loading}
-                                className="px-8 py-3 bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-lg font-semibold hover:from-slate-700 hover:to-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg"
-                            >
-                                {loading ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        Submitting...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Check className="w-5 h-5" />
-                                        Submit Opening Entry
-                                    </>
-                                )}
-                            </button>
+                            {!isReadOnly && (
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={loading}
+                                    className="px-8 py-3 bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-lg font-semibold hover:from-slate-700 hover:to-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Submitting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check className="w-5 h-5" />
+                                            Submit Opening Entry
+                                        </>
+                                    )}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -1,0 +1,187 @@
+/* Scoped Styles for POS Opening Entry Detail View */
+.pos-opening-detail-container {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  padding: 2rem 1.5rem;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+.pos-opening-detail-card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 1.25rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
+  overflow: hidden;
+}
+
+.pos-opening-detail-header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  padding: 1.75rem 2rem;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pos-opening-detail-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pos-opening-detail-subtitle {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.pos-opening-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.pos-opening-detail-body {
+  padding: 2rem;
+}
+
+.pos-opening-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.pos-opening-field-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  padding: 1rem 1.25rem;
+}
+
+.pos-opening-field-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pos-opening-field-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pos-opening-section-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pos-opening-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1.75rem;
+}
+
+.pos-opening-table th {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1.25rem;
+  text-align: left;
+}
+
+.pos-opening-table td {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.pos-opening-hero-summary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 1rem;
+  padding: 1.5rem 2rem;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.3);
+  margin-bottom: 2rem;
+}
+
+.pos-opening-hero-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.pos-opening-hero-amount {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pos-opening-detail-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pos-opening-back-btn {
+  height: 44px;
+  padding: 0 1.75rem;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.925rem;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
+.pos-opening-back-btn:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+}

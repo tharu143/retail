@@ -162,23 +162,21 @@ export default function LoyaltyCardModal({ customer, onClose, themeColor = '#028
         </div>
 
         {/* Card Preview Container */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center my-6 py-2">
           <div 
             ref={cardRef}
             className="loyalty-card" 
             style={{
               width: '85.6mm',
               height: '53.98mm',
-              background: `linear-gradient(135deg, ${themeColor}, #0f172a)`,
-              borderRadius: '12px',
+              background: `linear-gradient(135deg, ${themeColor}, #064e3b)`,
+              borderRadius: '16px',
               color: 'white',
               padding: '20px',
               position: 'relative',
               overflow: 'hidden',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-              transform: 'scale(1.2)',
-              transformOrigin: 'top center',
-              marginBottom: '20px'
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              margin: '0 auto'
             }}
           >
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
@@ -210,7 +208,7 @@ export default function LoyaltyCardModal({ customer, onClose, themeColor = '#028
         </div>
 
         {/* Actions */}
-        <div className="flex gap-4 mt-16">
+        <div className="flex gap-4 mt-6">
           <button 
             onClick={onClose}
             className="flex-1 py-4 font-bold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"

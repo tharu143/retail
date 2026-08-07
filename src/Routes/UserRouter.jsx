@@ -9,6 +9,7 @@ import { setNotifications } from '../Redux/Slices/userSlice';
 import { authFetchBase } from '../utils/authFetch';
 import HomePage from '../Pages/HomePage'
 import LoginPage from '../Pages/LoginPage'
+import OpeningEntryPage from '../Pages/OpeningEntryPage'
 import ClosingEntryPage from '../Pages/ClosingEntryPage'
 import InvoiceListPage from '../Pages/InvoiceListPage'
 import PurchaseOrderPage from '../Pages/PurchaseOrderPage'
@@ -345,7 +346,9 @@ function UserRouter() {
             <Route path='item-details/:id' element={<ItemDetails />} />
             <Route path='itempricelist' element={<ItemPriceList />} />
             <Route path='posclosingentrylist' element={<PosClosingEntryList />} />
+            <Route path='pos-closing/:id' element={<ClosingEntryPage />} />
             <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
+            <Route path='pos-opening/:id' element={<OpeningEntryPage />} />
             <Route path='posprofilelist' element={<PosProfileList />} />
             <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
             <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />

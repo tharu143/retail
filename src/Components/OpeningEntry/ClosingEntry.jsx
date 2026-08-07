@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircle, CheckCircle2, Loader2, Receipt, Calendar, CreditCard,
-  TrendingUp, DollarSign, Palette, RefreshCw, FileText, ChevronDown
+  TrendingUp, DollarSign, Palette, RefreshCw, FileText, ChevronDown, User, Building2, X
 } from 'lucide-react';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useSelector } from 'react-redux';
 import { db } from '../../db';
+import { frappeCall } from '../../utils/frappe';
 import '../Admin/SalesOrder.css';
 
 const UAE_DENOMINATIONS = [
@@ -23,12 +25,16 @@ const UAE_DENOMINATIONS = [
 ];
 
 function ClosingEntry() {
+  const navigate = useNavigate();
+  const { id: routeId } = useParams();
   const currentUser = useSelector((state) => state.user.user);
   const currentPosProfile = useSelector((state) => state.user.posProfile);
   const reduxCompany = useSelector((state) => state.user.company);
   const [openingEntries, setOpeningEntries] = useState([]);
   const [selectedOpeningEntry, setSelectedOpeningEntry] = useState('');
   const [company, setCompany] = useState(reduxCompany || localStorage.getItem('company') || '');
+  const [closingDetailData, setClosingDetailData] = useState(null);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const [invoicesData, setInvoicesData] = useState(null);
   const [paymentReconciliation, setPaymentReconciliation] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -43,6 +49,32 @@ function ClosingEntry() {
     UAE_DENOMINATIONS.reduce((acc, d) => ({ ...acc, [d.value]: 0 }), {})
   );
   const [discrepancyReason, setDiscrepancyReason] = useState('');
+
+  useEffect(() => {
+    if (routeId) {
+      setIsReadOnly(true);
+      const fetchDetail = async () => {
+        try {
+          setLoading(true);
+          const res = await frappeCall({
+            method: 'kyle_retail.retail_api.api.get_closing_entry_details',
+            args: { name: routeId },
+            type: 'POST'
+          });
+          if (res?.status === 'success' && res.data) {
+            setClosingDetailData(res.data);
+          } else {
+            setError(res?.message || 'Failed to fetch closing entry details');
+          }
+        } catch (err) {
+          setError(err.message || 'Error fetching closing entry details');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchDetail();
+    }
+  }, [routeId]);
   
   // Telephone Machine Balance state
   const [telephoneBalance, setTelephoneBalance] = useState('');
@@ -471,6 +503,142 @@ function ClosingEntry() {
     );
   }
 
+  if (isReadOnly || routeId) {
+    const detail = closingDetailData || {};
+    const reconciliations = detail.payment_reconciliation || [];
+    return (
+      <div className="pos-opening-detail-container">
+        <div className="pos-opening-detail-card">
+          <div className="pos-opening-detail-header">
+            <div>
+              <h1 className="pos-opening-detail-title">
+                <Receipt size={24} className="text-emerald-400" />
+                {routeId || 'POS Closing Entry'}
+              </h1>
+              <p className="pos-opening-detail-subtitle">Point of Sale Shift Closing & Settlement Record</p>
+            </div>
+            <span className="pos-opening-badge">
+              ● {detail.docstatus === 1 ? 'Submitted' : 'Draft'}
+            </span>
+          </div>
+
+          <div className="pos-opening-detail-body">
+            <div className="pos-opening-grid">
+              <div className="pos-opening-field-card">
+                <div className="pos-opening-field-label">
+                  <User className="w-3.5 h-3.5" />
+                  Closing Cashier / User
+                </div>
+                <div className="pos-opening-field-value">{detail.user || 'N/A'}</div>
+              </div>
+
+              <div className="pos-opening-field-card">
+                <div className="pos-opening-field-label">
+                  <Building2 className="w-3.5 h-3.5" />
+                  Company
+                </div>
+                <div className="pos-opening-field-value">{detail.company || 'N/A'}</div>
+              </div>
+
+              <div className="pos-opening-field-card">
+                <div className="pos-opening-field-label">
+                  <CreditCard className="w-3.5 h-3.5" />
+                  POS Profile
+                </div>
+                <div className="pos-opening-field-value">{detail.pos_profile || 'N/A'}</div>
+              </div>
+
+              <div className="pos-opening-field-card">
+                <div className="pos-opening-field-label">
+                  <Calendar className="w-3.5 h-3.5" />
+                  Shift Start Date
+                </div>
+                <div className="pos-opening-field-value">
+                  {detail.period_start_date ? new Date(detail.period_start_date).toLocaleString('en-IN', {
+                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                  }) : 'N/A'}
+                </div>
+              </div>
+
+              <div className="pos-opening-field-card">
+                <div className="pos-opening-field-label">
+                  <Calendar className="w-3.5 h-3.5" />
+                  Shift End Date
+                </div>
+                <div className="pos-opening-field-value">
+                  {detail.period_end_date ? new Date(detail.period_end_date).toLocaleString('en-IN', {
+                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                  }) : 'N/A'}
+                </div>
+              </div>
+            </div>
+
+            <h3 className="pos-opening-section-title">
+              <DirhamIcon size={18} className="text-emerald-600" />
+              Payment Reconciliation Summary
+            </h3>
+
+            <table className="pos-opening-table">
+              <thead>
+                <tr>
+                  <th>Mode of Payment</th>
+                  <th style={{ textAlign: 'right' }}>Opening</th>
+                  <th style={{ textAlign: 'right' }}>Expected</th>
+                  <th style={{ textAlign: 'right' }}>Closing</th>
+                  <th style={{ textAlign: 'right' }}>Difference</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reconciliations.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', color: '#94a3b8' }}>No payment reconciliations recorded</td>
+                  </tr>
+                ) : (
+                  reconciliations.map((r, idx) => (
+                    <tr key={idx}>
+                      <td className="font-semibold text-slate-800">{r.mode_of_payment}</td>
+                      <td style={{ textAlign: 'right' }}>AED {parseFloat(r.opening_amount || 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right' }}>AED {parseFloat(r.expected_amount || 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right' }} className="font-bold text-slate-900">AED {parseFloat(r.closing_amount || 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right', color: parseFloat(r.difference || 0) < 0 ? '#ef4444' : '#10b981', fontWeight: 700 }}>
+                        AED {parseFloat(r.difference || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            {detail.discrepancy_reason && (
+              <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '0.75rem', padding: '1rem 1.25rem', marginBottom: '1.5rem', color: '#9f1239' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Discrepancy Reason</div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{detail.discrepancy_reason}</div>
+              </div>
+            )}
+
+            <div className="pos-opening-hero-summary">
+              <div className="pos-opening-hero-label">Total Settled Grand Amount</div>
+              <div className="pos-opening-hero-amount">
+                <DirhamIcon size={26} /> {parseFloat(detail.grand_total || 0).toFixed(2)}
+              </div>
+            </div>
+
+            <div className="pos-opening-detail-footer">
+              <button
+                type="button"
+                onClick={() => navigate('/posclosingentrylist')}
+                className="pos-opening-back-btn"
+              >
+                <X className="w-4 h-4" />
+                <span>Back to Settlement List</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="so-page" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
@@ -736,9 +904,39 @@ function ClosingEntry() {
                 </div>
               </div>
 
-              {/* Two Column Layout for Denominations, Reconciliation and Details */}
+              {/* Two Column Layout for Closing Entry Sections */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* LEFT COLUMN: Counted UAE Cash Denominations -> Telephone Machine Balance -> Payment Reconciliation */}
                 <div className="space-y-6">
+                  {/* UAE Cash Denomination counting grid */}
+                  <div className="so-card">
+                    <div className="so-card-header">
+                      <span className="so-card-title flex items-center gap-2">
+                        <DollarSign size={16} style={{ color: themeColor }} />
+                        Counted UAE Cash Denominations
+                      </span>
+                    </div>
+                    <div className="p-5 bg-slate-50">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {UAE_DENOMINATIONS.map((d) => (
+                          <div key={d.value} className="bg-white rounded-lg p-2.5 shadow-xs border border-slate-200/60 flex flex-col justify-between">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                              {d.label}
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={denomCounts[d.value] || ''}
+                              onChange={(e) => handleDenomChange(d.value, e.target.value)}
+                              className="mt-1 w-full px-2 py-1 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-slate-500 focus:border-slate-500 transition-all outline-none font-semibold text-slate-800"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Telephone Machine Balance Section */}
                   <div className="so-card">
                     <div className="so-card-header">
@@ -791,35 +989,6 @@ function ClosingEntry() {
                     </div>
                   </div>
 
-                  {/* UAE Cash Denomination counting grid */}
-                  <div className="so-card">
-                    <div className="so-card-header">
-                      <span className="so-card-title flex items-center gap-2">
-                        <DollarSign size={16} style={{ color: themeColor }} />
-                        Counted UAE Cash Denominations
-                      </span>
-                    </div>
-                    <div className="p-5 bg-slate-50">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {UAE_DENOMINATIONS.map((d) => (
-                          <div key={d.value} className="bg-white rounded-lg p-2.5 shadow-xs border border-slate-200/60 flex flex-col justify-between">
-                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                              {d.label}
-                            </span>
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="0"
-                              value={denomCounts[d.value] || ''}
-                              onChange={(e) => handleDenomChange(d.value, e.target.value)}
-                              className="mt-1 w-full px-2 py-1 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-slate-500 focus:border-slate-500 transition-all outline-none font-semibold text-slate-800"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Reconciliation Table */}
                   <div className="so-card">
                     <div className="so-card-header">
@@ -868,6 +1037,7 @@ function ClosingEntry() {
                   </div>
                 </div>
 
+                {/* RIGHT COLUMN: Cash Discrepancy -> Tax Statistics */}
                 <div className="space-y-6">
                   {/* Discrepancy Warnings & Input */}
                   {cashReconciliation && flt(cashReconciliation.difference) !== 0 && (

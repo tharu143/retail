@@ -23,6 +23,7 @@ import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 
 const DEFAULT_DN_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
+    { id: 'item_name', label: 'Item Name', visible: true, width: 180 },
     { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
     { id: 'uom', label: 'UOM', visible: true, width: 90 },
     { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
@@ -170,11 +171,10 @@ const ItemDropdown = ({ query, onSelect, warehouse, targetRef }) => {
 
     useEffect(() => {
         const fetchItems = async () => {
-            if (!query || query.length < 1) return;
             setLoading(true);
             try {
                 const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_details', {
-                    params: { search_term: query, warehouse: warehouse }
+                    params: { search_term: query || '', warehouse: warehouse }
                 });
                 setResults(res.data.message || []);
             } catch (err) {
@@ -183,7 +183,7 @@ const ItemDropdown = ({ query, onSelect, warehouse, targetRef }) => {
                 setLoading(false);
             }
         };
-        const timer = setTimeout(fetchItems, 300);
+        const timer = setTimeout(fetchItems, query ? 250 : 0);
         return () => clearTimeout(timer);
     }, [query, warehouse]);
 
@@ -712,7 +712,7 @@ const DeliveryNoteDetails = () => {
             posting_time: new Date().toTimeString().slice(0, 5),
             customer: '', customer_name: '', set_warehouse: defaultWh,
             docstatus: 0, is_return: 0, return_against: '', currency: 'AED',
-            selling_price_list: 'Standard Selling', items: [],
+            selling_price_list: 'Standard Selling', items: [{ ...DNItemModel, qty: 1, rate: 0, amount: 0 }],
             taxes_and_charges: '', taxes: [],
             apply_discount_on: 'Grand Total',
             additional_discount_percentage: 0,
@@ -1746,8 +1746,12 @@ const DeliveryNoteDetails = () => {
                                                                                         className="so-td-input"
                                                                                         style={{ fontWeight: 700, padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
                                                                                         type="text"
-                                                                                        placeholder="SKU Code..."
+                                                                                        placeholder="SKU Code / Name..."
                                                                                         value={item.item_code}
+                                                                                        onFocus={() => {
+                                                                                            setActiveItemRow(idx);
+                                                                                            setItemQueries(prev => ({ ...prev, [idx]: item.item_code || '' }));
+                                                                                        }}
                                                                                         onChange={e => {
                                                                                             const val = e.target.value;
                                                                                             updateItem(idx, 'item_code', val);
@@ -1755,16 +1759,29 @@ const DeliveryNoteDetails = () => {
                                                                                             setActiveItemRow(idx);
                                                                                         }}
                                                                                     />
-                                                                                    {activeItemRow === idx && (itemQueries[idx] || '').length >= 1 && (
+                                                                                    {activeItemRow === idx && (
                                                                                         <ItemDropdown
                                                                                             targetRef={{ current: itemInputRefs.current[idx] }}
-                                                                                            query={itemQueries[idx]}
+                                                                                            query={itemQueries[idx] ?? item.item_code ?? ''}
                                                                                             warehouse={form.set_warehouse}
                                                                                             onSelect={(selected) => selectItem(idx, selected)}
                                                                                         />
                                                                                     )}
-                                                                                    {item.item_name && <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginTop: '0.2rem', paddingLeft: '0.25rem' }}>{item.item_name}</div>}
                                                                                 </div>
+                                                                            </td>
+                                                                        );
+
+                                                                    case 'item_name':
+                                                                        return (
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
+                                                                                <input
+                                                                                    className="so-td-input"
+                                                                                    style={{ fontWeight: 600, color: '#334155', padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
+                                                                                    type="text"
+                                                                                    placeholder="Item Name..."
+                                                                                    value={item.item_name || ''}
+                                                                                    onChange={(e) => updateItem(idx, 'item_name', e.target.value)}
+                                                                                />
                                                                             </td>
                                                                         );
 
